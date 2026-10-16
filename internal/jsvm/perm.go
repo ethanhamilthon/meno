@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 const (
@@ -12,9 +13,27 @@ const (
 )
 
 type Gate struct {
-	Mode    string
 	Root    string
 	Approve func(action, target string) bool
+
+	mu   sync.RWMutex
+	mode string
+}
+
+func NewGate(root, mode string, approve func(action, target string) bool) *Gate {
+	return &Gate{Root: root, mode: mode, Approve: approve}
+}
+
+func (g *Gate) SetMode(m string) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	g.mode = m
+}
+
+func (g *Gate) Mode() string {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	return g.mode
 }
 
 func (g *Gate) CheckPath(action, target string) error {
@@ -29,7 +48,7 @@ func (g *Gate) CheckCommand(cmd string) error {
 }
 
 func (g *Gate) approve(action, target string) error {
-	if g.Mode != ModeAsk {
+	if g.Mode() != ModeAsk {
 		return nil
 	}
 	if g.Approve == nil || !g.Approve(action, target) {

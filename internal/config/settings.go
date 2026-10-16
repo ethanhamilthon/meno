@@ -1,11 +1,15 @@
 package config
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 type Settings struct {
 	Model       string `json:"model"`
 	Effort      string `json:"effort"`
 	JSCode      string `json:"js_code"`
+	JSLines     int    `json:"js_lines"`
 	JSOutput    string `json:"js_output"`
 	Thinking    string `json:"thinking"`
 	JSTimeout   string `json:"js_timeout"`
@@ -17,6 +21,7 @@ func DefaultSettings() Settings {
 		Model:       "gpt-5.5",
 		Effort:      "high",
 		JSCode:      "full",
+		JSLines:     5,
 		JSOutput:    "on",
 		Thinking:    "on",
 		JSTimeout:   "30s",
@@ -25,7 +30,7 @@ func DefaultSettings() Settings {
 }
 
 var choices = map[string][]string{
-	"js_code":     {"full", "lines5", "off"},
+	"js_code":     {"full", "lines", "off"},
 	"js_output":   {"on", "off"},
 	"thinking":    {"on", "off"},
 	"js_timeout":  {"5s", "30s", "none"},
@@ -101,4 +106,19 @@ func (s *Settings) Cycle(key string, step int) string {
 	idx = ((idx+step)%n + n) % n
 	s.setRaw(key, opts[idx])
 	return opts[idx]
+}
+
+func (s *Settings) AdjustLines(delta int) int {
+	s.JSLines = min(50, max(1, s.JSLines+delta))
+	return s.JSLines
+}
+
+func (s Settings) TimeoutDuration() time.Duration {
+	switch s.JSTimeout {
+	case "5s":
+		return 5 * time.Second
+	case "30s":
+		return 30 * time.Second
+	}
+	return 0
 }

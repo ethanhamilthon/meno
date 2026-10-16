@@ -35,7 +35,7 @@ func (s *scripted) Stream(ctx context.Context, req llm.Request, emit func(llm.Ev
 }
 
 func newRunner(cl llm.Client, evs *[]Ev) *Runner {
-	vm := jsvm.New(jsvm.Options{Gate: &jsvm.Gate{Mode: jsvm.ModeAuto, Root: "."}, Timeout: 2 * time.Second})
+	vm := jsvm.New(jsvm.Options{Gate: jsvm.NewGate(".", jsvm.ModeAuto, nil), Timeout: 2 * time.Second})
 	return &Runner{D: Deps{
 		Client: cl, Provider: llm.Provider{Name: "t"}, Model: "m", VM: vm,
 		Thinking: true, Emit: func(e Ev) { *evs = append(*evs, e) },

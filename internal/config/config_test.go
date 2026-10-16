@@ -3,14 +3,15 @@ package config
 import (
 	"path/filepath"
 	"testing"
+	"time"
 
 	"meno/internal/llm"
 )
 
 func TestSettingsCycleWraps(t *testing.T) {
 	s := DefaultSettings()
-	if got := s.Cycle("js_code", 1); got != "lines5" {
-		t.Fatalf("want lines5 got %s", got)
+	if got := s.Cycle("js_code", 1); got != "lines" {
+		t.Fatalf("want lines got %s", got)
 	}
 	s.Cycle("js_code", 1)
 	if got := s.Cycle("js_code", 1); got != "full" {
@@ -86,5 +87,60 @@ func TestPathsEnvOverride(t *testing.T) {
 	}
 	if p.File("a.json") != "/tmp/mh/a.json" {
 		t.Fatal("file join")
+	}
+}
+
+func TestAdjustLinesClamps(t *testing.T) {
+	s := DefaultSettings()
+	if s.AdjustLines(-100) != 1 || s.AdjustLines(100) != 50 {
+		t.Fatal("clamp failed")
+	}
+}
+
+func TestTimeoutDuration(t *testing.T) {
+	s := DefaultSettings()
+	if s.TimeoutDuration() != 30*time.Second {
+		t.Fatal("30s")
+	}
+	s.JSTimeout = "none"
+	if s.TimeoutDuration() != 0 {
+		t.Fatal("none")
+	}
+}
+
+func TestServersRoundTrip(t *testing.T) {
+	st := NewStore(Paths{Home: t.TempDir()})
+	sv, _ := st.LoadServers()
+	if len(sv) != 4 {
+		t.Fatalf("defaults %d", len(sv))
+	}
+	if err := st.SaveServers(sv[:1]); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := st.LoadServers()
+	if len(got) != 1 {
+		t.Fatalf("roundtrip %d", len(got))
+	}
+}
+
+func TestPromptValidation(t *testing.T) {
+	if ValidatePrompt(Prompt{Name: "Bad Name", Template: "x"}) == nil {
+		t.Fatal("bad name accepted")
+	}
+	if ValidatePrompt(Prompt{Name: "ok-1", Template: "  "}) == nil {
+		t.Fatal("empty template accepted")
+	}
+	if ValidatePrompt(Prompt{Name: "#ok-1", Template: "x"}) != nil {
+		t.Fatal("hash prefix should be allowed")
+	}
+}
+
+func TestFilterSkills(t *testing.T) {
+	sk := DefaultSkills()
+	if len(FilterSkills(sk, "api")) != 1 {
+		t.Fatal("api filter")
+	}
+	if len(FilterSkills(sk, "")) != len(sk) {
+		t.Fatal("empty filter")
 	}
 }

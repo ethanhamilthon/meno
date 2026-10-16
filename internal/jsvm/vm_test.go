@@ -12,7 +12,7 @@ import (
 func newVM(t *testing.T, mode string, approve func(a, t string) bool) *VM {
 	t.Helper()
 	root := t.TempDir()
-	return New(Options{Gate: &Gate{Mode: mode, Root: root, Approve: approve}, Timeout: 2 * time.Second})
+	return New(Options{Gate: NewGate(root, mode, approve), Timeout: 2 * time.Second})
 }
 
 func TestGlobalsPersistAcrossExec(t *testing.T) {
@@ -112,7 +112,7 @@ func TestShellRunsInRootAndReturnsCode(t *testing.T) {
 }
 
 func TestTimeoutInterrupts(t *testing.T) {
-	v := New(Options{Gate: &Gate{Mode: ModeAuto, Root: t.TempDir()}, Timeout: 100 * time.Millisecond})
+	v := New(Options{Gate: NewGate(t.TempDir(), ModeAuto, nil), Timeout: 100 * time.Millisecond})
 	start := time.Now()
 	r := v.Exec(context.Background(), `while(true){}`)
 	if !r.TimedOut || !strings.Contains(r.Err, "timeout") || time.Since(start) > 3*time.Second {
@@ -180,7 +180,7 @@ func TestGlobMatching(t *testing.T) {
 func TestEditRespectsFileRoot(t *testing.T) {
 	root := t.TempDir()
 	os.WriteFile(filepath.Join(root, "f.txt"), []byte("abc"), 0o644)
-	v := New(Options{Gate: &Gate{Mode: ModeAuto, Root: root}})
+	v := New(Options{Gate: NewGate(root, ModeAuto, nil)})
 	v.Exec(context.Background(), `fs.edit("f.txt","b","B")`)
 	b, _ := os.ReadFile(filepath.Join(root, "f.txt"))
 	if string(b) != "aBc" {
