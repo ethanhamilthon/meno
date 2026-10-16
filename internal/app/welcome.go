@@ -6,10 +6,12 @@ import (
 	"meno/internal/ui"
 )
 
-var prismLines = []struct {
+type glyphLine struct {
 	text string
 	fg   tcell.Color
-}{
+}
+
+var prismLines = []glyphLine{
 	{"      . · ◆ · .      ", ui.FgDim},
 	{"    ╱     │     ╲    ", ui.Purple},
 	{"  ╱   ◇───┼───◇   ╲  ", ui.Purple},
@@ -19,10 +21,7 @@ var prismLines = []struct {
 	{"      ' · ◇ · '      ", ui.FgDim},
 }
 
-var wordmarkLines = []struct {
-	text string
-	fg   tcell.Color
-}{
+var wordmarkLines = []glyphLine{
 	{"███▄ ▄███  ▄██████▄  ███▄   ██   ▄██████▄", ui.FgWhite},
 	{"████▀████  ██▄▄▄▄██  █████▄ ██  ██      ██", ui.FgWhite},
 	{"██ ▀ ▀ ██  ██▀▀▀▀▀▀  ██ ▀█████  ██      ██", ui.Blue},
@@ -48,36 +47,51 @@ var hintsRight = []hint{
 	{":help", "все команды и хоткеи", ui.Purple},
 }
 
-func (a *App) drawWelcome(c ui.Canvas, x, y, w, h int) {
-	const heroW = 46
-	const logoGap = 4
-	block := len(prismLines)
-	total := block + 1 + len(wordmarkLines) + 2 + 2 + len(hintsLeft) + 2
-	top := y + max(0, (h-total)/2)
-	px := x + max(0, (w-heroW)/2)
-	for i, p := range prismLines {
-		c.Text(px, top+i, w, p.text, tcell.StyleDefault.Foreground(p.fg).Background(ui.BgTerm))
-	}
-	wx := px + 20 + logoGap
-	ty := top + 1
-	for i, wm := range wordmarkLines {
-		c.Text(wx, ty+i, w, wm.text, tcell.StyleDefault.Foreground(wm.fg).Background(ui.BgTerm))
-	}
-	meta := top + block + 1
-	c.Text(px+20+logoGap, meta, w, "meno v0.1", tcell.StyleDefault.Foreground(ui.FgSoft).Background(ui.BgTerm))
-	c.Text(px+20+logoGap+11, meta, w, "·", tcell.StyleDefault.Foreground(ui.FgDim).Background(ui.BgTerm))
-	c.Text(px+20+logoGap+13, meta, w, a.paths.Cwd, tcell.StyleDefault.Foreground(ui.FgDim).Background(ui.BgTerm))
+const (
+	prismW   = 20 // width of the prism column
+	logoGap  = 4  // cells between prism and wordmark
+	hintColW = 30
+)
 
-	grid := meta + 3
-	colL := x + max(0, (w-60)/2)
-	colR := colL + 30
+// drawWelcome lays out the hero block on one left edge: prism, then the wordmark
+// and meta row aligned to the wordmark's left column, then the hint grid.
+func (a *App) drawWelcome(c ui.Canvas, x, y, w, h int) {
+	wordW := 0
+	for _, wm := range wordmarkLines {
+		wordW = max(wordW, ui.TextWidth(wm.text))
+	}
+	heroW := prismW + logoGap + wordW
+	gridW := 2*hintColW + 6
+	blockH := len(prismLines) + 1 + len(wordmarkLines) + 2 + len(hintsLeft)*2 + 2
+	top := y + max(0, (h-blockH)/2)
+	left := x + max(0, (w-max(heroW, gridW))/2)
+
+	bg := ui.BgTerm
+	for i, p := range prismLines {
+		c.Text(left, top+i, w, p.text, tcell.StyleDefault.Foreground(p.fg).Background(bg))
+	}
+	wx := left + prismW + logoGap
+	for i, wm := range wordmarkLines {
+		c.Text(wx, top+1+i, w, wm.text, tcell.StyleDefault.Foreground(wm.fg).Background(bg))
+	}
+
+	metaY := top + 1 + len(wordmarkLines) + 1
+	ver := "meno v0.1"
+	c.Text(wx, metaY, w, ver, tcell.StyleDefault.Foreground(ui.FgSoft).Background(bg))
+	dotX := wx + ui.TextWidth(ver) + 2
+	c.Text(dotX, metaY, w, "·", tcell.StyleDefault.Foreground(ui.FgDim).Background(bg))
+	c.Text(dotX+2, metaY, w-(dotX+2-x), a.paths.Cwd, tcell.StyleDefault.Foreground(ui.FgDim).Background(bg))
+
+	gridY := metaY + 2
+	colL := left + max(0, (heroW-gridW)/2)
+	colR := colL + hintColW + 6
 	for i := range hintsLeft {
-		drawHint(c, colL, grid+i*2, hintsLeft[i])
-		drawHint(c, colR, grid+i*2, hintsRight[i])
+		drawHint(c, colL, gridY+i*2, hintsLeft[i])
+		drawHint(c, colR, gridY+i*2, hintsRight[i])
 	}
 }
 
 func drawHint(c ui.Canvas, x, y int, h hint) {
-	c.Text(x, y, 30, h.key, tcell.StyleDefault.Foreground(h.keyFG).Background(ui.BgTerm))
-	c.Text(x, y+1, 30, h.desc, tcell.StyleDefault.Foreground(ui.FgDim).Background(ui.BgTerm))
+	c.Text(x, y, hintColW, h.key, tcell.StyleDefault.Foreground(h.keyFG).Background(ui.BgTerm))
+	c.Text(x, y+1, hintColW, h.desc, tcell.StyleDefault.Foreground(ui.FgDim).Background(ui.BgTerm))
 }

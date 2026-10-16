@@ -32,20 +32,61 @@ func (a *App) jsOpts() ui.JSOpts {
 	return js
 }
 
-func (a *App) drawComposer(c ui.Canvas, x, y, w int) {
-	if a.st.Mode == ui.ModeCommand {
+// Composer geometry in terminal cells, derived from the design's 18/20 padding
+// scaled to the cell grid (1 cell = 10px horizontally, 1 row = 18px vertically).
+const (
+	composerPadX = 2
+	composerPadY = 1
+)
+
+// drawComposer draws the input band. Text starts at the padded origin; the cursor
+// is always visible, including on an empty input.
+func (a *App) drawComposer(c ui.Canvas, x, y, w, h int) {
+	textX := x + composerPadX
+	innerW := w - 2*composerPadX
+	row := y
+	if h > composerPadY+1 {
+		row = y + composerPadY
+	}
+	bg := ui.BgUser
+	if a.st.Toast != "" && len(a.st.Input) == 0 {
+		c.Text(textX, row, innerW, a.st.Toast, ui.Style{FG: ui.FgDim, BG: bg}.TCell())
 		return
 	}
-	text := string(a.st.Input)
-	if a.st.Toast != "" && text == "" {
-		c.Text(x+2, y, w-4, a.st.Toast, ui.Style{FG: ui.FgDim, BG: ui.BgUser}.TCell())
+	if len(a.st.Input) == 0 {
+		c.Text(textX, row, innerW, "▏", ui.Style{FG: ui.FgWhite, BG: bg}.TCell())
+		c.Text(textX+2, row, innerW-2, "напиши задачу, #промпт или :команду", ui.Style{FG: ui.FgDim, BG: bg}.TCell())
 		return
 	}
-	if text == "" {
-		c.Text(x+2, y, w-4, "напиши задачу, #промпт или :команду", ui.Style{FG: ui.FgDim, BG: ui.BgUser}.TCell())
-		return
+	c.Text(textX, row, innerW, string(a.st.Input)+"▏", ui.Style{FG: ui.FgWhite, BG: bg}.TCell())
+}
+
+func (a *App) drawCommandList(c ui.Canvas, x, y, w int) {
+	for i, name := range commandRows(a) {
+		bg, fg := ui.BgPopup, ui.FgSoft
+		mark := " "
+		if i == 0 {
+			bg, fg, mark = ui.BgPopupSel, ui.FgWhite, "▸"
+		}
+		c.Fill(x, y+i, w, 1, bg)
+		c.Text(x+2, y+i, 2, mark, ui.Style{FG: ui.Blue, BG: bg}.TCell())
+		c.Text(x+4, y+i, 20, name, ui.Style{FG: fg, BG: bg}.TCell())
+		c.Text(x+24, y+i, w-26, cmdDesc(name), ui.Style{FG: ui.FgDim, BG: bg}.TCell())
 	}
-	c.Text(x+2, y, w-4, text+"▏", ui.Style{FG: ui.FgWhite, BG: ui.BgUser}.TCell())
+}
+
+func cmdDesc(name string) string {
+	for _, c := range commandList {
+		if c.name == name {
+			return c.desc
+		}
+	}
+	return ""
+}
+
+func (a *App) drawCommandLine(c ui.Canvas, x, y, w int) {
+	c.Fill(x, y, w, 1, ui.BgTerm)
+	c.Text(x+2, y, w-4, ":"+string(a.st.Cmd)+"█", ui.Style{FG: ui.FgWhite, BG: ui.BgTerm}.TCell())
 }
 
 func commandRows(a *App) []string {

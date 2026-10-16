@@ -160,3 +160,39 @@ func TestVisualModeShowsHintAndSelection(t *testing.T) {
 		t.Fatal("visual hint missing")
 	}
 }
+
+func TestCommandModeShowsListAndLine(t *testing.T) {
+	a, scr := newTestApp(t)
+	defer scr.Fini()
+	a.onKey(key(':'))
+	typeRunes(a, "mo")
+	a.draw()
+	out := screenText(scr)
+	if !strings.Contains(out, ":mo█") {
+		t.Fatalf("command line missing:\n%s", out)
+	}
+	if !strings.Contains(out, ":model") {
+		t.Fatalf("command list missing:\n%s", out)
+	}
+}
+
+func TestEmptyComposerShowsCursor(t *testing.T) {
+	a, scr := newTestApp(t)
+	defer scr.Fini()
+	a.draw()
+	if !strings.Contains(screenText(scr), "▏") {
+		t.Fatal("cursor missing on empty composer")
+	}
+}
+
+func TestCommandEnterRunsCommand(t *testing.T) {
+	a, scr := newTestApp(t)
+	defer scr.Fini()
+	a.onKey(key(':'))
+	typeRunes(a, "help")
+	a.onKey(keyK(tcell.KeyEnter))
+	if a.st.Over != OverHelp {
+		t.Fatalf("command :help did not open help overlay (over=%v)", a.st.Over)
+	}
+	_ = scr
+}
