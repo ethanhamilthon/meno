@@ -28,6 +28,7 @@ const (
 	EvJSStart = "js_start"
 	EvJSEnd   = "js_end"
 	EvDone    = "done"
+	EvUsage   = "usage"
 	EvError   = "error"
 	EvAborted = "aborted"
 )
@@ -110,7 +111,7 @@ func (r *Runner) streamOnce(ctx context.Context, s *Session) ([]call, string, er
 		case llm.EvError:
 			streamErr = errors.New(e.Text)
 		case llm.EvDone:
-			r.D.Emit(Ev{Kind: "usage", Usage: e.Usage})
+			r.D.Emit(Ev{Kind: EvUsage, Usage: e.Usage})
 		}
 	})
 	if err == nil {

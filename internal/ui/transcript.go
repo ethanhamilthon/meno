@@ -11,12 +11,13 @@ type JSMode int
 
 const (
 	JSFull JSMode = iota
-	JSLines5
+	JSLines
 	JSOff
 )
 
 type JSOpts struct {
 	Mode   JSMode
+	Lines  int
 	Output bool
 }
 
@@ -51,8 +52,8 @@ func jsBlock(t agent.Turn, w int, js JSOpts) []Line {
 	var out []Line
 	if js.Mode != JSOff {
 		max := 0
-		if js.Mode == JSLines5 {
-			max = 5
+		if js.Mode == JSLines {
+			max = js.Lines
 		}
 		out = append(out, CodeLines(t.Code, BgJSDone, max)...)
 	}

@@ -1,0 +1,204 @@
+package app
+
+import (
+	"errors"
+	"sort"
+	"strings"
+
+	"github.com/gdamore/tcell/v2"
+
+	"meno/internal/mcp"
+	"meno/internal/ui"
+)
+
+var mcpTransports = []string{"stdio", "sse", "streamable-http"}
+
+func mcpTarget(s mcp.Server) string {
+	if s.URL != "" {
+		return s.URL
+	}
+	return s.Command
+}
+
+func (a *App) mcpItems() []item {
+	var out []item
+	for _, s := range a.st.Servers {
+		g, gfg := "○", ui.FgDim
+		right := "stopped"
+		switch {
+		case !s.Enabled:
+			right = "disabled"
+		case a.mcp.Running(s.Name):
+			g, gfg = "●", ui.Green
+			right = s.Transport + " · running"
+		case a.mcp.Err(s.Name) != "":
+			right = "error"
+		}
+		out = append(out, item{glyph: g, glyphFG: gfg, label: s.Name, right: right, detail: mcpTarget(s)})
+	}
+	return append(out, item{glyph: "+", glyphFG: ui.Blue, label: "new mcp server", accent: true})
+}
+
+func (a *App) mcpKey(k *tcell.EventKey) {
+	n := len(a.st.Servers)
+	switch {
+	case a.navKey(k, n+1, true):
+	case k.Key() == tcell.KeyEnter:
+		a.openMCPEdit(a.st.Sel)
+	case k.Rune() == 'n':
+		a.openMCPEdit(-1)
+	case k.Rune() == ' ' && a.st.Sel < n:
+		s := &a.st.Servers[a.st.Sel]
+		s.Enabled = !s.Enabled
+		a.persistServers()
+		a.startMCP(a.st.Sel)
+	case k.Rune() == 'r' && a.st.Sel < n:
+		a.startMCP(a.st.Sel)
+	}
+}
+
+func (a *App) startMCP(i int) {
+	if i < 0 || i >= len(a.st.Servers) {
+		return
+	}
+	s := a.st.Servers[i]
+	if !s.Enabled {
+		a.mcp.Stop(s.Name)
+		return
+	}
+	if err := a.mcp.Start(contextBG(), s); err != nil {
+		a.st.Toast = s.Name + ": " + err.Error()
+	}
+}
+
+func (a *App) openMCPEdit(i int) {
+	if i < 0 || i >= len(a.st.Servers) {
+		a.st.EditMCP = mcp.Server{Transport: "stdio", Enabled: true}
+		a.st.EditIdx = -1
+	} else {
+		a.st.EditMCP = a.st.Servers[i]
+		a.st.EditIdx = i
+	}
+	a.openOverlay(OverMCPEdit)
+}
+
+func (a *App) drawMCP(c ui.Canvas, w, h int) {
+	running := 0
+	for _, n := range a.mcp.Names() {
+		if a.mcp.Running(n) {
+			running++
+		}
+	}
+	header := titleRow("mcp servers", itoa(running)+" running · "+itoa(a.mcp.ToolCount())+" tools")
+	listBox(c, w, h, 620, header, a.mcpItems(), a.st.Sel,
+		"j/k select · space toggle · enter edit · n new · r restart · esc close")
+}
+
+func (a *App) mcpFields() []field {
+	s := &a.st.EditMCP
+	return []field{
+		{label: "name", get: func() string { return s.Name }, set: func(v string) error { s.Name = v; return nil }},
+		{label: "transport", opts: mcpTransports, get: func() string { return s.Transport }, set: func(v string) error { s.Transport = v; return nil }},
+		{label: "command", get: func() string { return s.Command }, set: func(v string) error { s.Command = v; return nil }},
+		{label: "url", get: func() string { return s.URL }, set: func(v string) error { s.URL = v; return nil }},
+		{label: "env", get: func() string { return envString(s.Env) }, set: func(v string) error {
+			m, err := parseEnv(v)
+			if err != nil {
+				return err
+			}
+			s.Env = m
+			return nil
+		}},
+	}
+}
+
+func (a *App) mcpEditKey(k *tcell.EventKey) {
+	a.formKey(k, a.mcpFields())
+	switch {
+	case k.Key() == tcell.KeyCtrlS:
+		a.saveMCPEdit()
+	case k.Rune() == 'r' && !a.st.Editing && a.st.EditIdx >= 0:
+		a.startMCP(a.st.EditIdx)
+	case k.Rune() == 'd' && !a.st.Editing && a.st.EditIdx >= 0:
+		name := a.st.Servers[a.st.EditIdx].Name
+		a.mcp.Stop(name)
+		a.st.Servers = append(a.st.Servers[:a.st.EditIdx], a.st.Servers[a.st.EditIdx+1:]...)
+		a.persistServers()
+		a.openOverlay(OverMCP)
+	}
+}
+
+func (a *App) saveMCPEdit() {
+	s := a.st.EditMCP
+	if err := mcp.ValidateServer(s); err != nil {
+		a.st.Toast = err.Error()
+		return
+	}
+	for j, o := range a.st.Servers {
+		if j != a.st.EditIdx && o.Name == s.Name {
+			a.st.Toast = "mcp server " + s.Name + " already exists"
+			return
+		}
+	}
+	if a.st.EditIdx >= 0 && a.st.EditIdx < len(a.st.Servers) {
+		if old := a.st.Servers[a.st.EditIdx].Name; old != s.Name {
+			a.mcp.Stop(old)
+		}
+		a.st.Servers[a.st.EditIdx] = s
+	} else {
+		a.st.Servers = append(a.st.Servers, s)
+		a.st.EditIdx = len(a.st.Servers) - 1
+	}
+	a.persistServers()
+	a.startMCP(a.st.EditIdx)
+	a.st.Toast = "mcp saved"
+}
+
+func (a *App) drawMCPEdit(c ui.Canvas, w, h int) {
+	fs := a.mcpFields()
+	b := centered(w, h, 620, len(fs)+6)
+	b.frame(c)
+	b.put(c, 2, 0, "mcp /", ui.FgDim, ui.BgPopup)
+	name := a.st.EditMCP.Name
+	if name == "" {
+		name = "new server"
+	}
+	b.put(c, 8, 0, name, ui.Blue, ui.BgPopup)
+	if a.st.EditIdx >= 0 && a.mcp.Running(name) {
+		b.putRight(c, 0, "● running", ui.Green, ui.BgPopup)
+	} else {
+		b.putRight(c, 0, "○ stopped", ui.FgDim, ui.BgPopup)
+	}
+	drawForm(c, b, 2, fs, a.st.Field, a.st.Editing, string(a.st.Buffer))
+	b.hint(c, "j/k move · enter edit · ctrl+s save · r restart · d delete · esc back")
+}
+
+func envString(m map[string]string) string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	parts := make([]string, 0, len(keys))
+	for _, k := range keys {
+		parts = append(parts, k+"="+m[k])
+	}
+	return strings.Join(parts, ", ")
+}
+
+func parseEnv(s string) (map[string]string, error) {
+	out := map[string]string{}
+	for _, part := range strings.Split(s, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		k, v, ok := strings.Cut(part, "=")
+		k = strings.TrimSpace(k)
+		if !ok || k == "" {
+			return nil, errors.New("env: expected KEY=VALUE, got " + part)
+		}
+		out[k] = strings.TrimSpace(v)
+	}
+	return out, nil
+}
