@@ -11,8 +11,7 @@ import (
 )
 
 func (a *App) modelList() []llm.Model {
-	q := string(a.st.Query)
-	return llm.Filter(q)
+	return llm.FilterModels(a.allModels(), string(a.st.Query))
 }
 
 func (a *App) modelKey(k *tcell.EventKey) {
@@ -25,7 +24,9 @@ func (a *App) modelKey(k *tcell.EventKey) {
 		a.st.Settings.Cycle("effort", 1)
 	case k.Key() == tcell.KeyEnter:
 		if len(list) > 0 {
-			a.st.Settings.Model = list[clampSel(a.st.Sel, len(list))].ID
+			pick := list[clampSel(a.st.Sel, len(list))]
+			a.st.Settings.Model = pick.ID
+			a.st.Settings.Provider = pick.Provider
 			a.persistSettings()
 			a.closeOverlay()
 		}
@@ -46,7 +47,7 @@ func (a *App) drawModel(c ui.Canvas, w, h int) {
 	bh := 2 + 1 + 1 + 1 + min(len(list), 8)*1 + 2 + 2
 	b := centered(w, h, bw, bh)
 	b.frame(c)
-	searchRow(c, b, 0, string(a.st.Query), itoa(len(list))+" / "+itoa(len(llm.Catalog())))
+	searchRow(c, b, 0, string(a.st.Query), itoa(len(list))+" / "+itoa(len(a.allModels())))
 	y := 2
 	for i, m := range list {
 		if i >= 8 {
@@ -65,11 +66,7 @@ func (a *App) drawModel(c ui.Canvas, w, h int) {
 		y++
 		if sel {
 			b.fill(c, y, bg)
-			spec := itoa(m.Ctx/1000) + "k ctx · " + itoa(m.MaxOut/1000) + "k out"
-			if m.Reasoning {
-				spec += " · reasoning"
-			}
-			b.put(c, 4, y, spec, ui.FgDim, bg)
+			b.put(c, 4, y, "provider "+m.Provider, ui.FgDim, bg)
 			y++
 		}
 	}

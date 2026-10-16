@@ -39,6 +39,9 @@ type State struct {
 
 	Settings  config.Settings
 	Providers []llm.Provider
+	Models    map[string][]llm.Model // provider name -> fetched model ids
+	ModelErr  map[string]string      // provider name -> last fetch error
+	Loading   map[string]bool
 	Skills    []config.Skill
 	Servers   []mcp.Server
 	Prompts   []config.Prompt
@@ -62,5 +65,11 @@ type State struct {
 }
 
 func NewState() *State {
-	return &State{Mode: ui.ModeInsert, Settings: config.DefaultSettings()}
+	return &State{
+		Mode:     ui.ModeInsert,
+		Settings: config.DefaultSettings(),
+		Models:   map[string][]llm.Model{},
+		ModelErr: map[string]string{},
+		Loading:  map[string]bool{},
+	}
 }

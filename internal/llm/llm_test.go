@@ -45,17 +45,50 @@ func TestMask(t *testing.T) {
 	}
 }
 
-func TestFilterCatalog(t *testing.T) {
-	if len(Filter("")) != len(Catalog()) {
-		t.Fatal("empty filter")
+func TestFilterModels(t *testing.T) {
+	all := []Model{{ID: "gpt-5.5", Provider: "openai"}, {ID: "llama3.1", Provider: "local"}}
+	if len(FilterModels(all, "")) != 2 {
+		t.Fatal("empty filter must keep all")
 	}
-	for _, m := range Filter("gpt") {
+	for _, m := range FilterModels(all, "GPT") {
 		if !strings.Contains(m.ID, "gpt") {
 			t.Fatalf("leak %s", m.ID)
 		}
 	}
-	if _, ok := Lookup("gpt-5.5"); !ok {
-		t.Fatal("lookup")
+	if len(FilterModels(all, "zzz")) != 0 {
+		t.Fatal("no match should be empty")
+	}
+}
+
+func TestParseModelsSortsAndRejectsEmpty(t *testing.T) {
+	ms, err := parseModels("p", []byte(`{"data":[{"id":"b"},{"id":"a"},{"id":""}]}`))
+	if err != nil || len(ms) != 2 || ms[0].ID != "a" || ms[0].Provider != "p" {
+		t.Fatalf("got %+v %v", ms, err)
+	}
+	if _, err := parseModels("p", []byte(`{"data":[]}`)); err == nil {
+		t.Fatal("empty list must error")
+	}
+	if _, err := parseModels("p", []byte(`not json`)); err == nil {
+		t.Fatal("bad json must error")
+	}
+}
+
+func TestFetchModelsUsesBearerAndSkipsHostOnError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/models" || r.Header.Get("Authorization") != "Bearer k" {
+			w.WriteHeader(401)
+			return
+		}
+		w.Write([]byte(`{"data":[{"id":"m1"}]}`))
+	}))
+	defer srv.Close()
+	ms, err := FetchModels(context.Background(), Provider{Name: "p", BaseURL: srv.URL + "/v1", APIKey: "k", Protocol: ProtoChat})
+	if err != nil || len(ms) != 1 || ms[0].ID != "m1" {
+		t.Fatalf("got %+v %v", ms, err)
+	}
+	_, err = FetchModels(context.Background(), Provider{Name: "p", BaseURL: srv.URL + "/v1", Protocol: ProtoChat})
+	if err == nil {
+		t.Fatal("401 must be an error")
 	}
 }
 

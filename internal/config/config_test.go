@@ -58,11 +58,11 @@ func TestStoreSettingsPersist(t *testing.T) {
 func TestStoreMissingFilesGiveDefaults(t *testing.T) {
 	st := NewStore(Paths{Home: filepath.Join(t.TempDir(), "none")})
 	s, err := st.LoadSettings()
-	if err != nil || s.Model != "gpt-5.5" {
-		t.Fatalf("defaults: %v %+v", err, s)
+	if err != nil || s.Model != "" || s.Provider != "" {
+		t.Fatalf("no model/provider must be preselected: %v %+v", err, s)
 	}
 	ps, err := st.LoadProviders()
-	if err != nil || len(ps) != 4 {
+	if err != nil || len(ps) != 0 {
 		t.Fatalf("providers defaults: %v %d", err, len(ps))
 	}
 }

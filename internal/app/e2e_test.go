@@ -46,6 +46,7 @@ func e2eApp(t *testing.T, cl llm.Client) (*App, tcell.SimulationScreen, config.P
 		t.Fatal(err)
 	}
 	s := config.DefaultSettings()
+	s.Provider = "openai"
 	s.Model = "gpt-5.5"
 	if err := st.SaveSettings(s); err != nil {
 		t.Fatal(err)
@@ -130,6 +131,7 @@ func TestE2EProviderMissingShowsToast(t *testing.T) {
 	a, scr, _ := e2eApp(t, cl)
 	defer scr.Fini()
 	a.st.Settings.Model = "no-such-model-xyz"
+	a.st.Settings.Provider = ""
 	typeRunes(a, "привет")
 	a.onKey(keyK(tcell.KeyEnter))
 	if a.st.Running {

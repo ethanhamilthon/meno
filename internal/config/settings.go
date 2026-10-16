@@ -6,6 +6,7 @@ import (
 )
 
 type Settings struct {
+	Provider    string `json:"provider"`
 	Model       string `json:"model"`
 	Effort      string `json:"effort"`
 	JSCode      string `json:"js_code"`
@@ -18,7 +19,6 @@ type Settings struct {
 
 func DefaultSettings() Settings {
 	return Settings{
-		Model:       "gpt-5.5",
 		Effort:      "high",
 		JSCode:      "full",
 		JSLines:     5,

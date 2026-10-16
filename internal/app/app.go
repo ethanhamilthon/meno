@@ -32,6 +32,11 @@ type App struct {
 
 type agentEv struct{ ev agent.Ev }
 type turnDone struct{ err error }
+type modelsLoaded struct {
+	provider string
+	models   []llm.Model
+	err      error
+}
 type approvalReq struct {
 	action, target string
 	reply          chan bool
@@ -123,6 +128,8 @@ func (a *App) handle(msg any) {
 		a.scr.Sync()
 	case agentEv:
 		a.onAgent(m.ev)
+	case modelsLoaded:
+		a.onModelsLoaded(m)
 	case turnDone:
 		a.onTurnDone(m.err)
 	case approvalReq:

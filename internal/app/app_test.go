@@ -46,8 +46,8 @@ func TestMainScreenRenders(t *testing.T) {
 	if !strings.Contains(out, "INSERT") {
 		t.Fatalf("status badge missing:\n%s", out)
 	}
-	if !strings.Contains(out, "gpt-5.5 (high)") {
-		t.Fatalf("model label missing:\n%s", out)
+	if !strings.Contains(out, "(high)") {
+		t.Fatalf("effort label missing:\n%s", out)
 	}
 }
 

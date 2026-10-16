@@ -36,6 +36,7 @@ func (a *App) runCommand(raw string) {
 	case "help":
 		a.openOverlay(OverHelp)
 	case "model":
+		a.fetchModels()
 		a.openOverlay(OverModel)
 	case "settings":
 		a.openOverlay(OverSettings)

@@ -17,15 +17,6 @@ type Provider struct {
 	Protocol string `json:"protocol"`
 }
 
-func DefaultProviders() []Provider {
-	return []Provider{
-		{Name: "openai", BaseURL: "https://api.openai.com/v1", Protocol: ProtoResponses},
-		{Name: "anthropic", BaseURL: "https://api.anthropic.com/v1", Protocol: ProtoChat},
-		{Name: "openrouter", BaseURL: "https://openrouter.ai/api/v1", Protocol: ProtoChat},
-		{Name: "local", BaseURL: "http://localhost:11434/v1", Protocol: ProtoChat},
-	}
-}
-
 func Validate(p Provider) error {
 	if strings.TrimSpace(p.Name) == "" {
 		return errors.New("name is required")

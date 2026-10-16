@@ -83,8 +83,11 @@ func isAbort(err error) bool {
 }
 
 func (a *App) currentProvider() (llm.Provider, bool) {
+	if a.st.Settings.Model == "" || a.st.Settings.Provider == "" {
+		return llm.Provider{}, false
+	}
 	for _, p := range a.st.Providers {
-		if m, ok := llm.Lookup(a.st.Settings.Model); ok && m.Provider == p.Name {
+		if p.Name == a.st.Settings.Provider {
 			return p, true
 		}
 	}

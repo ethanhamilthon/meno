@@ -24,9 +24,6 @@ func (s *Store) SaveSettings(st Settings) error {
 func (s *Store) LoadProviders() ([]llm.Provider, error) {
 	var ps []llm.Provider
 	err := store.LoadJSON(s.P.File("providers.json"), &ps)
-	if len(ps) == 0 {
-		ps = llm.DefaultProviders()
-	}
 	return ps, err
 }
 

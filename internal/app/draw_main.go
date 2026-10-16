@@ -14,12 +14,17 @@ func (a *App) drawMain(c ui.Canvas, w, h int) {
 	a.drawBottom(c, 0, logH, w, bottom)
 }
 
+// composerRows: top padding, text row, bottom padding (design: 18/20 padding band).
+const composerRows = composerPadY*2 + 1
+
 func (a *App) bottomHeight() int {
 	n := 0
 	if a.st.Mode == ui.ModeCommand {
-		n = len(commandRows(a))
+		n = len(commandRows(a)) + 1
+	} else {
+		n = composerRows
 	}
-	return n + a.acHeight() + 2
+	return n + a.acHeight() + 1
 }
 
 func (a *App) drawLog(c ui.Canvas, x, y, w, h int, lines []ui.Line) {
