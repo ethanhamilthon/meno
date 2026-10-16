@@ -58,7 +58,7 @@ func ToolSchema() map[string]any {
 	return map[string]any{
 		"type":        "function",
 		"name":        ToolName,
-		"description": "Execute JavaScript in a persistent JavaScript VM. Globals persist across calls. Helpers: fs.read/write/edit/glob/exists, sh(cmd), print(...), await-able.",
+		"description": "Execute JavaScript in a persistent VM. Top-level declarations persist across calls (use globalThis.x for code using await, since such code runs inside an async function). Helpers: fs.read/write/edit/glob/exists, sh(cmd), print(...). fs and sh(cmd) are async-capable via await.",
 		"parameters": map[string]any{
 			"type":       "object",
 			"properties": map[string]any{"code": map[string]any{"type": "string"}},
