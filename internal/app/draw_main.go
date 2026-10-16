@@ -5,7 +5,7 @@ import "meno/internal/ui"
 func (a *App) drawMain(c ui.Canvas, w, h int) {
 	bottom := a.bottomHeight()
 	logH := h - bottom
-	lines := a.transcriptLines(w)
+	lines := a.transcriptWithSelection(w)
 	if len(lines) == 0 {
 		a.drawWelcome(c, 0, 0, w, logH)
 	} else {
@@ -53,7 +53,11 @@ func (a *App) drawBottom(c ui.Canvas, x, y, w, h int) {
 
 func (a *App) drawStatus(c ui.Canvas, x, y, w int) {
 	left := []ui.Seg{{Text: " " + a.st.Mode.Label() + " ", FG: ui.FgBlack}}
-	mid := []ui.Seg{{Text: a.statsText(), FG: ui.FgDim}}
+	midText := a.statsText()
+	if h := a.visualHint(); h != "" {
+		midText = h
+	}
+	mid := []ui.Seg{{Text: midText, FG: ui.FgDim}}
 	right := []ui.Seg{
 		{Text: "● ", FG: ui.Green},
 		{Text: a.modelLabel(), FG: ui.FgDim},

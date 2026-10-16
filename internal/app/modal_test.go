@@ -6,7 +6,9 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 
+	"meno/internal/agent"
 	"meno/internal/config"
+	"meno/internal/llm"
 	"meno/internal/ui"
 )
 
@@ -141,5 +143,20 @@ func TestPromptAutocompleteEscLeavesInsert(t *testing.T) {
 	a.onKey(keyK(tcell.KeyEsc))
 	if a.st.Mode != ui.ModeNormal || a.acActive() || string(a.st.Input) != "#r" {
 		t.Fatalf("esc: mode=%v input=%q", a.st.Mode, string(a.st.Input))
+	}
+}
+
+func TestVisualModeShowsHintAndSelection(t *testing.T) {
+	a, scr := newTestApp(t)
+	defer scr.Fini()
+	a.st.Session.Append(agent.Turn{Role: llm.RoleUser, Text: "hi"})
+	a.onKey(keyK(tcell.KeyEsc))
+	a.onKey(key('v'))
+	if a.st.Mode != ui.ModeVisual {
+		t.Fatalf("mode %v", a.st.Mode)
+	}
+	a.draw()
+	if !strings.Contains(screenText(scr), "y yank") {
+		t.Fatal("visual hint missing")
 	}
 }
