@@ -53,14 +53,14 @@ func TestTurnWithJSThenAnswer(t *testing.T) {
 	if err := r.Turn(context.Background(), s, "q"); err != nil {
 		t.Fatal(err)
 	}
-	if len(s.Turns) != 3 {
-		t.Fatalf("turns %d: %+v", len(s.Turns), s.Turns)
+	if len(s.Snapshot()) != 3 {
+		t.Fatalf("turns %d: %+v", len(s.Snapshot()), s.Snapshot())
 	}
-	if s.Turns[1].Code != "print(2*21)" || !strings.Contains(s.Turns[1].Output, "42") || s.Turns[1].Text != "checking" {
-		t.Fatalf("js turn: %+v", s.Turns[1])
+	if s.Snapshot()[1].Code != "print(2*21)" || !strings.Contains(s.Snapshot()[1].Output, "42") || s.Snapshot()[1].Text != "checking" {
+		t.Fatalf("js turn: %+v", s.Snapshot()[1])
 	}
-	if s.Turns[2].Text != "answer 42" {
-		t.Fatalf("final: %+v", s.Turns[2])
+	if s.Snapshot()[2].Text != "answer 42" {
+		t.Fatalf("final: %+v", s.Snapshot()[2])
 	}
 	kinds := map[string]int{}
 	for _, e := range evs {
@@ -82,8 +82,8 @@ func TestJSErrorIsFedBack(t *testing.T) {
 	if err := r.Turn(context.Background(), s, "q"); err != nil {
 		t.Fatal(err)
 	}
-	if s.Turns[1].Err == "" {
-		t.Fatalf("error not recorded: %+v", s.Turns[1])
+	if s.Snapshot()[1].Err == "" {
+		t.Fatalf("error not recorded: %+v", s.Snapshot()[1])
 	}
 	msgs := s.ToMsgs()
 	found := false
@@ -120,7 +120,7 @@ func TestAbortMarksSession(t *testing.T) {
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("want canceled, got %v", err)
 	}
-	if s.Turns[len(s.Turns)-1].Text != "[aborted]" {
+	if s.Snapshot()[len(s.Snapshot())-1].Text != "[aborted]" {
 		t.Fatalf("abort not recorded")
 	}
 }
@@ -138,7 +138,7 @@ func TestStreamErrorSurfaces(t *testing.T) {
 func TestSessionSaveLoadList(t *testing.T) {
 	dir := t.TempDir()
 	s := NewSession(".", "m")
-	s.Turns = []Turn{{Role: llm.RoleUser, Text: "проверь роуты"}, {Role: llm.RoleAssistant, Code: "1", Output: "1"}}
+	s.Replace([]Turn{{Role: llm.RoleUser, Text: "проверь роуты"}, {Role: llm.RoleAssistant, Code: "1", Output: "1"}})
 	if err := SaveSession(dir, s); err != nil {
 		t.Fatal(err)
 	}
@@ -176,11 +176,11 @@ func TestCompactKeepsTail(t *testing.T) {
 	cl := &scripted{steps: [][]llm.Event{{{Kind: llm.EvText, Text: "SUMMARY"}}}}
 	s := NewSession(".", "m")
 	for i := 0; i < 10; i++ {
-		s.Turns = append(s.Turns, Turn{Role: llm.RoleUser, Text: strings.Repeat("x", 400)})
+		s.Append(Turn{Role: llm.RoleUser, Text: strings.Repeat("x", 400)})
 	}
 	before, after, err := Compact(context.Background(), cl, llm.Provider{}, "m", s)
-	if err != nil || len(s.Turns) != keepTail || s.Summary != "SUMMARY" || after >= before {
-		t.Fatalf("compact: %v before=%d after=%d turns=%d", err, before, after, len(s.Turns))
+	if err != nil || len(s.Snapshot()) != keepTail || s.Summary != "SUMMARY" || after >= before {
+		t.Fatalf("compact: %v before=%d after=%d turns=%d", err, before, after, len(s.Snapshot()))
 	}
 	if msgs := s.ToMsgs(); msgs[0].Role != llm.RoleUser || !strings.Contains(msgs[0].Text, "SUMMARY") {
 		t.Fatal("summary not injected")

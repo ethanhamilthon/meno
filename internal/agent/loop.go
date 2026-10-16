@@ -48,7 +48,7 @@ type Runner struct {
 }
 
 func (r *Runner) Turn(ctx context.Context, s *Session, userText string) error {
-	s.Turns = append(s.Turns, Turn{Role: llm.RoleUser, Text: userText})
+	s.Append(Turn{Role: llm.RoleUser, Text: userText})
 	for step := 0; step < MaxSteps; step++ {
 		if err := ctx.Err(); err != nil {
 			return r.abort(s)
@@ -62,7 +62,7 @@ func (r *Runner) Turn(ctx context.Context, s *Session, userText string) error {
 			return err
 		}
 		if len(calls) == 0 {
-			s.Turns = append(s.Turns, Turn{Role: llm.RoleAssistant, Text: text})
+			s.Append(Turn{Role: llm.RoleAssistant, Text: text})
 			r.D.Emit(Ev{Kind: EvDone})
 			return nil
 		}
@@ -79,7 +79,7 @@ func (r *Runner) Turn(ctx context.Context, s *Session, userText string) error {
 }
 
 func (r *Runner) abort(s *Session) error {
-	s.Turns = append(s.Turns, Turn{Role: llm.RoleAssistant, Text: "[aborted]"})
+	s.Append(Turn{Role: llm.RoleAssistant, Text: "[aborted]"})
 	r.D.Emit(Ev{Kind: EvAborted})
 	return context.Canceled
 }
@@ -129,7 +129,7 @@ func (r *Runner) runJS(ctx context.Context, s *Session, text string, c call) err
 	if res.Err == "" && res.Value != "" {
 		turn.Output += res.Value
 	}
-	s.Turns = append(s.Turns, turn)
+	s.Append(turn)
 	r.D.Emit(Ev{Kind: EvJSEnd, CallID: c.ID, Output: turn.Output, Err: res.Err})
 	return ctx.Err()
 }

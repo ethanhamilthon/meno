@@ -2,6 +2,7 @@ package config
 
 import (
 	"meno/internal/llm"
+	"meno/internal/store"
 )
 
 type Store struct {
@@ -12,17 +13,17 @@ func NewStore(p Paths) *Store { return &Store{P: p} }
 
 func (s *Store) LoadSettings() (Settings, error) {
 	st := DefaultSettings()
-	err := LoadJSON(s.P.File("settings.json"), &st)
+	err := store.LoadJSON(s.P.File("settings.json"), &st)
 	return st, err
 }
 
 func (s *Store) SaveSettings(st Settings) error {
-	return SaveJSON(s.P.File("settings.json"), st)
+	return store.SaveJSON(s.P.File("settings.json"), st)
 }
 
 func (s *Store) LoadProviders() ([]llm.Provider, error) {
 	var ps []llm.Provider
-	err := LoadJSON(s.P.File("providers.json"), &ps)
+	err := store.LoadJSON(s.P.File("providers.json"), &ps)
 	if len(ps) == 0 {
 		ps = llm.DefaultProviders()
 	}
@@ -30,5 +31,5 @@ func (s *Store) LoadProviders() ([]llm.Provider, error) {
 }
 
 func (s *Store) SaveProviders(ps []llm.Provider) error {
-	return SaveJSON(s.P.File("providers.json"), ps)
+	return store.SaveJSON(s.P.File("providers.json"), ps)
 }

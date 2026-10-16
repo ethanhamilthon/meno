@@ -4,12 +4,12 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"meno/internal/store"
 	"os"
 	"path/filepath"
 	"sort"
 	"time"
 
-	"meno/internal/config"
 	"meno/internal/llm"
 )
 
@@ -29,10 +29,24 @@ type Session struct {
 	Title     string    `json:"title"`
 	Cwd       string    `json:"cwd"`
 	Model     string    `json:"model"`
-	Turns     []Turn    `json:"turns"`
 	UpdatedAt time.Time `json:"updated_at"`
 	Summary   string    `json:"summary,omitempty"`
+	Log       *SafeLog  `json:"-"`
+	Turns     []Turn    `json:"turns"`
 }
+
+func (s *Session) ensureLog() *SafeLog {
+	if s.Log == nil {
+		s.Log = &SafeLog{turns: s.Turns}
+	}
+	return s.Log
+}
+
+func (s *Session) Append(t Turn) { s.ensureLog().Append(t) }
+
+func (s *Session) Snapshot() []Turn { return s.ensureLog().Snapshot() }
+
+func (s *Session) Replace(turns []Turn) { s.ensureLog().Replace(turns) }
 
 type SessionInfo struct {
 	ID        string
@@ -49,7 +63,9 @@ func NewID() string {
 }
 
 func NewSession(cwd, model string) *Session {
-	return &Session{ID: NewID(), Cwd: cwd, Model: model, UpdatedAt: time.Now()}
+	s := &Session{ID: NewID(), Cwd: cwd, Model: model, UpdatedAt: time.Now()}
+	s.ensureLog()
+	return s
 }
 
 func SaveSession(dir string, s *Session) error {
@@ -57,20 +73,22 @@ func SaveSession(dir string, s *Session) error {
 		return errors.New("session id is empty")
 	}
 	s.UpdatedAt = time.Now()
+	s.Turns = s.Snapshot()
 	if s.Title == "" {
 		s.Title = deriveTitle(s)
 	}
-	return config.SaveJSON(filepath.Join(dir, s.ID+".json"), s)
+	return store.SaveJSON(filepath.Join(dir, s.ID+".json"), s)
 }
 
 func LoadSession(dir, id string) (*Session, error) {
 	var s Session
-	if err := config.LoadJSON(filepath.Join(dir, id+".json"), &s); err != nil {
+	if err := store.LoadJSON(filepath.Join(dir, id+".json"), &s); err != nil {
 		return nil, err
 	}
 	if s.ID == "" {
 		return nil, os.ErrNotExist
 	}
+	s.ensureLog()
 	return &s, nil
 }
 
@@ -92,7 +110,7 @@ func ListSessions(dir string) ([]SessionInfo, error) {
 			continue
 		}
 		js := 0
-		for _, t := range s.Turns {
+		for _, t := range s.Snapshot() {
 			if t.Code != "" {
 				js++
 			}
@@ -121,7 +139,7 @@ func (s *Session) ToMsgs() []llm.Msg {
 	if s.Summary != "" {
 		out = append(out, llm.Msg{Role: llm.RoleUser, Text: "Summary of earlier conversation:\n" + s.Summary})
 	}
-	for _, t := range s.Turns {
+	for _, t := range s.Snapshot() {
 		switch {
 		case t.Role == llm.RoleUser:
 			out = append(out, llm.Msg{Role: llm.RoleUser, Text: t.Text})
