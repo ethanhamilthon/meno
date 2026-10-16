@@ -6,7 +6,11 @@ func (a *App) drawMain(c ui.Canvas, w, h int) {
 	bottom := a.bottomHeight()
 	logH := h - bottom
 	lines := a.transcriptLines(w)
-	a.drawLog(c, 0, 0, w, logH, lines)
+	if len(lines) == 0 {
+		a.drawWelcome(c, 0, 0, w, logH)
+	} else {
+		a.drawLog(c, 0, 0, w, logH, lines)
+	}
 	a.drawBottom(c, 0, logH, w, bottom)
 }
 
@@ -15,7 +19,7 @@ func (a *App) bottomHeight() int {
 	if a.st.Mode == ui.ModeCommand {
 		n += len(commandRows(a))
 	}
-	return n + 2
+	return n + a.acHeight() + 2
 }
 
 func (a *App) drawLog(c ui.Canvas, x, y, w, h int, lines []ui.Line) {
@@ -36,6 +40,11 @@ func (a *App) drawBottom(c ui.Canvas, x, y, w, h int) {
 	inputH := h - 1
 	if a.st.Mode == ui.ModeCommand {
 		inputH = 1
+	}
+	if ac := a.acHeight(); ac > 0 && a.st.Mode != ui.ModeCommand {
+		a.drawAutocomplete(c, x, y, w)
+		y += ac
+		inputH -= ac
 	}
 	c.Fill(x, y, w, inputH, ui.BgUser)
 	a.drawComposer(c, x, y, w)

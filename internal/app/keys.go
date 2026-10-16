@@ -32,6 +32,9 @@ func (a *App) onKey(k *tcell.EventKey) {
 }
 
 func (a *App) onInsertKey(k *tcell.EventKey) {
+	if a.acActive() && a.acKey(k) {
+		return
+	}
 	switch k.Key() {
 	case tcell.KeyEsc:
 		a.st.Mode = ui.ModeNormal
