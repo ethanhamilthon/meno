@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>meno — отчёт о дизайн-решениях</title>
+<style>
+  body { background:#0E1013; color:#F3F4F6; font:15px/1.6 ui-monospace, Menlo, monospace; max-width:920px; margin:40px auto; padding:0 20px; }
+  h1 { color:#87AFFF; font-size:22px; }
+  h2 { color:#D7AFFF; font-size:17px; margin-top:32px; border-bottom:1px solid #282E38; padding-bottom:4px; }
+  p, li { color:#B0B7C3; }
+  code { background:#181B20; color:#87D787; padding:1px 5px; }
+  table { border-collapse:collapse; width:100%; margin:12px 0; }
+  th, td { text-align:left; padding:6px 10px; border-bottom:1px solid #282E38; vertical-align:top; }
+  th { color:#87AFFF; font-weight:normal; }
+  td { color:#B0B7C3; }
+  .dim { color:#68707E; }
+  .sw { display:inline-block; width:14px; height:14px; vertical-align:middle; margin-right:6px; border:1px solid #282E38; }
+</style>
+</head>
+<body>
+<h1>meno · отчёт о дизайн-решениях</h1>
+<p class="dim">TUI-агент на Go. Один инструмент — JavaScript REPL (<code>js</code>). Дизайн: <code>tui.pen</code>, 16 экранов.</p>
+
+<h2>1. Архитектура</h2>
+<table>
+<tr><th>Слой</th><th>Пакет</th><th>Ответственность</th></tr>
+<tr><td>Entry</td><td><code>cmd/meno</code></td><td>tcell screen, сборка App, запуск цикла</td></tr>
+<tr><td>UI</td><td><code>internal/ui</code></td><td>тема, холст, строки транскрипта, подсветка JS, примитивы</td></tr>
+<tr><td>Приложение</td><td><code>internal/app</code></td><td>состояние, клавиши, модалки, команды, ход (turn)</td></tr>
+<tr><td>Агент</td><td><code>internal/agent</code></td><td>цикл запросов, сессии, компактация, безопасный лог</td></tr>
+<tr><td>LLM</td><td><code>internal/llm</code></td><td>два протокола (Responses и Chat Completions), SSE, каталог моделей</td></tr>
+<tr><td>JS VM</td><td><code>internal/jsvm</code></td><td>goja, <code>fs</code>, <code>sh</code>, <code>print</code>, gate auto/ask, таймаут, abort</td></tr>
+<tr><td>MCP</td><td><code>internal/mcp</code></td><td>JSON-RPC по stdio, менеджер серверов</td></tr>
+<tr><td>Хранилище</td><td><code>internal/config</code>, <code>internal/store</code></td><td>JSON-файлы: настройки, провайдеры, промпты, скиллы, серверы</td></tr>
+</table>
+<p>Ограничение: файлы до ~200 строк. Пакеты разделены так, чтобы UI не знал о деталях агента, а агент — о tcell.</p>
+
+<h2>2. Ключевые решения</h2>
+<table>
+<tr><th>Решение</th><th>Почему</th></tr>
+<tr><td>JSON-файлы вместо SQLite</td><td>Нет CGO, один статический бинарник, сессии читаемы руками.</td></tr>
+<tr><td>Два протокола: Responses и Chat Completions</td><td>Responses для OpenAI-моделей с reasoning, Chat для совместимых локальных и сторонних API.</td></tr>
+<tr><td>SSE-стриминг</td><td>Текст и thinking появляются по мере генерации.</td></tr>
+<tr><td>MCP через stdio JSON-RPC</td><td>Стандартный способ подключения внешних инструментов; инструменты доступны из JS как <code>mcp.&lt;server&gt;.*</code>.</td></tr>
+<tr><td>goja для JS</td><td>Чистый Go, поддерживает async/await и Promise. Top-level <code>await</code> оборачивается в async IIFE.</td></tr>
+<tr><td>Gate auto / ask</td><td>В режиме ask каждое действие (запись, sh) спрашивает пользователя через канал approval.</td></tr>
+<tr><td>Пути только внутри корня проекта</td><td>Защита от записи за пределы рабочей папки.</td></tr>
+<tr><td><code>SafeLog</code> с RWMutex</td><td>Агент пишет в сессию из горутины, UI читает. Гонка найдена и устранена, тесты идут с <code>-race</code>.</td></tr>
+<tr><td>Событийный цикл в UI</td><td>Ключи, агентские события и ответы approval идут в один канал; рисование только из цикла.</td></tr>
+</table>
+
+<h2>3. Дизайн-правила (из <code>tui.pen</code>)</h2>
+<ul>
+<li>Один размер шрифта — терминальная сетка. Без рамок и скруглений.</li>
+<li>Строки выделяются фоном: <code>bg-user</code>, <code>bg-js-done</code>, <code>bg-js-run</code>.</li>
+<li>Глифы: <code>✻</code> мысль, <code>◆</code> ответ агента, <code>◇</code> промежуточный шаг, <code>▸</code> выбор, <code>●</code>/<code>○</code> статус.</li>
+<li>Модалки на <code>bg-popup</code>, выбранная строка на <code>bg-popup-sel</code>.</li>
+<li>Визуальный режим: выбранный ход на <code>bg-select</code>, в статусе подсказка <code>y yank · r run</code>.</li>
+</ul>
+
+<h3>Палитра</h3>
+<table>
+<tr><th>Токен</th><th>Цвет</th><th>Токен</th><th>Цвет</th></tr>
+<tr><td><span class="sw" style="background:#0E1013"></span>bg-term</td><td>#0E1013</td><td><span class="sw" style="background:#87AFFF"></span>ansi-blue</td><td>#87AFFF</td></tr>
+<tr><td><span class="sw" style="background:#181B20"></span>bg-user</td><td>#181B20</td><td><span class="sw" style="background:#D7AFFF"></span>purple</td><td>#D7AFFF</td></tr>
+<tr><td><span class="sw" style="background:#12241B"></span>bg-js-done</td><td>#12241B</td><td><span class="sw" style="background:#87D787"></span>green</td><td>#87D787</td></tr>
+<tr><td><span class="sw" style="background:#2E1C0E"></span>bg-js-run</td><td>#2E1C0E</td><td><span class="sw" style="background:#FFD787"></span>yellow</td><td>#FFD787</td></tr>
+<tr><td><span class="sw" style="background:#1C2026"></span>bg-popup</td><td>#1C2026</td><td><span class="sw" style="background:#FF8787"></span>red</td><td>#FF8787</td></tr>
+<tr><td><span class="sw" style="background:#282E38"></span>bg-popup-sel</td><td>#282E38</td><td><span class="sw" style="background:#FFAF87"></span>orange</td><td>#FFAF87</td></tr>
+<tr><td><span class="sw" style="background:#26354A"></span>bg-select</td><td>#26354A</td><td><span class="sw" style="background:#F3F4F6"></span>fg-white</td><td>#F3F4F6</td></tr>
+<tr><td><span class="sw" style="background:#B0B7C3"></span>fg-soft</td><td>#B0B7C3</td><td><span class="sw" style="background:#68707E"></span>fg-dim</td><td>#68707E</td></tr>
+</table>
+
+<h2>4. Экраны и модалки</h2>
+<table>
+<tr><th>Экран</th><th>Статус</th><th>Где в коде</th></tr>
+<tr><td>00 Welcome (логотип, сетка подсказок)</td><td>готово</td><td><code>app/welcome.go</code></td></tr>
+<tr><td>01–03 Main: insert / running / command</td><td>готово</td><td><code>app/draw_main.go</code>, <code>app/keys.go</code></td></tr>
+<tr><td>04 Model</td><td>готово</td><td><code>app/modal_model.go</code></td></tr>
+<tr><td>05 Settings</td><td>готово</td><td><code>app/modal_settings.go</code></td></tr>
+<tr><td>06–07 Providers / Provider edit</td><td>готово</td><td><code>app/modal_providers.go</code></td></tr>
+<tr><td>08 Prompt autocomplete (#)</td><td>готово</td><td><code>app/autocomplete.go</code></td></tr>
+<tr><td>09 Visual select</td><td>готово</td><td><code>app/visual.go</code></td></tr>
+<tr><td>10 Skills</td><td>готово</td><td><code>app/modal_skills.go</code></td></tr>
+<tr><td>11–12 MCP / MCP edit</td><td>готово</td><td><code>app/modal_mcp.go</code>, <code>app/mcp_env.go</code></td></tr>
+<tr><td>13 Resume</td><td>готово</td><td><code>app/modal_resume.go</code></td></tr>
+<tr><td>14 Prompts</td><td>готово</td><td><code>app/modal_prompts.go</code></td></tr>
+<tr><td>15 Help</td><td>готово</td><td><code>app/modal_help.go</code></td></tr>
+</table>
+
+<h2>5. Edge-кейсы</h2>
+<ul>
+<li>Дубликаты имён провайдеров, MCP-серверов и промптов отклоняются с сообщением в тосте.</li>
+<li>Невалидное имя промпта (не <code>[a-z0-9-]</code>, длина &gt; 40) отклоняется.</li>
+<li>Env MCP: <code>KEY=VALUE</code> через запятую; без <code>=</code> — ошибка.</li>
+<li>Модель без настроенного провайдера: ход не стартует, показывается тост.</li>
+<li>Ctrl+C прерывает ход через context; сессия помечается <code>[aborted]</code>.</li>
+<li>Пустые списки в модалках показывают «nothing here».</li>
+<li>Поиск в модалках сбрасывает выбор в начало списка.</li>
+<li>Пустая сессия показывает welcome вместо транскрипта.</li>
+<li>Автокомплит <code>#</code> закрывается при пробеле и при Esc, сохраняя введённый текст.</li>
+</ul>
+
+<h2>6. Тесты</h2>
+<table>
+<tr><th>Пакет</th><th>Что проверяется</th></tr>
+<tr><td><code>config</code>, <code>llm</code>, <code>jsvm</code>, <code>mcp</code>, <code>agent</code></td><td>Модульные тесты; jsvm — timeout и abort; mcp — fake stdio сервер на Python.</td></tr>
+<tr><td><code>ui</code></td><td>Перенос строк, ширина с кириллицей, подсветка JS, код-блоки.</td></tr>
+<tr><td><code>app</code></td><td>Рендер на SimulationScreen, модалки, автокомплит, визуальный режим, валидация форм.</td></tr>
+<tr><td><code>app</code> e2e</td><td>Полный ход с mock LLM: текст → JS tool → ответ → сохранение сессии; abort; отсутствующий провайдер.</td></tr>
+</table>
+<p>Все тесты запускаются с <code>go test -race ./...</code>.</p>
+
+<h2>7. Известные ограничения</h2>
+<ul>
+<li>E2E-тест abort проверяет только сброс <code>Running</code>, а не содержимое сессии.</li>
+<li>Визуальное сравнение с дизайном сделано по тексту и цветам из <code>tui.pen</code>, не по пиксельному снимку.</li>
+<li>Выбор провайдера/модели не проверен против живого API.</li>
+</ul>
+</body>
+</html>
