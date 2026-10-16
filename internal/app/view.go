@@ -7,6 +7,9 @@ import (
 )
 
 func (a *App) modelLabel() string {
+	if a.st.Settings.Model == "" {
+		return "модель не выбрана · :model"
+	}
 	return a.st.Settings.Model + " (" + a.st.Settings.Effort + ")"
 }
 
