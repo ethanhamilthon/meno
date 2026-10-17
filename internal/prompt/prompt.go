@@ -17,6 +17,9 @@ var skillsSection string
 //go:embed mcp.md
 var mcpSection string
 
+//go:embed mcp_admin.md
+var mcpAdminSection string
+
 // Skill is one enabled skill as the model sees it.
 type Skill struct {
 	Name, Desc, Path string
@@ -40,7 +43,7 @@ func System(cwd string) string {
 // Build returns the full system prompt: the base prompt followed by the
 // sections for enabled skills and running MCP servers, when there are any.
 func Build(cwd string, skills []Skill, tools []Tool) string {
-	parts := []string{System(cwd)}
+	parts := []string{System(cwd), strings.TrimSpace(mcpAdminSection)}
 	if len(skills) > 0 {
 		var l []string
 		for _, s := range skills {

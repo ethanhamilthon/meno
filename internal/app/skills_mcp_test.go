@@ -72,7 +72,7 @@ func waitStarted(t *testing.T, a *App, n int) {
 func TestSystemPromptListsEnabledSkillsOnly(t *testing.T) {
 	a, scr := newTestApp(t)
 	defer scr.Fini()
-	if got := a.systemPrompt(); got != prompt.System(a.paths.Cwd) {
+	if got := a.systemPrompt(); got != prompt.Build(a.paths.Cwd, nil, nil) || strings.Contains(got, "## Skills") {
 		t.Fatalf("a bare install must send the bare prompt:\n%s", got)
 	}
 	dir := a.paths.ProjectSkillsDir()

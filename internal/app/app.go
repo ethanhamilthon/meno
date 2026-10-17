@@ -71,6 +71,7 @@ func New(scr tcell.Screen, paths config.Paths, client func(llm.Provider) llm.Cli
 	a.loadMetadataCache()
 	a.vm = jsvm.New(jsvm.Options{Root: paths.Cwd, Timeout: s.TimeoutDuration()})
 	a.vm.SetMCP(mcpHost{a.mcp})
+	a.vm.SetMCPAdmin(mcpAdmin{a})
 	if err := a.loadAll(); err != nil {
 		return nil, err
 	}
@@ -185,6 +186,9 @@ func (a *App) handle(msg any) {
 		a.onTurnDone(m.err)
 	case turnDone:
 		a.onTurnDone(m.err)
+	case uiCall:
+		m.fn()
+		close(m.done)
 	case mcpStarted:
 		if m.err != nil {
 			a.notifyErr("mcp " + m.name + ": " + m.err.Error())

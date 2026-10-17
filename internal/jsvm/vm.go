@@ -21,15 +21,16 @@ type Result struct {
 }
 
 type VM struct {
-	mu      sync.Mutex
-	rt      *goja.Runtime
-	root    string
-	timeout atomic.Int64  // time.Duration; atomic so settings can change during a run
-	active  time.Duration // timeout of the running Exec
-	mcpHost atomic.Pointer[MCPHost]
-	out     boundedBuffer
-	maxOut  int
-	ctx     context.Context
+	mu       sync.Mutex
+	rt       *goja.Runtime
+	root     string
+	timeout  atomic.Int64  // time.Duration; atomic so settings can change during a run
+	active   time.Duration // timeout of the running Exec
+	mcpHost  atomic.Pointer[MCPHost]
+	mcpAdmin atomic.Pointer[MCPAdmin]
+	out      boundedBuffer
+	maxOut   int
+	ctx      context.Context
 }
 
 type Options struct {
@@ -92,6 +93,7 @@ func (v *VM) bind() {
 		}
 		return map[string]any{"stdout": res.Stdout, "stderr": res.Stderr, "code": res.ExitCode, "timedOut": res.TimedOut}, nil
 	})
+	v.bindMCPAdmin()
 	if _, err := rt.RunString(preludeJS); err != nil {
 		panic("jsvm prelude: " + err.Error())
 	}

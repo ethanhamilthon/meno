@@ -12,9 +12,15 @@ func TestSystem(t *testing.T) {
 	}
 }
 
-func TestBuildWithoutExtrasIsTheBasePrompt(t *testing.T) {
-	if Build("/w", nil, nil) != System("/w") {
-		t.Fatal("empty sections must not change the prompt (it is the cache prefix)")
+func TestBuildWithoutExtrasIsStable(t *testing.T) {
+	// The base prompt plus the fixed mcpServers help is the cache prefix: extras
+	// only append to it.
+	base := Build("/w", nil, nil)
+	if !strings.HasPrefix(base, System("/w")) || !strings.Contains(base, "mcpServers.add(") {
+		t.Fatal("base prompt must be the system text followed by the mcpServers help")
+	}
+	if !strings.HasPrefix(Build("/w", []Skill{{"a", "b", "/p"}}, nil), base) {
+		t.Fatal("extras must not change the prefix")
 	}
 }
 

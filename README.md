@@ -96,6 +96,20 @@ JSON.parse(mcp.github.search_repositories({ query: "meno" }))
 mcpTools() // every tool with its full input schema
 ```
 
+The agent can also manage the servers itself with `mcpServers`:
+
+```js
+mcpServers.list()                       // name, transport, status, tools; env/headers values shown as ***
+mcpServers.add({ name: "fs", command: "npx -y @modelcontextprotocol/server-filesystem ." })
+mcpServers.update("fs", { enabled: false })
+mcpServers.restart("fs"); mcpServers.remove("fs")
+mcpTools("fs")                          // tools of one server
+```
+
+`add`, `update` and `restart` wait for the server and return `{ok, error, tools}`.
+Changes are saved to the database, appear in the timeline as `mcp: agent added …`,
+and open `:mcp` dialogs follow them live.
+
 Server names that are not valid identifiers also work with underscores
 (`mcp.my_db.run_query`) or brackets (`mcp["my-db"]["run-query"]`).
 

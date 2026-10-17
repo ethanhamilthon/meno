@@ -102,5 +102,17 @@ func (v *VM) syncMCP() {
 		info = append(info, map[string]any{"server": t.Server, "name": t.Name, "description": t.Description, "schema": schema})
 	}
 	_ = rt.GlobalObject().Set("mcp", root)
-	_ = rt.GlobalObject().Set("mcpTools", func() []any { return info })
+	_ = rt.GlobalObject().Set("mcpTools", func(call goja.FunctionCall) goja.Value {
+		if len(call.Arguments) == 0 || goja.IsUndefined(call.Arguments[0]) {
+			return rt.ToValue(info)
+		}
+		want := call.Arguments[0].String()
+		out := []any{}
+		for _, it := range info {
+			if it.(map[string]any)["server"] == want {
+				out = append(out, it)
+			}
+		}
+		return rt.ToValue(out)
+	})
 }
