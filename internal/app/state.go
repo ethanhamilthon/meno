@@ -49,6 +49,7 @@ type State struct {
 	WantCol   int // sticky column for up/down movement
 	WantSet   bool
 	InputTop  int         // first visible composer row
+	Ask       *askState   // question from the agent waiting for an answer
 	Retry     *retryState // set while a failed model request waits to be sent again
 	Phase     string      // what the running agent is doing: thinking, writing, running, compacting
 	CmdSel    int

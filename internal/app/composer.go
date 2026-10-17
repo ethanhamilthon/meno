@@ -39,6 +39,12 @@ func (a *App) composerHeight() int {
 
 // placeholder is shown while the input is empty; it reflects what the agent is doing.
 func (a *App) placeholder() string {
+	if a.st.Ask != nil {
+		if a.st.Ask.Typing {
+			return "your answer..."
+		}
+		return "choose an option above..."
+	}
 	if !a.st.Running {
 		return placeholderIdle
 	}
@@ -57,7 +63,7 @@ type cursorPos struct {
 // applyCursor shows a real terminal cursor: blinking in insert mode, steady in
 // normal and command mode, hidden in visual mode and while a dialog is open.
 func (a *App) applyCursor() {
-	if !a.cur.ok || a.st.Over != OverNone {
+	if !a.cur.ok || a.st.Over != OverNone || a.askChoosing() {
 		a.scr.HideCursor()
 		return
 	}

@@ -33,6 +33,9 @@ func (a *App) onKey(k *tcell.EventKey) {
 			return
 		}
 	}
+	if a.st.Ask != nil && a.st.Mode != ui.ModeCommand && a.askKey(k) {
+		return
+	}
 	switch a.st.Mode {
 	case ui.ModeInsert:
 		a.onInsertKey(k)

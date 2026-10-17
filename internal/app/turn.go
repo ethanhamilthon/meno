@@ -10,6 +10,10 @@ import (
 )
 
 func (a *App) submit() {
+	if a.st.Ask != nil {
+		a.answerTyped()
+		return
+	}
 	text := strings.TrimSpace(string(a.st.Input))
 	if text == "" || a.st.Running {
 		return

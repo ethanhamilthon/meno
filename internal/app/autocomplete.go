@@ -74,7 +74,7 @@ func drawAcGrid(c ui.Canvas, x, y, w, limit int, cells []acCell, sel int) {
 }
 
 func (a *App) acActive() bool {
-	return a.st.Mode == ui.ModeInsert && len(a.acMatches()) > 0
+	return a.st.Ask == nil && a.st.Mode == ui.ModeInsert && len(a.acMatches()) > 0
 }
 
 // acAccept replaces the word under the cursor with the selected completion.
@@ -135,6 +135,9 @@ func (a *App) acKey(k *tcell.EventKey) bool {
 }
 
 func (a *App) acHeight() int {
+	if a.st.Ask != nil {
+		return a.askHeight()
+	}
 	if !a.acActive() {
 		return 0
 	}

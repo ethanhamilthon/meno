@@ -27,6 +27,9 @@ type Settings struct {
 	// Theme is the name of a ui theme; the app falls back to the default for
 	// names it does not know.
 	Theme string `json:"theme"`
+	// NotifyQuestion (on/off) rings the terminal bell when the agent asks the user
+	// a question with askUser.
+	NotifyQuestion string `json:"notify_question"`
 }
 
 // UnmarshalJSON restores safe defaults for obsolete enum values and invalid
@@ -82,29 +85,31 @@ func (s *Settings) UnmarshalJSON(data []byte) error {
 
 func DefaultSettings() Settings {
 	return Settings{
-		Effort:       "high",
-		JSCode:       "all",
-		JSLines:      5,
-		JSOutput:     "all",
-		JSOutLines:   5,
-		Thinking:     "all",
-		ThinkLines:   5,
-		Theme:        "meno",
-		JSTimeout:    "sec",
-		JSTimeoutSec: 30,
+		Effort:         "high",
+		JSCode:         "all",
+		JSLines:        5,
+		JSOutput:       "all",
+		JSOutLines:     5,
+		Thinking:       "all",
+		ThinkLines:     5,
+		Theme:          "meno",
+		JSTimeout:      "sec",
+		JSTimeoutSec:   30,
+		NotifyQuestion: "off",
 	}
 }
 
 var choices = map[string][]string{
-	"js_code":    {"all", "lines", "off"},
-	"js_output":  {"all", "lines", "off"},
-	"thinking":   {"all", "lines", "off"},
-	"js_timeout": {"sec", "off", "model"},
-	"effort":     {"low", "medium", "high", "max"},
+	"js_code":         {"all", "lines", "off"},
+	"js_output":       {"all", "lines", "off"},
+	"thinking":        {"all", "lines", "off"},
+	"js_timeout":      {"sec", "off", "model"},
+	"effort":          {"low", "medium", "high", "max"},
+	"notify_question": {"off", "on"},
 }
 
 func SettingKeys() []string {
-	return []string{"js_code", "js_output", "thinking", "js_timeout"}
+	return []string{"js_code", "js_output", "thinking", "js_timeout", "notify_question"}
 }
 
 func Choices(key string) []string { return choices[key] }
@@ -121,6 +126,8 @@ func (s *Settings) Get(key string) string {
 		return s.JSTimeout
 	case "effort":
 		return s.Effort
+	case "notify_question":
+		return s.NotifyQuestion
 	}
 	return ""
 }
@@ -151,6 +158,8 @@ func (s *Settings) setRaw(key, val string) {
 		s.JSTimeout = val
 	case "effort":
 		s.Effort = val
+	case "notify_question":
+		s.NotifyQuestion = val
 	}
 }
 

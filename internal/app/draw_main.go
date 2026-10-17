@@ -75,7 +75,9 @@ func (a *App) drawBottom(c ui.Canvas, x, y, w, h int) {
 	bodyH := max(0, h-1)
 	if bodyH > 0 {
 		ac := min(a.acHeight(), max(0, bodyH-a.composerHeight()))
-		if ac > 0 {
+		if ac > 0 && a.st.Ask != nil {
+			a.drawAsk(c, x, y, w, ac)
+		} else if ac > 0 {
 			a.drawAutocompleteRows(c, x, y, w, ac)
 		}
 		y += ac
@@ -101,6 +103,9 @@ func (a *App) drawStatus(c ui.Canvas, x, y, w int) {
 	midColor := ui.FgDim
 	if rt := a.retryText(); rt != "" {
 		center, midColor = rt, ui.Yellow
+	}
+	if t := a.askStatus(); t != "" {
+		center, midColor = t, ui.Orange
 	}
 	mid := []ui.Seg{{Text: center, FG: midColor}}
 	dot, color := "○ ", ui.FgDim

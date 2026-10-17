@@ -296,3 +296,119 @@ func TestCtrlCDuringBackoff(t *testing.T) {
 		t.Fatalf("requests: %d", f.Requests())
 	}
 }
+
+// askUser: the model asks, the user answers in the panel above the composer.
+func askHandler(code string, final string) func(q *llmReq) {
+	return func(q *llmReq) {
+		if q.Mentions("[[answered]]") {
+			q.Text(final)
+			return
+		}
+		time.Sleep(300 * time.Millisecond) // time to type a draft
+		q.Tool("", code)
+	}
+}
+
+func TestAskUserChoice(t *testing.T) {
+	for _, proto := range protocols {
+		t.Run(proto, func(t *testing.T) {
+			f := newFakeLLM(t)
+			f.Handler = askHandler("const a = askUser('Which database?', {choices: ['sqlite', 'postgres']}); console.log('[[answered]] picked=' + a)", "great, postgres it is")
+			s := start(t, options{fake: f, proto: proto})
+			s.Say("set up storage")
+			s.Type("my unfinished draft")
+			scr := s.WaitForWithin("agent asks", 10*time.Second)
+			t.Logf("requests so far: %d", f.Requests())
+			for _, want := range []string{"Which database?", "1 sqlite", "2 postgres", "Your own answer", "waiting for your answer"} {
+				if !strings.Contains(scr, want) {
+					t.Fatalf("panel misses %q:\n%s", want, scr)
+				}
+			}
+			if strings.Contains(scr, "my unfinished draft") {
+				t.Fatalf("draft should be set aside:\n%s", scr)
+			}
+			s.Send("2")
+			scr = s.WaitFor("great, postgres it is")
+			if !strings.Contains(scr, "picked=postgres") || strings.Contains(scr, "agent asks") {
+				t.Fatalf("\n%s", scr)
+			}
+			s.WaitFor("my unfinished draft") // the draft is back
+		})
+	}
+}
+
+func TestAskUserFreeTextAndOwnAnswer(t *testing.T) {
+	f := newFakeLLM(t)
+	f.Handler = askHandler("const p = askUser('Which port?'); const c = askUser('Pick one', {choices: ['x', 'y']}); console.log('[[answered]] port=' + p + ' color=' + c)", "configured")
+	s := start(t, options{fake: f})
+	s.Say("configure")
+	s.WaitFor("type your answer below") // the panel's hint; the code in the timeline also names the question
+	s.Type("8080")
+	s.Send(Enter)
+	s.WaitFor("1-9 choose")
+	s.Send("3") // Your own answer
+	s.WaitFor("type your answer ·")
+	s.Type("turquoise")
+	s.Send(Enter)
+	scr := s.WaitFor("configured")
+	if !strings.Contains(scr, "port=8080 color=turquoise") {
+		t.Fatalf("\n%s", scr)
+	}
+}
+
+func TestAskUserDeclineAndTimeoutAreErrors(t *testing.T) {
+	f := newFakeLLM(t)
+	f.Handler = askHandler(`
+		let r = [];
+		try { askUser('first?') } catch (e) { r.push(e.message) }
+		try { askUser('second?', {timeout: 1}) } catch (e) { r.push(e.message) }
+		console.log('[[answered]] ' + r.join(' | '))`, "noted")
+	s := start(t, options{fake: f})
+	s.Say("ask twice")
+	s.WaitFor("ctrl+x decline")
+	s.Send("\x18") // Ctrl+X declines
+	s.WaitFor("answer within")
+	scr := s.WaitFor("noted")
+	if !strings.Contains(scr, "user declined to answer | ") || !strings.Contains(scr, "user did not answer within 1s") {
+		t.Fatalf("\n%s", scr)
+	}
+}
+
+func TestCtrlCDuringQuestion(t *testing.T) {
+	f := newFakeLLM(t)
+	f.Handler = askHandler("askUser('waiting forever?')", "never")
+	s := start(t, options{fake: f})
+	s.Say("ask")
+	s.WaitFor("waiting forever?")
+	s.Send(CtrlC)
+	s.WaitFor("[aborted]")
+	s.WaitGone("agent asks")
+	time.Sleep(300 * time.Millisecond)
+	if f.Requests() != 1 {
+		t.Fatalf("requests: %d", f.Requests())
+	}
+	// The composer works normally again.
+	s.Type("hello again")
+	s.WaitFor("hello again")
+}
+
+func TestAskPanelOnNarrowTerminal(t *testing.T) {
+	f := newFakeLLM(t)
+	f.Handler = askHandler("const a = askUser('A rather long question that has to wrap on a narrow terminal, word by word', {choices: ['one', 'two']}); console.log('[[answered]] ' + a)", "all done")
+	s := start(t, options{fake: f, cols: 40, rows: 24})
+	s.Say("go")
+	s.WaitFor("agent asks")
+	s.WaitFor("enter esc")
+	for i, l := range strings.Split(s.Screen(), "\n") {
+		if n := len([]rune(l)); n > 40 {
+			t.Fatalf("row %d is %d wide: %q", i, n, l)
+		}
+	}
+	if scr := s.Screen(); !strings.Contains(scr, "word by word") {
+		t.Fatalf("question cut off:\n%s", scr)
+	}
+	s.Resize(100, 32)
+	s.WaitFor("enter confirm")
+	s.Send("1")
+	s.WaitFor("all done")
+}

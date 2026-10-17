@@ -103,12 +103,19 @@ func start(t *testing.T, o options) *session {
 		// Keep draining the pty whatever the emulator makes of the bytes: meno
 		// blocks (even on exit) once the terminal buffer is full.
 		buf := make([]byte, 32*1024)
+		var pending []byte
 		for {
 			n, err := ptmx.Read(buf)
 			if n > 0 {
-				if _, werr := s.vt.Write(buf[:n]); werr != nil {
+				data := append(pending, buf[:n]...)
+				// vt10x stops at a UTF-8 sequence cut by the read boundary and
+				// reports the bytes it consumed; hand it the rest next time.
+				w, werr := s.vt.Write(data)
+				if werr != nil {
 					s.noteEmuErr(werr)
+					w = len(data)
 				}
+				pending = append([]byte(nil), data[w:]...)
 			}
 			if err != nil {
 				return
@@ -129,6 +136,9 @@ func start(t *testing.T, o options) *session {
 		}
 		ptmx.Close()
 	})
+	// Keys sent before the program has put the terminal in raw mode would be
+	// echoed by the tty and lost, so wait for the first frame.
+	s.WaitFor("INSERT")
 	return s
 }
 
@@ -217,7 +227,7 @@ func (s *session) WaitForWithin(want string, d time.Duration) string {
 			return scr
 		}
 		if time.Now().After(deadline) {
-			s.t.Fatalf("timed out waiting for %q; screen:\n%s", want, scr)
+			s.t.Fatalf("timed out waiting for %q (exited=%v emuErr=%v); screen:\n%s", want, s.Exited(), s.emuErr, scr)
 		}
 		time.Sleep(25 * time.Millisecond)
 	}

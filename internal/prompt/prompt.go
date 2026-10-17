@@ -17,6 +17,9 @@ var skillsSection string
 //go:embed mcp.md
 var mcpSection string
 
+//go:embed ask.md
+var askSection string
+
 //go:embed mcp_admin.md
 var mcpAdminSection string
 
@@ -43,7 +46,7 @@ func System(cwd string) string {
 // Build returns the full system prompt: the base prompt followed by the
 // sections for enabled skills and running MCP servers, when there are any.
 func Build(cwd string, skills []Skill, tools []Tool) string {
-	parts := []string{System(cwd), strings.TrimSpace(mcpAdminSection)}
+	parts := []string{System(cwd), strings.TrimSpace(askSection), strings.TrimSpace(mcpAdminSection)}
 	if len(skills) > 0 {
 		var l []string
 		for _, s := range skills {

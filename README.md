@@ -43,9 +43,24 @@ Everything is synchronous, so there is no `await`.
 | `env` | The environment as an object; changes are seen by `sh`. |
 | `URL`, `URLSearchParams` | As in browsers. |
 | `console.log(...)` | Output (also `info`, `warn`, `error`). The value of the last expression is returned too. |
+| `askUser(question, {choices, customAnswer, timeout})` | Asks you something and returns the answer as a string, see below. |
 | `mcp.<server>.<tool>({...})`, `mcpTools()` | Tools of running MCP servers, see below. |
 
 Output is capped at 64 KB per call. The timeout is a setting (see below).
+
+## Questions from the agent
+
+`askUser("Which database?", { choices: ["sqlite", "postgres"], timeout: 120 })`
+pauses the agent's code and opens a panel above the composer (it shows
+`waiting for your answer` in the status bar). `1`-`9` or `↑/↓` + `Enter` pick a choice;
+the last row, "Your own answer…", moves the answer into the composer (hidden when
+`customAnswer: false`). Without `choices` you simply type the answer and press
+`Enter`. Your half-typed message is put aside meanwhile and comes back afterwards.
+`Ctrl+X` (or `Esc` in a choice list) declines: the code gets the error
+`user declined to answer`; an expired `timeout` (seconds, none by default) gives
+`user did not answer within Ns`. `Ctrl+C` aborts the whole turn. The `js timeout`
+does not run while a question is open. Questions and answers are not stored in the
+session. The setting `ask bell` rings the terminal bell when a question opens.
 
 ## Provider errors
 
@@ -67,6 +82,7 @@ and your message stays in the session. (`:compact` does not retry.)
 | js output | `all`, `lines <n>`, `off` |
 | thinking | `all`, `lines <n>` (the newest rows), `off` |
 | js timeout | `<n> sec`, `off`, `model` — with `model` the tool gets a `timeout` argument and the model chooses per call |
+| ask bell | `off`, `on` — ring the terminal bell when the agent asks a question |
 
 `←`/`→` change the choice, `+`/`-` the number. `:theme` opens 20 built-in
 color themes with a live preview.

@@ -21,16 +21,18 @@ type Result struct {
 }
 
 type VM struct {
-	mu       sync.Mutex
-	rt       *goja.Runtime
-	root     string
-	timeout  atomic.Int64  // time.Duration; atomic so settings can change during a run
-	active   time.Duration // timeout of the running Exec
-	mcpHost  atomic.Pointer[MCPHost]
-	mcpAdmin atomic.Pointer[MCPAdmin]
-	out      boundedBuffer
-	maxOut   int
-	ctx      context.Context
+	mu           sync.Mutex
+	rt           *goja.Runtime
+	root         string
+	timeout      atomic.Int64  // time.Duration; atomic so settings can change during a run
+	active       time.Duration // timeout of the running Exec
+	mcpHost      atomic.Pointer[MCPHost]
+	mcpAdmin     atomic.Pointer[MCPAdmin]
+	asker        atomic.Pointer[Asker]
+	pauseTimeout func() func() // set by the running Exec: stops the js timeout, the returned func restarts it
+	out          boundedBuffer
+	maxOut       int
+	ctx          context.Context
 }
 
 type Options struct {
@@ -94,6 +96,7 @@ func (v *VM) bind() {
 		return map[string]any{"stdout": res.Stdout, "stderr": res.Stderr, "code": res.ExitCode, "timedOut": res.TimedOut}, nil
 	})
 	v.bindMCPAdmin()
+	v.bindAsk()
 	if _, err := rt.RunString(preludeJS); err != nil {
 		panic("jsvm prelude: " + err.Error())
 	}
@@ -156,6 +159,17 @@ func (v *VM) exec(ctx context.Context, code string, override *time.Duration) Res
 	var timedOut atomic.Bool
 	timerDone := make(chan struct{})
 	var timer *time.Timer
+	deadline := time.Now().Add(timeout)
+	v.pauseTimeout = func() func() {
+		if timer == nil || !timer.Stop() {
+			return func() {}
+		}
+		left := max(time.Until(deadline), time.Millisecond)
+		return func() {
+			deadline = time.Now().Add(left)
+			timer.Reset(left)
+		}
+	}
 	if timeout > 0 {
 		timer = time.AfterFunc(timeout, func() {
 			timedOut.Store(true)
