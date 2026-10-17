@@ -56,7 +56,7 @@ func (a *App) drawModel(c ui.Canvas, w, h int) {
 	b.frame(c)
 	titledSearch(c, b, "model", itoa(len(list))+" / "+itoa(len(a.allModels())), string(a.st.Query), "search models")
 	y := 4
-	rows := max(0, min(8, b.h-9))
+	rows := max(0, min(8, b.h-8)) // box height minus title, search, effort, hint and the detail line
 	start := max(0, a.st.Sel-rows+1)
 	for i := start; i < len(list) && i < start+rows; i++ {
 		m := list[i]

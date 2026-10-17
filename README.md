@@ -166,12 +166,18 @@ make race    # go test -race ./...
 make vet     # go vet ./...
 make fmt     # gofmt -l, fails when something is unformatted
 make check   # fmt + vet + race
+make term    # end-to-end: the real binary in a pty (needs no network)
 ```
 
 Layout: `cmd/meno` → `internal/app` (TUI state, dialogs, vim editing) over
 `agent` (turn loop, sessions), `llm` (chat completions and responses
-streaming), `jsvm` (the VM and its globals), `mcp` (clients), `config` and
-`store` (JSON files), `ui` (drawing, themes) and `prompt` (the system prompt
-texts). Tests drive the real UI on tcell's simulation screen. A live-terminal
-smoke test is still manual: start the binary, send a message, abort it, resume
-a session, resize the window.
+streaming), `jsvm` (the VM and its globals), `mcp` (clients), `config`, `db` and
+`store` (SQLite, settings, JSON helpers), `ui` (drawing, themes) and `prompt` (the system prompt
+texts). Tests drive the real UI on tcell's simulation screen. `make term` goes further:
+it builds the binary, runs it in a pseudo-terminal (`creack/pty`), reads the
+screen through a terminal emulator (`vt10x`) and serves the model from a fake
+provider that speaks both protocols and can fail on demand. Scenarios: first-run
+setup through the dialogs, streaming, js tool calls, Ctrl+C, `:new`/`:resume`
+(also across restarts), resize and narrow terminals, Unicode/Markdown, quitting,
+and provider errors with retries. Those tests live in `internal/term` behind
+the `termtest` build tag.

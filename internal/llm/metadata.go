@@ -8,6 +8,7 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -43,6 +44,10 @@ func (m ModelInfo) Cost(u Usage) float64 {
 // FetchMetadata combines public model catalogs. Either source can serve as an
 // offline-cache refresh when the other is unavailable; OpenRouter owns its prices.
 func FetchMetadata(ctx context.Context) (map[string]ModelInfo, error) {
+	// MENO_NO_METADATA keeps tests and air-gapped setups off the network.
+	if os.Getenv("MENO_NO_METADATA") != "" {
+		return map[string]ModelInfo{}, nil
+	}
 	type result struct {
 		models map[string]ModelInfo
 		err    error

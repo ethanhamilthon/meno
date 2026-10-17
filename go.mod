@@ -3,10 +3,13 @@ module meno
 go 1.27.1
 
 require (
+	github.com/creack/pty v1.1.24
 	github.com/dop251/goja v0.0.0-20261014135309-2cb8274eed06
 	github.com/gdamore/tcell/v2 v2.13.10
+	github.com/hinshun/vt10x v0.0.0-20220301184237-5011da428d02
 	github.com/rivo/uniseg v0.4.7
 	github.com/yuin/goldmark v1.7.13
+	modernc.org/sqlite v1.60.1
 )
 
 require (
@@ -26,5 +29,4 @@ require (
 	modernc.org/libc v1.77.1 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.12.1 // indirect
-	modernc.org/sqlite v1.60.1 // indirect
 )
