@@ -1,14 +1,13 @@
 package config
 
 import (
+	"database/sql"
 	"io"
 	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
-
-	"meno/internal/store"
 )
 
 // Skill is an instruction file the agent can read when a task matches it. It is
@@ -156,19 +155,33 @@ func DiscoverSkills(globalDir, projectDir string) []Skill {
 	return out
 }
 
-// skillState is what is saved in skills.json: skills are on unless listed here.
+// skillState is the format of the legacy skills.json: skills are on unless
+// listed here.
 type skillState struct {
 	Disabled []string `json:"disabled"`
 }
 
 // LoadSkills discovers the skills on disk and applies the saved on/off state.
-// A skills.json in an older format is ignored.
 func (s *Store) LoadSkills() ([]Skill, error) {
-	var st skillState
-	_ = store.LoadJSON(s.P.File("skills.json"), &st)
+	d, err := s.DB()
+	if err != nil {
+		return nil, err
+	}
+	rows, err := d.Query("SELECT name FROM skills_state WHERE enabled = 0")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
 	off := map[string]bool{}
-	for _, n := range st.Disabled {
+	for rows.Next() {
+		var n string
+		if err := rows.Scan(&n); err != nil {
+			return nil, err
+		}
 		off[n] = true
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 	list := DiscoverSkills(s.P.GlobalSkillsDir(), s.P.ProjectSkillsDir())
 	for i := range list {
@@ -177,26 +190,18 @@ func (s *Store) LoadSkills() ([]Skill, error) {
 	return list, nil
 }
 
-// SaveSkills stores which of the skills are switched off. Skills that are not on
-// disk right now keep their saved state.
+// SaveSkills stores the on/off state of the given skills. Skills that are not
+// on disk right now keep their saved state.
 func (s *Store) SaveSkills(sk []Skill) error {
-	var old skillState
-	_ = store.LoadJSON(s.P.File("skills.json"), &old)
-	known := map[string]bool{}
-	var st skillState
-	for _, k := range sk {
-		known[k.Name] = true
-		if !k.Enabled {
-			st.Disabled = append(st.Disabled, k.Name)
+	return s.tx(func(t *sql.Tx) error {
+		for _, k := range sk {
+			if _, err := t.Exec(`INSERT INTO skills_state(name,enabled) VALUES(?,?)
+				ON CONFLICT(name) DO UPDATE SET enabled=excluded.enabled`, k.Name, b2i(k.Enabled)); err != nil {
+				return err
+			}
 		}
-	}
-	for _, n := range old.Disabled {
-		if !known[n] {
-			st.Disabled = append(st.Disabled, n)
-		}
-	}
-	sort.Strings(st.Disabled)
-	return store.SaveJSON(s.P.File("skills.json"), st)
+		return nil
+	})
 }
 
 func FilterSkills(sk []Skill, q string) []Skill {

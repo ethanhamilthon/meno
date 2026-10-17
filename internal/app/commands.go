@@ -84,7 +84,7 @@ func (a *App) saveSession() {
 	}
 	a.st.Session.Metrics = agent.Metrics{LastUsage: a.st.LastUsage, Usage: a.st.Usage, Spent: a.st.Spent, Context: a.st.Context, Unpriced: a.st.Unpriced}
 	// Empty sessions must also be saved: :clear may have removed persisted turns.
-	if err := agent.SaveSession(a.paths.SessionsDir(), a.st.Session); err != nil {
+	if err := agent.SaveSession(a.paths.Home, a.st.Session); err != nil {
 		a.notifyErr("save failed: " + err.Error())
 	}
 }
@@ -140,7 +140,7 @@ func (a *App) exportSession(args []string) {
 }
 
 func (a *App) openResume() {
-	list, err := agent.ListSessions(a.paths.SessionsDir())
+	list, err := agent.ListSessions(a.paths.Home)
 	if err != nil {
 		a.notifyErr("resume failed: " + err.Error())
 		return

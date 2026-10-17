@@ -3,7 +3,6 @@ package app
 import (
 	"fmt"
 	"math"
-	"meno/internal/store"
 	"meno/internal/ui"
 	"strings"
 	"testing"
@@ -88,7 +87,7 @@ func TestRequestLedgerAndLastUsage(t *testing.T) {
 		t.Fatalf("record %+v", entry)
 	}
 	a.runCommand("clear")
-	saved, err := agent.LoadSession(a.paths.SessionsDir(), id)
+	saved, err := agent.LoadSession(a.paths.Home, id)
 	if err != nil || len(saved.Requests) != 2 || saved.Metrics.LastUsage != last {
 		t.Fatalf("clear lost ledger: %+v %v", saved, err)
 	}
@@ -149,7 +148,7 @@ func TestCatalogPickerAndCache(t *testing.T) {
 	if models := a.modelList(); len(models) != 1 || models[0].ID != "catalog-only" {
 		t.Fatal(models)
 	}
-	if err := store.SaveJSON(a.paths.File("model-catalog.json"), a.st.Pricing); err != nil {
+	if err := a.store.SaveCatalog(a.st.Pricing); err != nil {
 		t.Fatal(err)
 	}
 	a.st.Pricing = nil

@@ -106,7 +106,7 @@ func TestE2ETurnWithJSToolAndPersistence(t *testing.T) {
 		t.Fatalf("%d scripted rounds left unused", n)
 	}
 	a.saveSession()
-	list, err := agent.ListSessions(paths.SessionsDir())
+	list, err := agent.ListSessions(paths.Home)
 	if err != nil || len(list) != 1 {
 		t.Fatalf("sessions on disk: %d err=%v", len(list), err)
 	}

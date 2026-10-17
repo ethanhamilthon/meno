@@ -40,7 +40,7 @@ func (a *App) resumeSession(id string) {
 		a.closeOverlay()
 		return
 	}
-	s, err := agent.LoadSession(a.paths.SessionsDir(), id)
+	s, err := agent.LoadSession(a.paths.Home, id)
 	if err != nil {
 		a.notifyErr("resume failed: " + err.Error())
 		return

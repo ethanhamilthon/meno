@@ -57,7 +57,11 @@ func TestSQLiteRoundTripAndRewrite(t *testing.T) {
 }
 
 func TestSQLiteMigratesLegacyJSON(t *testing.T) {
-	dir := t.TempDir()
+	home := t.TempDir()
+	dir := filepath.Join(home, "sessions")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
 	t.Cleanup(CloseSessionStores)
 	old := &Session{ID: "legacy-1", Title: "old chat", Cwd: "/x", UpdatedAt: time.Now().Add(-time.Hour), Turns: []Turn{
 		{Role: llm.RoleUser, Text: "q"}, {Role: llm.RoleAssistant, Text: "a", CallID: "c", Code: "x"},
@@ -68,7 +72,7 @@ func TestSQLiteMigratesLegacyJSON(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "broken.json"), []byte("{nope"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	list, err := ListSessions(dir)
+	list, err := ListSessions(home)
 	if err != nil || len(list) != 1 || list[0].ID != "legacy-1" || list[0].Turns != 2 || list[0].JSRuns != 1 {
 		t.Fatalf("list %+v %v", list, err)
 	}
@@ -78,7 +82,7 @@ func TestSQLiteMigratesLegacyJSON(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(dir, "broken.json")); err != nil {
 		t.Fatal("unreadable file must stay untouched")
 	}
-	got, err := LoadSession(dir, "legacy-1")
+	got, err := LoadSession(home, "legacy-1")
 	if err != nil || got.Title != "old chat" || len(got.Snapshot()) != 2 {
 		t.Fatalf("%+v %v", got, err)
 	}

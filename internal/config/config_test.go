@@ -167,11 +167,9 @@ func TestLegacyPlaceholderServersAreDropped(t *testing.T) {
 	if err != nil || len(sv) != 0 {
 		t.Fatalf("placeholders survived: %v %v", sv, err)
 	}
-	if b, _ := os.ReadFile(st.P.File("mcp.json")); strings.Contains(string(b), "postgres") {
-		t.Fatal("placeholders still on disk")
-	}
 	// One real change keeps the whole file.
 	mine := strings.Replace(old, "gh-mcp-server", "my-github-server", 1)
+	st = NewStore(Paths{Home: t.TempDir()})
 	if err := os.WriteFile(st.P.File("mcp.json"), []byte(mine), 0o600); err != nil {
 		t.Fatal(err)
 	}

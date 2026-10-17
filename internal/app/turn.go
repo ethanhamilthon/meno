@@ -130,7 +130,7 @@ func (a *App) onTurnDone(err error) {
 		a.notifyErr(err.Error())
 	}
 	a.st.Session.Metrics = agent.Metrics{LastUsage: a.st.LastUsage, Usage: a.st.Usage, Spent: a.st.Spent, Context: a.st.Context, Unpriced: a.st.Unpriced}
-	if err := agent.SaveSession(a.paths.SessionsDir(), a.st.Session); err != nil {
+	if err := agent.SaveSession(a.paths.Home, a.st.Session); err != nil {
 		a.notifyErr("save failed: " + err.Error())
 	}
 }

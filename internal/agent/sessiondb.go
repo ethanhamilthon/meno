@@ -5,21 +5,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
-	_ "modernc.org/sqlite" // pure-Go driver, no CGO
-
+	"meno/internal/db"
 	"meno/internal/llm"
 	"meno/internal/store"
 )
-
-// DBFile is the SQLite database holding all sessions, inside the sessions dir.
-const DBFile = "sessions.db"
 
 const schema = `
 CREATE TABLE IF NOT EXISTS sessions (
@@ -59,59 +54,74 @@ CREATE TABLE IF NOT EXISTS requests (
 ) WITHOUT ROWID;
 `
 
+// CloseSessionStores closes every opened database (flushing the WAL).
+func CloseSessionStores() { db.CloseAll() }
+
 var (
-	dbMu  sync.Mutex
-	dbs   = map[string]*sql.DB{}
-	dbErr = map[string]error{}
+	sessMu   sync.Mutex
+	sessInit = map[*sql.DB]bool{}
 )
 
-// CloseSessionStores closes every opened session database (flushing the WAL).
-func CloseSessionStores() {
-	dbMu.Lock()
-	defer dbMu.Unlock()
-	for p, db := range dbs {
-		_ = db.Close()
-		delete(dbs, p)
-	}
-}
-
-// openDB returns the shared handle for dir/sessions.db, creating the schema and
-// importing legacy per-session JSON files on first use in this process.
-func openDB(dir string) (*sql.DB, error) {
-	path := filepath.Join(dir, DBFile)
-	dbMu.Lock()
-	defer dbMu.Unlock()
-	if db, ok := dbs[path]; ok {
-		return db, nil
-	}
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return nil, err
-	}
-	u := url.URL{Scheme: "file", Path: path}
-	dsn := u.String() + "?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=foreign_keys(1)"
-	db, err := sql.Open("sqlite", dsn)
+// openDB returns the shared handle for home/meno.db with the session tables
+// created. On first use in this process it imports the old sessions/sessions.db
+// and per-session JSON files.
+func openDB(home string) (*sql.DB, error) {
+	d, err := db.Open(home)
 	if err != nil {
 		return nil, err
 	}
-	// One connection serializes writers inside the process; other meno
-	// processes are handled by SQLite locking plus busy_timeout.
-	db.SetMaxOpenConns(1)
-	if _, err := db.Exec(schema); err != nil {
-		db.Close()
+	sessMu.Lock()
+	defer sessMu.Unlock()
+	if sessInit[d] {
+		return d, nil
+	}
+	if _, err := d.Exec(schema); err != nil {
 		return nil, fmt.Errorf("session db: %w", err)
 	}
-	if err := os.Chmod(path, 0o600); err != nil && !errors.Is(err, os.ErrNotExist) {
-		db.Close()
-		return nil, err
+	sessInit[d] = true
+	legacy := filepath.Join(home, "sessions")
+	importOldDB(d, filepath.Join(legacy, "sessions.db"))
+	migrateLegacy(d, legacy)
+	return d, nil
+}
+
+// importOldDB copies the sessions of the pre-meno.db database file once. The
+// old file is kept.
+func importOldDB(d *sql.DB, old string) {
+	if _, err := os.Stat(old); err != nil {
+		return
 	}
-	dbs[path] = db
-	migrateLegacy(db, dir)
-	return db, nil
+	var n int
+	_ = d.QueryRow("SELECT COUNT(1) FROM meta WHERE key='migrated_sessions_db'").Scan(&n)
+	if n > 0 {
+		return
+	}
+	// ATTACH is per connection and the pool holds exactly one.
+	if _, err := d.Exec("ATTACH DATABASE ? AS old", "file:"+old+"?mode=ro"); err != nil {
+		return
+	}
+	defer d.Exec("DETACH DATABASE old")
+	tx, err := d.Begin()
+	if err != nil {
+		return
+	}
+	for _, q := range []string{
+		"INSERT OR IGNORE INTO sessions SELECT * FROM old.sessions",
+		"INSERT OR IGNORE INTO turns SELECT * FROM old.turns",
+		"INSERT OR IGNORE INTO requests SELECT * FROM old.requests",
+		"INSERT INTO meta(key,value) VALUES('migrated_sessions_db','1')",
+	} {
+		if _, err := tx.Exec(q); err != nil {
+			_ = tx.Rollback()
+			return
+		}
+	}
+	_ = tx.Commit()
 }
 
 // migrateLegacy imports <id>.json files once and renames them to <id>.json.migrated
 // so the originals are kept. Unreadable files are left in place untouched.
-func migrateLegacy(db *sql.DB, dir string) {
+func migrateLegacy(d *sql.DB, dir string) {
 	ents, err := os.ReadDir(dir)
 	if err != nil {
 		return
@@ -127,9 +137,9 @@ func migrateLegacy(db *sql.DB, dir string) {
 			continue
 		}
 		var exists int
-		_ = db.QueryRow("SELECT COUNT(1) FROM sessions WHERE id = ?", s.ID).Scan(&exists)
+		_ = d.QueryRow("SELECT COUNT(1) FROM sessions WHERE id = ?", s.ID).Scan(&exists)
 		if exists == 0 {
-			if err := writeSession(db, &s); err != nil {
+			if err := writeSession(d, &s); err != nil {
 				continue
 			}
 		}

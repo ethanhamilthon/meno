@@ -125,13 +125,12 @@ Everything lives in `$MENO_HOME` (default `~/.meno`):
 
 | File | Content |
 | --- | --- |
-| `settings.json` | settings and theme |
-| `providers.json` | providers, **including API keys in plain text** |
-| `mcp.json` | MCP servers |
-| `skills.json` | names of switched-off skills |
-| `skills/` | global skills |
-| `model-catalog.json` | cached model metadata (context sizes, prices) |
-| `sessions/sessions.db` | SQLite database with all sessions |
+| `meno.db` | SQLite database (mode 0600): settings and theme, providers (**API keys in plain text**), MCP servers, skill on/off state, the model catalog cache and all sessions |
+| `skills/` | global skills (markdown files) |
+
+On the first start after an update, the old `settings.json`, `providers.json`,
+`mcp.json`, `skills.json`, `model-catalog.json` and `sessions/` are imported
+into `meno.db` once. The old files are kept but no longer read.
 
 ## Development
 

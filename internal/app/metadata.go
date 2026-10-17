@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"meno/internal/llm"
-	"meno/internal/store"
 	"time"
 )
 
@@ -37,14 +36,13 @@ func (a *App) fetchMetadata() {
 		}()
 		m, err := llm.FetchMetadata(ctx)
 		if err == nil {
-			_ = store.SaveJSON(a.paths.File("model-catalog.json"), m)
+			_ = a.store.SaveCatalog(m)
 		}
 		a.postEvent(metadataLoaded{m, err})
 	}()
 }
 func (a *App) loadMetadataCache() {
-	var m map[string]llm.ModelInfo
-	if err := store.LoadJSON(a.paths.File("model-catalog.json"), &m); err == nil {
+	if m, err := a.store.LoadCatalog(); err == nil && len(m) > 0 {
 		a.st.Pricing = m
 	}
 }

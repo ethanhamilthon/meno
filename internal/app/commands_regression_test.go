@@ -2,10 +2,12 @@ package app
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"meno/internal/agent"
+	"meno/internal/db"
 	"meno/internal/llm"
 )
 
@@ -25,7 +27,7 @@ func TestClearRemovesPersistedContextPreservesAccounting(t *testing.T) {
 	if a.st.Session.ID != id || a.st.Session.Summary != "" || len(a.st.Session.ToMsgs()) != 0 || a.st.Context != 0 || a.st.Scroll != 0 {
 		t.Fatal("clear retained context or replaced session")
 	}
-	saved, err := agent.LoadSession(a.paths.SessionsDir(), id)
+	saved, err := agent.LoadSession(a.paths.Home, id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,7 +46,10 @@ func TestClearRemovesPersistedContextPreservesAccounting(t *testing.T) {
 func TestResumeCommandReportsListingFailure(t *testing.T) {
 	a, s := newTestApp(t)
 	defer s.Fini()
-	if err := os.WriteFile(a.paths.SessionsDir(), []byte("not a directory"), 0600); err != nil {
+	db.CloseAll()
+	_ = os.Remove(filepath.Join(a.paths.Home, "meno.db-wal"))
+	_ = os.Remove(filepath.Join(a.paths.Home, "meno.db-shm"))
+	if err := os.WriteFile(filepath.Join(a.paths.Home, "meno.db"), []byte("garbage"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	a.runCommand("resume")
