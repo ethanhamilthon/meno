@@ -1,7 +1,0 @@
-## Managing MCP servers
-mcpServers manages the MCP server configuration; changes are saved, applied at once and shown to the user. Every method is synchronous.
-- mcpServers.list() — every configured server: {name, transport, command|url, enabled, status: "running"|"stopped"|"starting"|"failed", error?, tools: <count>, env?, headers?}. Secret values of env and headers are always shown as "***".
-- mcpServers.add({name, transport?: "stdio"|"sse"|"streamable-http", command?, url?, env?: {K: "v"}, headers?: {K: "v"}, enabled?: true}) — add and start a server. command is a shell-style command line for stdio; url is for sse and streamable-http.
-- mcpServers.update(name, patch) — change any of those fields (env and headers are replaced as a whole; enabled: false stops the server) and restart it.
-- mcpServers.remove(name) and mcpServers.restart(name).
-add, update and restart wait until the server is up and return {ok, error?, tools: [{name, description}]}; they do not throw. After success the tools are callable at once as mcp.<server>.<tool>() (re-read the mcp global rather than keeping a reference to it). mcpTools("name") lists the tools of one server with their schemas. Do not add, change or remove servers unless the user asked for it.
