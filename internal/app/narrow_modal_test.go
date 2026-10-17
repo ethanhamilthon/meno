@@ -59,7 +59,7 @@ func TestNarrowHelpHeaderAndCommands(t *testing.T) {
 	if !strings.Contains(row, "help · meno") || !strings.Contains(row, "v0.1") {
 		t.Fatalf("help header collides: %q", row)
 	}
-	for _, want := range []string{"restart goja vm", "clear session context"} {
+	for _, want := range []string{"restart goja vm", "switch sessions"} {
 		found := false
 		for i, r := range helpRows {
 			if r.desc != want {

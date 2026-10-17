@@ -78,7 +78,8 @@ func TestRequestLedgerAndLastUsage(t *testing.T) {
 	if a.st.LastUsage != (llm.Usage{}) || len(a.st.Session.Requests) != 0 {
 		t.Fatal("new session retained usage")
 	}
-	a.resumeSession(id)
+	a.dropRuntime(a.rts[id])
+	a.openSession(id)
 	if a.st.LastUsage != last || len(a.st.Session.Requests) != 2 {
 		t.Fatal("resume lost ledger")
 	}
@@ -86,7 +87,7 @@ func TestRequestLedgerAndLastUsage(t *testing.T) {
 	if entry.Model != "actual" || entry.Provider != "openai" || entry.Usage != first || entry.Cost == nil || entry.Time.IsZero() {
 		t.Fatalf("record %+v", entry)
 	}
-	a.runCommand("clear")
+	a.saveSession()
 	saved, err := agent.LoadSession(a.paths.Home, id)
 	if err != nil || len(saved.Requests) != 2 || saved.Metrics.LastUsage != last {
 		t.Fatalf("clear lost ledger: %+v %v", saved, err)

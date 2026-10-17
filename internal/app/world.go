@@ -318,6 +318,10 @@ type promptState struct {
 	Base   *baseline // nil at a reset point
 	// VMReset queues a js-vm-reset event for the next message.
 	VMReset bool
+	// CwdFrom is the directory the session was in when the model last heard of
+	// one, set when the directory changed while there was no baseline (a stored
+	// session just opened). The next message tells the model.
+	CwdFrom string
 }
 
 // prepared is the result of preparing a user message.
@@ -339,10 +343,13 @@ func prepare(ctx context.Context, ps promptState, src worldSrc, hasHistory bool)
 	var lines []string
 	if ps.Base == nil {
 		ps.Frozen = prompt.Build(w.Input)
+		if hasHistory && ps.CwdFrom != "" && ps.CwdFrom != src.Paths.Cwd {
+			lines = append(lines, "<cwd-changed>The working directory changed from "+ps.CwdFrom+" to "+src.Paths.Cwd+". Relative paths and sh() now use "+src.Paths.Cwd+". Project skills and AGENTS.md of "+src.Paths.Cwd+" are already in your system prompt.</cwd-changed>")
+		}
 	} else {
 		lines = diffBaseline(ps.Base, w.Base)
 	}
-	ps.Base = w.Base
+	ps.Base, ps.CwdFrom = w.Base, ""
 	if ps.VMReset && hasHistory {
 		lines = append(lines, jsVMResetEvent)
 	}

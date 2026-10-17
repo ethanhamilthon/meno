@@ -1,6 +1,8 @@
 package app
 
 import (
+	"strings"
+
 	"github.com/gdamore/tcell/v2"
 
 	"meno/internal/ui"
@@ -205,7 +207,8 @@ func (a *App) onCommandKey(k *tcell.EventKey) {
 		a.st.Cmd = nil
 	case tcell.KeyEnter:
 		cmd := string(a.st.Cmd)
-		if len(rows) > 0 {
+		// ':cd <path>' runs what was typed; Tab completes it.
+		if len(rows) > 0 && !strings.HasPrefix(cmd, "cd ") {
 			cmd = rows[clampSel(a.st.CmdSel, len(rows))][1:]
 		}
 		a.st.CmdSel = 0

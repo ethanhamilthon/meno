@@ -55,8 +55,8 @@ func (a *App) onOverlayKey(k *tcell.EventKey) {
 		a.mcpKey(k)
 	case OverMCPEdit:
 		a.mcpEditKey(k)
-	case OverResume:
-		a.resumeKey(k)
+	case OverSessions:
+		a.sessionsKey(k)
 	case OverTheme:
 		a.themeKey(k)
 	case OverHelp:
@@ -80,8 +80,8 @@ func (a *App) drawOverlay(c ui.Canvas, w, h int) {
 		a.drawMCP(c, w, h)
 	case OverMCPEdit:
 		a.drawMCPEdit(c, w, h)
-	case OverResume:
-		a.drawResume(c, w, h)
+	case OverSessions:
+		a.drawSessions(c, w, h)
 	case OverTheme:
 		a.drawTheme(c, w, h)
 	case OverHelp:
@@ -111,7 +111,9 @@ func (a *App) navKey(k *tcell.EventKey, n int, jk bool) bool {
 }
 
 func (a *App) persistSettings() {
-	a.vm.SetTimeout(a.st.Settings.TimeoutDuration())
+	for _, rt := range a.rtList {
+		rt.VM.SetTimeout(a.st.Settings.TimeoutDuration())
+	}
 	if err := a.store.SaveSettings(a.st.Settings); err != nil {
 		a.notifyErr(err.Error())
 	}

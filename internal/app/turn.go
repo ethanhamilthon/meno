@@ -35,13 +35,14 @@ func (a *App) startTurn(text string) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	a.mu.Lock()
-	a.cancel = cancel
+	a.st.cancel = cancel
 	a.mu.Unlock()
 	a.st.Running = true
+	a.st.LastErr = false
 	a.st.Phase = "preparing"
 	a.st.Scroll = 0
 	a.clearLive()
-	sess := a.st.Session
+	sess, sid := a.st.Session, a.st.Session.ID
 	idx := sess.Len()
 	hasHistory := idx > 0 || sess.Summary != ""
 	sess.Append(agent.Turn{Role: llm.RoleUser, Text: text})
@@ -50,8 +51,8 @@ func (a *App) startTurn(text string) {
 	d := agent.Deps{
 		Client: a.client(p), Provider: p, Model: a.st.Settings.Model,
 		Effort: a.st.Settings.Effort,
-		VM:     a.vm, Thinking: a.st.Settings.Thinking != "off", ModelTimeout: a.st.Settings.ModelTimeout(),
-		Emit:  func(e agent.Ev) { a.postEvent(agentEv{ev: e}) },
+		VM:     a.st.VM, Thinking: a.st.Settings.Thinking != "off", ModelTimeout: a.st.Settings.ModelTimeout(),
+		Emit:  func(e agent.Ev) { a.postEvent(agentEv{sid: sid, ev: e}) },
 		Retry: a.retry,
 	}
 	hook := a.prepareHook
@@ -64,10 +65,10 @@ func (a *App) startTurn(text string) {
 		}
 		prep := prepare(ctx, ps, src, hasHistory)
 		sess.SetSystem(idx, prep.Event)
-		a.postEvent(preparedEv{prep})
+		a.postEvent(preparedEv{sid, prep})
 		d.System = prep.State.Frozen
 		err := (&agent.Runner{D: d}).Continue(ctx, sess)
-		a.postEvent(turnDone{err: err})
+		a.postEvent(turnDone{sid: sid, err: err})
 	}()
 }
 
@@ -88,8 +89,8 @@ func (a *App) onPrepared(p prepared) {
 func (a *App) abortTurn() {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	if a.cancel != nil {
-		a.cancel()
+	if a.st.cancel != nil {
+		a.st.cancel()
 	}
 }
 
@@ -166,16 +167,14 @@ func (a *App) onTurnDone(err error) {
 	a.st.Retry = nil
 	a.st.Phase = ""
 	a.mu.Lock()
-	a.cancel = nil
+	a.st.cancel = nil
 	a.mu.Unlock()
 	a.clearLive()
 	if err != nil && !isAbort(err) {
+		a.st.LastErr = true
 		a.notifyErr(err.Error())
 	}
-	a.st.Session.Metrics = agent.Metrics{LastUsage: a.st.LastUsage, Usage: a.st.Usage, Spent: a.st.Spent, Context: a.st.Context, Unpriced: a.st.Unpriced}
-	if err := agent.SaveSession(a.paths.Home, a.st.Session); err != nil {
-		a.notifyErr("save failed: " + err.Error())
-	}
+	a.saveSession()
 }
 
 func isAbort(err error) bool {

@@ -24,7 +24,7 @@ func askAsync(t *testing.T, a *App, ctx context.Context, q jsvm.Question) <-chan
 	t.Helper()
 	out := make(chan askOutcome, 1)
 	go func() {
-		text, err := (appAsker{a}).Ask(ctx, q)
+		text, err := (appAsker{a, a.st.Session.ID}).Ask(ctx, q)
 		out <- askOutcome{text, err}
 	}()
 	select {

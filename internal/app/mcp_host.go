@@ -40,14 +40,18 @@ func agentsPaths(p config.Paths) (global, project string) {
 // worldSrc captures what a prompt build needs. Call it on the UI goroutine;
 // the result may be used from any goroutine.
 func (a *App) worldSrc() worldSrc {
+	paths := a.paths
+	paths.Cwd = a.st.Cwd // the current session's directory
 	return worldSrc{
-		Paths: a.paths, MCP: a.mcp, Servers: append([]mcp.Server(nil), a.st.Servers...), Now: time.Now(),
+		Paths: paths, MCP: a.mcp, Servers: append([]mcp.Server(nil), a.st.Servers...), Now: time.Now(),
 	}
 }
 
 // reloadSkills picks up skill files added, edited or removed since the last look.
 func (a *App) reloadSkills() {
-	if sk, err := a.store.LoadSkills(); err == nil {
+	p := a.paths
+	p.Cwd = a.st.Cwd
+	if sk, err := config.NewStore(p).LoadSkills(); err == nil {
 		a.st.Skills = sk
 	}
 }

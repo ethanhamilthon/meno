@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"meno/internal/ui"
@@ -101,8 +102,15 @@ func (a *App) drawCommandList(c ui.Canvas, x, y, w int) {
 }
 func (a *App) drawCommandRows(c ui.Canvas, x, y, w, rows int) {
 	all := commandRows(a)
+	_, cd := a.cdRows()
 	cells := make([]acCell, len(all))
 	for i, name := range all {
+		if cd {
+			// ":cd /a/b/" shows as "b/" with the parent as the description.
+			p := strings.TrimSuffix(strings.TrimPrefix(name, ":cd "), "/")
+			cells[i] = acCell{filepath.Base(p) + "/", filepath.Dir(p), ui.FgWhite}
+			continue
+		}
 		cells[i] = acCell{name, cmdDesc(name), ui.FgWhite}
 	}
 	drawAcGrid(c, x, y, w, rows, cells, a.st.CmdSel)
@@ -130,6 +138,9 @@ func (a *App) drawCommandLine(c ui.Canvas, x, y, w int) {
 }
 
 func commandRows(a *App) []string {
+	if rows, ok := a.cdRows(); ok {
+		return rows
+	}
 	var out []string
 	for _, c := range commandList {
 		if a.st.Cmd == nil || strings.HasPrefix(c.name, ":"+string(a.st.Cmd)) {
@@ -145,7 +156,8 @@ type cmdDef struct {
 
 var commandList = []cmdDef{
 	{":new", "new session"},
-	{":resume", "switch session"},
+	{":sessions", "switch session"},
+	{":cd", "change directory"},
 	{":model", "model & effort"},
 	{":skills", "load skills"},
 	{":mcp", "mcp servers"},
@@ -155,9 +167,10 @@ var commandList = []cmdDef{
 	{":reset", "reset js vm"},
 	{":compact", "compact context"},
 	{":export", "export markdown"},
-	{":stop", "stop running js"},
+	{":stop", "stop this turn"},
 	{":help", "keys & commands"},
 	{":q", "quit meno"},
+	{":q!", "quit, stopping all turns"},
 }
 
 func jsMode(v string) ui.JSMode {

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -125,7 +126,7 @@ func TestCtrlCDuringStream(t *testing.T) {
 	s.WaitFor("second turn fine")
 }
 
-// 5. :new starts an empty session, :resume brings the old one back.
+// 5. :new starts an empty session, :sessions brings the old one back.
 func TestNewAndResume(t *testing.T) {
 	f := newFakeLLM(t)
 	f.Handler = func(q *llmReq) { q.Text("remember-me-answer") }
@@ -135,8 +136,9 @@ func TestNewAndResume(t *testing.T) {
 	s.WaitFor("↓ 100")
 	s.Cmd("new")
 	s.WaitGone("remember-me-answer")
-	s.Cmd("resume")
+	s.Cmd("sessions")
 	s.WaitFor("my first question")
+	s.Type("first quest") // the search box has the focus
 	s.Send(Enter)
 	s.WaitFor("remember-me-answer")
 }
@@ -156,8 +158,9 @@ func TestResumeAfterRestart(t *testing.T) {
 	}
 	s2 := start(t, options{home: home})
 	s2.WaitFor("give a task")
-	s2.Cmd("resume")
-	s2.WaitFor("question before restart")
+	s2.Cmd("sessions")
+	s2.WaitFor("question before")
+	s2.Type("before restart")
 	s2.Send(Enter)
 	s2.WaitFor("persisted-answer")
 }
@@ -448,5 +451,109 @@ func TestSkillEditProducesSystemEvent(t *testing.T) {
 	}
 	if strings.Contains(s.Screen(), "system-event") {
 		t.Fatal("events must not show in the timeline")
+	}
+}
+
+// 21. Two sessions run at once: the second answers while the first is still
+// waiting for the provider; the status bar and :sessions show it, and the slow
+// one can be opened and finishes.
+func TestParallelSessions(t *testing.T) {
+	f := newFakeLLM(t)
+	release := make(chan struct{})
+	var once sync.Once
+	free := func() { once.Do(func() { close(release) }) }
+	t.Cleanup(free) // never leave the handler hanging when the test fails
+	f.Handler = func(q *llmReq) {
+		if q.Mentions("slow-one") {
+			<-release
+			q.Text("answer-one")
+			return
+		}
+		q.Text("answer-two")
+	}
+	s := start(t, options{fake: f})
+	s.Say("slow-one")
+	s.WaitFor("thinking") // the request is out
+	s.Cmd("new")
+	s.Say("quick-two")
+	s.WaitFor("answer-two")
+	s.WaitFor("1 running")
+	s.Cmd("sessions")
+	s.WaitFor("slow-one")
+	s.WaitFor("quick-two")
+	s.Type("slow-one")
+	s.Send(Enter)
+	s.WaitGone("answer-two")
+	s.WaitFor("slow-one")
+	free()
+	s.WaitFor("answer-one")
+	if strings.Contains(s.Screen(), "answer-two") {
+		t.Fatal("sessions must not mix")
+	}
+}
+
+// 22. :q refuses while a turn runs and names the session; :q! stops everything.
+func TestQuitRefusedWhileRunning(t *testing.T) {
+	f := newFakeLLM(t)
+	f.Handler = func(q *llmReq) { q.Hang("working on it") }
+	s := start(t, options{fake: f})
+	s.Say("long job")
+	s.WaitFor("working on it")
+	s.Cmd("q")
+	s.WaitFor("not quitting")
+	s.WaitFor(":q!")
+	if s.Exited() {
+		t.Fatal(":q must not quit")
+	}
+	s.Cmd("q!")
+	if err := s.WaitExit(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// 23. :cd changes the directory of the session; the model hears about it with
+// the next message.
+func TestCdProducesSystemEvent(t *testing.T) {
+	f := newFakeLLM(t)
+	f.Handler = func(q *llmReq) { q.Text("fine") }
+	s := start(t, options{fake: f})
+	if err := os.Mkdir(filepath.Join(s.work, "sub"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	s.Say("first")
+	s.WaitFor("↓ 100")
+	s.Cmd("cd sub")
+	s.WaitFor("working directory")
+	s.Say("second")
+	s.WaitFor("↓ 200")
+	bodies := f.Bodies()
+	if strings.Contains(bodies[0], "cwd-changed") {
+		t.Fatal("no event before the change")
+	}
+	if !strings.Contains(bodies[1], "cwd-changed") || !strings.Contains(bodies[1], "sub") {
+		t.Fatalf("second request lacks the event:\n%s", bodies[1])
+	}
+	s.Cmd("cd nowhere")
+	s.WaitFor("no such directory")
+}
+
+// 24. :reset tells the model its variables are gone, once.
+func TestResetProducesVMResetEvent(t *testing.T) {
+	f := newFakeLLM(t)
+	f.Handler = func(q *llmReq) { q.Text("ok then") }
+	s := start(t, options{fake: f})
+	s.Say("define things")
+	s.WaitFor("↓ 100")
+	s.Cmd("reset")
+	s.WaitFor("js vm restarted")
+	s.Say("what now")
+	s.WaitFor("↓ 200")
+	s.Say("and again")
+	s.WaitFor("↓ 300")
+	bodies := f.Bodies()
+	// The third request replays the second message with its event, but adds no new one.
+	n0, n1, n2 := strings.Count(bodies[0], "js-vm-reset"), strings.Count(bodies[1], "js-vm-reset"), strings.Count(bodies[2], "js-vm-reset")
+	if n0 != 0 || n1 == 0 || n2 != n1 {
+		t.Fatalf("js-vm-reset counts per request: %d %d %d", n0, n1, n2)
 	}
 }

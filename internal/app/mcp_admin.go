@@ -35,7 +35,10 @@ func (a *App) onUI(fn func()) bool {
 
 // mcpAdmin implements jsvm.MCPAdmin on top of the app state, so that changes
 // made by the agent and by the :mcp dialogs share one source of truth.
-type mcpAdmin struct{ a *App }
+type mcpAdmin struct {
+	a   *App
+	sid string // the session whose agent calls us; its timeline gets the notices
+}
 
 func fail(format string, args ...any) map[string]any {
 	return map[string]any{"ok": false, "error": fmt.Sprintf(format, args...)}
@@ -181,7 +184,7 @@ func (m mcpAdmin) change(fn func(sv []mcp.Server) ([]mcp.Server, string, error))
 			a.notifyErr(perr.Error())
 		}
 		a.reconcileMCP(old)
-		a.notify(note)
+		a.inRT(m.sid, func() { a.notify(note) })
 	})
 	if !ran {
 		return errors.New("meno is closing")

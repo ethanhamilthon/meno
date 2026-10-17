@@ -95,19 +95,30 @@ func TestRunningSessionGuards(t *testing.T) {
 	defer s.Fini()
 	id := a.st.Session.ID
 	a.st.Running = true
-	for _, cmd := range []string{"new", "reset", "clear", "compact", "resume", "q"} {
+	for _, cmd := range []string{"reset", "compact", "cd /"} {
 		a.st.Notices = nil
 		a.runCommand(cmd)
 		if a.st.Session.ID != id || a.quit || !strings.Contains(a.lastNotice(), ":stop") {
 			t.Fatalf("unsafe command %s", cmd)
 		}
 	}
-	for cmd, over := range map[string]Overlay{"settings": OverSettings, "model": OverModel, "mcp": OverMCP, "skills": OverSkills, "providers": OverProviders, "help": OverHelp} {
+	a.st.Notices = nil
+	a.runCommand("q")
+	if a.quit || !strings.Contains(a.lastNotice(), "not quitting") || !strings.Contains(a.lastNotice(), "running") || !strings.Contains(a.lastNotice(), ":q!") {
+		t.Fatalf("q while running: quit=%v notice %q", a.quit, a.lastNotice())
+	}
+	for cmd, over := range map[string]Overlay{"settings": OverSettings, "model": OverModel, "mcp": OverMCP, "skills": OverSkills, "providers": OverProviders, "help": OverHelp, "sessions": OverSessions} {
 		a.closeOverlay()
 		a.runCommand(cmd)
 		if a.st.Over != over {
 			t.Fatalf(":%s must open while the agent runs", cmd)
 		}
+	}
+	// :new does not touch the running session.
+	a.closeOverlay()
+	a.runCommand("new")
+	if a.st.Session.ID == id || a.st.Running || !a.rts[id].Running {
+		t.Fatal(":new must leave the running session alone and show a fresh one")
 	}
 }
 func TestCloseReleasesFullEventQueue(t *testing.T) {
@@ -141,7 +152,8 @@ func TestUsageAccumulatesAndPersists(t *testing.T) {
 	a.onTurnDone(nil)
 	id := a.st.Session.ID
 	a.runCommand("new")
-	a.resumeSession(id)
+	a.dropRuntime(a.rts[id]) // reopen from the database
+	a.openSession(id)
 	if a.st.Usage.In != 2000 || a.st.Context != 1100 {
 		t.Fatal("resume lost stats")
 	}

@@ -90,7 +90,7 @@ func (a *App) drawBottom(c ui.Canvas, x, y, w, h int) {
 func (a *App) drawStatus(c ui.Canvas, x, y, w int) {
 	label := a.st.Mode.Label()
 	if a.st.Over != OverNone {
-		labels := map[Overlay]string{OverModel: "MODEL", OverSettings: "SETTINGS", OverProviders: "PROVIDERS", OverProviderEdit: "PROVIDER", OverSkills: "SKILLS", OverMCP: "MCP", OverMCPEdit: "MCP", OverResume: "RESUME", OverTheme: "THEME", OverHelp: "HELP"}
+		labels := map[Overlay]string{OverModel: "MODEL", OverSettings: "SETTINGS", OverProviders: "PROVIDERS", OverProviderEdit: "PROVIDER", OverSkills: "SKILLS", OverMCP: "MCP", OverMCPEdit: "MCP", OverSessions: "SESSIONS", OverTheme: "THEME", OverHelp: "HELP"}
 		if name := labels[a.st.Over]; name != "" {
 			label = name
 		}
@@ -108,6 +108,15 @@ func (a *App) drawStatus(c ui.Canvas, x, y, w int) {
 		center, midColor = t, ui.Orange
 	}
 	mid := []ui.Seg{{Text: center, FG: midColor}}
+	if sum, col := a.sessionsSummary(); sum != "" {
+		// What the other sessions are doing comes first; the usage text only if it fits.
+		both := []ui.Seg{{Text: sum, FG: col}, {Text: "   ", FG: ui.FgDim}, {Text: center, FG: midColor}}
+		if center != "" && ui.TextWidth(joinSegText(both))+ui.TextWidth(a.modelLabel())+ui.TextWidth(label)+10 <= w {
+			mid = both
+		} else {
+			mid = []ui.Seg{{Text: sum, FG: col}}
+		}
+	}
 	dot, color := "○ ", ui.FgDim
 	if a.st.Running {
 		// Blink while the agent works: 500ms on, 500ms off.
@@ -140,4 +149,12 @@ func (a *App) contextLabel() string {
 		text += " / " + compactTokens(info.Context)
 	}
 	return text
+}
+
+func joinSegText(segs []ui.Seg) string {
+	s := ""
+	for _, g := range segs {
+		s += g.Text
+	}
+	return s
 }

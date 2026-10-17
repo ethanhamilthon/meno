@@ -217,7 +217,7 @@ func TestResetPointsRebuildWithoutEvents(t *testing.T) {
 
 	// So is a finished compaction.
 	os.WriteFile(filepath.Join(paths.Cwd, "AGENTS.md"), []byte("newer rules"), 0o644)
-	a.handle(compactDone{before: 10, after: 5})
+	a.handle(compactDone{sid: a.st.Session.ID, before: 10, after: 5})
 	say(t, a, "after compact")
 	r = cl.requests()[2]
 	if !strings.Contains(r.System, "newer rules") || strings.Contains(lastUser(r), "system-event") {
@@ -254,7 +254,8 @@ func TestOpeningStoredSessionResetsBaselineAndReportsVM(t *testing.T) {
 	id := a.st.Session.ID
 	a.runCommand("new")
 	os.WriteFile(filepath.Join(paths.Cwd, "AGENTS.md"), []byte("rules"), 0o644)
-	a.resumeSession(id)
+	a.dropRuntime(a.rts[id]) // force a load from the database
+	a.openSession(id)
 	say(t, a, "back")
 	r := cl.requests()[len(cl.requests())-1]
 	got := lastUser(r)

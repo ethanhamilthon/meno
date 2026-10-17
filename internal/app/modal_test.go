@@ -84,13 +84,18 @@ func TestSkillsDialogExplainsWhereToPutSkills(t *testing.T) {
 	}
 }
 
-func TestResumeOverlayNoSessions(t *testing.T) {
+func TestSessionsOverlayListsTheCurrentSession(t *testing.T) {
 	a, scr := newTestApp(t)
 	defer scr.Fini()
-	a.openResume()
+	a.openSessions()
+	a.draw()
+	if text := screenText(scr); !strings.Contains(text, "new session") || !strings.Contains(text, "current") {
+		t.Fatalf("sessions overlay not rendered:\n%s", text)
+	}
+	a.st.Query = []rune("nothing like this")
 	a.draw()
 	if !strings.Contains(screenText(scr), "no matching sessions") {
-		t.Fatal("resume overlay not rendered")
+		t.Fatal("filter")
 	}
 }
 

@@ -32,7 +32,7 @@ func TestCtrlCCancelsTurn(t *testing.T) {
 	defer s.Fini()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	a.cancel = cancel
+	a.st.cancel = cancel
 	a.onKey(tcell.NewEventKey(tcell.KeyCtrlC, 0, tcell.ModNone))
 	if ctx.Err() == nil {
 		t.Fatal("ctrl-c did not cancel turn")

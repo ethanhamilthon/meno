@@ -37,7 +37,7 @@ func TestAgentManagesMCPServers(t *testing.T) {
 	runUI(t, a)
 	js := func(code string) string {
 		t.Helper()
-		r := a.vm.Exec(contextBackground(), code)
+		r := a.st.VM.Exec(contextBackground(), code)
 		if r.Err != "" {
 			t.Fatalf("%s: %s", code, r.Err)
 		}
@@ -103,7 +103,7 @@ func TestAgentRemovingServerClosesItsEditForm(t *testing.T) {
 	a.postEvent(uiCall{func() { a.openMCPEdit(1); close(done) }, make(chan struct{})})
 	<-done
 	// Removing the other server only shifts the index.
-	if res := (mcpAdmin{a}).Remove("a"); res["ok"] != true {
+	if res := (mcpAdmin{a, a.st.Session.ID}).Remove("a"); res["ok"] != true {
 		t.Fatal(res)
 	}
 	a.onUI(func() {
@@ -111,7 +111,7 @@ func TestAgentRemovingServerClosesItsEditForm(t *testing.T) {
 			t.Errorf("over %v idx %d", a.st.Over, a.st.EditIdx)
 		}
 	})
-	if res := (mcpAdmin{a}).Remove("b"); res["ok"] != true {
+	if res := (mcpAdmin{a, a.st.Session.ID}).Remove("b"); res["ok"] != true {
 		t.Fatal(res)
 	}
 	a.onUI(func() {

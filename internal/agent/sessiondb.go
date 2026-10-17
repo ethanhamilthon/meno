@@ -323,11 +323,11 @@ func readSession(db *sql.DB, id string) (*Session, error) {
 	return &s, rq.Err()
 }
 
-func listSessions(db *sql.DB) ([]SessionInfo, error) {
+func listSessions(db *sql.DB, limit int) ([]SessionInfo, error) {
 	rows, err := db.Query(`SELECT s.id, s.title, s.cwd, s.updated_at,
 		(SELECT COUNT(1) FROM turns t WHERE t.session_id = s.id),
 		(SELECT COUNT(1) FROM turns t WHERE t.session_id = s.id AND (t.code <> '' OR t.call_id <> ''))
-		FROM sessions s ORDER BY s.updated_at DESC`)
+		FROM sessions s ORDER BY s.updated_at DESC LIMIT ?`, limit)
 	if err != nil {
 		return nil, err
 	}

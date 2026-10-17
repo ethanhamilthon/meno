@@ -138,21 +138,26 @@ func TestModalDimsEntireBackdrop(t *testing.T) {
 
 func TestSessionSearchTitleDatePathAndClear(t *testing.T) {
 	a, s := visualFixture(t, 120, 36)
-	a.st.Sessions = []agent.SessionInfo{{ID: "test", Title: "Fix compiler", Cwd: "/work/compiler", UpdatedAt: time.Date(2026, 10, 16, 12, 0, 0, 0, time.UTC), Turns: 5}}
+	a.dbRows = []agent.SessionInfo{{ID: "test", Title: "Fix compiler", Cwd: "/work/compiler", UpdatedAt: time.Date(2026, 10, 16, 12, 0, 0, 0, time.UTC), Turns: 5}}
 	for _, q := range []string{"COMPILER", "/work", "2026-10-16"} {
 		a.st.Query = []rune(q)
-		if len(a.resumeIdx()) != 1 {
+		if len(sessionIdx(a)) != 1 {
 			t.Fatalf("query %q not matched", q)
 		}
 	}
-	a.resumeKey(keyK(tcell.KeyCtrlU))
+	a.sessionsKey(keyK(tcell.KeyCtrlU))
 	if len(a.st.Query) != 0 {
 		t.Fatal("query not cleared")
 	}
-	a.drawResume(ui.Canvas{S: s}, 120, 36)
-	for _, text := range []string{"sessions", "search title, date or path", "Fix compiler", "2026-10-16", "/work/compiler"} {
+	a.drawSessions(ui.Canvas{S: s}, 120, 36)
+	for _, text := range []string{"sessions", "search title, date or path", "Fix compiler", "5 turns", "/work/compiler"} {
 		if !strings.Contains(screenText(s), text) {
 			t.Fatalf("missing %q", text)
 		}
 	}
+}
+
+func sessionIdx(a *App) []int {
+	_, idx := a.sessionsFiltered()
+	return idx
 }

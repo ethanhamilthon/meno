@@ -66,8 +66,8 @@ MCP servers that are still starting) the status shows `preparing...`.
 
 Whatever changes afterwards reaches the model as one `<system-event>` block in front
 of your next message: skills added, updated or removed, `AGENTS.md` created, changed
-or deleted, MCP servers connected, failed or gone and their tools, a new date, and a
-restarted JS VM (`:reset`, opening a stored session). Changes the agent makes itself
+or deleted, MCP servers connected, failed or gone and their tools, a new date, a changed
+working directory (`:cd`), and a restarted JS VM (`:reset`, opening a stored session). Changes the agent makes itself
 are reported too. The block is saved with the message, so a resumed session replays
 the same history, but it is not shown in the timeline or `:export`.
 
@@ -175,14 +175,44 @@ read-only but supports every motion and yank (`y` copies through OSC 52).
 | | |
 | --- | --- |
 | `Enter` / `Shift+Enter` | send / new line |
-| `Ctrl+C` | abort the running turn |
+| `Ctrl+C` | abort the running turn of this session |
 | `Ctrl+E/Y/D/U/F/B`, wheel | scroll the timeline |
-| `:new` `:resume` `:compact` `:clear` `:export [file]` | sessions |
+| `:new` `:sessions` `:cd <path>` `:compact` `:export [file]` | sessions, see below |
 | `:model` `:settings` `:theme` `:skills` `:mcp` `:providers` | dialogs |
-| `:reset` `:stop` `:q` | restart the VM, stop the agent, quit |
+| `:reset` `:stop` `:q` `:q!` | restart this session's VM, stop its turn, quit (`:q!` also stops running turns) |
 
 Completion lists (`:` commands and `/skill` names) use two columns once they
 have six or more entries; Down walks the left column and continues in the right.
+
+## Sessions
+
+Several sessions can run at the same time. Each has its own conversation, js VM
+(variables are not shared), working directory, token counters, pending question
+and half-typed message; providers, MCP servers and settings are shared. A turn
+keeps the model and effort it started with, so `:model` only affects later turns.
+
+- `:sessions` lists the last 200 sessions of all projects (search by title, path or
+  date) and opens at once; the list fills in from the database. Each row has a
+  status: blinking green dot = a turn is running, orange `?` = waiting for your
+  answer to `askUser`, blinking yellow = waiting to retry, red = the last turn
+  failed, blue = a turn finished while you were elsewhere and you have not seen it
+  yet, dim `○` = idle. `Enter` switches, also while turns run. A stored session
+  gets a new js VM (the model is told with a `js-vm-reset` event) and its prompt is
+  built at its first message. If its directory is gone it opens in the launch
+  directory and the model is told about the change.
+- While other sessions are active the status bar says so, for example
+  `● 2 running · ? 1 waiting · ◉ 1 done`. The ask bell also rings for questions of
+  background sessions; such a question waits until you switch to its session.
+- `:new` starts an empty session in the current session's directory and leaves
+  the others running. Empty sessions you never used are not stored.
+- `:cd <path>` changes the working directory of the current session only
+  (`~`, relative paths and `-` for the previous directory work; Tab completes
+  directories). It is refused while the session runs. `fs` and `sh` use the new
+  directory at once, variables survive. With history, the prompt is not rebuilt: the
+  next message carries a `cwd-changed` event plus the skills and `AGENTS.md` events
+  of the new location.
+- `:stop` and `Ctrl+C` stop the current session's turn only. `:q` refuses while any
+  session runs or waits for an answer and names it; `:q!` cancels everything and quits.
 
 ## Files
 
@@ -217,7 +247,7 @@ texts). Tests drive the real UI on tcell's simulation screen. `make term` goes f
 it builds the binary, runs it in a pseudo-terminal (`creack/pty`), reads the
 screen through a terminal emulator (`vt10x`) and serves the model from a fake
 provider that speaks both protocols and can fail on demand. Scenarios: first-run
-setup through the dialogs, streaming, js tool calls, Ctrl+C, `:new`/`:resume`
-(also across restarts), resize and narrow terminals, Unicode/Markdown, quitting,
+setup through the dialogs, streaming, js tool calls, Ctrl+C, `:new`/`:sessions`
+(also across restarts), parallel sessions, `:cd`, system events, `:q`/`:q!`, resize and narrow terminals, Unicode/Markdown, quitting,
 and provider errors with retries. Those tests live in `internal/term` behind
 the `termtest` build tag.

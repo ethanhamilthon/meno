@@ -49,7 +49,7 @@ func hintsLeft() []hint {
 func hintsRight() []hint {
 	return []hint{
 		{"/skill", "use an enabled skill", ui.Purple},
-		{":resume", "session history", ui.Purple},
+		{":sessions", "switch sessions", ui.Purple},
 		{"v", "visual select in buffer", ui.Purple},
 		{":help", "all commands and shortcuts", ui.Purple},
 	}
@@ -101,7 +101,7 @@ func (a *App) drawWelcome(c ui.Canvas, x, y, w, h int) {
 	if metaY < y+h {
 		c.Text(wx, metaY, w-(wx-x), "meno v0.1", ui.Style{FG: ui.FgSoft, BG: bg}.TCell())
 		if !compact {
-			c.Text(wx+11, metaY, max(0, w-(wx+11-x)), "· "+a.paths.Cwd, ui.Style{FG: ui.FgDim, BG: bg}.TCell())
+			c.Text(wx+11, metaY, max(0, w-(wx+11-x)), "· "+a.st.Cwd, ui.Style{FG: ui.FgDim, BG: bg}.TCell())
 		}
 	}
 	gridY := top + 9

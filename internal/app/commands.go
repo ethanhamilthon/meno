@@ -2,17 +2,19 @@ package app
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"meno/internal/agent"
 	"meno/internal/llm"
-	"meno/internal/ui"
 )
 
-// interruptsAgent lists commands that would pull the session, VM or process out
-// from under a running agent. Everything else (dialogs, export...) is safe.
+// interruptsAgent lists commands that would pull the session, VM or directory
+// out from under a running agent of the current session. Everything else
+// (dialogs, export...) is safe, and so is working with other sessions.
 var interruptsAgent = map[string]bool{
-	"new": true, "resume": true, "reset": true, "clear": true, "compact": true, "q": true, "quit": true,
+	"reset": true, "compact": true, "cd": true,
 }
 
 func (a *App) runCommand(raw string) {
@@ -28,34 +30,26 @@ func (a *App) runCommand(raw string) {
 	args := fields[1:]
 	switch name {
 	case "q", "quit":
+		if busy := a.busySessions(); len(busy) > 0 {
+			a.notifyErr("not quitting: " + strings.Join(busy, ", ") + " · :q! quits anyway")
+			return
+		}
+		a.quit = true
+	case "q!", "quit!":
+		a.cancelAll()
 		a.quit = true
 	case "new":
-		a.saveSession()
-		a.st.Session = agent.NewSession(a.paths.Cwd, a.st.Settings.Model)
-		a.st.Scroll = 0
-		a.st.LastUsage = llm.Usage{}
-		a.st.Usage = llm.Usage{}
-		a.st.Spent = 0
-		a.st.Context = 0
-		a.st.Unpriced = false
-		a.vm.Reset()
-		a.st.Prompt = promptState{}
+		a.newSession()
+	case "cd":
+		a.changeDir(strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(raw), name)))
 	case "reset":
-		a.vm.Reset()
+		a.st.VM.Reset()
 		if a.hasHistory() {
 			a.st.Prompt.VMReset = true
 		}
 		a.notify("js vm restarted")
 	case "compact":
 		a.compact()
-	case "clear":
-		a.st.Session.Replace(nil)
-		a.st.Session.Summary = ""
-		a.st.Scroll = 0
-		a.st.Context = 0
-		a.st.Prompt = promptState{}
-		// Usage and cost are cumulative for this session, not its current context.
-		a.saveSession()
 	case "export":
 		a.exportSession(args)
 	case "stop":
@@ -76,22 +70,119 @@ func (a *App) runCommand(raw string) {
 		a.openTheme()
 	case "mcp":
 		a.openOverlay(OverMCP)
-	case "resume":
-		a.openResume()
+	case "sessions":
+		a.openSessions()
 	default:
 		a.notifyErr("unknown command :" + name)
 	}
 }
 
-func (a *App) saveSession() {
-	if a.st.Session == nil {
+// changeDir implements :cd for the current session. arg may be a path
+// (relative to the session's directory, or starting with ~) or "-" for the
+// previous directory.
+func (a *App) changeDir(arg string) {
+	if arg == "" {
+		a.notify("working directory: " + a.st.Cwd)
 		return
 	}
-	a.st.Session.Metrics = agent.Metrics{LastUsage: a.st.LastUsage, Usage: a.st.Usage, Spent: a.st.Spent, Context: a.st.Context, Unpriced: a.st.Unpriced}
-	// Empty sessions must also be saved: :clear may have removed persisted turns.
-	if err := agent.SaveSession(a.paths.Home, a.st.Session); err != nil {
-		a.notifyErr("save failed: " + err.Error())
+	var target string
+	switch {
+	case arg == "-":
+		if a.st.PrevCwd == "" {
+			a.notifyErr("cd: no previous directory")
+			return
+		}
+		target = a.st.PrevCwd
+	default:
+		target = expandHome(arg)
+		if !filepath.IsAbs(target) {
+			target = filepath.Join(a.st.Cwd, target)
+		}
+		target = filepath.Clean(target)
 	}
+	if !dirExists(target) {
+		if _, err := os.Stat(target); err == nil {
+			a.notifyErr("cd: not a directory: " + target)
+		} else {
+			a.notifyErr("cd: no such directory: " + target)
+		}
+		return
+	}
+	if target == a.st.Cwd {
+		a.notify("already in " + target)
+		return
+	}
+	a.setCwd(a.st.Runtime, target)
+	a.reloadSkills()
+	a.notify("working directory: " + target)
+}
+
+// setCwd moves a session to dir: its VM root, its saved directory and what the
+// next system prompt or event says about it.
+func (a *App) setCwd(rt *Runtime, dir string) {
+	if rt.Prompt.Base == nil && !rt.Empty() && rt.Prompt.CwdFrom == "" {
+		// The model has not been told a directory in this segment yet.
+		rt.Prompt.CwdFrom = rt.Cwd
+	}
+	rt.PrevCwd, rt.Cwd = rt.Cwd, dir
+	rt.VM.SetRoot(dir)
+	rt.Session.Cwd = dir
+	if rt.Empty() {
+		rt.Prompt = promptState{} // built for the new directory at the first message
+	}
+	a.saveRT(rt)
+}
+
+// cancelAll stops the running turn of every session.
+func (a *App) cancelAll() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	for _, rt := range a.rtList {
+		if rt.cancel != nil {
+			rt.cancel()
+		}
+	}
+}
+
+// markUnseen flags a finished turn of a session that is not on screen.
+func (a *App) markUnseen(sid string) {
+	if rt := a.rts[sid]; rt != nil && rt != a.st.Runtime {
+		rt.Unseen = true
+	}
+}
+
+// animating reports whether something on screen changes without input: a
+// running turn in any session, or the :sessions list with live statuses.
+func (a *App) animating() bool {
+	if a.st.Over == OverSessions {
+		return true
+	}
+	for _, rt := range a.rtList {
+		if rt.Running {
+			return true
+		}
+	}
+	return false
+}
+
+func (a *App) saveSession() { a.saveRT(a.st.Runtime) }
+
+// saveRT stores a session. Sessions nobody ever wrote to are not stored, and
+// neither is one whose turn is running (that goroutine is still changing it);
+// its turn saves it when it ends.
+func (a *App) saveRT(rt *Runtime) {
+	if rt.Running && !a.closing {
+		return
+	}
+	if rt.Empty() && !rt.Saved && len(rt.Session.Requests) == 0 {
+		return
+	}
+	rt.Session.Metrics = agent.Metrics{LastUsage: rt.LastUsage, Usage: rt.Usage, Spent: rt.Spent, Context: rt.Context, Unpriced: rt.Unpriced}
+	if err := agent.SaveSession(a.paths.Home, rt.Session); err != nil {
+		a.inRT(rt.ID(), func() { a.notifyErr("save failed: " + err.Error()) })
+		return
+	}
+	rt.Saved = true
 }
 
 func (a *App) compact() {
@@ -102,19 +193,20 @@ func (a *App) compact() {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	a.mu.Lock()
-	a.cancel = cancel
+	a.st.cancel = cancel
 	a.mu.Unlock()
 	a.st.Running = true
+	a.st.LastErr = false
 	a.st.Phase = "compacting"
-	sess, model, client := a.st.Session, a.st.Settings.Model, a.client(p)
+	sess, sid, model, client := a.st.Session, a.st.Session.ID, a.st.Settings.Model, a.client(p)
 	a.running.Add(1)
 	go func() {
 		defer a.running.Done()
 		defer cancel()
 		before, after, err := agent.Compact(ctx, client, p, model, sess, func(u llm.Usage) {
-			a.postEvent(agentEv{ev: agent.Ev{Kind: agent.EvUsage, Usage: u, Provider: p, Model: model}})
+			a.postEvent(agentEv{sid: sid, ev: agent.Ev{Kind: agent.EvUsage, Usage: u, Provider: p, Model: model}})
 		})
-		a.postEvent(compactDone{before: before, after: after, err: err})
+		a.postEvent(compactDone{sid: sid, before: before, after: after, err: err})
 	}()
 }
 
@@ -122,6 +214,10 @@ func (a *App) exportSession(args []string) {
 	name := "meno-session.md"
 	if len(args) > 0 {
 		name = args[0]
+	}
+	path := name
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(a.st.Cwd, path)
 	}
 	var b strings.Builder
 	for _, t := range a.st.Session.Snapshot() {
@@ -137,27 +233,18 @@ func (a *App) exportSession(args []string) {
 			b.WriteString("## Assistant\n\n" + t.Text + "\n\n")
 		}
 	}
-	if err := writeFile(name, b.String()); err != nil {
+	if err := writeFile(path, b.String()); err != nil {
 		a.notifyErr("export failed: " + err.Error())
 		return
 	}
-	a.notify("session saved to ./" + name)
-}
-
-func (a *App) openResume() {
-	list, err := agent.ListSessions(a.paths.Home)
-	if err != nil {
-		a.notifyErr("resume failed: " + err.Error())
-		return
+	shown := name
+	if !filepath.IsAbs(name) {
+		shown = "./" + name
 	}
-	a.st.Sessions = list
-	a.st.Sel = 0
-	a.openOverlay(OverResume)
+	a.notify("session saved to " + shown)
 }
-
-var _ = ui.BgTerm
 
 // hasHistory reports whether the model has already seen anything of this session.
 func (a *App) hasHistory() bool {
-	return a.st.Session != nil && (a.st.Session.Len() > 0 || a.st.Session.Summary != "")
+	return !a.st.Empty()
 }

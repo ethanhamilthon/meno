@@ -23,7 +23,8 @@ type Result struct {
 type VM struct {
 	mu           sync.Mutex
 	rt           *goja.Runtime
-	root         string
+	rootMu       sync.RWMutex
+	root         string        // working directory of fs and sh; see SetRoot
 	timeout      atomic.Int64  // time.Duration; atomic so settings can change during a run
 	active       time.Duration // timeout of the running Exec
 	mcpHost      atomic.Pointer[MCPHost]
@@ -59,6 +60,21 @@ func (v *VM) Reset() {
 	v.bind()
 }
 
+// SetRoot changes the working directory of fs and sh. Variables survive; the
+// next call sees the new directory. It does not wait for a running Exec.
+func (v *VM) SetRoot(dir string) {
+	v.rootMu.Lock()
+	v.root = dir
+	v.rootMu.Unlock()
+}
+
+// Root is the current working directory of fs and sh.
+func (v *VM) Root() string {
+	v.rootMu.RLock()
+	defer v.rootMu.RUnlock()
+	return v.root
+}
+
 func (v *VM) SetTimeout(d time.Duration) {
 	v.timeout.Store(int64(d))
 }
@@ -80,16 +96,16 @@ func (v *VM) bind() {
 		return map[string]any{"status": r.Status, "statusText": r.StatusText, "url": r.URL, "redirected": r.Redirected, "headers": r.Headers, "body": r.Body}, nil
 	})
 	_ = rt.Set("env", environ())
-	fsh := FS{Root: v.root}
+	fsh := func() FS { return FS{Root: v.Root()} }
 	obj := rt.NewObject()
-	_ = obj.Set("read", func(p string) (string, error) { return fsh.Read(p) })
-	_ = obj.Set("write", func(p, c string) error { return fsh.Write(p, c) })
-	_ = obj.Set("edit", func(p, o, n string) (int, error) { return fsh.Edit(p, o, n) })
-	_ = obj.Set("glob", func(p string) ([]string, error) { return fsh.Glob(p) })
-	_ = obj.Set("exists", func(p string) bool { return fsh.Exists(p) })
+	_ = obj.Set("read", func(p string) (string, error) { return fsh().Read(p) })
+	_ = obj.Set("write", func(p, c string) error { return fsh().Write(p, c) })
+	_ = obj.Set("edit", func(p, o, n string) (int, error) { return fsh().Edit(p, o, n) })
+	_ = obj.Set("glob", func(p string) ([]string, error) { return fsh().Glob(p) })
+	_ = obj.Set("exists", func(p string) bool { return fsh().Exists(p) })
 	_ = rt.Set("fs", obj)
 	_ = rt.Set("sh", func(cmd string) (map[string]any, error) {
-		res, err := (Shell{Root: v.root, Timeout: v.active, MaxOut: v.maxOut, Env: v.shellEnv()}).Run(v.ctx, cmd)
+		res, err := (Shell{Root: v.Root(), Timeout: v.active, MaxOut: v.maxOut, Env: v.shellEnv()}).Run(v.ctx, cmd)
 		if err != nil {
 			return nil, err
 		}

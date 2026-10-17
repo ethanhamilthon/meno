@@ -9,7 +9,6 @@ import (
 
 	"meno/internal/agent"
 	"meno/internal/config"
-	"meno/internal/jsvm"
 	"meno/internal/llm"
 	"meno/internal/mcp"
 	"meno/internal/ui"
@@ -20,7 +19,6 @@ type App struct {
 	st        *State
 	store     *config.Store
 	paths     config.Paths
-	vm        *jsvm.VM
 	mcp       *mcp.Manager
 	mcpCtx    context.Context // lives as long as the app; ends every server process
 	mcpStop   context.CancelFunc
@@ -33,25 +31,46 @@ type App struct {
 	idleTick  bool      // the batch held only ticks: skip drawing when nothing runs
 	cur       cursorPos // real terminal cursor, set while drawing
 
-	mu     sync.Mutex
-	cancel context.CancelFunc
+	rts    map[string]*Runtime // every session loaded in this run, by id
+	rtList []*Runtime          // the same, in creation order
+	dbRows []agent.SessionInfo // sessions in the database, as last listed for :sessions
+
+	closing bool     // Close is running: every turn has ended, so even a "running" session may be saved
+	cdKey   string   // input and directory the :cd completions in cdCache belong to
+	cdCache []string // rows of the :cd completion
+
+	mu sync.Mutex // guards Runtime.cancel
 	// prepareHook, when set, runs first in the goroutine that prepares a turn (tests slow it down).
 	prepareHook func()
 	running     sync.WaitGroup
 }
 
-type agentEv struct{ ev agent.Ev }
-type turnDone struct{ err error }
+type agentEv struct {
+	sid string
+	ev  agent.Ev
+}
+type turnDone struct {
+	sid string
+	err error
+}
 
 // preparedEv carries the prompt state and system event of a message that is
 // about to be sent.
-type preparedEv struct{ p prepared }
+type preparedEv struct {
+	sid string
+	p   prepared
+}
 
 // tick drives animations (the blinking activity dot) while the agent works.
 type tick struct{}
 type compactDone struct {
+	sid           string
 	before, after int
 	err           error
+}
+type sessionsLoaded struct {
+	list []agent.SessionInfo
+	err  error
 }
 type modelsLoaded struct {
 	provider string
@@ -68,6 +87,7 @@ func New(scr tcell.Screen, paths config.Paths, client func(llm.Provider) llm.Cli
 	a := &App{
 		scr: scr, store: st, paths: paths, done: make(chan struct{}),
 		mcp: mcp.NewManager(), client: client, events: make(chan any, 512),
+		rts: map[string]*Runtime{},
 	}
 	a.mcpCtx, a.mcpStop = context.WithCancel(context.Background())
 	a.st = NewState()
@@ -76,14 +96,12 @@ func New(scr tcell.Screen, paths config.Paths, client func(llm.Provider) llm.Cli
 		ui.SetTheme(ui.DefaultTheme)
 	}
 	a.loadMetadataCache()
-	a.vm = jsvm.New(jsvm.Options{Root: paths.Cwd, Timeout: s.TimeoutDuration()})
-	a.vm.SetMCP(mcpHost{a.mcp})
-	a.vm.SetMCPAdmin(mcpAdmin{a})
-	a.vm.SetAsker(appAsker{a})
 	if err := a.loadAll(); err != nil {
 		return nil, err
 	}
-	a.st.Session = agent.NewSession(paths.Cwd, s.Model)
+	// One empty session in the launch directory; sessions of earlier runs are
+	// only opened on request (:sessions).
+	a.st.Runtime = a.newRuntime(agent.NewSession(paths.Cwd, s.Model), paths.Cwd)
 	return a, nil
 }
 
@@ -104,13 +122,12 @@ func (a *App) loadAll() error {
 func (a *App) Close() {
 	a.closeOnce.Do(func() { close(a.done) })
 	a.mcpStop()
-	a.mu.Lock()
-	if a.cancel != nil {
-		a.cancel()
-	}
-	a.mu.Unlock()
+	a.cancelAll()
 	a.running.Wait()
-	a.saveSession()
+	a.closing = true
+	for _, rt := range a.rtList {
+		a.saveRT(rt)
+	}
 	agent.CloseSessionStores()
 	a.mcp.StopAll()
 }
@@ -147,7 +164,7 @@ func (a *App) Run(ctx context.Context) error {
 				}
 			}
 		}
-		if !a.idleTick || a.st.Running {
+		if !a.idleTick || a.animating() {
 			a.draw()
 		}
 	}
@@ -183,24 +200,30 @@ func (a *App) handle(msg any) {
 		// tcell already resized and invalidated its buffer; a full Sync() clears
 		// the terminal and causes visible flicker.
 	case agentEv:
-		a.onAgent(m.ev)
+		a.inRT(m.sid, func() { a.onAgent(m.ev) })
+	case sessionsLoaded:
+		a.onSessionsLoaded(m)
 	case modelsLoaded:
 		a.onModelsLoaded(m)
 	case compactDone:
-		if m.err == nil {
-			a.st.Prompt.Base, a.st.Prompt.Frozen = nil, "" // a reset point: the cache is gone anyway
-			a.st.Context = m.after
-			a.notify("context compacted · " + itoa(m.before) + " → " + itoa(m.after) + " tokens")
-		}
-		a.onTurnDone(m.err)
+		a.inRT(m.sid, func() {
+			if m.err == nil {
+				a.st.Prompt.Base, a.st.Prompt.Frozen = nil, "" // a reset point: the cache is gone anyway
+				a.st.Context = m.after
+				a.notify("context compacted · " + itoa(m.before) + " → " + itoa(m.after) + " tokens")
+			}
+			a.onTurnDone(m.err)
+		})
+		a.markUnseen(m.sid)
 	case preparedEv:
-		a.onPrepared(m.p)
+		a.inRT(m.sid, func() { a.onPrepared(m.p) })
 	case turnDone:
-		a.onTurnDone(m.err)
+		a.inRT(m.sid, func() { a.onTurnDone(m.err) })
+		a.markUnseen(m.sid)
 	case askOpen:
-		a.openAsk(m.st)
+		a.inRT(m.sid, func() { a.openAsk(m.st) })
 	case askClose:
-		a.closeAsk(m.st)
+		a.inRT(m.sid, func() { a.closeAsk(m.st) })
 	case uiCall:
 		m.fn()
 		close(m.done)

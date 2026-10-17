@@ -36,12 +36,21 @@ type draft struct {
 	InsBase    snap
 }
 
-type askOpen struct{ st *askState }
-type askClose struct{ st *askState }
+type askOpen struct {
+	sid string
+	st  *askState
+}
+type askClose struct {
+	sid string
+	st  *askState
+}
 
 // appAsker implements jsvm.Asker: the VM runs on the agent's goroutine, the
 // panel lives on the UI goroutine, and the answer travels through a channel.
-type appAsker struct{ a *App }
+type appAsker struct {
+	a   *App
+	sid string // the session whose VM asks
+}
 
 func (k appAsker) Ask(ctx context.Context, q jsvm.Question) (string, error) {
 	a := k.a
@@ -49,12 +58,12 @@ func (k appAsker) Ask(ctx context.Context, q jsvm.Question) (string, error) {
 	if q.Timeout > 0 {
 		st.Until = time.Now().Add(q.Timeout)
 	}
-	a.postEvent(askOpen{st})
+	a.postEvent(askOpen{k.sid, st})
 	select {
 	case r := <-st.reply:
 		return r.text, r.err
 	case <-ctx.Done():
-		a.postEvent(askClose{st})
+		a.postEvent(askClose{k.sid, st})
 		return "", ctx.Err()
 	case <-a.done:
 		return "", context.Canceled

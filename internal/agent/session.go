@@ -127,7 +127,11 @@ func LoadSession(dir, id string) (*Session, error) {
 	return s, nil
 }
 
-func ListSessions(dir string) ([]SessionInfo, error) {
+// ListSessions returns every stored session, newest first.
+func ListSessions(dir string) ([]SessionInfo, error) { return ListRecentSessions(dir, -1) }
+
+// ListRecentSessions returns the n most recently updated sessions (all when n < 0).
+func ListRecentSessions(dir string, n int) ([]SessionInfo, error) {
 	if _, err := os.Stat(dir); errors.Is(err, os.ErrNotExist) {
 		return nil, nil
 	}
@@ -135,7 +139,16 @@ func ListSessions(dir string) ([]SessionInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	return listSessions(db)
+	return listSessions(db, n)
+}
+
+// DisplayTitle is the title shown in lists: the saved one, or one made from the
+// first user message.
+func (s *Session) DisplayTitle() string {
+	if s.Title != "" {
+		return s.Title
+	}
+	return deriveTitle(&Session{Turns: s.Snapshot()})
 }
 
 func deriveTitle(s *Session) string {

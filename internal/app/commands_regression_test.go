@@ -11,39 +11,38 @@ import (
 	"meno/internal/llm"
 )
 
-func TestClearRemovesPersistedContextPreservesAccounting(t *testing.T) {
+func TestNewStartsWithoutAccounting(t *testing.T) {
 	a, s := newTestApp(t)
 	defer s.Fini()
-	id := a.st.Session.ID
-	a.st.Session.Summary = "old compacted context"
-	a.st.Session.Append(agent.Turn{Role: llm.RoleUser, Text: "old turn"})
 	a.st.Usage = llm.Usage{In: 123, Out: 45, Cached: 6}
 	a.st.Spent = 1.25
 	a.st.Unpriced = true
 	a.st.Context = 168
-	a.st.Scroll = 9
-	a.saveSession()
-	a.runCommand("clear")
-	if a.st.Session.ID != id || a.st.Session.Summary != "" || len(a.st.Session.ToMsgs()) != 0 || a.st.Context != 0 || a.st.Scroll != 0 {
-		t.Fatal("clear retained context or replaced session")
-	}
-	saved, err := agent.LoadSession(a.paths.Home, id)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if saved.Summary != "" || len(saved.Snapshot()) != 0 || saved.Metrics.Context != 0 {
-		t.Fatalf("persisted stale context: %+v", saved)
-	}
-	if saved.Metrics.Usage != a.st.Usage || saved.Metrics.Usage.In != 123 || saved.Metrics.Spent != 1.25 || !saved.Metrics.Unpriced {
-		t.Fatalf("lost accounting: %+v", saved.Metrics)
-	}
+	a.st.Session.Append(agent.Turn{Role: llm.RoleUser, Text: "old turn"})
 	a.runCommand("new")
-	if a.st.Usage != (llm.Usage{}) || a.st.Spent != 0 || a.st.Unpriced || a.st.Context != 0 {
+	if a.st.Usage != (llm.Usage{}) || a.st.Spent != 0 || a.st.Unpriced || a.st.Context != 0 || a.st.Session.Len() != 0 {
 		t.Fatal("new retained accounting")
 	}
 }
 
-func TestResumeCommandReportsListingFailure(t *testing.T) {
+func TestRemovedCommandsAreUnknown(t *testing.T) {
+	a, s := newTestApp(t)
+	defer s.Fini()
+	for _, cmd := range []string{"clear", "resume"} {
+		a.st.Notices = nil
+		a.runCommand(cmd)
+		if !strings.Contains(a.lastNotice(), "unknown command") {
+			t.Fatalf(":%s must be gone, notice %q", cmd, a.lastNotice())
+		}
+	}
+	for _, c := range commandList {
+		if c.name == ":clear" || c.name == ":resume" {
+			t.Fatalf("%s still in the command list", c.name)
+		}
+	}
+}
+
+func TestSessionsCommandReportsListingFailure(t *testing.T) {
 	a, s := newTestApp(t)
 	defer s.Fini()
 	db.CloseAll()
@@ -52,8 +51,12 @@ func TestResumeCommandReportsListingFailure(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(a.paths.Home, "meno.db"), []byte("garbage"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	a.runCommand("resume")
-	if !strings.Contains(a.lastNotice(), "resume failed:") || a.st.Over == OverResume {
+	a.runCommand("sessions")
+	if a.st.Over != OverSessions {
+		t.Fatal("the dialog opens at once, before the list is loaded")
+	}
+	pump(t, a, func() bool { return a.lastNotice() != "" })
+	if !strings.Contains(a.lastNotice(), "sessions failed:") {
 		t.Fatalf("silenced listing failure: %q", a.lastNotice())
 	}
 }
