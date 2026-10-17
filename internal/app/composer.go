@@ -2,6 +2,7 @@ package app
 
 import (
 	"strings"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/uniseg"
@@ -48,10 +49,14 @@ func (a *App) placeholder() string {
 	if !a.st.Running {
 		return placeholderIdle
 	}
+	text := a.st.Phase + "..."
 	if a.st.Phase == "" {
-		return "working..."
+		text = "working..."
 	}
-	return a.st.Phase + "..."
+	if !a.st.RunStart.IsZero() {
+		text += " " + clock(time.Since(a.st.RunStart))
+	}
+	return text
 }
 
 // cursorPos is the terminal cursor requested by the last draw.

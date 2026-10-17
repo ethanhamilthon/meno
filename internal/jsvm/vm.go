@@ -76,6 +76,9 @@ func (v *VM) Root() string {
 	return v.root
 }
 
+// Timeout is the configured js timeout (0 = no limit).
+func (v *VM) Timeout() time.Duration { return time.Duration(v.timeout.Load()) }
+
 func (v *VM) SetTimeout(d time.Duration) {
 	v.timeout.Store(int64(d))
 }

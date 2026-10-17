@@ -42,6 +42,13 @@ func (a *App) jsOpts() ui.JSOpts {
 	js.OutMode = jsMode(a.st.Settings.JSOutput)
 	js.ThinkMode = jsMode(a.st.Settings.Thinking)
 	js.ThinkLines = a.st.Settings.ThinkLines
+	switch a.st.Settings.JSTiming {
+	case "slow":
+		js.Timing = ui.TimingSlow
+	case "off":
+		js.Timing = ui.TimingOff
+	}
+	js.Summary = a.st.Settings.TurnSummary != "off"
 	return js
 }
 

@@ -99,10 +99,13 @@ func (a *App) drawStatus(c ui.Canvas, x, y, w int) {
 	}
 	left := []ui.Seg{{Text: " " + label + " ", FG: ui.FgBlack}}
 	center := a.statusUsageText()
-	if hint := a.visualHint(); hint != "" {
-		center = hint
-	}
 	midColor := ui.FgDim
+	if rt := a.runningText(); rt != "" {
+		center, midColor = rt, ui.FgSoft
+	}
+	if hint := a.visualHint(); hint != "" {
+		center, midColor = hint, ui.FgDim
+	}
 	if rt := a.retryText(); rt != "" {
 		center, midColor = rt, ui.Yellow
 	}

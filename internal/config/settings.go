@@ -18,8 +18,13 @@ type Settings struct {
 	// JSOutLines is the row limit of js output in "lines" mode.
 	JSOutLines int `json:"js_output_lines"`
 	// Thinking is all/lines/off like js code; ThinkLines is its row limit.
-	Thinking   string `json:"thinking"`
-	ThinkLines int    `json:"thinking_lines"`
+	// JSTiming is how long each js call is shown to have taken: all calls,
+	// only the slow ones, or never. TurnSummary is the line under the answer
+	// that sums up the work (on/off).
+	JSTiming    string `json:"js_timing"`
+	TurnSummary string `json:"turn_summary"`
+	Thinking    string `json:"thinking"`
+	ThinkLines  int    `json:"thinking_lines"`
 	// JSTimeout is sec (JSTimeoutSec seconds), off (no limit) or model (the model
 	// passes a timeout with each call).
 	JSTimeout    string `json:"js_timeout"`
@@ -103,6 +108,8 @@ func DefaultSettings() Settings {
 		JSOutput:     "all",
 		JSOutLines:   5,
 		Thinking:     "all",
+		JSTiming:     "all",
+		TurnSummary:  "on",
 		ThinkLines:   5,
 		Theme:        "meno",
 		JSTimeout:    "sec",
@@ -112,16 +119,18 @@ func DefaultSettings() Settings {
 }
 
 var choices = map[string][]string{
-	"js_code":    {"all", "lines", "off"},
-	"js_output":  {"all", "lines", "off"},
-	"thinking":   {"all", "lines", "off"},
-	"js_timeout": {"sec", "off", "model"},
-	"effort":     {"low", "medium", "high", "max"},
-	"notify":     {"off", "question", "done"},
+	"js_code":      {"all", "lines", "off"},
+	"js_output":    {"all", "lines", "off"},
+	"thinking":     {"all", "lines", "off"},
+	"js_timeout":   {"sec", "off", "model"},
+	"js_timing":    {"all", "slow", "off"},
+	"turn_summary": {"on", "off"},
+	"effort":       {"low", "medium", "high", "max"},
+	"notify":       {"off", "question", "done"},
 }
 
 func SettingKeys() []string {
-	return []string{"js_code", "js_output", "thinking", "js_timeout", "notify"}
+	return []string{"js_code", "js_output", "thinking", "js_timeout", "js_timing", "turn_summary", "notify"}
 }
 
 func Choices(key string) []string { return choices[key] }
@@ -136,6 +145,10 @@ func (s *Settings) Get(key string) string {
 		return s.Thinking
 	case "js_timeout":
 		return s.JSTimeout
+	case "js_timing":
+		return s.JSTiming
+	case "turn_summary":
+		return s.TurnSummary
 	case "effort":
 		return s.Effort
 	case "notify":
@@ -168,6 +181,10 @@ func (s *Settings) setRaw(key, val string) {
 		s.Thinking = val
 	case "js_timeout":
 		s.JSTimeout = val
+	case "js_timing":
+		s.JSTiming = val
+	case "turn_summary":
+		s.TurnSummary = val
 	case "effort":
 		s.Effort = val
 	case "notify":

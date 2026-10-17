@@ -3,6 +3,7 @@ package ui
 import (
 	"strconv"
 	"strings"
+	"time"
 
 	"meno/internal/agent"
 	"meno/internal/llm"
@@ -29,6 +30,16 @@ type JSOpts struct {
 	ThinkLines int
 	// Running paints code blocks as live (streaming or executing).
 	Running bool
+	// Timing is which finished js calls show their duration; Summary shows the
+	// line that closes a run.
+	Timing  TimingMode
+	Summary bool
+	// Exec marks a call that is executing now (not only streaming): its footer
+	// counts Elapsed up towards Limit (0 = no limit); Spin picks the spinner frame.
+	Exec    bool
+	Elapsed time.Duration
+	Limit   time.Duration
+	Spin    int
 }
 
 func BuildLines(turns []agent.Turn, w int, js JSOpts) []Line {
@@ -72,6 +83,12 @@ func BuildLines(turns []agent.Turn, w int, js JSOpts) []Line {
 		case t.Role == llm.RoleAssistant && t.Text != "":
 			out = append(out, MarkdownLines(t.Text, wrapW-2, "◆")...)
 		}
+		if js.Summary && t.Run != nil {
+			if len(out) > 0 {
+				out = append(out, Band(BgTerm))
+			}
+			out = append(out, SummaryLines(t.Run, wrapW)...)
+		}
 	}
 	return out
 }
@@ -84,14 +101,24 @@ func jsBlock(t agent.Turn, w int, js JSOpts) []Line {
 			max = js.Lines
 		}
 		bg := BgJSDone
-		if js.Running {
+		switch {
+		case js.Running:
 			bg = BgJSRun
+		case t.Err != "" || t.TimedOut:
+			bg = BgJSErr
 		}
 		lines := CodeLines(t.Code, bg, w-2, max)
 		for i := range lines {
 			lines[i].Segs = append([]Seg{{Text: "  ", FG: FgDim}}, lines[i].Segs...)
 		}
 		out = append(out, lines...)
+		// The timing belongs under its code; with the code hidden only the
+		// news that matter (a failure, a timeout) are worth a line of their own.
+		if foot, ok := timingFooter(t, js); ok {
+			out = append(out, Line{Segs: append([]Seg{{Text: "  "}}, fitFooter(foot, w-2)...), BG: bg})
+		}
+	} else if foot, ok := timingFooter(t, js); ok && (t.Err != "" || t.TimedOut) {
+		out = append(out, Line{Segs: append([]Seg{{Text: "  "}}, fitFooter(foot, w-2)...), BG: BgJSErr})
 	}
 	if js.OutMode != JSOff {
 		limit := 0

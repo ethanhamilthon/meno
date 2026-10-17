@@ -1,6 +1,8 @@
 package app
 
 import (
+	"time"
+
 	"meno/internal/agent"
 	"meno/internal/llm"
 	"meno/internal/ui"
@@ -73,6 +75,12 @@ func (a *App) transcriptWithSelection(w int) []ui.Line {
 		live.Code = call.Code
 		liveJS := js
 		liveJS.Running = true
+		if call.Running && !call.Started.IsZero() {
+			liveJS.Exec = true
+			liveJS.Elapsed = time.Since(call.Started)
+			liveJS.Limit = call.Limit
+			liveJS.Spin = int(time.Now().UnixMilli() / 100)
+		}
 		appendLines(ui.BuildLines([]agent.Turn{live}, w, liveJS))
 		live = agent.Turn{Role: llm.RoleAssistant}
 	}

@@ -13,6 +13,7 @@ var (
 	BgUser     tcell.Color
 	BgJSDone   tcell.Color
 	BgJSRun    tcell.Color
+	BgJSErr    tcell.Color
 	BgPopup    tcell.Color
 	BgPopupIn  tcell.Color
 	BgPopupSel tcell.Color
@@ -48,9 +49,9 @@ func Base() tcell.Style { return Style{FG: FgWhite, BG: BgTerm}.TCell() }
 
 // Palette is the full set of colors the UI draws with.
 type Palette struct {
-	BgTerm, BgUser, BgJSDone, BgJSRun, BgPopup, BgPopupIn, BgPopupSel, BgSelect tcell.Color
-	FgWhite, FgSoft, FgDim, FgBlack                                             tcell.Color
-	Blue, Purple, Green, Yellow, Red, Orange                                    tcell.Color
+	BgTerm, BgUser, BgJSDone, BgJSRun, BgJSErr, BgPopup, BgPopupIn, BgPopupSel, BgSelect tcell.Color
+	FgWhite, FgSoft, FgDim, FgBlack                                                      tcell.Color
+	Blue, Purple, Green, Yellow, Red, Orange                                             tcell.Color
 }
 
 // Theme is a named palette.
@@ -89,6 +90,7 @@ func derive(name string, dark bool, bg, fg, dim, blue, purple, green, yellow, re
 		BgUser:     mix(b, f, 0.05),
 		BgJSDone:   mix(b, hex(green), 0.10),
 		BgJSRun:    mix(b, hex(orange), 0.12),
+		BgJSErr:    mix(b, hex(red), 0.10),
 		BgPopup:    popup,
 		BgPopupIn:  mix(popup, b, 0.5),
 		BgPopupSel: mix(b, f, 0.14),
@@ -104,7 +106,7 @@ func derive(name string, dark bool, bg, fg, dim, blue, purple, green, yellow, re
 
 var themes = []Theme{
 	{Name: DefaultTheme, Dark: true, Palette: Palette{
-		BgTerm: hex("0E1013"), BgUser: hex("181B20"), BgJSDone: hex("12241B"), BgJSRun: hex("2E1C0E"),
+		BgTerm: hex("0E1013"), BgUser: hex("181B20"), BgJSDone: hex("12241B"), BgJSRun: hex("2E1C0E"), BgJSErr: hex("2B1E21"),
 		BgPopup: hex("1C2026"), BgPopupIn: hex("15181D"), BgPopupSel: hex("282E38"), BgSelect: hex("26354A"),
 		FgWhite: hex("F3F4F6"), FgSoft: hex("B0B7C3"), FgDim: hex("68707E"), FgBlack: hex("0E1013"),
 		Blue: hex("87AFFF"), Purple: hex("D7AFFF"), Green: hex("87D787"), Yellow: hex("FFD787"), Red: hex("FF8787"), Orange: hex("FFAF87"),
@@ -155,7 +157,7 @@ func SetTheme(name string) bool {
 		return false
 	}
 	p := t.Palette
-	BgTerm, BgUser, BgJSDone, BgJSRun = p.BgTerm, p.BgUser, p.BgJSDone, p.BgJSRun
+	BgTerm, BgUser, BgJSDone, BgJSRun, BgJSErr = p.BgTerm, p.BgUser, p.BgJSDone, p.BgJSRun, p.BgJSErr
 	BgPopup, BgPopupIn, BgPopupSel, BgSelect = p.BgPopup, p.BgPopupIn, p.BgPopupSel, p.BgSelect
 	FgWhite, FgSoft, FgDim, FgBlack = p.FgWhite, p.FgSoft, p.FgDim, p.FgBlack
 	Blue, Purple, Green, Yellow, Red, Orange = p.Blue, p.Purple, p.Green, p.Yellow, p.Red, p.Orange

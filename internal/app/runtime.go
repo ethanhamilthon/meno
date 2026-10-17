@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"strings"
+	"time"
 
 	"meno/internal/agent"
 	"meno/internal/jsvm"
@@ -36,6 +37,11 @@ type Runtime struct {
 	LiveThink string
 	LiveBase  int        // session length the live state was produced at
 	LiveCalls []liveCall // tool calls streaming in or executing
+	// The run in progress, from the user's message to the final answer.
+	RunStart  time.Time
+	RunTurns  int       // requests the model has answered
+	RunJS     int       // js calls finished
+	RunUsage0 llm.Usage // session usage when the run began
 	LogLines  int
 	Scroll    int
 

@@ -10,6 +10,13 @@ type Seg struct {
 	Text string
 	FG   tcell.Color
 	Bold bool
+	// Italic, Under and Strike are text attributes. BG, when set, paints the
+	// segment over the line's own background (inline code, code blocks).
+	Italic, Under, Strike bool
+	BG                    tcell.Color
+	// glue marks padding spaces that belong to the word next to them: wrapping
+	// must not break there or drop them.
+	glue bool
 }
 
 type Line struct {

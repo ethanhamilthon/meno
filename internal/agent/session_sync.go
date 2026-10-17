@@ -41,3 +41,12 @@ func (l *SafeLog) SetSystem(i int, system string) {
 		l.turns[i].System = system
 	}
 }
+
+// SetRunOnLast attaches run stats to the last turn, if there is one.
+func (l *SafeLog) SetRunOnLast(r RunStats) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if n := len(l.turns); n > 0 {
+		l.turns[n-1].Run = &r
+	}
+}

@@ -19,6 +19,8 @@ var settingRows = []settingRow{
 	{"js output", "js_output"},
 	{"thinking", "thinking"},
 	{"js timeout", "js_timeout"},
+	{"js timing", "js_timing"},
+	{"turn summary", "turn_summary"},
 	{"notify", "notify"},
 }
 
@@ -54,6 +56,9 @@ func (a *App) settingsKey(k *tcell.EventKey) {
 // optLabel is how a choice of a setting is written: the numeric choices carry
 // their number ("lines 5", "30 sec").
 func optLabel(s *config.Settings, key, opt string) string {
+	if key == "js_timing" && opt == "slow" {
+		return "slow only"
+	}
 	if opt != config.NumOption(key) {
 		return opt
 	}

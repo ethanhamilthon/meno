@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"meno/internal/jsvm"
@@ -21,9 +22,14 @@ type Ev struct {
 	// starts after Delay; Err is why the previous one failed.
 	Attempt, Max int
 	Delay        time.Duration
-	Usage        llm.Usage
-	Provider     llm.Provider
-	Model        string
+	// Limit is the timeout of the js call an EvJSStart announces (0 = none);
+	// Elapsed and TimedOut report how an EvJSEnd call went.
+	Limit    time.Duration
+	Elapsed  time.Duration
+	TimedOut bool
+	Usage    llm.Usage
+	Provider llm.Provider
+	Model    string
 	// Turns is the session length when the event was emitted, so the UI can tell
 	// live (streaming) content from content that is already persisted.
 	Turns int
@@ -61,11 +67,27 @@ type Deps struct {
 	// Queue, when set, delivers messages the user wrote during the turn; they
 	// join the conversation between steps (never between a call and its result).
 	Queue *Queue
-	Emit  func(Ev)
+	// Cost prices the usage of one request; ok is false when the model has no
+	// price. Optional: without it a run's summary carries no cost.
+	Cost func(llm.Usage) (cost float64, ok bool)
+	Emit func(Ev)
 }
 
 type Runner struct {
 	D Deps
+	// cur counts the run in progress; Continue is not reentrant.
+	cur *runCount
+}
+
+// runCount is what a run has done so far.
+type runCount struct {
+	start    time.Time
+	turns    int
+	jsCalls  int
+	jsTime   time.Duration
+	usage    llm.Usage
+	cost     float64
+	unpriced bool
 }
 
 func (r *Runner) Turn(ctx context.Context, s *Session, userText string) error {
@@ -73,7 +95,16 @@ func (r *Runner) Turn(ctx context.Context, s *Session, userText string) error {
 	return r.Continue(ctx, s)
 }
 
+// Continue runs the agent until the model answers without a tool call. The last
+// turn of the session gets the stats of the run (Turn.Run).
 func (r *Runner) Continue(ctx context.Context, s *Session) error {
+	r.cur = &runCount{start: time.Now()}
+	err := r.loop(ctx, s)
+	r.finish(s, err)
+	return err
+}
+
+func (r *Runner) loop(ctx context.Context, s *Session) error {
 	// No step limit: the loop ends when the model stops calling tools, on error,
 	// or when ctx is canceled (ctrl+c).
 	for {
@@ -82,6 +113,9 @@ func (r *Runner) Continue(ctx context.Context, s *Session) error {
 		}
 		r.inject(s)
 		calls, replay, err := r.streamOnce(ctx, s)
+		if err == nil {
+			r.cur.turns++
+		}
 		text := replay.Text
 		if err != nil {
 			if len(calls) != 0 {
@@ -161,7 +195,54 @@ func (r *Runner) inject(s *Session) {
 
 func (r *Runner) emit(s *Session, e Ev) {
 	e.Turns = s.Len()
+	if e.Kind == EvUsage && r.cur != nil {
+		r.cur.usage.In += e.Usage.In
+		r.cur.usage.Out += e.Usage.Out
+		r.cur.usage.Cached += e.Usage.Cached
+		r.cur.usage.CacheWrite += e.Usage.CacheWrite
+		if r.D.Cost != nil {
+			if c, ok := r.D.Cost(e.Usage); ok {
+				r.cur.cost += c
+			} else {
+				r.cur.unpriced = true
+			}
+		}
+	}
 	r.D.Emit(e)
+}
+
+// finish attaches the stats of the finished run to the session.
+func (r *Runner) finish(s *Session, err error) {
+	c := r.cur
+	if c == nil {
+		return
+	}
+	st := RunStats{
+		Status: RunOK, ElapsedMs: time.Since(c.start).Milliseconds(),
+		Turns: c.turns, JSCalls: c.jsCalls, JSMs: c.jsTime.Milliseconds(), Usage: c.usage,
+	}
+	switch {
+	case err == nil:
+	case errors.Is(err, context.Canceled):
+		st.Status = RunStop
+	default:
+		st.Status, st.Err = RunFail, briefErr(err.Error())
+	}
+	if r.D.Cost != nil && !c.unpriced && c.turns > 0 {
+		cost := c.cost
+		st.Cost = &cost
+	}
+	s.SetRun(st)
+	r.cur = nil
+}
+
+// briefErr squeezes an error into one line of at most 300 characters.
+func briefErr(s string) string {
+	s = strings.Join(strings.Fields(s), " ")
+	if r := []rune(s); len(r) > 300 {
+		s = string(r[:299]) + "…"
+	}
+	return s
 }
 
 func (r *Runner) abort(s *Session) error {
@@ -247,14 +328,24 @@ func (r *Runner) runJS(ctx context.Context, s *Session, text string, c call, rep
 	if c.ID == "" {
 		c.ID = NewID()
 	}
-	r.emit(s, Ev{Kind: EvJSStart, Code: c.Code, CallID: c.ID})
+	limit := r.limit(c)
+	r.emit(s, Ev{Kind: EvJSStart, Code: c.Code, CallID: c.ID, Limit: limit})
 	res := r.exec(ctx, c)
 	turn := Turn{Replay: replay, ReplayGroup: group, Role: llm.RoleAssistant, Text: text, CallID: c.ID, Code: c.Code, Output: res.Output, Err: res.Err, Time: nowUTC()}
+	if res.Elapsed > 0 {
+		turn.ElapsedMs = max(1, res.Elapsed.Milliseconds())
+		turn.LimitMs = limit.Milliseconds()
+		turn.TimedOut = res.TimedOut
+		if r.cur != nil {
+			r.cur.jsCalls++
+			r.cur.jsTime += res.Elapsed
+		}
+	}
 	if res.Err == "" && res.Value != "" {
 		turn.Output += res.Value
 	}
 	s.Append(turn)
-	r.emit(s, Ev{Kind: EvJSEnd, CallID: c.ID, Output: turn.Output, Err: res.Err})
+	r.emit(s, Ev{Kind: EvJSEnd, CallID: c.ID, Output: turn.Output, Err: res.Err, Elapsed: res.Elapsed, TimedOut: res.TimedOut})
 	return ctx.Err()
 }
 
@@ -264,6 +355,17 @@ func (r *Runner) exec(ctx context.Context, c call) jsvm.Result {
 	if !r.D.ModelTimeout {
 		return r.D.VM.Exec(ctx, c.Code)
 	}
+	return r.D.VM.ExecTimeout(ctx, c.Code, r.limit(c))
+}
+
+// limit is the timeout the call runs under (0 = none), as exec applies it.
+func (r *Runner) limit(c call) time.Duration {
+	if !r.D.ModelTimeout {
+		if r.D.VM == nil {
+			return 0
+		}
+		return r.D.VM.Timeout()
+	}
 	d := defaultModelTimeout
 	if c.Timeout != nil {
 		d = time.Duration(*c.Timeout * float64(time.Second))
@@ -271,7 +373,7 @@ func (r *Runner) exec(ctx context.Context, c call) jsvm.Result {
 			d = 0
 		}
 	}
-	return r.D.VM.ExecTimeout(ctx, c.Code, d)
+	return d
 }
 
 const defaultModelTimeout = 30 * time.Second

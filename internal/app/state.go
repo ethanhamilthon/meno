@@ -31,6 +31,10 @@ type liveCall struct {
 	ID      string
 	Code    string
 	Running bool
+	// Started and Limit describe the execution: when it began and the timeout
+	// it runs under (0 = none).
+	Started time.Time
+	Limit   time.Duration
 }
 
 // retryState describes the pending retry shown in the status bar.

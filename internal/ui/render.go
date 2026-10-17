@@ -8,12 +8,29 @@ func DrawLine(c Canvas, x, y, w int, l Line) {
 	c.Fill(x, y, w, 1, l.BG)
 	cx := x + padX
 	for _, s := range l.Segs {
-		st := tcell.StyleDefault.Foreground(s.FG).Background(l.BG)
-		if s.Bold {
-			st = st.Bold(true)
-		}
-		cx += c.Text(cx, y, x+w-cx, s.Text, st)
+		cx += c.Text(cx, y, x+w-cx, s.Text, s.style(l.BG))
 	}
+}
+
+// style is the cell style of the segment on a line with background bg.
+func (s Seg) style(bg tcell.Color) tcell.Style {
+	if s.BG != 0 {
+		bg = s.BG
+	}
+	st := tcell.StyleDefault.Foreground(s.FG).Background(bg)
+	if s.Bold {
+		st = st.Bold(true)
+	}
+	if s.Italic {
+		st = st.Italic(true)
+	}
+	if s.Under {
+		st = st.Underline(true)
+	}
+	if s.Strike {
+		st = st.StrikeThrough(true)
+	}
+	return st
 }
 
 func DrawBar(c Canvas, x, y, w int, bg tcell.Color, left, mid, right []Seg) {

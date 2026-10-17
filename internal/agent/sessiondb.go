@@ -98,6 +98,10 @@ func ensureColumns(d *sql.DB) error {
 		{"turns", "system", "TEXT NOT NULL DEFAULT ''"},
 		{"turns", "attachments", "TEXT NOT NULL DEFAULT ''"},
 		{"turns", "kind", "TEXT NOT NULL DEFAULT ''"},
+		{"turns", "elapsed_ms", "INTEGER NOT NULL DEFAULT 0"},
+		{"turns", "limit_ms", "INTEGER NOT NULL DEFAULT 0"},
+		{"turns", "timed_out", "INTEGER NOT NULL DEFAULT 0"},
+		{"turns", "run", "TEXT NOT NULL DEFAULT ''"},
 		{"sessions", "provider", "TEXT NOT NULL DEFAULT ''"},
 		{"sessions", "effort", "TEXT NOT NULL DEFAULT ''"},
 	} {
@@ -231,8 +235,8 @@ func writeSession(db *sql.DB, s *Session) (err error) {
 	if _, err = tx.Exec("DELETE FROM requests WHERE session_id = ?", s.ID); err != nil {
 		return err
 	}
-	ins, err := tx.Prepare(`INSERT INTO turns(session_id,seq,role,text,thinking,call_id,code,output,err,replay,replay_group,time,system,attachments,kind)
-		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+	ins, err := tx.Prepare(`INSERT INTO turns(session_id,seq,role,text,thinking,call_id,code,output,err,replay,replay_group,time,system,attachments,kind,elapsed_ms,limit_ms,timed_out,run)
+		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
 	if err != nil {
 		return err
 	}
@@ -256,7 +260,20 @@ func writeSession(db *sql.DB, s *Session) (err error) {
 			}
 			attachments = string(b)
 		}
-		if _, err = ins.Exec(s.ID, i, t.Role, t.Text, t.Thinking, t.CallID, t.Code, t.Output, t.Err, replay, t.ReplayGroup, ts(t.Time), t.System, attachments, t.Kind); err != nil {
+		run := ""
+		if t.Run != nil {
+			b, merr := json.Marshal(t.Run)
+			if merr != nil {
+				err = merr
+				return err
+			}
+			run = string(b)
+		}
+		timedOut := 0
+		if t.TimedOut {
+			timedOut = 1
+		}
+		if _, err = ins.Exec(s.ID, i, t.Role, t.Text, t.Thinking, t.CallID, t.Code, t.Output, t.Err, replay, t.ReplayGroup, ts(t.Time), t.System, attachments, t.Kind, t.ElapsedMs, t.LimitMs, timedOut, run); err != nil {
 			return err
 		}
 	}
@@ -297,7 +314,7 @@ func readSession(db *sql.DB, id string) (*Session, error) {
 	if err := json.Unmarshal([]byte(metrics), &s.Metrics); err != nil {
 		return nil, fmt.Errorf("session %s metrics: %w", id, err)
 	}
-	rows, err := db.Query("SELECT role,text,thinking,call_id,code,output,err,replay,replay_group,time,system,attachments,kind FROM turns WHERE session_id = ? ORDER BY seq", id)
+	rows, err := db.Query("SELECT role,text,thinking,call_id,code,output,err,replay,replay_group,time,system,attachments,kind,elapsed_ms,limit_ms,timed_out,run FROM turns WHERE session_id = ? ORDER BY seq", id)
 	if err != nil {
 		return nil, err
 	}
@@ -305,9 +322,18 @@ func readSession(db *sql.DB, id string) (*Session, error) {
 	for rows.Next() {
 		var t Turn
 		var replay sql.NullString
-		var when, attachments string
-		if err := rows.Scan(&t.Role, &t.Text, &t.Thinking, &t.CallID, &t.Code, &t.Output, &t.Err, &replay, &t.ReplayGroup, &when, &t.System, &attachments, &t.Kind); err != nil {
+		var when, attachments, run string
+		var timedOut int
+		if err := rows.Scan(&t.Role, &t.Text, &t.Thinking, &t.CallID, &t.Code, &t.Output, &t.Err, &replay, &t.ReplayGroup, &when, &t.System, &attachments, &t.Kind, &t.ElapsedMs, &t.LimitMs, &timedOut, &run); err != nil {
 			return nil, err
+		}
+		t.TimedOut = timedOut != 0
+		if run != "" {
+			var rs RunStats
+			// A damaged summary must not make the session unreadable: it only decorates.
+			if json.Unmarshal([]byte(run), &rs) == nil {
+				t.Run = &rs
+			}
 		}
 		if attachments != "" {
 			if err := json.Unmarshal([]byte(attachments), &t.Attachments); err != nil {

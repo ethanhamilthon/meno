@@ -29,7 +29,7 @@ func TestLoadSettingsNormalizesInvalidValues(t *testing.T) {
 
 func TestSettingsDecodeValidAndLegacy(t *testing.T) {
 	for _, lines := range []int{1, 50} {
-		want := Settings{Provider: "custom", Model: "custom-model", Effort: "max", JSCode: "off", JSLines: lines, JSOutLines: 7, JSOutput: "off", Thinking: "off", ThinkLines: 4, JSTimeout: "model", JSTimeoutSec: 90, Theme: "dracula", Notify: "done", NotifyCommand: "say hi"}
+		want := Settings{Provider: "custom", Model: "custom-model", Effort: "max", JSCode: "off", JSLines: lines, JSOutLines: 7, JSOutput: "off", Thinking: "off", ThinkLines: 4, JSTiming: "slow", TurnSummary: "off", JSTimeout: "model", JSTimeoutSec: 90, Theme: "dracula", Notify: "done", NotifyCommand: "say hi"}
 		b, err := json.Marshal(want)
 		if err != nil {
 			t.Fatal(err)
@@ -116,5 +116,40 @@ func TestLegacyNotifyQuestionMigrates(t *testing.T) {
 	b, _ := json.Marshal(DefaultSettings())
 	if strings.Contains(string(b), "notify_question") {
 		t.Fatal("legacy key written")
+	}
+}
+
+func TestTimingSettings(t *testing.T) {
+	d := DefaultSettings()
+	if d.JSTiming != "all" || d.TurnSummary != "on" {
+		t.Fatalf("defaults: %q %q", d.JSTiming, d.TurnSummary)
+	}
+	// Files written before these settings existed, and invalid values, get the defaults.
+	for _, data := range []string{`{}`, `{"js_timing":"sometimes","turn_summary":"maybe"}`, `{"js_timing":"","turn_summary":""}`} {
+		var got Settings
+		if err := json.Unmarshal([]byte(data), &got); err != nil || got.JSTiming != "all" || got.TurnSummary != "on" {
+			t.Fatalf("%s: %+v %v", data, got, err)
+		}
+	}
+	var got Settings
+	if err := json.Unmarshal([]byte(`{"js_timing":"slow","turn_summary":"off"}`), &got); err != nil || got.JSTiming != "slow" || got.TurnSummary != "off" {
+		t.Fatalf("valid values lost: %+v %v", got, err)
+	}
+	s := DefaultSettings()
+	var seen []string
+	for i := 0; i < 3; i++ {
+		seen = append(seen, s.Cycle("js_timing", 1))
+	}
+	if strings.Join(seen, ",") != "slow,off,all" {
+		t.Fatalf("cycle: %v", seen)
+	}
+	if s.Cycle("turn_summary", -1) != "off" || s.Cycle("turn_summary", 1) != "on" {
+		t.Fatal("turn_summary cycle")
+	}
+	if s.Set("js_timing", "bogus") == nil || s.Set("turn_summary", "") == nil {
+		t.Fatal("invalid values accepted")
+	}
+	if NumOption("js_timing") != "" || NumOption("turn_summary") != "" {
+		t.Fatal("timing settings carry no number")
 	}
 }

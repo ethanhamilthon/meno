@@ -97,6 +97,37 @@ broke mid-stream starts over and its partial output is discarded; tools only run
 after a complete response. After the last failure the turn ends with the error
 and your message stays in the session. (`:compact` does not retry.)
 
+## Markdown in answers
+
+The model's text is drawn for reading, not as raw markdown:
+
+- headings (the first level is underlined), **bold**, *italic*, ~~strikethrough~~, `inline code` on a
+  panel, links as blue underlined text with the site after it (`docs ↗ example.com`), images as `▣ alt`;
+- bulleted, numbered and nested lists with hanging indents, task lists as `[x]` / `[ ]`;
+- quotes with a bar, and GitHub alerts (`> [!NOTE]`, `TIP`, `IMPORTANT`, `WARNING`, `CAUTION`)
+  with a coloured label;
+- fenced code on a panel: language and file name on top (````go internal/x.go`), line numbers from
+  6 lines, colours for go, js/ts, python, rust, c-like, sql, json, yaml and shell; `diff` blocks tint added
+  and removed lines;
+- tables with aligned columns (`:--`, `--:`, `:-:`) that shrink to the terminal, wrap long cells and
+  fall back to one line per row when there is no room;
+- text wraps at words; a single newline is kept as a line break; `<br>` breaks a line, HTML comments are
+  hidden and control characters are dropped, so model output cannot drive the terminal.
+
+## Timing
+
+Every js call shows how long it took under its code: `✓ 3.2s`. A call that used half of its
+timeout (or ran 10 s or more) turns yellow and shows a bar with `57% of 30s limit`; a failed call is `✕ 1.2s`
+on a red-tinted background; a call stopped by the timeout reads `◷ timed out after 30s`. While it runs the
+line counts up with a spinner. In the status bar a running agent shows `turn 3 · 0:42 · 2 js calls · ↓ 12.4k ↑ 1.1k`
+and the composer placeholder carries the clock.
+
+When the agent finishes (or fails, or you stop it) one line sums the run up:
+`✓ 1m 24s · 7 turns · 6 js calls · 23s in js ──── ↓48.2k ↑3.1k ↺82% $0.084` — time, requests to the model (turns),
+js calls and their time, and on the right tokens in and out, the cache hit rate and the cost (when the model has a
+price). `✕ failed after 12s` adds the reason above it; `■ stopped after 8s` marks Ctrl+C. Narrow terminals drop the
+right side first. Durations are stored with the session; sessions from before show none.
+
 ## Settings (`:settings`)
 
 | Setting | Values |
@@ -105,6 +136,8 @@ and your message stays in the session. (`:compact` does not retry.)
 | js output | `all`, `lines <n>`, `off` |
 | thinking | `all`, `lines <n>` (the newest rows), `off` |
 | js timeout | `<n> sec`, `off`, `model` — with `model` the tool gets a `timeout` argument and the model chooses per call |
+| js timing | `all`, `slow only`, `off` — which finished js calls show their duration (slow: half of the limit or 10 s) |
+| turn summary | `on`, `off` — the line that closes a run |
 | notify | `off`, `question`, `done` — signal when the agent asks a question (`question`), and also when a turn ends, with success or error (`done`); not after your own Ctrl+C. Works for every session, also in the background |
 
 The signal is made by `notify_command`, run with `sh -c` in the background (5 s limit) with

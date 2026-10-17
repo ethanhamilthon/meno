@@ -30,6 +30,35 @@ type Turn struct {
 	// Kind is empty for what the user wrote; KindView for an image the agent
 	// asked to see with view().
 	Kind string `json:"kind,omitempty"`
+	// ElapsedMs is how long a js call ran (at least 1 once measured; 0 for turns
+	// that were not timed, such as sessions saved before timing existed). LimitMs
+	// is the timeout it ran under (0 = none) and TimedOut says it hit it.
+	ElapsedMs int64 `json:"elapsed_ms,omitempty"`
+	LimitMs   int64 `json:"limit_ms,omitempty"`
+	TimedOut  bool  `json:"timed_out,omitempty"`
+	// Run sums up the work that ended with this turn: set on the last turn of
+	// every Continue, whether it finished, failed or was stopped.
+	Run *RunStats `json:"run,omitempty"`
+}
+
+// Run statuses.
+const (
+	RunOK   = "ok"
+	RunFail = "fail"
+	RunStop = "stop"
+)
+
+// RunStats is what one run of the agent (a user message to its final answer)
+// took. Turns counts the requests answered by the model.
+type RunStats struct {
+	Status    string    `json:"status"`
+	ElapsedMs int64     `json:"elapsed_ms"`
+	Turns     int       `json:"turns"`
+	JSCalls   int       `json:"js_calls"`
+	JSMs      int64     `json:"js_ms"`
+	Usage     llm.Usage `json:"usage"`
+	Cost      *float64  `json:"cost,omitempty"`
+	Err       string    `json:"err,omitempty"`
 }
 
 const KindView = "view"
@@ -78,6 +107,9 @@ func (s *Session) ensureLog() *SafeLog {
 }
 
 func (s *Session) Append(t Turn) { s.ensureLog().Append(t) }
+
+// SetRun attaches the stats of a run to the last turn.
+func (s *Session) SetRun(r RunStats) { s.ensureLog().SetRunOnLast(r) }
 
 func (s *Session) Len() int         { return s.ensureLog().Len() }
 func (s *Session) Snapshot() []Turn { return s.ensureLog().Snapshot() }

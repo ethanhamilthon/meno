@@ -96,7 +96,7 @@ func TestVisualModalGridAndSelection(t *testing.T) {
 	a, s := visualFixture(t, 112, 36)
 	a.openOverlay(OverSettings)
 	a.draw()
-	b := centered(112, 36, 66, 10)
+	b := centered(112, 36, 66, 4+len(settingRows)+1)
 	_, _, st, _ := s.GetContent(b.x, b.y)
 	_, bg, _ := st.Decompose()
 	if bg != ui.BgPopup {
