@@ -83,9 +83,7 @@ func (a *App) openAsk(st *askState) {
 		a.st.Mode = ui.ModeInsert
 	}
 	a.st.Scroll = 0
-	if a.st.Settings.NotifyQuestion == "on" {
-		_ = a.scr.Beep()
-	}
+	a.signal("question")
 }
 
 // closeAsk removes the panel and gives the composer its text back.

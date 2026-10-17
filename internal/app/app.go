@@ -43,6 +43,13 @@ type App struct {
 	// prepareHook, when set, runs first in the goroutine that prepares a turn (tests slow it down).
 	prepareHook func()
 	running     sync.WaitGroup
+
+	pasting  bool   // between the start and end of a bracketed paste into the composer
+	pasteBuf []rune // text collected during that paste
+	// clipboard reads an image from the system clipboard (tests replace it).
+	clipboard func() ([]byte, error)
+	// notifier replaces the way signals are made (tests).
+	notifier func(cmd string, env []string)
 }
 
 type agentEv struct {
@@ -63,6 +70,7 @@ type preparedEv struct {
 
 // tick drives animations (the blinking activity dot) while the agent works.
 type tick struct{}
+
 type compactDone struct {
 	sid           string
 	before, after int
@@ -101,7 +109,7 @@ func New(scr tcell.Screen, paths config.Paths, client func(llm.Provider) llm.Cli
 	}
 	// One empty session in the launch directory; sessions of earlier runs are
 	// only opened on request (:sessions).
-	a.st.Runtime = a.newRuntime(agent.NewSession(paths.Cwd, s.Model), paths.Cwd)
+	a.st.Runtime = a.newRuntime(a.newAgentSession(paths.Cwd), paths.Cwd)
 	return a, nil
 }
 
@@ -133,6 +141,7 @@ func (a *App) Close() {
 }
 
 func (a *App) Run(ctx context.Context) error {
+	a.scr.EnablePaste()
 	a.fetchMetadata()
 	a.startServers()
 	go func() {
@@ -177,7 +186,15 @@ func (a *App) handle(msg any) {
 	}
 	switch m := msg.(type) {
 	case *tcell.EventKey:
+		if a.pasting {
+			a.collectPaste(m)
+			return
+		}
 		a.onKey(m)
+	case *tcell.EventPaste:
+		a.onPaste(m)
+	case imageReady:
+		a.onImageReady(m)
 	case metadataLoaded:
 		if m.err != nil {
 			if len(a.st.Pricing) == 0 && len(a.st.Notices) == 0 {

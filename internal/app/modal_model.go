@@ -19,14 +19,14 @@ func (a *App) modelKey(k *tcell.EventKey) {
 	switch {
 	case a.navKey(k, len(list), false):
 	case k.Key() == tcell.KeyLeft:
-		a.st.Settings.Cycle("effort", -1)
+		a.cycleEffort(-1)
 	case k.Key() == tcell.KeyRight:
-		a.st.Settings.Cycle("effort", 1)
+		a.cycleEffort(1)
 	case k.Key() == tcell.KeyEnter:
 		if len(list) > 0 {
 			pick := list[clampSel(a.st.Sel, len(list))]
-			a.st.Settings.Model = pick.ID
-			a.st.Settings.Provider = pick.Provider
+			_, _, effort := a.selection()
+			a.setSelection(pick.Provider, pick.ID, effort)
 			a.persistSettings()
 			a.closeOverlay()
 		}
@@ -39,6 +39,19 @@ func (a *App) modelKey(k *tcell.EventKey) {
 		a.st.Query = append(a.st.Query, k.Rune())
 		a.st.Sel = 0
 	}
+}
+
+func effortOf(a *App) string {
+	_, _, e := a.selection()
+	return e
+}
+
+// cycleEffort steps the effort of the current session through the choices.
+func (a *App) cycleEffort(step int) {
+	p, m, e := a.selection()
+	s := config.Settings{Effort: e}
+	s.Cycle("effort", step)
+	a.setSelection(p, m, s.Effort)
 }
 
 func (a *App) drawModel(c ui.Canvas, w, h int) {
@@ -103,6 +116,6 @@ func (a *App) drawModel(c ui.Canvas, w, h int) {
 	}
 	b.fill(c, y+1, ui.BgPopup)
 	b.put(c, 2, y+1, "effort", ui.FgDim, ui.BgPopup)
-	chips(c, b, y+1, 12, config.Choices("effort"), a.st.Settings.Effort)
+	chips(c, b, y+1, 12, config.Choices("effort"), effortOf(a))
 	b.hint(c, "↑/↓ model · ←/→ effort · enter apply · esc close")
 }

@@ -22,6 +22,8 @@ func chatMessages(system string, msgs []Msg) []map[string]any {
 				calls = append(calls, map[string]any{"id": c.ID, "type": "function", "function": map[string]any{"name": c.Name, "arguments": c.Arguments}})
 			}
 			out = append(out, map[string]any{"role": "assistant", "content": m.Text, "tool_calls": calls})
+		case m.Role == RoleUser:
+			out = append(out, map[string]any{"role": m.Role, "content": userContent(m, "text", "image_url", true)})
 		default:
 			out = append(out, map[string]any{"role": m.Role, "content": m.Text})
 		}

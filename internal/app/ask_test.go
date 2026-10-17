@@ -217,7 +217,7 @@ func TestAskPanelHiddenUnderDialogsAndLimited(t *testing.T) {
 func TestAskBellFollowsTheSetting(t *testing.T) {
 	a, scr := newTestApp(t)
 	defer scr.Fini()
-	if a.st.Settings.NotifyQuestion != "off" {
+	if a.st.Settings.Notify != "off" {
 		t.Fatal("the bell must be off by default")
 	}
 }

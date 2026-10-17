@@ -32,11 +32,18 @@ func TestSystemColumnAddedToExistingTurnsTable(t *testing.T) {
 	if got := s.Snapshot()[0]; got.Text != "old text" || got.System != "" {
 		t.Fatalf("%+v", got)
 	}
+	if s.Provider != "" || s.Effort != "" {
+		t.Fatalf("old session has no provider/effort: %+v", s)
+	}
+	s.Provider, s.Effort = "p", "high"
 	s.Append(Turn{Role: llm.RoleUser, Text: "new", System: "<system-event>e</system-event>"})
 	if err := SaveSession(home, s); err != nil {
 		t.Fatal(err)
 	}
 	s, _ = LoadSession(home, "s1")
+	if s.Provider != "p" || s.Effort != "high" {
+		t.Fatalf("%+v", s)
+	}
 	if s.Snapshot()[1].System != "<system-event>e</system-event>" {
 		t.Fatalf("%+v", s.Snapshot())
 	}

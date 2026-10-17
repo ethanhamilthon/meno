@@ -31,7 +31,7 @@ func Compact(ctx context.Context, cl llm.Client, p llm.Provider, model string, s
 		b.WriteString("Previous summary:\n" + s.Summary + "\n")
 	}
 	for _, t := range head {
-		b.WriteString(t.Role + ": " + t.Text)
+		b.WriteString(t.Role + ": " + s.TextWithImagePaths(t, func(path string) string { return "[image: " + path + "]" }))
 		if t.Code != "" || t.CallID != "" {
 			b.WriteString("\n[js] " + t.Code + "\n[out] " + t.Output)
 		}

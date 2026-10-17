@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -28,7 +29,7 @@ func TestLoadSettingsNormalizesInvalidValues(t *testing.T) {
 
 func TestSettingsDecodeValidAndLegacy(t *testing.T) {
 	for _, lines := range []int{1, 50} {
-		want := Settings{Provider: "custom", Model: "custom-model", Effort: "max", JSCode: "off", JSLines: lines, JSOutLines: 7, JSOutput: "off", Thinking: "off", ThinkLines: 4, JSTimeout: "model", JSTimeoutSec: 90, Theme: "dracula", NotifyQuestion: "on"}
+		want := Settings{Provider: "custom", Model: "custom-model", Effort: "max", JSCode: "off", JSLines: lines, JSOutLines: 7, JSOutput: "off", Thinking: "off", ThinkLines: 4, JSTimeout: "model", JSTimeoutSec: 90, Theme: "dracula", Notify: "done", NotifyCommand: "say hi"}
 		b, err := json.Marshal(want)
 		if err != nil {
 			t.Fatal(err)
@@ -96,5 +97,24 @@ func TestSettingsMigrateOldJSChoices(t *testing.T) {
 	got = Settings{}
 	if err := json.Unmarshal([]byte(`{"js_timeout":"30s"}`), &got); err != nil || got.JSTimeout != "sec" || got.JSTimeoutSec != 30 {
 		t.Fatalf("30s: %+v %v", got, err)
+	}
+}
+
+func TestLegacyNotifyQuestionMigrates(t *testing.T) {
+	for data, want := range map[string]string{
+		`{"notify_question":"on"}`:                "question",
+		`{"notify_question":"off"}`:               "off",
+		`{"notify":"off","notify_question":"on"}`: "off",
+		`{"notify":"done"}`:                       "done",
+		`{"notify":"loud"}`:                       "off",
+	} {
+		var s Settings
+		if err := json.Unmarshal([]byte(data), &s); err != nil || s.Notify != want {
+			t.Errorf("%s: notify=%q err=%v, want %q", data, s.Notify, err, want)
+		}
+	}
+	b, _ := json.Marshal(DefaultSettings())
+	if strings.Contains(string(b), "notify_question") {
+		t.Fatal("legacy key written")
 	}
 }

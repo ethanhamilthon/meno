@@ -130,8 +130,7 @@ func TestE2EProviderMissingShowsToast(t *testing.T) {
 	cl := &scriptedClient{}
 	a, scr, _ := e2eApp(t, cl)
 	defer scr.Fini()
-	a.st.Settings.Model = "no-such-model-xyz"
-	a.st.Settings.Provider = ""
+	a.setSelection("", "no-such-model-xyz", "")
 	typeRunes(a, "hello")
 	a.onKey(keyK(tcell.KeyEnter))
 	if a.st.Running {

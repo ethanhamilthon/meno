@@ -47,6 +47,21 @@ func TestSectionOrder(t *testing.T) {
 	}
 }
 
+func TestEnvironmentNamesTheModel(t *testing.T) {
+	in := full()
+	in.Provider, in.Model, in.Effort = "openai", "gpt-5.5", "high"
+	out := Build(in)
+	if !strings.HasSuffix(out, "Date: 2026-10-17, Saturday (UTC)\nModel: gpt-5.5 (openai, effort high)") {
+		t.Fatalf("model line must close the environment:\n%s", out)
+	}
+	if got := DescribeModel("", "m", ""); got != "m" {
+		t.Fatal(got)
+	}
+	if got := DescribeModel("p", "m", ""); got != "m (p)" {
+		t.Fatal(got)
+	}
+}
+
 func TestOptionalSectionsAbsentWhenEmpty(t *testing.T) {
 	out := Build(Input{Cwd: "/w", Now: now})
 	for _, h := range []string{"## Skills", "## Global instructions", "## Project instructions", "## MCP tools"} {

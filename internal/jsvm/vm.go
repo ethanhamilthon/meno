@@ -30,6 +30,7 @@ type VM struct {
 	mcpHost      atomic.Pointer[MCPHost]
 	mcpAdmin     atomic.Pointer[MCPAdmin]
 	asker        atomic.Pointer[Asker]
+	viewer       atomic.Pointer[Viewer]
 	pauseTimeout func() func() // set by the running Exec: stops the js timeout, the returned func restarts it
 	out          boundedBuffer
 	maxOut       int
@@ -111,6 +112,7 @@ func (v *VM) bind() {
 		}
 		return map[string]any{"stdout": res.Stdout, "stderr": res.Stderr, "code": res.ExitCode, "timedOut": res.TimedOut}, nil
 	})
+	_ = rt.Set("view", func(p string) (string, error) { return v.view(p) })
 	v.bindMCPAdmin()
 	v.bindAsk()
 	if _, err := rt.RunString(preludeJS); err != nil {

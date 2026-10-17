@@ -46,12 +46,17 @@ func (a *App) loadMetadataCache() {
 		a.st.Pricing = m
 	}
 }
+func modelOf(a *App) string {
+	_, m, _ := a.selection()
+	return m
+}
+
 func (a *App) modelInfo() (llm.ModelInfo, bool) {
 	p, ok := a.currentProvider()
 	if !ok {
 		return llm.ModelInfo{}, false
 	}
-	return llm.LookupMetadata(a.st.Pricing, p, a.st.Settings.Model)
+	return llm.LookupMetadata(a.st.Pricing, p, modelOf(a))
 }
 
 // sessionCacheHit is the share of input tokens served from the cache over all

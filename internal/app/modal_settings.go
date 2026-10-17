@@ -19,7 +19,7 @@ var settingRows = []settingRow{
 	{"js output", "js_output"},
 	{"thinking", "thinking"},
 	{"js timeout", "js_timeout"},
-	{"ask bell", "notify_question"},
+	{"notify", "notify"},
 }
 
 func (a *App) settingsKey(k *tcell.EventKey) {

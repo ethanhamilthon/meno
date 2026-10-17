@@ -20,12 +20,16 @@ func TestSQLiteRoundTripAndRewrite(t *testing.T) {
 	s.Requests = []RequestUsage{{Provider: "p", Model: "m", Usage: llm.Usage{In: 10, Out: 2}, Cost: &cost}, {Provider: "p", Model: "m"}}
 	s.Metrics = Metrics{Spent: 1.5, Context: 12, Unpriced: true}
 	s.Summary = "sum"
+	s.Provider, s.Effort = "prov", "low"
 	if err := SaveSession(dir, s); err != nil {
 		t.Fatal(err)
 	}
 	got, err := LoadSession(dir, s.ID)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if got.Provider != "prov" || got.Model != "m1" || got.Effort != "low" {
+		t.Fatalf("model of the session: %q %q %q", got.Provider, got.Model, got.Effort)
 	}
 	turns := got.Snapshot()
 	if len(turns) != 2 || turns[0].Text != "hi \U0001F600\nline2" || turns[1].Replay == nil || turns[1].Replay.Thought != "t" || turns[1].ReplayGroup != "g" {
@@ -37,7 +41,7 @@ func TestSQLiteRoundTripAndRewrite(t *testing.T) {
 	if len(got.Requests) != 2 || got.Requests[0].Cost == nil || *got.Requests[0].Cost != 0.5 || got.Requests[1].Cost != nil || got.Requests[0].Usage.In != 10 {
 		t.Fatalf("requests %+v", got.Requests)
 	}
-	// Rewriting with fewer turns (:clear / compaction) must drop old rows.
+	// Rewriting with fewer turns (compaction) must drop old rows.
 	s.Replace(nil)
 	s.Requests = nil
 	if err := SaveSession(dir, s); err != nil {
@@ -85,5 +89,27 @@ func TestSQLiteMigratesLegacyJSON(t *testing.T) {
 	got, err := LoadSession(home, "legacy-1")
 	if err != nil || got.Title != "old chat" || len(got.Snapshot()) != 2 {
 		t.Fatalf("%+v %v", got, err)
+	}
+}
+
+func TestAttachmentsRoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	t.Cleanup(CloseSessionStores)
+	s := NewSession("/w", "m")
+	s.Append(Turn{Role: llm.RoleUser, Text: "see [Image #1]", Attachments: []Attachment{{N: 1, Mime: "image/png", SHA: "abc", W: 3, H: 4}}})
+	s.Append(Turn{Role: llm.RoleUser, Kind: KindView, Text: "v"})
+	if err := SaveSession(dir, s); err != nil {
+		t.Fatal(err)
+	}
+	got, err := LoadSession(dir, s.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	turns := got.Snapshot()
+	if turns[1].Kind != KindView || turns[0].Kind != "" {
+		t.Fatalf("kind: %+v", turns)
+	}
+	if len(turns[0].Attachments) != 1 || turns[0].Attachments[0] != (Attachment{N: 1, Mime: "image/png", SHA: "abc", W: 3, H: 4}) || len(turns[1].Attachments) != 0 {
+		t.Fatalf("%+v", turns)
 	}
 }

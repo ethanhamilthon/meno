@@ -27,9 +27,13 @@ type Settings struct {
 	// Theme is the name of a ui theme; the app falls back to the default for
 	// names it does not know.
 	Theme string `json:"theme"`
-	// NotifyQuestion (on/off) rings the terminal bell when the agent asks the user
-	// a question with askUser.
-	NotifyQuestion string `json:"notify_question"`
+	// Notify is when to signal that the user is needed: off, question (the agent
+	// asks with askUser) or done (also when a turn ends, with success or error).
+	Notify string `json:"notify"`
+	// NotifyCommand is the shell command that makes the signal. Empty: the
+	// default of the platform (a sound on macOS, else the terminal bell);
+	// "bell": the terminal bell.
+	NotifyCommand string `json:"notify_command"`
 }
 
 // UnmarshalJSON restores safe defaults for obsolete enum values and invalid
@@ -39,6 +43,14 @@ func (s *Settings) UnmarshalJSON(data []byte) error {
 	next := plain(DefaultSettings())
 	if err := json.Unmarshal(data, &next); err != nil {
 		return err
+	}
+	// The bell for questions used to be notify_question on/off.
+	var legacy struct {
+		Notify   *string `json:"notify"`
+		Question string  `json:"notify_question"`
+	}
+	if json.Unmarshal(data, &legacy) == nil && legacy.Notify == nil && legacy.Question == "on" {
+		next.Notify = "question"
 	}
 	st := Settings(next)
 	defaults := DefaultSettings()
@@ -85,31 +97,31 @@ func (s *Settings) UnmarshalJSON(data []byte) error {
 
 func DefaultSettings() Settings {
 	return Settings{
-		Effort:         "high",
-		JSCode:         "all",
-		JSLines:        5,
-		JSOutput:       "all",
-		JSOutLines:     5,
-		Thinking:       "all",
-		ThinkLines:     5,
-		Theme:          "meno",
-		JSTimeout:      "sec",
-		JSTimeoutSec:   30,
-		NotifyQuestion: "off",
+		Effort:       "high",
+		JSCode:       "all",
+		JSLines:      5,
+		JSOutput:     "all",
+		JSOutLines:   5,
+		Thinking:     "all",
+		ThinkLines:   5,
+		Theme:        "meno",
+		JSTimeout:    "sec",
+		JSTimeoutSec: 30,
+		Notify:       "off",
 	}
 }
 
 var choices = map[string][]string{
-	"js_code":         {"all", "lines", "off"},
-	"js_output":       {"all", "lines", "off"},
-	"thinking":        {"all", "lines", "off"},
-	"js_timeout":      {"sec", "off", "model"},
-	"effort":          {"low", "medium", "high", "max"},
-	"notify_question": {"off", "on"},
+	"js_code":    {"all", "lines", "off"},
+	"js_output":  {"all", "lines", "off"},
+	"thinking":   {"all", "lines", "off"},
+	"js_timeout": {"sec", "off", "model"},
+	"effort":     {"low", "medium", "high", "max"},
+	"notify":     {"off", "question", "done"},
 }
 
 func SettingKeys() []string {
-	return []string{"js_code", "js_output", "thinking", "js_timeout", "notify_question"}
+	return []string{"js_code", "js_output", "thinking", "js_timeout", "notify"}
 }
 
 func Choices(key string) []string { return choices[key] }
@@ -126,8 +138,8 @@ func (s *Settings) Get(key string) string {
 		return s.JSTimeout
 	case "effort":
 		return s.Effort
-	case "notify_question":
-		return s.NotifyQuestion
+	case "notify":
+		return s.Notify
 	}
 	return ""
 }
@@ -158,8 +170,8 @@ func (s *Settings) setRaw(key, val string) {
 		s.JSTimeout = val
 	case "effort":
 		s.Effort = val
-	case "notify_question":
-		s.NotifyQuestion = val
+	case "notify":
+		s.Notify = val
 	}
 }
 

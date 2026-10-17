@@ -176,7 +176,8 @@ func TestBackgroundQuestionWaitsAndIsAnswerableAfterSwitching(t *testing.T) {
 	}
 	a, scr, _ := e2eApp(t, cl)
 	defer scr.Fini()
-	a.st.Settings.NotifyQuestion = "on"
+	a.st.Settings.Notify = "question"
+	a.notifier = func(string, []string) {}
 	asker := a.st.Runtime
 	start(a, "ask me")
 	a.runCommand("new")

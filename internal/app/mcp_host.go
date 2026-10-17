@@ -39,11 +39,17 @@ func agentsPaths(p config.Paths) (global, project string) {
 
 // worldSrc captures what a prompt build needs. Call it on the UI goroutine;
 // the result may be used from any goroutine.
+func (a *App) modelSig() modelSig {
+	p, m, e := a.selection()
+	return modelSig{p, m, e}
+}
+
 func (a *App) worldSrc() worldSrc {
 	paths := a.paths
 	paths.Cwd = a.st.Cwd // the current session's directory
 	return worldSrc{
 		Paths: paths, MCP: a.mcp, Servers: append([]mcp.Server(nil), a.st.Servers...), Now: time.Now(),
+		Model: a.modelSig(),
 	}
 }
 

@@ -12,7 +12,7 @@ import (
 // composerMaxText caps how many text rows the composer may occupy.
 const composerMaxText = 8
 
-const placeholderIdle = "give a task... or use /skills or :commands"
+const placeholderIdle = "give a task... or use /skills"
 
 func oneLine(s string) string {
 	return strings.Join(strings.Fields(strings.ReplaceAll(s, "\n", " ")), " ")

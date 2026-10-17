@@ -69,6 +69,8 @@ func (a *App) onInsertKey(k *tcell.EventKey) {
 		a.submit()
 	case tcell.KeyCtrlJ:
 		a.insertNewline()
+	case tcell.KeyCtrlV:
+		a.attachFromClipboard(false)
 	case tcell.KeyBackspace, tcell.KeyBackspace2:
 		a.backspace()
 	case tcell.KeyDelete:
@@ -86,6 +88,9 @@ func (a *App) onInsertKey(k *tcell.EventKey) {
 			a.moveRight()
 		}
 	case tcell.KeyUp:
+		if len(a.st.Input) == 0 && a.recallQueue() {
+			return
+		}
 		a.moveVert(-1)
 	case tcell.KeyDown:
 		a.moveVert(1)

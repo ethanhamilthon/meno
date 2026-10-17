@@ -50,6 +50,10 @@ func (a *App) runCommand(raw string) {
 		a.notify("js vm restarted")
 	case "compact":
 		a.compact()
+	case "notify":
+		a.notifyCommand(strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(raw), name)))
+	case "attach":
+		a.attachCommand(strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(raw), name)))
 	case "export":
 		a.exportSession(args)
 	case "stop":
@@ -198,7 +202,8 @@ func (a *App) compact() {
 	a.st.Running = true
 	a.st.LastErr = false
 	a.st.Phase = "compacting"
-	sess, sid, model, client := a.st.Session, a.st.Session.ID, a.st.Settings.Model, a.client(p)
+	_, model, _ := a.selection()
+	sess, sid, client := a.st.Session, a.st.Session.ID, a.client(p)
 	a.running.Add(1)
 	go func() {
 		defer a.running.Done()
@@ -220,10 +225,19 @@ func (a *App) exportSession(args []string) {
 		path = filepath.Join(a.st.Cwd, path)
 	}
 	var b strings.Builder
+	show := func(p string) string {
+		if rel, err := filepath.Rel(filepath.Dir(path), p); err == nil {
+			p = rel
+		}
+		return "![image](" + p + ")"
+	}
 	for _, t := range a.st.Session.Snapshot() {
 		switch {
+		case t.Role == llm.RoleUser && t.Kind == agent.KindView:
+			b.WriteString("*" + a.st.Session.TextWithImagePaths(t, show) + "*\n\n")
 		case t.Role == llm.RoleUser:
-			b.WriteString("## User\n\n" + t.Text + "\n\n")
+			text := a.st.Session.TextWithImagePaths(t, show)
+			b.WriteString("## User\n\n" + text + "\n\n")
 		case t.Code != "":
 			b.WriteString("```js\n" + t.Code + "\n```\n\n")
 			if t.Output != "" {

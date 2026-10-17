@@ -9,13 +9,14 @@ import (
 )
 
 func (a *App) modelLabel() string {
-	if a.st.Settings.Model == "" {
+	_, model, effort := a.selection()
+	if model == "" {
 		return "no model selected · :model"
 	}
-	if a.st.Settings.Effort == "" {
-		return a.st.Settings.Model
+	if effort == "" {
+		return model
 	}
-	return a.st.Settings.Model + " (" + a.st.Settings.Effort + ")"
+	return model + " (" + effort + ")"
 }
 
 func (a *App) statsText() string {
@@ -166,6 +167,8 @@ var commandList = []cmdDef{
 	{":theme", "color theme"},
 	{":reset", "reset js vm"},
 	{":compact", "compact context"},
+	{":attach", "attach an image"},
+	{":notify", "sound when done"},
 	{":export", "export markdown"},
 	{":stop", "stop this turn"},
 	{":help", "keys & commands"},

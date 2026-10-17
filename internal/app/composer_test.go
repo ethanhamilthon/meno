@@ -209,7 +209,7 @@ func TestCursorBlinksOnlyInInsertMode(t *testing.T) {
 func TestPlaceholderFollowsAgentPhase(t *testing.T) {
 	a, s := visualFixture(t, 90, 20)
 	row := func() string { a.draw(); return visualRow(s, 20-1-1-composerPadY) }
-	if got := row(); !strings.Contains(got, "give a task... or use /skills or :commands") {
+	if got := row(); !strings.Contains(got, "give a task... or use /skills") {
 		t.Fatalf("idle: %q", got)
 	}
 	a.st.Running = true

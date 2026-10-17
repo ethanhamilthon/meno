@@ -58,7 +58,7 @@ func (a *App) inputTokens() []tokSpan {
 		}
 		i = e - 1
 	}
-	return out
+	return append(out, a.imageSpans()...)
 }
 
 // acToken is the partial reference around the cursor: [start,end) covers the

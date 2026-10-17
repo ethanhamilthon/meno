@@ -25,7 +25,14 @@ type Turn struct {
 	// System is the <system-event> block sent in front of a user message. It is
 	// part of the request history but never shown to the user.
 	System string `json:"system,omitempty"`
+	// Attachments are the images the user message refers to.
+	Attachments []Attachment `json:"attachments,omitempty"`
+	// Kind is empty for what the user wrote; KindView for an image the agent
+	// asked to see with view().
+	Kind string `json:"kind,omitempty"`
 }
+
+const KindView = "view"
 
 type RequestUsage struct {
 	Provider string    `json:"provider"`
@@ -44,16 +51,23 @@ type Metrics struct {
 }
 
 type Session struct {
-	Requests  []RequestUsage `json:"requests,omitempty"`
-	Metrics   Metrics        `json:"metrics"`
-	ID        string         `json:"id"`
-	Title     string         `json:"title"`
-	Cwd       string         `json:"cwd"`
-	Model     string         `json:"model"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	Summary   string         `json:"summary,omitempty"`
-	Log       *SafeLog       `json:"-"`
-	Turns     []Turn         `json:"turns"`
+	Requests []RequestUsage `json:"requests,omitempty"`
+	Metrics  Metrics        `json:"metrics"`
+	ID       string         `json:"id"`
+	Title    string         `json:"title"`
+	Cwd      string         `json:"cwd"`
+	// Provider, Model and Effort are the model this session talks to; each
+	// session has its own. Sessions saved before this was per session may have
+	// only Model.
+	Provider  string    `json:"provider,omitempty"`
+	Model     string    `json:"model"`
+	Effort    string    `json:"effort,omitempty"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Summary   string    `json:"summary,omitempty"`
+	Log       *SafeLog  `json:"-"`
+	// AttachDir is the directory with the bytes of attachments (set by the app).
+	AttachDir string `json:"-"`
+	Turns     []Turn `json:"turns"`
 }
 
 func (s *Session) ensureLog() *SafeLog {
@@ -80,6 +94,9 @@ type SessionInfo struct {
 	UpdatedAt time.Time
 	Turns     int
 	JSRuns    int
+	Provider  string
+	Model     string
+	Effort    string
 }
 
 func NewID() string {
@@ -153,7 +170,7 @@ func (s *Session) DisplayTitle() string {
 
 func deriveTitle(s *Session) string {
 	for _, t := range s.Turns {
-		if t.Role == llm.RoleUser && t.Text != "" {
+		if t.Role == llm.RoleUser && t.Kind == "" && t.Text != "" {
 			r := []rune(t.Text)
 			if len(r) > 60 {
 				return string(r[:60])
@@ -170,6 +187,14 @@ func toolResult(t Turn) llm.Msg {
 		res += "\nERROR: " + t.Err
 	}
 	return llm.Msg{Role: llm.RoleTool, CallID: t.CallID, Text: res}
+}
+
+func (s *Session) userMsg(t Turn) llm.Msg {
+	m := llm.Msg{Role: llm.RoleUser, Text: withSystem(t)}
+	for _, a := range t.Attachments {
+		m.Images = append(m.Images, llm.Image{N: a.N, Mime: a.Mime, Path: s.AttachmentPath(a)})
+	}
+	return m
 }
 
 func (s *Session) ToMsgs() []llm.Msg {
@@ -195,7 +220,7 @@ func (s *Session) ToMsgs() []llm.Msg {
 		}
 		switch {
 		case t.Role == llm.RoleUser:
-			out = append(out, llm.Msg{Role: llm.RoleUser, Text: withSystem(t)})
+			out = append(out, s.userMsg(t))
 		case t.Code != "" || t.CallID != "":
 			out = append(out, llm.Msg{Role: llm.RoleAssistant, Text: t.Text, CallID: t.CallID, Code: t.Code})
 			out = append(out, toolResult(t))
@@ -203,6 +228,7 @@ func (s *Session) ToMsgs() []llm.Msg {
 			out = append(out, llm.Msg{Role: llm.RoleAssistant, Text: t.Text})
 		}
 	}
+	omitOldImages(out, MaxRequestImages)
 	return out
 }
 

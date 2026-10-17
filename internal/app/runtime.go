@@ -28,6 +28,7 @@ type Runtime struct {
 	cancel  context.CancelFunc
 
 	Running   bool
+	Queue     agent.Queue // messages written while the turn runs; the runner takes them between steps
 	Phase     string      // what the running agent is doing: thinking, writing, running, compacting
 	Ask       *askState   // question from the agent waiting for an answer
 	Retry     *retryState // set while a failed model request waits to be sent again
@@ -45,6 +46,7 @@ type Runtime struct {
 	Unpriced  bool
 
 	// The composer draft and the vim state around it.
+	Images   []draftImage // images attached to the draft; the input holds their [Image #N] tokens
 	Mode     ui.Mode
 	Input    []rune
 	Cursor   int // rune index of the text cursor inside Input
@@ -82,11 +84,13 @@ func (rt *Runtime) Idle() bool { return !rt.Running && rt.Ask == nil }
 
 // newRuntime wraps a session in a fresh runtime with its own js VM rooted at cwd.
 func (a *App) newRuntime(sess *agent.Session, cwd string) *Runtime {
+	sess.AttachDir = a.attachDir()
 	rt := &Runtime{Session: sess, Cwd: cwd, Mode: ui.ModeInsert}
 	rt.VM = jsvm.New(jsvm.Options{Root: cwd, Timeout: a.st.Settings.TimeoutDuration()})
 	rt.VM.SetMCP(mcpHost{a.mcp})
 	rt.VM.SetMCPAdmin(mcpAdmin{a, sess.ID})
 	rt.VM.SetAsker(appAsker{a, sess.ID})
+	rt.VM.SetViewer(appViewer{a, sess.ID, &rt.Queue})
 	a.rts[sess.ID] = rt
 	a.rtList = append(a.rtList, rt)
 	return rt
@@ -137,9 +141,37 @@ func (a *App) switchTo(rt *Runtime) {
 func (a *App) newSession() {
 	a.saveSession()
 	cwd := a.st.Cwd
-	sess := agent.NewSession(cwd, a.st.Settings.Model)
-	rt := a.newRuntime(sess, cwd)
+	rt := a.newRuntime(a.newAgentSession(cwd), cwd)
 	a.switchTo(rt)
+}
+
+// selection is the model of the current session: provider name, model id and
+// reasoning effort. A session that never had one (an old stored session, or one
+// started before a model was picked) uses the default from the settings, which
+// is the last model picked with :model.
+func (a *App) selection() (provider, model, effort string) {
+	if s := a.st.Session; s != nil && s.Provider != "" && s.Model != "" {
+		return s.Provider, s.Model, s.Effort
+	}
+	st := a.st.Settings
+	return st.Provider, st.Model, st.Effort
+}
+
+// setSelection gives the current session a model. It also becomes the default
+// for sessions started later. A turn that is running keeps the model it
+// started with.
+func (a *App) setSelection(provider, model, effort string) {
+	if s := a.st.Session; s != nil {
+		s.Provider, s.Model, s.Effort = provider, model, effort
+	}
+	a.st.Settings.Provider, a.st.Settings.Model, a.st.Settings.Effort = provider, model, effort
+}
+
+// newAgentSession is an empty session in cwd with the default model.
+func (a *App) newAgentSession(cwd string) *agent.Session {
+	s := agent.NewSession(cwd, a.st.Settings.Model)
+	s.Provider, s.Effort = a.st.Settings.Provider, a.st.Settings.Effort
+	return s
 }
 
 // busyAction describes what keeps a session from being left behind, or "".

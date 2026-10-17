@@ -39,6 +39,8 @@ const (
 	EvUsage   = "usage"
 	EvError   = "error"
 	EvAborted = "aborted"
+	// EvInjected: queued user messages were added to the session.
+	EvInjected = "injected"
 	// EvRetry: the request failed and will be sent again; whatever it streamed
 	// so far is void.
 	EvRetry = "retry"
@@ -56,6 +58,9 @@ type Deps struct {
 	ModelTimeout bool
 	// Retry is the policy for failed model requests (zero value: defaults).
 	Retry RetryPolicy
+	// Queue, when set, delivers messages the user wrote during the turn; they
+	// join the conversation between steps (never between a call and its result).
+	Queue *Queue
 	Emit  func(Ev)
 }
 
@@ -75,6 +80,7 @@ func (r *Runner) Continue(ctx context.Context, s *Session) error {
 		if err := ctx.Err(); err != nil {
 			return r.abort(s)
 		}
+		r.inject(s)
 		calls, replay, err := r.streamOnce(ctx, s)
 		text := replay.Text
 		if err != nil {
@@ -101,6 +107,9 @@ func (r *Runner) Continue(ctx context.Context, s *Session) error {
 		}
 		if len(calls) == 0 {
 			s.Append(Turn{Role: llm.RoleAssistant, Text: text, Replay: &replay})
+			if r.D.Queue != nil && r.D.Queue.Len() > 0 {
+				continue // the user spoke meanwhile: answer without ending the turn
+			}
 			r.emit(s, Ev{Kind: EvDone})
 			return nil
 		}
@@ -120,6 +129,34 @@ func (r *Runner) Continue(ctx context.Context, s *Session) error {
 			text = ""
 		}
 	}
+}
+
+// inject adds the queued user messages to the session as one turn.
+func (r *Runner) inject(s *Session) {
+	if r.D.Queue == nil {
+		return
+	}
+	items := r.D.Queue.Take()
+	if len(items) == 0 {
+		return
+	}
+	var viewed, written []Message
+	for _, m := range items {
+		if m.Viewed {
+			viewed = append(viewed, m)
+		} else {
+			written = append(written, m)
+		}
+	}
+	if len(viewed) > 0 {
+		m := Combine(viewed)
+		s.Append(Turn{Role: llm.RoleUser, Kind: KindView, Text: m.Text, Attachments: m.Attachments})
+	}
+	if len(written) > 0 {
+		m := Combine(written)
+		s.Append(Turn{Role: llm.RoleUser, Text: m.Text, Attachments: m.Attachments})
+	}
+	r.emit(s, Ev{Kind: EvInjected})
 }
 
 func (r *Runner) emit(s *Session, e Ev) {

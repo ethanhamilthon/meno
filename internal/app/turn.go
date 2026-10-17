@@ -15,22 +15,45 @@ func (a *App) submit() {
 		return
 	}
 	text := strings.TrimSpace(string(a.st.Input))
-	if text == "" || a.st.Running {
+	if text == "" {
+		return
+	}
+	msg := a.draftMessage(text)
+	if len(msg.Attachments) > 0 {
+		if !a.imagesAllowed() {
+			return
+		}
+		if err := a.storeImages(msg); err != nil {
+			a.notifyErr("can't save image: " + err.Error())
+			return
+		}
+	}
+	if a.st.Running {
+		// Steering: the runner picks it up before its next request to the model.
+		a.st.Queue.Push(msg)
+		a.clearDraft()
 		return
 	}
 	if _, ok := a.currentProvider(); !ok {
 		a.notifyErr("provider not configured · select provider and model with :model")
 		return
 	}
-	a.setInput(nil)
-	a.st.Undo, a.st.Redo, a.st.InsBase = nil, nil, a.snapshot()
-	a.startTurn(text)
+	a.clearDraft()
+	a.startTurn(msg)
 }
 
-func (a *App) startTurn(text string) {
+// clearDraft empties the composer after its content was sent.
+func (a *App) clearDraft() {
+	a.setInput(nil)
+	a.st.Images = nil
+	a.st.Undo, a.st.Redo, a.st.InsBase = nil, nil, a.snapshot()
+}
+
+func (a *App) startTurn(msg agent.Message) {
 	p, ok := a.currentProvider()
 	if !ok {
-		a.notifyErr("provider not configured for model " + a.st.Settings.Model)
+		_, model, _ := a.selection()
+		a.notifyErr("provider not configured for model " + model)
 		return
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -43,15 +66,18 @@ func (a *App) startTurn(text string) {
 	a.st.Scroll = 0
 	a.clearLive()
 	sess, sid := a.st.Session, a.st.Session.ID
+	prov, model, effort := a.selection()
+	// Stamp the session: from now on it keeps this model, whatever the default becomes.
+	sess.Provider, sess.Model, sess.Effort = prov, model, effort
 	idx := sess.Len()
 	hasHistory := idx > 0 || sess.Summary != ""
-	sess.Append(agent.Turn{Role: llm.RoleUser, Text: text})
+	sess.Append(agent.Turn{Role: llm.RoleUser, Text: msg.Text, Attachments: msg.Attachments})
 	// Everything the goroutine needs is captured here; it must not touch a.st.
 	src, ps := a.worldSrc(), a.st.Prompt
 	d := agent.Deps{
-		Client: a.client(p), Provider: p, Model: a.st.Settings.Model,
-		Effort: a.st.Settings.Effort,
-		VM:     a.st.VM, Thinking: a.st.Settings.Thinking != "off", ModelTimeout: a.st.Settings.ModelTimeout(),
+		Client: a.client(p), Provider: p, Model: model,
+		Effort: effort, Queue: &a.st.Queue,
+		VM: a.st.VM, Thinking: a.st.Settings.Thinking != "off", ModelTimeout: a.st.Settings.ModelTimeout(),
 		Emit:  func(e agent.Ev) { a.postEvent(agentEv{sid: sid, ev: e}) },
 		Retry: a.retry,
 	}
@@ -130,6 +156,9 @@ func (a *App) onAgent(e agent.Ev) {
 		a.dropLiveCall(e.CallID)
 		a.st.LiveText, a.st.LiveThink = "", ""
 		a.st.Phase = "thinking"
+	case agent.EvInjected:
+		a.clearLive()
+		a.st.Phase = "thinking"
 	case agent.EvDone, agent.EvAborted:
 		a.clearLive()
 		a.st.Phase = ""
@@ -144,7 +173,7 @@ func (a *App) onAgent(e agent.Ev) {
 		p, model := e.Provider, e.Model
 		if model == "" {
 			p, _ = a.currentProvider()
-			model = a.st.Settings.Model
+			_, model, _ = a.selection()
 		}
 		record := agent.RequestUsage{Provider: p.Name, Model: model, Usage: u, Time: time.Now().UTC()}
 		if info, ok := llm.LookupMetadata(a.st.Pricing, p, model); ok && info.CanPrice(u) {
@@ -175,6 +204,21 @@ func (a *App) onTurnDone(err error) {
 		a.notifyErr(err.Error())
 	}
 	a.saveSession()
+	// Messages that arrived after the last step: send them as the next turn, or
+	// hand them back when the turn did not end well.
+	if rest := a.st.Queue.Take(); len(rest) > 0 {
+		if err == nil {
+			a.startTurn(agent.Combine(rest)) // not done yet: the user spoke again
+			return
+		}
+		a.restoreDraft(rest)
+	}
+	switch {
+	case err == nil:
+		a.signal("done")
+	case !isAbort(err):
+		a.signal("error")
+	}
 }
 
 func isAbort(err error) bool {
@@ -182,11 +226,12 @@ func isAbort(err error) bool {
 }
 
 func (a *App) currentProvider() (llm.Provider, bool) {
-	if a.st.Settings.Model == "" || a.st.Settings.Provider == "" {
+	prov, model, _ := a.selection()
+	if model == "" || prov == "" {
 		return llm.Provider{}, false
 	}
 	for _, p := range a.st.Providers {
-		if p.Name == a.st.Settings.Provider {
+		if p.Name == prov {
 			return p, true
 		}
 	}

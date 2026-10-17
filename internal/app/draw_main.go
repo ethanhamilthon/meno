@@ -77,6 +77,8 @@ func (a *App) drawBottom(c ui.Canvas, x, y, w, h int) {
 		ac := min(a.acHeight(), max(0, bodyH-a.composerHeight()))
 		if ac > 0 && a.st.Ask != nil {
 			a.drawAsk(c, x, y, w, ac)
+		} else if ac > 0 && !a.acActive() {
+			a.drawQueue(c, x, y, w, ac)
 		} else if ac > 0 {
 			a.drawAutocompleteRows(c, x, y, w, ac)
 		}

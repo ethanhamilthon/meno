@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -21,6 +22,8 @@ type ModelInfo struct {
 	CacheRead      *float64
 	CacheWrite     *float64
 	MissingPricing bool // Catalog entry has context/identity but no complete token prices.
+	// Vision tells whether the model accepts images; nil when the catalog does not say.
+	Vision *bool `json:",omitempty"`
 }
 
 func (m ModelInfo) CanPrice(u Usage) bool {
@@ -91,6 +94,9 @@ func FetchMetadata(ctx context.Context) (map[string]ModelInfo, error) {
 			}
 			if m.CacheWrite == nil {
 				m.CacheWrite = old.CacheWrite
+			}
+			if m.Vision == nil {
+				m.Vision = old.Vision
 			}
 			if m.MissingPricing && !old.MissingPricing {
 				m.Input, m.Output, m.MissingPricing = old.Input, old.Output, false
@@ -251,6 +257,9 @@ func decodeOpenRouter(r io.Reader) (map[string]ModelInfo, error) {
 			ID      string                     `json:"id"`
 			Context int                        `json:"context_length"`
 			Pricing map[string]json.RawMessage `json:"pricing"`
+			Arch    *struct {
+				Input []string `json:"input_modalities"`
+			} `json:"architecture"`
 		}
 		if json.Unmarshal(raw, &m) != nil || m.ID == "" {
 			continue
@@ -271,6 +280,10 @@ func decodeOpenRouter(r io.Reader) (map[string]ModelInfo, error) {
 		info := ModelInfo{Context: m.Context, CacheRead: price("input_cache_read"), CacheWrite: price("input_cache_write"), MissingPricing: input == nil || output == nil}
 		if !info.MissingPricing {
 			info.Input, info.Output = *input, *output
+		}
+		if m.Arch != nil && len(m.Arch.Input) > 0 {
+			v := slices.Contains(m.Arch.Input, "image")
+			info.Vision = &v
 		}
 		out["openrouter/"+m.ID] = info
 	}
@@ -295,6 +308,7 @@ func decodeLiteLLM(r io.Reader) (map[string]ModelInfo, error) {
 			Output     *float64 `json:"output_cost_per_token"`
 			CacheRead  *float64 `json:"cache_read_input_token_cost"`
 			CacheWrite *float64 `json:"cache_creation_input_token_cost"`
+			Vision     *bool    `json:"supports_vision"`
 		}
 		if json.Unmarshal(raw, &m) != nil {
 			continue
@@ -319,7 +333,7 @@ func decodeLiteLLM(r io.Reader) (map[string]ModelInfo, error) {
 			return &n
 		}
 		input, output := scale(m.Input), scale(m.Output)
-		info := ModelInfo{CacheRead: scale(m.CacheRead), CacheWrite: scale(m.CacheWrite), MissingPricing: input == nil || output == nil}
+		info := ModelInfo{CacheRead: scale(m.CacheRead), CacheWrite: scale(m.CacheWrite), MissingPricing: input == nil || output == nil, Vision: m.Vision}
 		if m.Context != nil && *m.Context > 0 {
 			info.Context = int(*m.Context)
 		} else if m.MaxTokens != nil && *m.MaxTokens > 0 {

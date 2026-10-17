@@ -50,6 +50,10 @@ func BuildLines(turns []agent.Turn, w int, js JSOpts) []Line {
 			}
 		}
 		switch {
+		case t.Role == llm.RoleUser && t.Kind == agent.KindView:
+			out = append(out, WrapLines("◌ "+t.Text, wrapW-2, func(s string) Line {
+				return Plain("  "+s, FgDim, BgTerm)
+			})...)
 		case t.Role == llm.RoleUser:
 			out = append(out, Band(BgUser))
 			out = append(out, WrapLines(t.Text, wrapW-2, func(s string) Line {

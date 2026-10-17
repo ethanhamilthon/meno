@@ -24,7 +24,11 @@ type baseline struct {
 	Agents map[string]fileSig  // "global" and "project"
 	MCP    map[string]mcpSig   // by server name
 	Date   string              // YYYY-MM-DD
+	Model  modelSig
 }
+
+// modelSig is the model selection the model has been told about.
+type modelSig struct{ Provider, Model, Effort string }
 
 type skillSig struct{ Path, Hash string }
 
@@ -55,6 +59,7 @@ type worldSrc struct {
 	MCP     *mcp.Manager
 	Servers []mcp.Server // configured servers (copy)
 	Now     time.Time
+	Model   modelSig // the session's model
 }
 
 // maxMCPWait is how long a prompt build waits for MCP servers that are still
@@ -67,10 +72,11 @@ func (w worldSrc) gather(ctx context.Context) (world, []string) {
 	var out world
 	var warnings []string
 	w.MCP.WaitReady(ctx, maxMCPWait)
-	in := prompt.Input{Cwd: w.Paths.Cwd, Now: w.Now, OS: prompt.DescribeOS(), Shell: "/bin/sh"}
+	in := prompt.Input{Cwd: w.Paths.Cwd, Now: w.Now, OS: prompt.DescribeOS(), Shell: "/bin/sh",
+		Provider: w.Model.Provider, Model: w.Model.Model, Effort: w.Model.Effort}
 	b := &baseline{
 		Cwd: w.Paths.Cwd, Skills: map[string]skillSig{}, Agents: map[string]fileSig{}, MCP: map[string]mcpSig{},
-		Date: w.Now.Format("2006-01-02"),
+		Date: w.Now.Format("2006-01-02"), Model: w.Model,
 	}
 
 	if sk, err := config.NewStore(w.Paths).LoadSkills(); err == nil {
@@ -169,10 +175,20 @@ func diffBaseline(old, cur *baseline) []string {
 	if old.Date != cur.Date {
 		out = append(out, "<date-changed>The date is now "+formatDay(cur.Date)+".</date-changed>")
 	}
+	if old.Model != cur.Model && cur.Model.Model != "" {
+		out = append(out, "<model-changed>Your model changed from "+describeSig(old.Model)+" to "+describeSig(cur.Model)+". Earlier assistant messages in this conversation were written by the previous model; the Environment section of your system prompt still names it.</model-changed>")
+	}
 	if old.Cwd != cur.Cwd {
 		out = append(out, "<cwd-changed>The working directory changed from "+old.Cwd+" to "+cur.Cwd+". Relative paths and sh() now use "+cur.Cwd+". Project skills and AGENTS.md of "+cur.Cwd+" are not in your system prompt; see the other events and reread them.</cwd-changed>")
 	}
 	return out
+}
+
+func describeSig(m modelSig) string {
+	if m.Model == "" {
+		return "no model"
+	}
+	return prompt.DescribeModel(m.Provider, m.Model, m.Effort)
 }
 
 func formatDay(day string) string {

@@ -26,7 +26,7 @@ First start:
    `https://api.openai.com/v1`), API key and protocol (`responses` or
    `chat completions`).
 2. `:model` — pick a model (the list is fetched from the provider's `/models`)
-   and an effort level.
+   and an effort level. It applies to the current session; every session has its own.
 3. Press `i`, type a task, press Enter.
 
 ## The agent's tool
@@ -60,13 +60,13 @@ missing or empty one is ignored.
 
 The system prompt is built once per segment of a session: when the first message is
 sent after `:new`, after `:compact`, or after a stored session is opened. It is then
-reused byte for byte (so the provider's prompt cache keeps working) and is not
+reused byte for byte; its Environment section names the working directory, OS, date and the session's model (so the provider's prompt cache keeps working) and is not
 stored. While it is built (reading `AGENTS.md`, finding skills, waiting up to 3 s for
 MCP servers that are still starting) the status shows `preparing...`.
 
 Whatever changes afterwards reaches the model as one `<system-event>` block in front
 of your next message: skills added, updated or removed, `AGENTS.md` created, changed
-or deleted, MCP servers connected, failed or gone and their tools, a new date, a changed
+or deleted, MCP servers connected, failed or gone and their tools, a new date, a changed model or effort (`:model`), a changed
 working directory (`:cd`), and a restarted JS VM (`:reset`, opening a stored session). Changes the agent makes itself
 are reported too. The block is saved with the message, so a resumed session replays
 the same history, but it is not shown in the timeline or `:export`.
@@ -105,7 +105,14 @@ and your message stays in the session. (`:compact` does not retry.)
 | js output | `all`, `lines <n>`, `off` |
 | thinking | `all`, `lines <n>` (the newest rows), `off` |
 | js timeout | `<n> sec`, `off`, `model` — with `model` the tool gets a `timeout` argument and the model chooses per call |
-| ask bell | `off`, `on` — ring the terminal bell when the agent asks a question |
+| notify | `off`, `question`, `done` — signal when the agent asks a question (`question`), and also when a turn ends, with success or error (`done`); not after your own Ctrl+C. Works for every session, also in the background |
+
+The signal is made by `notify_command`, run with `sh -c` in the background (5 s limit) with
+`MENO_NOTIFY_EVENT` (`question`, `done` or `error`), `MENO_NOTIFY_SESSION` and
+`MENO_NOTIFY_TITLE` in its environment. By default it plays the Glass sound on macOS and
+rings the terminal bell elsewhere; `bell` forces the bell. Set it with
+`:notify command <cmd>` (no argument restores the default), the mode with `:notify off|question|done`,
+and try it with `:notify test`. An old `notify_question: on` becomes `question`.
 
 `←`/`→` change the choice, `+`/`-` the number. `:theme` opens 20 built-in
 color themes with a live preview.
@@ -175,11 +182,29 @@ read-only but supports every motion and yank (`y` copies through OSC 52).
 | | |
 | --- | --- |
 | `Enter` / `Shift+Enter` | send / new line |
-| `Ctrl+C` | abort the running turn of this session |
+| `Enter` while the agent works | steering: the message waits in a panel above the input and joins the conversation before the next model request (after the current js call); `↑` on an empty input takes it back for editing |
+| `Ctrl+C` | abort the running turn of this session; messages that were not delivered return to the input |
+| `Ctrl+V`, `:attach [path]`, `p` (Normal mode, empty register) | attach an image from the clipboard (macOS; Linux needs `wl-paste` or `xclip`) or from a file; pasting or dropping a path to a PNG/JPEG works too |
 | `Ctrl+E/Y/D/U/F/B`, wheel | scroll the timeline |
 | `:new` `:sessions` `:cd <path>` `:compact` `:export [file]` | sessions, see below |
 | `:model` `:settings` `:theme` `:skills` `:mcp` `:providers` | dialogs |
 | `:reset` `:stop` `:q` `:q!` | restart this session's VM, stop its turn, quit (`:q!` also stops running turns) |
+
+## Images
+
+An attached image shows up in the input as the token `[Image #N]`, which moves, wraps
+and is deleted as one unit; the text around it tells the model what to look at. At most 5
+images per message, 5 MB each, PNG or JPEG; larger images are scaled down to 1568 px on
+the longer side. The bytes are kept in `attachments/` next to `meno.db` (named by
+hash). Only the 5 newest images of a conversation are sent with each request; older ones
+are replaced by `[image omitted]`. `:compact` gives the summarizer the image paths, and
+`:export` links the files. If the catalog says the model has no image input, attaching is
+refused; when it does not say, the request is sent anyway.
+
+The agent can look at an image itself: `view(path)` in a js call (same paths as `fs`, same
+limits, at most 5 per step) queues the file, and it reaches the model as a separate message
+right after the call's result. In the timeline it shows as a dim `◌ Image from view("…")` line.
+It counts toward the 5 newest images like any other.
 
 Completion lists (`:` commands and `/skill` names) use two columns once they
 have six or more entries; Down walks the left column and continues in the right.
@@ -187,9 +212,12 @@ have six or more entries; Down walks the left column and continues in the right.
 ## Sessions
 
 Several sessions can run at the same time. Each has its own conversation, js VM
-(variables are not shared), working directory, token counters, pending question
-and half-typed message; providers, MCP servers and settings are shared. A turn
-keeps the model and effort it started with, so `:model` only affects later turns.
+(variables are not shared), working directory, model and effort, token counters,
+pending question and half-typed message; providers, MCP servers and settings are
+shared. `:model` changes the model of the current session only (it is saved with the
+session) and becomes the default for sessions started later. A turn keeps the model
+and effort it started with, so a change only affects later turns; the model is told
+with a `model-changed` event.
 
 - `:sessions` lists the last 200 sessions of all projects (search by title, path or
   date) and opens at once; the list fills in from the database. Each row has a

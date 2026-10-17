@@ -139,7 +139,7 @@ func (a *App) acHeight() int {
 		return a.askHeight()
 	}
 	if !a.acActive() {
-		return 0
+		return a.queueHeight()
 	}
 	w, _ := a.scr.Size()
 	return acRowCount(len(a.acMatches()), w)

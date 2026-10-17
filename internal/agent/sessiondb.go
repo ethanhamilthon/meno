@@ -21,7 +21,9 @@ CREATE TABLE IF NOT EXISTS sessions (
 	id         TEXT PRIMARY KEY,
 	title      TEXT NOT NULL DEFAULT '',
 	cwd        TEXT NOT NULL DEFAULT '',
+	provider   TEXT NOT NULL DEFAULT '',
 	model      TEXT NOT NULL DEFAULT '',
+	effort     TEXT NOT NULL DEFAULT '',
 	summary    TEXT NOT NULL DEFAULT '',
 	metrics    TEXT NOT NULL DEFAULT '{}',
 	updated_at TEXT NOT NULL
@@ -78,7 +80,7 @@ func openDB(home string) (*sql.DB, error) {
 	if _, err := d.Exec(schema); err != nil {
 		return nil, fmt.Errorf("session db: %w", err)
 	}
-	if err := ensureTurnsSystem(d); err != nil {
+	if err := ensureColumns(d); err != nil {
 		return nil, fmt.Errorf("session db: %w", err)
 	}
 	sessInit[d] = true
@@ -88,36 +90,49 @@ func openDB(home string) (*sql.DB, error) {
 	return d, nil
 }
 
-// ensureTurnsSystem adds the system column to turns tables created before
-// system events existed.
-func ensureTurnsSystem(d *sql.DB) error {
-	rows, err := d.Query("PRAGMA table_info(turns)")
-	if err != nil {
-		return err
+// ensureColumns adds columns that tables created by older versions lack:
+// turns.system (system events) and sessions.provider / sessions.effort (a model
+// per session).
+func ensureColumns(d *sql.DB) error {
+	for _, c := range []struct{ table, name, def string }{
+		{"turns", "system", "TEXT NOT NULL DEFAULT ''"},
+		{"turns", "attachments", "TEXT NOT NULL DEFAULT ''"},
+		{"turns", "kind", "TEXT NOT NULL DEFAULT ''"},
+		{"sessions", "provider", "TEXT NOT NULL DEFAULT ''"},
+		{"sessions", "effort", "TEXT NOT NULL DEFAULT ''"},
+	} {
+		has, err := hasColumn(d, c.table, c.name)
+		if err != nil {
+			return err
+		}
+		if has {
+			continue
+		}
+		if _, err := d.Exec("ALTER TABLE " + c.table + " ADD COLUMN " + c.name + " " + c.def); err != nil {
+			return err
+		}
 	}
-	has := false
+	return nil
+}
+
+func hasColumn(d *sql.DB, table, column string) (bool, error) {
+	rows, err := d.Query("PRAGMA table_info(" + table + ")")
+	if err != nil {
+		return false, err
+	}
+	defer rows.Close()
 	for rows.Next() {
 		var cid, notnull, pk int
 		var name, typ string
 		var dflt sql.NullString
 		if err := rows.Scan(&cid, &name, &typ, &notnull, &dflt, &pk); err != nil {
-			rows.Close()
-			return err
+			return false, err
 		}
-		if name == "system" {
-			has = true
+		if name == column {
+			return true, nil
 		}
 	}
-	if err := rows.Err(); err != nil {
-		rows.Close()
-		return err
-	}
-	rows.Close()
-	if has {
-		return nil
-	}
-	_, err = d.Exec("ALTER TABLE turns ADD COLUMN system TEXT NOT NULL DEFAULT ''")
-	return err
+	return false, rows.Err()
 }
 
 // importOldDB copies the sessions of the pre-meno.db database file once. The
@@ -203,21 +218,21 @@ func writeSession(db *sql.DB, s *Session) (err error) {
 	if err != nil {
 		return err
 	}
-	if _, err = tx.Exec(`INSERT INTO sessions(id,title,cwd,model,summary,metrics,updated_at) VALUES(?,?,?,?,?,?,?)
-		ON CONFLICT(id) DO UPDATE SET title=excluded.title, cwd=excluded.cwd, model=excluded.model,
-		summary=excluded.summary, metrics=excluded.metrics, updated_at=excluded.updated_at`,
-		s.ID, s.Title, s.Cwd, s.Model, s.Summary, string(metrics), ts(s.UpdatedAt)); err != nil {
+	if _, err = tx.Exec(`INSERT INTO sessions(id,title,cwd,provider,model,effort,summary,metrics,updated_at) VALUES(?,?,?,?,?,?,?,?,?)
+		ON CONFLICT(id) DO UPDATE SET title=excluded.title, cwd=excluded.cwd, provider=excluded.provider, model=excluded.model,
+		effort=excluded.effort, summary=excluded.summary, metrics=excluded.metrics, updated_at=excluded.updated_at`,
+		s.ID, s.Title, s.Cwd, s.Provider, s.Model, s.Effort, s.Summary, string(metrics), ts(s.UpdatedAt)); err != nil {
 		return err
 	}
-	// Turns may be rewritten wholesale (:clear, compaction), so replace them.
+	// Turns may be rewritten wholesale (compaction), so replace them.
 	if _, err = tx.Exec("DELETE FROM turns WHERE session_id = ?", s.ID); err != nil {
 		return err
 	}
 	if _, err = tx.Exec("DELETE FROM requests WHERE session_id = ?", s.ID); err != nil {
 		return err
 	}
-	ins, err := tx.Prepare(`INSERT INTO turns(session_id,seq,role,text,thinking,call_id,code,output,err,replay,replay_group,time,system)
-		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+	ins, err := tx.Prepare(`INSERT INTO turns(session_id,seq,role,text,thinking,call_id,code,output,err,replay,replay_group,time,system,attachments,kind)
+		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
 	if err != nil {
 		return err
 	}
@@ -232,7 +247,16 @@ func writeSession(db *sql.DB, s *Session) (err error) {
 			}
 			replay = string(b)
 		}
-		if _, err = ins.Exec(s.ID, i, t.Role, t.Text, t.Thinking, t.CallID, t.Code, t.Output, t.Err, replay, t.ReplayGroup, ts(t.Time), t.System); err != nil {
+		attachments := ""
+		if len(t.Attachments) != 0 {
+			b, merr := json.Marshal(t.Attachments)
+			if merr != nil {
+				err = merr
+				return err
+			}
+			attachments = string(b)
+		}
+		if _, err = ins.Exec(s.ID, i, t.Role, t.Text, t.Thinking, t.CallID, t.Code, t.Output, t.Err, replay, t.ReplayGroup, ts(t.Time), t.System, attachments, t.Kind); err != nil {
 			return err
 		}
 	}
@@ -261,8 +285,8 @@ func writeSession(db *sql.DB, s *Session) (err error) {
 func readSession(db *sql.DB, id string) (*Session, error) {
 	var s Session
 	var metrics, updated string
-	err := db.QueryRow("SELECT id,title,cwd,model,summary,metrics,updated_at FROM sessions WHERE id = ?", id).
-		Scan(&s.ID, &s.Title, &s.Cwd, &s.Model, &s.Summary, &metrics, &updated)
+	err := db.QueryRow("SELECT id,title,cwd,provider,model,effort,summary,metrics,updated_at FROM sessions WHERE id = ?", id).
+		Scan(&s.ID, &s.Title, &s.Cwd, &s.Provider, &s.Model, &s.Effort, &s.Summary, &metrics, &updated)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, os.ErrNotExist
 	}
@@ -273,7 +297,7 @@ func readSession(db *sql.DB, id string) (*Session, error) {
 	if err := json.Unmarshal([]byte(metrics), &s.Metrics); err != nil {
 		return nil, fmt.Errorf("session %s metrics: %w", id, err)
 	}
-	rows, err := db.Query("SELECT role,text,thinking,call_id,code,output,err,replay,replay_group,time,system FROM turns WHERE session_id = ? ORDER BY seq", id)
+	rows, err := db.Query("SELECT role,text,thinking,call_id,code,output,err,replay,replay_group,time,system,attachments,kind FROM turns WHERE session_id = ? ORDER BY seq", id)
 	if err != nil {
 		return nil, err
 	}
@@ -281,9 +305,14 @@ func readSession(db *sql.DB, id string) (*Session, error) {
 	for rows.Next() {
 		var t Turn
 		var replay sql.NullString
-		var when string
-		if err := rows.Scan(&t.Role, &t.Text, &t.Thinking, &t.CallID, &t.Code, &t.Output, &t.Err, &replay, &t.ReplayGroup, &when, &t.System); err != nil {
+		var when, attachments string
+		if err := rows.Scan(&t.Role, &t.Text, &t.Thinking, &t.CallID, &t.Code, &t.Output, &t.Err, &replay, &t.ReplayGroup, &when, &t.System, &attachments, &t.Kind); err != nil {
 			return nil, err
+		}
+		if attachments != "" {
+			if err := json.Unmarshal([]byte(attachments), &t.Attachments); err != nil {
+				return nil, fmt.Errorf("session %s attachments: %w", id, err)
+			}
 		}
 		if replay.Valid {
 			var m llm.Msg
@@ -326,7 +355,8 @@ func readSession(db *sql.DB, id string) (*Session, error) {
 func listSessions(db *sql.DB, limit int) ([]SessionInfo, error) {
 	rows, err := db.Query(`SELECT s.id, s.title, s.cwd, s.updated_at,
 		(SELECT COUNT(1) FROM turns t WHERE t.session_id = s.id),
-		(SELECT COUNT(1) FROM turns t WHERE t.session_id = s.id AND (t.code <> '' OR t.call_id <> ''))
+		(SELECT COUNT(1) FROM turns t WHERE t.session_id = s.id AND (t.code <> '' OR t.call_id <> '')),
+		s.provider, s.model, s.effort
 		FROM sessions s ORDER BY s.updated_at DESC LIMIT ?`, limit)
 	if err != nil {
 		return nil, err
@@ -336,7 +366,7 @@ func listSessions(db *sql.DB, limit int) ([]SessionInfo, error) {
 	for rows.Next() {
 		var i SessionInfo
 		var updated string
-		if err := rows.Scan(&i.ID, &i.Title, &i.Cwd, &updated, &i.Turns, &i.JSRuns); err != nil {
+		if err := rows.Scan(&i.ID, &i.Title, &i.Cwd, &updated, &i.Turns, &i.JSRuns, &i.Provider, &i.Model, &i.Effort); err != nil {
 			return nil, err
 		}
 		i.UpdatedAt = parseTS(updated)

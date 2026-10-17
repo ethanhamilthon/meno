@@ -122,6 +122,10 @@ func (a *App) execNormal(c vcmd) {
 		a.beginInsert(base)
 	case "p", "P":
 		if a.st.Reg == "" {
+			// Nothing yanked: p takes an image from the system clipboard.
+			if c.key == "p" && !a.st.InLog {
+				a.attachFromClipboard(true)
+			}
 			return
 		}
 		a.pushUndo(a.snapshot())

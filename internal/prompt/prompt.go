@@ -22,6 +22,7 @@ Your only tool is js. It runs JavaScript in a persistent VM: top-level let, cons
 Globals:
 - fs.read(path), fs.write(path, text), fs.edit(path, old, new), fs.glob(pattern), fs.exists(path): files at any path; relative paths resolve against the working directory. fs.edit needs a unique match.
 - sh(cmd) -> {stdout, stderr, code, timedOut}: run a shell command in the working directory.
+- view(path): look at a PNG or JPEG file. The image is queued and shown to you as a message right after this call finishes; the call itself only returns a confirmation.
 - fetch(url, init), env, URL, URLSearchParams, console.log(...).
 - askUser, mcpServers and mcp: described below.`
 
@@ -80,6 +81,8 @@ type Input struct {
 	Tools         []Tool
 	Now           time.Time
 	OS, Shell     string
+	// Model is the model this session talks to; empty omits the line.
+	Provider, Model, Effort string
 }
 
 // Build returns the full system prompt. Sections go from the most stable to
@@ -175,7 +178,25 @@ func environmentSection(in Input) string {
 	if !in.Now.IsZero() {
 		b.WriteString("\nDate: " + FormatDate(in.Now))
 	}
+	if in.Model != "" {
+		b.WriteString("\nModel: " + DescribeModel(in.Provider, in.Model, in.Effort))
+	}
 	return b.String()
+}
+
+// DescribeModel renders a model selection as "gpt-5.5 (openai, effort high)".
+func DescribeModel(provider, model, effort string) string {
+	var extra []string
+	if provider != "" {
+		extra = append(extra, provider)
+	}
+	if effort != "" {
+		extra = append(extra, "effort "+effort)
+	}
+	if len(extra) == 0 {
+		return model
+	}
+	return model + " (" + strings.Join(extra, ", ") + ")"
 }
 
 // FormatDate renders a date as "2026-10-17, Saturday (CEST)". No time of day:

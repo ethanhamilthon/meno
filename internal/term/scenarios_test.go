@@ -454,6 +454,33 @@ func TestSkillEditProducesSystemEvent(t *testing.T) {
 	}
 }
 
+// A model picked with :model applies to this session; the next request carries
+// the new model and a model-changed event.
+func TestModelSwitchProducesSystemEvent(t *testing.T) {
+	f := newFakeLLM(t)
+	f.Handler = func(q *llmReq) { q.Text("noted") }
+	s := start(t, options{fake: f})
+	s.Say("first message")
+	s.WaitFor("↓ 100")
+	s.Cmd("model")
+	s.WaitFor("other-model")
+	s.Send(Down + Enter)
+	s.WaitGone("search models")
+	s.WaitFor("other-model (")
+	s.Say("second message")
+	s.WaitFor("↓ 200")
+	bodies := f.Bodies()
+	if len(bodies) != 2 {
+		t.Fatalf("requests: %d", len(bodies))
+	}
+	if strings.Contains(bodies[0], "model-changed") || !strings.Contains(bodies[0], "fake-model") {
+		t.Fatalf("first request:\n%s", bodies[0])
+	}
+	if !strings.Contains(bodies[1], "model-changed") || !strings.Contains(bodies[1], "other-model") {
+		t.Fatalf("second request lacks the event:\n%s", bodies[1])
+	}
+}
+
 // 21. Two sessions run at once: the second answers while the first is still
 // waiting for the provider; the status bar and :sessions show it, and the slow
 // one can be opened and finishes.

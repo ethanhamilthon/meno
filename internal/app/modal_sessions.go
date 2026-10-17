@@ -9,6 +9,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 
 	"meno/internal/agent"
+	"meno/internal/prompt"
 	"meno/internal/ui"
 )
 
@@ -21,7 +22,26 @@ type sessionRow struct {
 	ID, Title, Cwd string
 	UpdatedAt      time.Time
 	Turns          int
+	Model          string // "gpt-5.5 (openai, effort high)", "" when unknown
 	rt             *Runtime
+}
+
+// describeSelection renders a model selection for the list, "" without a model.
+func describeSelection(provider, model, effort string) string {
+	if model == "" {
+		return ""
+	}
+	return prompt.DescribeModel(provider, model, effort)
+}
+
+// runtimeModel is the model a loaded session will use for its next turn.
+func (a *App) runtimeModel(rt *Runtime) string {
+	s := rt.Session
+	if s.Provider != "" && s.Model != "" {
+		return describeSelection(s.Provider, s.Model, s.Effort)
+	}
+	st := a.st.Settings
+	return describeSelection(st.Provider, st.Model, st.Effort)
 }
 
 // sessionRows merges the sessions of the database with the ones loaded in this
@@ -38,11 +58,11 @@ func (a *App) sessionRows() []sessionRow {
 		if rt.Running {
 			updated = time.Now()
 		}
-		rows = append(rows, sessionRow{ID: rt.ID(), Title: rt.sessionTitle(), Cwd: rt.Cwd, UpdatedAt: updated, Turns: rt.Session.Len(), rt: rt})
+		rows = append(rows, sessionRow{ID: rt.ID(), Title: rt.sessionTitle(), Cwd: rt.Cwd, UpdatedAt: updated, Turns: rt.Session.Len(), Model: a.runtimeModel(rt), rt: rt})
 	}
 	for _, s := range a.dbRows {
 		if !seen[s.ID] {
-			rows = append(rows, sessionRow{ID: s.ID, Title: s.Title, Cwd: s.Cwd, UpdatedAt: s.UpdatedAt, Turns: s.Turns})
+			rows = append(rows, sessionRow{ID: s.ID, Title: s.Title, Cwd: s.Cwd, UpdatedAt: s.UpdatedAt, Turns: s.Turns, Model: describeSelection(s.Provider, s.Model, s.Effort)})
 		}
 	}
 	sort.SliceStable(rows, func(i, j int) bool { return rows[i].UpdatedAt.After(rows[j].UpdatedAt) })
@@ -284,7 +304,12 @@ func (a *App) drawSessions(c ui.Canvas, w, h int) {
 				right = cand
 			}
 		}
-		items = append(items, item{glyph: g, glyphFG: gfg, label: title, right: right, accent: current, detail: path + " · " + turns + " · " + ago(s.UpdatedAt)})
+		// The selected row adds what the row itself does not show: the full path and the model.
+		detail := path
+		if s.Model != "" {
+			detail = s.Model + " · " + path // the model first: a long path gets cut, not the model
+		}
+		items = append(items, item{glyph: g, glyphFG: gfg, label: title, right: right, accent: current, detail: detail})
 	}
 	bh := 6 + itemsHeight(items, a.st.Sel)
 	if len(items) == 0 {

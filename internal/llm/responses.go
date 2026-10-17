@@ -53,6 +53,8 @@ func responsesInput(msgs []Msg) []map[string]any {
 			for _, c := range m.Calls() {
 				in = append(in, map[string]any{"type": "function_call", "call_id": c.ID, "name": c.Name, "arguments": c.Arguments})
 			}
+		case m.Role == RoleUser:
+			in = append(in, map[string]any{"role": m.Role, "content": userContent(m, "input_text", "input_image", false)})
 		default:
 			in = append(in, map[string]any{"role": m.Role, "content": m.Text})
 		}

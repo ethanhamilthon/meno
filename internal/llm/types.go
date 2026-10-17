@@ -14,9 +14,18 @@ const (
 
 const ToolName = "js"
 
+// Image is a picture attached to a user message; its bytes are read from Path
+// when the request is built. The text of the message refers to it as [Image #N].
+type Image struct {
+	N    int
+	Mime string
+	Path string
+}
+
 type Msg struct {
 	Role      string
 	Text      string
+	Images    []Image `json:"images,omitempty"`
 	CallID    string
 	Code      string
 	Thought   string

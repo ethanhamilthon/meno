@@ -137,6 +137,11 @@ func (a *App) backspace() {
 	if c == 0 {
 		return
 	}
+	if s, ok := a.imageEndingAt(c); ok {
+		a.deleteRange(s.start, s.end)
+		a.pruneImages()
+		return
+	}
 	a.deleteRange(c-lastGraphemeLen(a.st.Input[:c]), c)
 }
 
@@ -146,13 +151,22 @@ func (a *App) deleteForward() {
 	if c >= len(a.st.Input) {
 		return
 	}
+	if s, ok := a.imageStartingAt(c); ok {
+		a.deleteRange(s.start, s.end)
+		a.pruneImages()
+		return
+	}
 	a.deleteRange(c, c+firstGraphemeLen(a.st.Input[c:]))
 }
 
 func (a *App) moveLeft() {
 	a.clampCursor()
 	if c := a.st.Cursor; c > 0 {
-		a.st.Cursor = c - lastGraphemeLen(a.st.Input[:c])
+		if s, ok := a.imageEndingAt(c); ok {
+			a.st.Cursor = s.start
+		} else {
+			a.st.Cursor = c - lastGraphemeLen(a.st.Input[:c])
+		}
 	}
 	a.st.WantSet, a.st.Sel = false, 0
 }
@@ -160,7 +174,11 @@ func (a *App) moveLeft() {
 func (a *App) moveRight() {
 	a.clampCursor()
 	if c := a.st.Cursor; c < len(a.st.Input) {
-		a.st.Cursor = c + firstGraphemeLen(a.st.Input[c:])
+		if s, ok := a.imageStartingAt(c); ok {
+			a.st.Cursor = s.end
+		} else {
+			a.st.Cursor = c + firstGraphemeLen(a.st.Input[c:])
+		}
 	}
 	a.st.WantSet, a.st.Sel = false, 0
 }
