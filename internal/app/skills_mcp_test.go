@@ -12,7 +12,6 @@ import (
 	"meno/internal/config"
 	"meno/internal/llm"
 	"meno/internal/mcp"
-	"meno/internal/prompt"
 )
 
 const pyServer = `import sys, json
@@ -72,7 +71,7 @@ func waitStarted(t *testing.T, a *App, n int) {
 func TestSystemPromptListsEnabledSkillsOnly(t *testing.T) {
 	a, scr := newTestApp(t)
 	defer scr.Fini()
-	if got := a.systemPrompt(); got != prompt.Build(a.paths.Cwd, nil, nil) || strings.Contains(got, "## Skills") {
+	if got := a.systemPrompt(); strings.Contains(got, "## Project instructions") || strings.Contains(got, "## Skills") {
 		t.Fatalf("a bare install must send the bare prompt:\n%s", got)
 	}
 	dir := a.paths.ProjectSkillsDir()
@@ -149,5 +148,28 @@ func TestMCPHeadersFieldIsEditable(t *testing.T) {
 	}
 	if err := set(""); err != nil || a.st.EditMCP.Headers != nil {
 		t.Fatalf("clearing: %v %v", err, a.st.EditMCP.Headers)
+	}
+}
+
+func TestSystemPromptIncludesAgentsFiles(t *testing.T) {
+	a, scr := newTestApp(t)
+	defer scr.Fini()
+	if err := os.MkdirAll(a.paths.Home, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	g, p := agentsPaths(a.paths)
+	os.WriteFile(g, []byte("be brief"), 0o644)
+	os.WriteFile(p, []byte("use tabs"), 0o644)
+	got := a.systemPrompt()
+	for _, want := range []string{"## Global instructions\nFrom " + g, "be brief", "## Project instructions\nFrom " + p, "use tabs"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("missing %q:\n%s", want, got)
+		}
+	}
+	os.Remove(p)
+	os.Mkdir(p, 0o755) // unreadable as a file
+	got = a.systemPrompt()
+	if strings.Contains(got, "## Project instructions") || !strings.Contains(a.lastNotice(), "AGENTS.md") {
+		t.Fatalf("unreadable AGENTS.md must be skipped with a notice (%q):\n%s", a.lastNotice(), got)
 	}
 }

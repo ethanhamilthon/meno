@@ -3,7 +3,10 @@ package app
 import (
 	"context"
 	"errors"
+	"path/filepath"
+	"time"
 
+	"meno/internal/config"
 	"meno/internal/jsvm"
 	"meno/internal/mcp"
 	"meno/internal/prompt"
@@ -30,22 +33,46 @@ func (h mcpHost) Call(ctx context.Context, server, tool string, args map[string]
 	return c.Call(ctx, tool, args)
 }
 
-// systemPrompt is the base prompt plus the enabled skills and the tools of the
-// MCP servers that are running now.
-func (a *App) systemPrompt() string {
-	var skills []prompt.Skill
+// agentsPaths returns the global and the project AGENTS.md locations.
+func agentsPaths(p config.Paths) (global, project string) {
+	return filepath.Join(p.Home, "AGENTS.md"), filepath.Join(p.Cwd, "AGENTS.md")
+}
+
+// promptInput gathers everything the system prompt depends on. Unreadable
+// AGENTS.md files are skipped and reported in warnings.
+func (a *App) promptInput() (in prompt.Input, warnings []string) {
+	in.Cwd = a.paths.Cwd
+	in.Now = time.Now()
+	in.OS = prompt.DescribeOS()
+	in.Shell = "/bin/sh"
 	for _, s := range a.st.Skills {
 		if s.Enabled {
-			skills = append(skills, prompt.Skill{Name: s.Name, Desc: s.Desc, Path: s.Path})
+			in.Skills = append(in.Skills, prompt.Skill{Name: s.Name, Desc: s.Desc, Path: s.Path})
 		}
 	}
-	var tools []prompt.Tool
 	for _, name := range a.mcp.Names() {
 		for _, t := range a.mcp.ToolsOf(name) {
-			tools = append(tools, prompt.Tool{Server: name, Name: t.Name, Desc: t.Description, Params: t.Signature()})
+			in.Tools = append(in.Tools, prompt.Tool{Server: name, Name: t.Name, Desc: t.Description, Params: t.Signature()})
 		}
 	}
-	return prompt.Build(a.paths.Cwd, skills, tools)
+	g, p := agentsPaths(a.paths)
+	var err error
+	if in.GlobalAgents, err = prompt.LoadInstructions(g); err != nil {
+		warnings = append(warnings, "cannot read "+g+": "+err.Error())
+	}
+	if in.ProjectAgents, err = prompt.LoadInstructions(p); err != nil {
+		warnings = append(warnings, "cannot read "+p+": "+err.Error())
+	}
+	return in, warnings
+}
+
+// systemPrompt builds the system prompt for the current state.
+func (a *App) systemPrompt() string {
+	in, warnings := a.promptInput()
+	for _, w := range warnings {
+		a.notifyErr(w)
+	}
+	return prompt.Build(in)
 }
 
 // reloadSkills picks up skill files added, edited or removed since the last look.

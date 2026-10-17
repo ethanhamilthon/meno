@@ -48,6 +48,14 @@ Everything is synchronous, so there is no `await`.
 
 Output is capped at 64 KB per call. The timeout is a setting (see below).
 
+## AGENTS.md
+
+Instructions for the agent live in plain markdown files: `$MENO_HOME/AGENTS.md`
+(global) and `AGENTS.md` in the session's working directory (project; no parent
+directories are searched). Both go into the system prompt, global first, with
+their paths, and are read when the prompt is built. A file is cut at 256 KiB; a
+missing or empty one is ignored.
+
 ## Questions from the agent
 
 `askUser("Which database?", { choices: ["sqlite", "postgres"], timeout: 120 })`
@@ -169,6 +177,7 @@ Everything lives in `$MENO_HOME` (default `~/.meno`):
 | --- | --- |
 | `meno.db` | SQLite database (mode 0600): settings and theme, providers (**API keys in plain text**), MCP servers, skill on/off state, the model catalog cache and all sessions |
 | `skills/` | global skills (markdown files) |
+| `AGENTS.md` | global instructions for the agent (optional) |
 
 On the first start after an update, the old `settings.json`, `providers.json`,
 `mcp.json`, `skills.json`, `model-catalog.json` and `sessions/` are imported

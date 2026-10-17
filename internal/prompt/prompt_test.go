@@ -1,33 +1,104 @@
 package prompt
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
-func TestSystem(t *testing.T) {
-	s := System("/work")
-	if !strings.Contains(s, "/work") || strings.Contains(s, "{{") {
-		t.Fatalf("bad system prompt: %q", s)
+var now = time.Date(2026, 10, 17, 12, 0, 0, 0, time.UTC)
+
+func full() Input {
+	return Input{
+		Cwd:           "/w",
+		Skills:        []Skill{{"b", "second", "/p/b.md"}, {"a", "first", "/p/a.md"}},
+		GlobalAgents:  Instructions{"/h/AGENTS.md", "global text\n"},
+		ProjectAgents: Instructions{"/w/AGENTS.md", "project text"},
+		Tools:         []Tool{{"s2", "x", "", "{}"}, {"s1", "y", "", "{}"}, {"s1", "a", "", "{}"}},
+		Now:           now,
+		OS:            "macOS 15.1 (darwin/arm64)",
+		Shell:         "/bin/sh",
 	}
 }
 
-func TestBuildWithoutExtrasIsStable(t *testing.T) {
-	// The base prompt plus the fixed mcpServers help is the cache prefix: extras
-	// only append to it.
-	base := Build("/w", nil, nil)
-	if !strings.HasPrefix(base, System("/w")) || !strings.Contains(base, "mcpServers.add(") {
-		t.Fatal("base prompt must be the system text followed by the mcpServers help")
+func TestSectionOrder(t *testing.T) {
+	out := Build(full())
+	last := -1
+	for _, h := range []string{
+		"You are meno, a coding agent.", "## The js tool", "## Asking the user", "## Managing MCP servers", "## Skills",
+		"## Global instructions", "## Project instructions", "## MCP tools", "## Environment",
+	} {
+		i := strings.Index(out, h)
+		if i <= last {
+			t.Fatalf("%q out of order (at %d, previous %d):\n%s", h, i, last, out)
+		}
+		last = i
 	}
-	if !strings.HasPrefix(Build("/w", []Skill{{"a", "b", "/p"}}, nil), base) {
-		t.Fatal("extras must not change the prefix")
+	if !strings.HasPrefix(out, "You are meno, a coding agent.\n\n## The js tool") {
+		t.Fatal("identity must be a bare first line")
+	}
+	if !strings.HasSuffix(out, "Working directory: /w\nOS: macOS 15.1 (darwin/arm64)\nShell: /bin/sh\nDate: 2026-10-17, Saturday (UTC)") {
+		t.Fatalf("environment must be last:\n%s", out)
+	}
+	if strings.Index(out, "- a —") > strings.Index(out, "- b —") || strings.Index(out, "mcp.s1.a(") > strings.Index(out, "mcp.s1.y(") || strings.Index(out, "mcp.s1.y(") > strings.Index(out, "mcp.s2.x(") {
+		t.Fatalf("lists must be sorted:\n%s", out)
+	}
+}
+
+func TestOptionalSectionsAbsentWhenEmpty(t *testing.T) {
+	out := Build(Input{Cwd: "/w", Now: now})
+	for _, h := range []string{"## Skills", "## Global instructions", "## Project instructions", "## MCP tools"} {
+		if strings.Contains(out, h) {
+			t.Fatalf("%s must be absent:\n%s", h, out)
+		}
+	}
+	if !strings.Contains(out, "## Environment") || !strings.Contains(out, "mcpServers.add(") {
+		t.Fatal("bare prompt lost a fixed section")
+	}
+}
+
+func TestInstructionsFormat(t *testing.T) {
+	out := Build(full())
+	want := "## Global instructions\nFrom /h/AGENTS.md. Follow these unless the user's message says otherwise.\n\nglobal text\n\n## Project instructions\nFrom /w/AGENTS.md. Follow these unless the user's message says otherwise.\n\nproject text\n\n"
+	if !strings.Contains(out, want) {
+		t.Fatalf("instructions format:\n%s", out)
+	}
+}
+
+// Changing a section leaves everything above it byte-identical.
+func TestPrefixIsByteStable(t *testing.T) {
+	baseOut := Build(full())
+	cases := []struct {
+		name   string
+		mod    func(*Input)
+		marker string // first heading that may differ
+	}{
+		{"skills", func(i *Input) { i.Skills = append(i.Skills, Skill{"c", "", "/c.md"}) }, "## Skills"},
+		{"global agents", func(i *Input) { i.GlobalAgents.Text = "other" }, "## Global instructions"},
+		{"project agents", func(i *Input) { i.ProjectAgents = Instructions{} }, "## Project instructions"},
+		{"tools", func(i *Input) { i.Tools = i.Tools[:1] }, "## MCP tools"},
+		{"cwd and date", func(i *Input) { i.Cwd = "/other"; i.Now = now.AddDate(0, 0, 1) }, "## Environment"},
+	}
+	for _, c := range cases {
+		in := full()
+		c.mod(&in)
+		out := Build(in)
+		if out == baseOut {
+			t.Fatalf("%s: no change", c.name)
+		}
+		cut := strings.Index(baseOut, c.marker)
+		if cut < 0 || !strings.HasPrefix(out, baseOut[:cut]) {
+			t.Fatalf("%s: prefix before %q changed", c.name, c.marker)
+		}
 	}
 }
 
 func TestBuildSkillsAndTools(t *testing.T) {
-	out := Build("/w",
-		[]Skill{{"api-security", "check\nauth  and rate limits", "/p/.meno/skills/api-security.md"}, {"bare", "", "/p/bare.md"}},
-		[]Tool{{"github", "search-repos", "Search repositories", "{query: string, page?: number}"}})
+	out := Build(Input{Cwd: "/w",
+		Skills: []Skill{{"api-security", "check\nauth  and rate limits", "/p/.meno/skills/api-security.md"}, {"bare", "", "/p/bare.md"}},
+		Tools:  []Tool{{"github", "search-repos", "Search repositories", "{query: string, page?: number}"}}})
 	for _, want := range []string{
 		"## Skills", "- api-security — check auth and rate limits (/p/.meno/skills/api-security.md)", "- bare (/p/bare.md)",
 		"## MCP tools", "- mcp.github.search_repos({query: string, page?: number}) — Search repositories", "mcpTools()",
@@ -36,9 +107,6 @@ func TestBuildSkillsAndTools(t *testing.T) {
 			t.Fatalf("missing %q in:\n%s", want, out)
 		}
 	}
-	if strings.Contains(out, "{{") {
-		t.Fatalf("unfilled placeholder:\n%s", out)
-	}
 }
 
 func TestBuildCapsLongToolLists(t *testing.T) {
@@ -46,9 +114,45 @@ func TestBuildCapsLongToolLists(t *testing.T) {
 	for i := 0; i < maxListedTools+7; i++ {
 		tools = append(tools, Tool{Server: "s", Name: "t" + string(rune('a'+i%26)) + string(rune('a'+i/26)), Params: "{}"})
 	}
-	out := Build("/w", nil, tools)
+	out := Build(Input{Cwd: "/w", Tools: tools})
 	if strings.Count(out, "- mcp.s.") != maxListedTools || !strings.Contains(out, "and 7 more") {
 		t.Fatalf("not capped:\n%s", out)
+	}
+}
+
+func TestLoadInstructions(t *testing.T) {
+	dir := t.TempDir()
+	if in, err := LoadInstructions(filepath.Join(dir, "none.md")); err != nil || in != (Instructions{}) {
+		t.Fatalf("missing file: %+v %v", in, err)
+	}
+	empty := filepath.Join(dir, "empty.md")
+	os.WriteFile(empty, []byte(" \n"), 0o644)
+	if in, err := LoadInstructions(empty); err != nil || in != (Instructions{}) {
+		t.Fatalf("empty file: %+v %v", in, err)
+	}
+	if _, err := LoadInstructions(dir); err == nil {
+		t.Fatal("a directory must be an error")
+	}
+	big := filepath.Join(dir, "big.md")
+	os.WriteFile(big, []byte(strings.Repeat("я", MaxInstructions)), 0o644) // 2 bytes per rune
+	in, err := LoadInstructions(big)
+	if err != nil || !strings.Contains(in.Text, "[truncated: ") || len(in.Text) > MaxInstructions+64 || !strings.HasPrefix(in.Text, "яяя") {
+		t.Fatalf("truncation: err=%v len=%d tail=%q", err, len(in.Text), in.Text[max(0, len(in.Text)-40):])
+	}
+	if strings.Contains(in.Text, "\ufffd") {
+		t.Fatal("cut in the middle of a rune")
+	}
+	if in.Path != big {
+		t.Fatal("path")
+	}
+}
+
+func TestDescribeOSAndDate(t *testing.T) {
+	if !strings.Contains(DescribeOS(), "/") {
+		t.Fatal(DescribeOS())
+	}
+	if got := FormatDate(now); got != "2026-10-17, Saturday (UTC)" {
+		t.Fatal(got)
 	}
 }
 
