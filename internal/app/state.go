@@ -1,6 +1,8 @@
 package app
 
 import (
+	"time"
+
 	"meno/internal/agent"
 	"meno/internal/config"
 	"meno/internal/llm"
@@ -32,6 +34,13 @@ type liveCall struct {
 	Running bool
 }
 
+// retryState describes the pending retry shown in the status bar.
+type retryState struct {
+	Attempt, Max int
+	Until        time.Time
+	Reason       string
+}
+
 type State struct {
 	Mode      ui.Mode
 	Over      Overlay
@@ -39,8 +48,9 @@ type State struct {
 	Cursor    int // rune index of the text cursor inside Input
 	WantCol   int // sticky column for up/down movement
 	WantSet   bool
-	InputTop  int    // first visible composer row
-	Phase     string // what the running agent is doing: thinking, writing, running, compacting
+	InputTop  int         // first visible composer row
+	Retry     *retryState // set while a failed model request waits to be sent again
+	Phase     string      // what the running agent is doing: thinking, writing, running, compacting
 	CmdSel    int
 	LiveText  string
 	LiveThink string

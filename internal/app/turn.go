@@ -44,7 +44,8 @@ func (a *App) startTurn(text string) {
 		Client: a.client(p), Provider: p, Model: a.st.Settings.Model,
 		Effort: a.st.Settings.Effort, System: a.systemPrompt(),
 		VM: a.vm, Thinking: a.st.Settings.Thinking != "off", ModelTimeout: a.st.Settings.ModelTimeout(),
-		Emit: func(e agent.Ev) { a.postEvent(agentEv{ev: e}) },
+		Emit:  func(e agent.Ev) { a.postEvent(agentEv{ev: e}) },
+		Retry: a.retry,
 	}}
 	a.running.Add(1)
 	go func() {
@@ -64,6 +65,18 @@ func (a *App) abortTurn() {
 }
 
 func (a *App) onAgent(e agent.Ev) {
+	if e.Kind != agent.EvRetry && e.Kind != agent.EvUsage {
+		a.st.Retry = nil
+	}
+	switch e.Kind {
+	case agent.EvRetry:
+		// The failed request's partial output is void: the request starts over.
+		a.clearLive()
+		a.st.Phase = "retrying"
+		a.st.Retry = &retryState{Attempt: e.Attempt, Max: e.Max, Until: time.Now().Add(e.Delay), Reason: briefReason(e.Err)}
+		a.notify("retry " + itoa(e.Attempt) + "/" + itoa(e.Max) + " in " + fmtWait(e.Delay) + " — " + a.st.Retry.Reason)
+		return
+	}
 	switch e.Kind {
 	case agent.EvThink, agent.EvText, agent.EvCode, agent.EvJSStart, agent.EvJSEnd:
 		a.st.LiveBase = e.Turns
@@ -121,6 +134,7 @@ func (a *App) onAgent(e agent.Ev) {
 
 func (a *App) onTurnDone(err error) {
 	a.st.Running = false
+	a.st.Retry = nil
 	a.st.Phase = ""
 	a.mu.Lock()
 	a.cancel = nil
@@ -190,4 +204,33 @@ func (a *App) dropLiveCall(id string) {
 		}
 	}
 	a.st.LiveCalls = out
+}
+
+// briefReason squeezes a provider error into one short line.
+func briefReason(s string) string {
+	s = strings.Join(strings.Fields(s), " ")
+	if r := []rune(s); len(r) > 70 {
+		s = string(r[:69]) + "…"
+	}
+	return s
+}
+
+// fmtWait renders a wait as whole seconds, rounded up.
+func fmtWait(d time.Duration) string {
+	return itoa(int((d+time.Second-1)/time.Second)) + "s"
+}
+
+// retryText is the status-bar text while a retry is pending, with a countdown.
+func (a *App) retryText() string {
+	r := a.st.Retry
+	if r == nil {
+		return ""
+	}
+	head := "retry " + itoa(r.Attempt) + "/" + itoa(r.Max)
+	if left := time.Until(r.Until); left > 0 {
+		head += " in " + fmtWait(left)
+	} else {
+		head += " · sending"
+	}
+	return head + " — " + r.Reason
 }

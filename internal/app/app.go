@@ -24,6 +24,7 @@ type App struct {
 	mcp       *mcp.Manager
 	mcpCtx    context.Context // lives as long as the app; ends every server process
 	mcpStop   context.CancelFunc
+	retry     agent.RetryPolicy // how failed model requests are repeated; the zero value is the default
 	client    func(llm.Provider) llm.Client
 	events    chan any
 	quit      bool

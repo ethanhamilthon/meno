@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -18,12 +17,12 @@ var httpClient = &http.Client{}
 func post(ctx context.Context, p Provider, path string, body any, headers map[string]string) (*http.Response, error) {
 	b, err := json.Marshal(body)
 	if err != nil {
-		return nil, err
+		return nil, permanentError{err}
 	}
 	url := strings.TrimRight(p.BaseURL, "/") + path
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(b))
 	if err != nil {
-		return nil, err
+		return nil, permanentError{err}
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "text/event-stream")
@@ -40,7 +39,7 @@ func post(ctx context.Context, p Provider, path string, body any, headers map[st
 	if resp.StatusCode >= 300 {
 		defer resp.Body.Close()
 		msg, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
-		return nil, fmt.Errorf("http %d: %s", resp.StatusCode, strings.TrimSpace(string(msg)))
+		return nil, &HTTPError{Status: resp.StatusCode, Body: strings.TrimSpace(string(msg)), RetryAfter: parseRetryAfter(resp.Header.Get("Retry-After"))}
 	}
 	return resp, nil
 }

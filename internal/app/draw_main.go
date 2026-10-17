@@ -98,7 +98,11 @@ func (a *App) drawStatus(c ui.Canvas, x, y, w int) {
 	if hint := a.visualHint(); hint != "" {
 		center = hint
 	}
-	mid := []ui.Seg{{Text: center, FG: ui.FgDim}}
+	midColor := ui.FgDim
+	if rt := a.retryText(); rt != "" {
+		center, midColor = rt, ui.Yellow
+	}
+	mid := []ui.Seg{{Text: center, FG: midColor}}
 	dot, color := "○ ", ui.FgDim
 	if a.st.Running {
 		// Blink while the agent works: 500ms on, 500ms off.

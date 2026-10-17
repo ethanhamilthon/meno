@@ -17,9 +17,13 @@ type Ev struct {
 	Output   string
 	Err      string
 	CallID   string
-	Usage    llm.Usage
-	Provider llm.Provider
-	Model    string
+	// Attempt, Max and Delay describe an EvRetry: attempt number Attempt of Max
+	// starts after Delay; Err is why the previous one failed.
+	Attempt, Max int
+	Delay        time.Duration
+	Usage        llm.Usage
+	Provider     llm.Provider
+	Model        string
 	// Turns is the session length when the event was emitted, so the UI can tell
 	// live (streaming) content from content that is already persisted.
 	Turns int
@@ -35,6 +39,9 @@ const (
 	EvUsage   = "usage"
 	EvError   = "error"
 	EvAborted = "aborted"
+	// EvRetry: the request failed and will be sent again; whatever it streamed
+	// so far is void.
+	EvRetry = "retry"
 )
 
 type Deps struct {
@@ -47,7 +54,9 @@ type Deps struct {
 	Thinking bool
 	// ModelTimeout lets the model pass a timeout with every js call.
 	ModelTimeout bool
-	Emit         func(Ev)
+	// Retry is the policy for failed model requests (zero value: defaults).
+	Retry RetryPolicy
+	Emit  func(Ev)
 }
 
 type Runner struct {
@@ -130,7 +139,16 @@ type call struct {
 	Timeout *float64 // seconds, when the model asked for one
 }
 
-func (r *Runner) streamOnce(ctx context.Context, s *Session) ([]call, llm.Msg, error) {
+// streamOnce asks the model once (with retries) and returns the calls it made.
+func (r *Runner) streamOnce(ctx context.Context, s *Session) (calls []call, replay llm.Msg, err error) {
+	err = r.withRetry(ctx, s, func() error {
+		calls, replay, err = r.streamAttempt(ctx, s)
+		return err
+	})
+	return calls, replay, err
+}
+
+func (r *Runner) streamAttempt(ctx context.Context, s *Session) ([]call, llm.Msg, error) {
 	var calls []call
 	replay := llm.Msg{Role: llm.RoleAssistant}
 	var streamErr error

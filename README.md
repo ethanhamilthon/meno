@@ -47,6 +47,18 @@ Everything is synchronous, so there is no `await`.
 
 Output is capped at 64 KB per call. The timeout is a setting (see below).
 
+## Provider errors
+
+A failed model request is sent again, up to 5 attempts in total, waiting about
+1, 2, 4 and 8 s (a `Retry-After` from the provider wins, at most 60 s). Network
+errors, dropped streams, 408, 425, 429 and 5xx are retried; other 4xx answers
+(bad key, bad request, unknown model) are not, since sending the same request
+again cannot help. The status bar shows `retry 2/5 in 4s — <reason>`, the
+timeline gets a line per attempt, and `Ctrl+C` cancels the wait. A request that
+broke mid-stream starts over and its partial output is discarded; tools only run
+after a complete response. After the last failure the turn ends with the error
+and your message stays in the session. (`:compact` does not retry.)
+
 ## Settings (`:settings`)
 
 | Setting | Values |
