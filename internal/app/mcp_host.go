@@ -9,7 +9,6 @@ import (
 	"meno/internal/config"
 	"meno/internal/jsvm"
 	"meno/internal/mcp"
-	"meno/internal/prompt"
 )
 
 // mcpHost lets the js VM call the tools of the running MCP servers.
@@ -38,41 +37,12 @@ func agentsPaths(p config.Paths) (global, project string) {
 	return filepath.Join(p.Home, "AGENTS.md"), filepath.Join(p.Cwd, "AGENTS.md")
 }
 
-// promptInput gathers everything the system prompt depends on. Unreadable
-// AGENTS.md files are skipped and reported in warnings.
-func (a *App) promptInput() (in prompt.Input, warnings []string) {
-	in.Cwd = a.paths.Cwd
-	in.Now = time.Now()
-	in.OS = prompt.DescribeOS()
-	in.Shell = "/bin/sh"
-	for _, s := range a.st.Skills {
-		if s.Enabled {
-			in.Skills = append(in.Skills, prompt.Skill{Name: s.Name, Desc: s.Desc, Path: s.Path})
-		}
+// worldSrc captures what a prompt build needs. Call it on the UI goroutine;
+// the result may be used from any goroutine.
+func (a *App) worldSrc() worldSrc {
+	return worldSrc{
+		Paths: a.paths, MCP: a.mcp, Servers: append([]mcp.Server(nil), a.st.Servers...), Now: time.Now(),
 	}
-	for _, name := range a.mcp.Names() {
-		for _, t := range a.mcp.ToolsOf(name) {
-			in.Tools = append(in.Tools, prompt.Tool{Server: name, Name: t.Name, Desc: t.Description, Params: t.Signature()})
-		}
-	}
-	g, p := agentsPaths(a.paths)
-	var err error
-	if in.GlobalAgents, err = prompt.LoadInstructions(g); err != nil {
-		warnings = append(warnings, "cannot read "+g+": "+err.Error())
-	}
-	if in.ProjectAgents, err = prompt.LoadInstructions(p); err != nil {
-		warnings = append(warnings, "cannot read "+p+": "+err.Error())
-	}
-	return in, warnings
-}
-
-// systemPrompt builds the system prompt for the current state.
-func (a *App) systemPrompt() string {
-	in, warnings := a.promptInput()
-	for _, w := range warnings {
-		a.notifyErr(w)
-	}
-	return prompt.Build(in)
 }
 
 // reloadSkills picks up skill files added, edited or removed since the last look.
@@ -98,9 +68,13 @@ type mcpStarted struct {
 }
 
 func (a *App) startMCPAsync(s mcp.Server) {
+	// Marked before the goroutine runs so that a prompt build waits for it.
+	a.mcp.BeginStart(s.Name)
 	a.running.Add(1)
 	go func() {
 		defer a.running.Done()
-		a.postEvent(mcpStarted{s.Name, a.mcp.Start(a.mcpCtx, s)})
+		err := a.mcp.Start(a.mcpCtx, s)
+		a.mcp.EndStart(s.Name)
+		a.postEvent(mcpStarted{s.Name, err})
 	}()
 }

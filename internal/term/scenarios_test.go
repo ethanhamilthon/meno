@@ -3,6 +3,8 @@
 package term
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -411,4 +413,40 @@ func TestAskPanelOnNarrowTerminal(t *testing.T) {
 	s.WaitFor("enter confirm")
 	s.Send("1")
 	s.WaitFor("all done")
+}
+
+// 20. A skill edited between two messages is reported in the second request only,
+// and the system prompt stays the same.
+func TestSkillEditProducesSystemEvent(t *testing.T) {
+	f := newFakeLLM(t)
+	f.Handler = func(q *llmReq) { q.Text("noted") }
+	s := start(t, options{fake: f})
+	dir := filepath.Join(s.work, ".meno", "skills")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	skill := filepath.Join(dir, "style.md")
+	if err := os.WriteFile(skill, []byte("---\ndescription: code style\n---\nv1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s.Say("first message")
+	s.WaitFor("↓ 100")
+	if err := os.WriteFile(skill, []byte("---\ndescription: code style\n---\nv2\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s.Say("second message")
+	s.WaitFor("↓ 200")
+	bodies := f.Bodies()
+	if len(bodies) != 2 {
+		t.Fatalf("requests: %d", len(bodies))
+	}
+	if strings.Contains(bodies[0], "skills-updated") {
+		t.Fatal("the first request must not carry an event")
+	}
+	if !strings.Contains(bodies[1], "skills-updated") || !strings.Contains(bodies[1], "was updated: reread") || !strings.Contains(bodies[1], "style.md") {
+		t.Fatalf("second request lacks the event:\n%s", bodies[1])
+	}
+	if strings.Contains(s.Screen(), "system-event") {
+		t.Fatal("events must not show in the timeline")
+	}
 }

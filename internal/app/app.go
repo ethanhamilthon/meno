@@ -33,13 +33,19 @@ type App struct {
 	idleTick  bool      // the batch held only ticks: skip drawing when nothing runs
 	cur       cursorPos // real terminal cursor, set while drawing
 
-	mu      sync.Mutex
-	cancel  context.CancelFunc
-	running sync.WaitGroup
+	mu     sync.Mutex
+	cancel context.CancelFunc
+	// prepareHook, when set, runs first in the goroutine that prepares a turn (tests slow it down).
+	prepareHook func()
+	running     sync.WaitGroup
 }
 
 type agentEv struct{ ev agent.Ev }
 type turnDone struct{ err error }
+
+// preparedEv carries the prompt state and system event of a message that is
+// about to be sent.
+type preparedEv struct{ p prepared }
 
 // tick drives animations (the blinking activity dot) while the agent works.
 type tick struct{}
@@ -182,10 +188,13 @@ func (a *App) handle(msg any) {
 		a.onModelsLoaded(m)
 	case compactDone:
 		if m.err == nil {
+			a.st.Prompt.Base, a.st.Prompt.Frozen = nil, "" // a reset point: the cache is gone anyway
 			a.st.Context = m.after
 			a.notify("context compacted · " + itoa(m.before) + " → " + itoa(m.after) + " tokens")
 		}
 		a.onTurnDone(m.err)
+	case preparedEv:
+		a.onPrepared(m.p)
 	case turnDone:
 		a.onTurnDone(m.err)
 	case askOpen:

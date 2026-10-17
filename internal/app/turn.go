@@ -28,7 +28,6 @@ func (a *App) submit() {
 }
 
 func (a *App) startTurn(text string) {
-	a.reloadSkills()
 	p, ok := a.currentProvider()
 	if !ok {
 		a.notifyErr("provider not configured for model " + a.st.Settings.Model)
@@ -39,25 +38,51 @@ func (a *App) startTurn(text string) {
 	a.cancel = cancel
 	a.mu.Unlock()
 	a.st.Running = true
-	a.st.Phase = "thinking"
+	a.st.Phase = "preparing"
 	a.st.Scroll = 0
 	a.clearLive()
 	sess := a.st.Session
+	idx := sess.Len()
+	hasHistory := idx > 0 || sess.Summary != ""
 	sess.Append(agent.Turn{Role: llm.RoleUser, Text: text})
-	runner := &agent.Runner{D: agent.Deps{
+	// Everything the goroutine needs is captured here; it must not touch a.st.
+	src, ps := a.worldSrc(), a.st.Prompt
+	d := agent.Deps{
 		Client: a.client(p), Provider: p, Model: a.st.Settings.Model,
-		Effort: a.st.Settings.Effort, System: a.systemPrompt(),
-		VM: a.vm, Thinking: a.st.Settings.Thinking != "off", ModelTimeout: a.st.Settings.ModelTimeout(),
+		Effort: a.st.Settings.Effort,
+		VM:     a.vm, Thinking: a.st.Settings.Thinking != "off", ModelTimeout: a.st.Settings.ModelTimeout(),
 		Emit:  func(e agent.Ev) { a.postEvent(agentEv{ev: e}) },
 		Retry: a.retry,
-	}}
+	}
+	hook := a.prepareHook
 	a.running.Add(1)
 	go func() {
 		defer a.running.Done()
 		defer cancel()
-		err := runner.Continue(ctx, sess)
+		if hook != nil {
+			hook()
+		}
+		prep := prepare(ctx, ps, src, hasHistory)
+		sess.SetSystem(idx, prep.Event)
+		a.postEvent(preparedEv{prep})
+		d.System = prep.State.Frozen
+		err := (&agent.Runner{D: d}).Continue(ctx, sess)
 		a.postEvent(turnDone{err: err})
 	}()
+}
+
+// onPrepared applies the result of preparing a message on the UI goroutine.
+func (a *App) onPrepared(p prepared) {
+	a.st.Prompt = p.State
+	if p.SkillsOK {
+		a.st.Skills = p.Skills
+	}
+	for _, w := range p.Warnings {
+		a.notifyErr(w)
+	}
+	if a.st.Running && a.st.Phase == "preparing" {
+		a.st.Phase = "thinking"
+	}
 }
 
 func (a *App) abortTurn() {

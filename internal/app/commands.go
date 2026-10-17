@@ -39,8 +39,12 @@ func (a *App) runCommand(raw string) {
 		a.st.Context = 0
 		a.st.Unpriced = false
 		a.vm.Reset()
+		a.st.Prompt = promptState{}
 	case "reset":
 		a.vm.Reset()
+		if a.hasHistory() {
+			a.st.Prompt.VMReset = true
+		}
 		a.notify("js vm restarted")
 	case "compact":
 		a.compact()
@@ -49,6 +53,7 @@ func (a *App) runCommand(raw string) {
 		a.st.Session.Summary = ""
 		a.st.Scroll = 0
 		a.st.Context = 0
+		a.st.Prompt = promptState{}
 		// Usage and cost are cumulative for this session, not its current context.
 		a.saveSession()
 	case "export":
@@ -151,3 +156,8 @@ func (a *App) openResume() {
 }
 
 var _ = ui.BgTerm
+
+// hasHistory reports whether the model has already seen anything of this session.
+func (a *App) hasHistory() bool {
+	return a.st.Session != nil && (a.st.Session.Len() > 0 || a.st.Session.Summary != "")
+}

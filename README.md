@@ -56,6 +56,21 @@ directories are searched). Both go into the system prompt, global first, with
 their paths, and are read when the prompt is built. A file is cut at 256 KiB; a
 missing or empty one is ignored.
 
+## The frozen prompt and system events
+
+The system prompt is built once per segment of a session: when the first message is
+sent after `:new`, after `:compact`, or after a stored session is opened. It is then
+reused byte for byte (so the provider's prompt cache keeps working) and is not
+stored. While it is built (reading `AGENTS.md`, finding skills, waiting up to 3 s for
+MCP servers that are still starting) the status shows `preparing...`.
+
+Whatever changes afterwards reaches the model as one `<system-event>` block in front
+of your next message: skills added, updated or removed, `AGENTS.md` created, changed
+or deleted, MCP servers connected, failed or gone and their tools, a new date, and a
+restarted JS VM (`:reset`, opening a stored session). Changes the agent makes itself
+are reported too. The block is saved with the message, so a resumed session replays
+the same history, but it is not shown in the timeline or `:export`.
+
 ## Questions from the agent
 
 `askUser("Which database?", { choices: ["sqlite", "postgres"], timeout: 120 })`

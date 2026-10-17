@@ -79,6 +79,7 @@ type State struct {
 	Sessions  []agent.SessionInfo
 
 	Session *agent.Session
+	Prompt  promptState // frozen system prompt and baseline of Session
 	Field   int
 	Editing bool
 	Buffer  []rune

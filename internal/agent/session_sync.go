@@ -32,3 +32,12 @@ func (l *SafeLog) Replace(turns []Turn) {
 	defer l.mu.Unlock()
 	l.turns = turns
 }
+
+// SetSystem sets the system-event block of turn i, if it exists.
+func (l *SafeLog) SetSystem(i int, system string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if i >= 0 && i < len(l.turns) {
+		l.turns[i].System = system
+	}
+}

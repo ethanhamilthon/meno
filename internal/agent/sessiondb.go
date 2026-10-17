@@ -78,11 +78,46 @@ func openDB(home string) (*sql.DB, error) {
 	if _, err := d.Exec(schema); err != nil {
 		return nil, fmt.Errorf("session db: %w", err)
 	}
+	if err := ensureTurnsSystem(d); err != nil {
+		return nil, fmt.Errorf("session db: %w", err)
+	}
 	sessInit[d] = true
 	legacy := filepath.Join(home, "sessions")
 	importOldDB(d, filepath.Join(legacy, "sessions.db"))
 	migrateLegacy(d, legacy)
 	return d, nil
+}
+
+// ensureTurnsSystem adds the system column to turns tables created before
+// system events existed.
+func ensureTurnsSystem(d *sql.DB) error {
+	rows, err := d.Query("PRAGMA table_info(turns)")
+	if err != nil {
+		return err
+	}
+	has := false
+	for rows.Next() {
+		var cid, notnull, pk int
+		var name, typ string
+		var dflt sql.NullString
+		if err := rows.Scan(&cid, &name, &typ, &notnull, &dflt, &pk); err != nil {
+			rows.Close()
+			return err
+		}
+		if name == "system" {
+			has = true
+		}
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return err
+	}
+	rows.Close()
+	if has {
+		return nil
+	}
+	_, err = d.Exec("ALTER TABLE turns ADD COLUMN system TEXT NOT NULL DEFAULT ''")
+	return err
 }
 
 // importOldDB copies the sessions of the pre-meno.db database file once. The
@@ -106,9 +141,9 @@ func importOldDB(d *sql.DB, old string) {
 		return
 	}
 	for _, q := range []string{
-		"INSERT OR IGNORE INTO sessions SELECT * FROM old.sessions",
-		"INSERT OR IGNORE INTO turns SELECT * FROM old.turns",
-		"INSERT OR IGNORE INTO requests SELECT * FROM old.requests",
+		"INSERT OR IGNORE INTO sessions(id,title,cwd,model,summary,metrics,updated_at) SELECT id,title,cwd,model,summary,metrics,updated_at FROM old.sessions",
+		"INSERT OR IGNORE INTO turns(session_id,seq,role,text,thinking,call_id,code,output,err,replay,replay_group,time) SELECT session_id,seq,role,text,thinking,call_id,code,output,err,replay,replay_group,time FROM old.turns",
+		"INSERT OR IGNORE INTO requests(session_id,seq,provider,model,usage,cost,time) SELECT session_id,seq,provider,model,usage,cost,time FROM old.requests",
 		"INSERT INTO meta(key,value) VALUES('migrated_sessions_db','1')",
 	} {
 		if _, err := tx.Exec(q); err != nil {
@@ -181,8 +216,8 @@ func writeSession(db *sql.DB, s *Session) (err error) {
 	if _, err = tx.Exec("DELETE FROM requests WHERE session_id = ?", s.ID); err != nil {
 		return err
 	}
-	ins, err := tx.Prepare(`INSERT INTO turns(session_id,seq,role,text,thinking,call_id,code,output,err,replay,replay_group,time)
-		VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`)
+	ins, err := tx.Prepare(`INSERT INTO turns(session_id,seq,role,text,thinking,call_id,code,output,err,replay,replay_group,time,system)
+		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`)
 	if err != nil {
 		return err
 	}
@@ -197,7 +232,7 @@ func writeSession(db *sql.DB, s *Session) (err error) {
 			}
 			replay = string(b)
 		}
-		if _, err = ins.Exec(s.ID, i, t.Role, t.Text, t.Thinking, t.CallID, t.Code, t.Output, t.Err, replay, t.ReplayGroup, ts(t.Time)); err != nil {
+		if _, err = ins.Exec(s.ID, i, t.Role, t.Text, t.Thinking, t.CallID, t.Code, t.Output, t.Err, replay, t.ReplayGroup, ts(t.Time), t.System); err != nil {
 			return err
 		}
 	}
@@ -238,7 +273,7 @@ func readSession(db *sql.DB, id string) (*Session, error) {
 	if err := json.Unmarshal([]byte(metrics), &s.Metrics); err != nil {
 		return nil, fmt.Errorf("session %s metrics: %w", id, err)
 	}
-	rows, err := db.Query("SELECT role,text,thinking,call_id,code,output,err,replay,replay_group,time FROM turns WHERE session_id = ? ORDER BY seq", id)
+	rows, err := db.Query("SELECT role,text,thinking,call_id,code,output,err,replay,replay_group,time,system FROM turns WHERE session_id = ? ORDER BY seq", id)
 	if err != nil {
 		return nil, err
 	}
@@ -247,7 +282,7 @@ func readSession(db *sql.DB, id string) (*Session, error) {
 		var t Turn
 		var replay sql.NullString
 		var when string
-		if err := rows.Scan(&t.Role, &t.Text, &t.Thinking, &t.CallID, &t.Code, &t.Output, &t.Err, &replay, &t.ReplayGroup, &when); err != nil {
+		if err := rows.Scan(&t.Role, &t.Text, &t.Thinking, &t.CallID, &t.Code, &t.Output, &t.Err, &replay, &t.ReplayGroup, &when, &t.System); err != nil {
 			return nil, err
 		}
 		if replay.Valid {

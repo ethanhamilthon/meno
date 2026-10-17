@@ -53,6 +53,7 @@ func (a *App) resumeSession(id string) {
 	a.st.Context = s.Metrics.Context
 	a.st.Unpriced = s.Metrics.Unpriced
 	a.vm.Reset()
+	a.st.Prompt = promptState{VMReset: a.hasHistory()}
 	a.st.Scroll = 0
 	a.closeOverlay()
 	a.notify("session resumed")

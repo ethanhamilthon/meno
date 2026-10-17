@@ -87,6 +87,9 @@ func TestSystemPromptListsEnabledSkillsOnly(t *testing.T) {
 	for i := range a.st.Skills {
 		a.st.Skills[i].Enabled = a.st.Skills[i].Name == "on"
 	}
+	if err := a.store.SaveSkills(a.st.Skills); err != nil {
+		t.Fatal(err)
+	}
 	got := a.systemPrompt()
 	if !strings.Contains(got, "- on — the on skill ("+filepath.Join(dir, "on.md")+")") || strings.Contains(got, "the off skill") {
 		t.Fatalf("prompt:\n%s", got)

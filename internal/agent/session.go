@@ -22,6 +22,9 @@ type Turn struct {
 	Output      string    `json:"output,omitempty"`
 	Err         string    `json:"err,omitempty"`
 	Time        time.Time `json:"time"`
+	// System is the <system-event> block sent in front of a user message. It is
+	// part of the request history but never shown to the user.
+	System string `json:"system,omitempty"`
 }
 
 type RequestUsage struct {
@@ -66,6 +69,9 @@ func (s *Session) Len() int         { return s.ensureLog().Len() }
 func (s *Session) Snapshot() []Turn { return s.ensureLog().Snapshot() }
 
 func (s *Session) Replace(turns []Turn) { s.ensureLog().Replace(turns) }
+
+// SetSystem sets the system-event block of turn i.
+func (s *Session) SetSystem(i int, system string) { s.ensureLog().SetSystem(i, system) }
 
 type SessionInfo struct {
 	ID        string
@@ -176,7 +182,7 @@ func (s *Session) ToMsgs() []llm.Msg {
 		}
 		switch {
 		case t.Role == llm.RoleUser:
-			out = append(out, llm.Msg{Role: llm.RoleUser, Text: t.Text})
+			out = append(out, llm.Msg{Role: llm.RoleUser, Text: withSystem(t)})
 		case t.Code != "" || t.CallID != "":
 			out = append(out, llm.Msg{Role: llm.RoleAssistant, Text: t.Text, CallID: t.CallID, Code: t.Code})
 			out = append(out, toolResult(t))
@@ -185,4 +191,13 @@ func (s *Session) ToMsgs() []llm.Msg {
 		}
 	}
 	return out
+}
+
+// withSystem is the text of a user turn as the model sees it: the system-event
+// block, when there is one, then the user's words.
+func withSystem(t Turn) string {
+	if t.System == "" {
+		return t.Text
+	}
+	return t.System + "\n\n" + t.Text
 }
