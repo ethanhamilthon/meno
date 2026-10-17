@@ -55,7 +55,7 @@ func (a *App) cycleField(f field, step int) {
 	n := len(f.opts)
 	next := f.opts[((idx+step)%n+n)%n]
 	if err := f.set(next); err != nil {
-		a.st.Toast = err.Error()
+		a.notifyErr(err.Error())
 	}
 }
 
@@ -66,7 +66,7 @@ func (a *App) editKey(k *tcell.EventKey, f field) {
 		a.st.Buffer = nil
 	case tcell.KeyEnter:
 		if err := f.set(string(a.st.Buffer)); err != nil {
-			a.st.Toast = err.Error()
+			a.notifyErr(err.Error())
 		}
 		a.st.Editing = false
 		a.st.Buffer = nil
@@ -92,7 +92,7 @@ func drawForm(c ui.Canvas, b box, y int, fs []field, selField int, editing bool,
 		b.put(c, 4, y+i, padTo(f.label, 12), ui.FgDim, bg)
 		val := f.get()
 		if isSel && editing {
-			val = buf + "▏"
+			val = buf + "█"
 		} else if f.secret {
 			val = llm.Mask(val)
 		}

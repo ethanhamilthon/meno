@@ -8,10 +8,12 @@ import (
 	"io"
 	"net/http"
 	"strings"
-	"time"
 )
 
-var httpClient = &http.Client{Timeout: 10 * time.Minute}
+// No overall Timeout: it would cut off long streaming responses. Requests end on
+// completion or when the caller's context is canceled. Connection setup still
+// uses the default transport's dial/TLS timeouts.
+var httpClient = &http.Client{}
 
 func post(ctx context.Context, p Provider, path string, body any, headers map[string]string) (*http.Response, error) {
 	b, err := json.Marshal(body)

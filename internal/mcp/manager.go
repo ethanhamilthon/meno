@@ -7,17 +7,20 @@ import (
 )
 
 type Manager struct {
-	mu      sync.Mutex
-	clients map[string]*Client
-	errs    map[string]string
+	mu       sync.Mutex
+	clients  map[string]*Client
+	errs     map[string]string
+	starting map[string]bool
 }
 
 func NewManager() *Manager {
-	return &Manager{clients: map[string]*Client{}, errs: map[string]string{}}
+	return &Manager{clients: map[string]*Client{}, errs: map[string]string{}, starting: map[string]bool{}}
 }
 
 func (m *Manager) Start(ctx context.Context, s Server) error {
 	m.Stop(s.Name)
+	m.setStarting(s.Name, true)
+	defer m.setStarting(s.Name, false)
 	if err := ValidateServer(s); err != nil {
 		m.setErr(s.Name, err.Error())
 		return err
@@ -32,6 +35,32 @@ func (m *Manager) Start(ctx context.Context, s Server) error {
 	m.clients[s.Name] = c
 	delete(m.errs, s.Name)
 	return nil
+}
+
+func (m *Manager) setStarting(name string, on bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if on {
+		m.starting[name] = true
+	} else {
+		delete(m.starting, name)
+	}
+}
+
+// Starting reports whether a server is being started right now.
+func (m *Manager) Starting(name string) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.starting[name]
+}
+
+// ToolsOf lists the tools of a running server.
+func (m *Manager) ToolsOf(name string) []Tool {
+	c, ok := m.Client(name)
+	if !ok {
+		return nil
+	}
+	return c.Tools
 }
 
 func (m *Manager) setErr(name, msg string) {

@@ -74,19 +74,19 @@ func pump(t *testing.T, a *App, until func() bool) {
 
 func TestE2ETurnWithJSToolAndPersistence(t *testing.T) {
 	cl := &scriptedClient{turns: [][]llm.Event{
-		{{Kind: llm.EvTool, CallID: "c1", Code: `print(1+1)`}},
-		{{Kind: llm.EvText, Text: "готово: 2"}, {Kind: llm.EvDone}},
+		{{Kind: llm.EvTool, CallID: "c1", Code: `console.log(1+1)`}},
+		{{Kind: llm.EvText, Text: "done: 2"}, {Kind: llm.EvDone}},
 	}}
 	a, scr, paths := e2eApp(t, cl)
 	defer scr.Fini()
 
-	typeRunes(a, "посчитай")
+	typeRunes(a, "calculate")
 	a.onKey(keyK(tcell.KeyEnter))
 	pump(t, a, func() bool { return !a.st.Running })
 
 	a.draw()
 	out := screenText(scr)
-	if !strings.Contains(out, "готово: 2") {
+	if !strings.Contains(out, "done: 2") {
 		t.Fatalf("final text missing:\n%s", out)
 	}
 	turns := a.st.Session.Snapshot()
@@ -95,7 +95,7 @@ func TestE2ETurnWithJSToolAndPersistence(t *testing.T) {
 	}
 	hasCode := false
 	for _, tr := range turns {
-		if strings.Contains(tr.Code, "print(1+1)") {
+		if strings.Contains(tr.Code, "console.log(1+1)") {
 			hasCode = true
 		}
 	}
@@ -116,7 +116,7 @@ func TestE2EAbortMarksSession(t *testing.T) {
 	cl := &scriptedClient{turns: [][]llm.Event{{{Kind: llm.EvText, Text: "partial"}}}}
 	a, scr, _ := e2eApp(t, cl)
 	defer scr.Fini()
-	typeRunes(a, "долгая задача")
+	typeRunes(a, "long task")
 	a.onKey(keyK(tcell.KeyEnter))
 	pump(t, a, func() bool { return !a.st.Running })
 	a.abortTurn()
@@ -132,12 +132,12 @@ func TestE2EProviderMissingShowsToast(t *testing.T) {
 	defer scr.Fini()
 	a.st.Settings.Model = "no-such-model-xyz"
 	a.st.Settings.Provider = ""
-	typeRunes(a, "привет")
+	typeRunes(a, "hello")
 	a.onKey(keyK(tcell.KeyEnter))
 	if a.st.Running {
 		t.Fatal("turn started without provider")
 	}
-	if !strings.Contains(a.st.Toast, "provider not configured") {
-		t.Fatalf("toast %q", a.st.Toast)
+	if !strings.Contains(a.lastNotice(), "provider not configured") {
+		t.Fatalf("toast %q", a.lastNotice())
 	}
 }

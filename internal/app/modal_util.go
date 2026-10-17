@@ -36,10 +36,26 @@ func (a *App) queryKey(k *tcell.EventKey) {
 	a.st.Sel = 0
 }
 
-func (a *App) searchList(c ui.Canvas, w, h, bw, total int, items []item, hint string) {
-	header := searchHeader(
-		func() string { return string(a.st.Query) },
-		func() string { return itoa(len(items)) + " / " + itoa(total) },
-	)
-	listBox(c, w, h, bw, header, items, clampSel(a.st.Sel, len(items)), hint)
+func (a *App) searchList(c ui.Canvas, w, h, bw, total int, title, placeholder string, items []item, hint string) {
+	a.searchListEmpty(c, w, h, bw, total, title, placeholder, items, hint, "")
+}
+
+// searchListEmpty is searchList with its own text for the case of no items.
+func (a *App) searchListEmpty(c ui.Canvas, w, h, bw, total int, title, placeholder string, items []item, hint, empty string) {
+	sel := clampSel(a.st.Sel, len(items))
+	bh := 6 + itemsHeight(items, sel)
+	if len(items) == 0 {
+		bh++
+	}
+	b := centered(w, h, bw, bh)
+	b.frame(c)
+	titledSearch(c, b, title, itoa(len(items))+" / "+itoa(total), string(a.st.Query), placeholder)
+	if len(items) == 0 {
+		if empty == "" {
+			empty = "nothing here"
+		}
+		b.put(c, 4, 4, ui.Truncate(empty, max(0, b.w-8)), ui.FgDim, ui.BgPopup)
+	}
+	drawItems(c, b, 4, items, sel)
+	b.hint(c, hint)
 }

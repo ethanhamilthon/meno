@@ -1,5 +1,7 @@
 package mcp
 
+import "net/url"
+
 const (
 	TransportStdio = "stdio"
 	TransportSSE   = "sse"
@@ -12,16 +14,10 @@ type Server struct {
 	Command   string            `json:"command"`
 	Env       map[string]string `json:"env,omitempty"`
 	URL       string            `json:"url,omitempty"`
-	Enabled   bool              `json:"enabled"`
-}
-
-func DefaultServers() []Server {
-	return []Server{
-		{Name: "postgres", Transport: TransportStdio, Command: "npx -y @mcp/postgres", Env: map[string]string{"PG_URL": "postgres://localhost:5432/app"}, Enabled: true},
-		{Name: "github", Transport: TransportStdio, Command: "gh-mcp-server", Enabled: true},
-		{Name: "sentry", Transport: TransportSSE, URL: "http://localhost:9100", Enabled: true},
-		{Name: "playwright", Transport: TransportStdio, Command: "npx -y @mcp/playwright", Enabled: false},
-	}
+	// Headers are sent with every request of an sse or streamable-http server
+	// (for example Authorization).
+	Headers map[string]string `json:"headers,omitempty"`
+	Enabled bool              `json:"enabled"`
 }
 
 func ValidateServer(s Server) error {
@@ -35,12 +31,15 @@ func ValidateServer(s Server) error {
 	}
 	switch s.Transport {
 	case TransportStdio:
-		if s.Command == "" {
-			return errString("command is required for stdio")
+		if _, err := parseCommand(s.Command); err != nil {
+			return err
 		}
 	case TransportSSE, TransportHTTP:
 		if s.URL == "" {
 			return errString("url is required for " + s.Transport)
+		}
+		if u, err := url.Parse(s.URL); err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+			return errString("url must be a full http(s) address")
 		}
 	default:
 		return errString("transport must be stdio, sse or streamable-http")

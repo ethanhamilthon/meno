@@ -9,14 +9,14 @@ import (
 	"time"
 )
 
-func newVM(t *testing.T, mode string, approve func(a, t string) bool) *VM {
+func newVM(t *testing.T) *VM {
 	t.Helper()
 	root := t.TempDir()
-	return New(Options{Gate: NewGate(root, mode, approve), Timeout: 2 * time.Second})
+	return New(Options{Root: root, Timeout: 2 * time.Second})
 }
 
 func TestGlobalsPersistAcrossExec(t *testing.T) {
-	v := newVM(t, ModeAuto, nil)
+	v := newVM(t)
 	v.Exec(context.Background(), "var n = 2")
 	r := v.Exec(context.Background(), "n * 21")
 	if r.Err != "" || r.Value != "42" {
@@ -25,15 +25,15 @@ func TestGlobalsPersistAcrossExec(t *testing.T) {
 }
 
 func TestPrintCaptured(t *testing.T) {
-	v := newVM(t, ModeAuto, nil)
-	r := v.Exec(context.Background(), `print("a", 1, true)`)
+	v := newVM(t)
+	r := v.Exec(context.Background(), `console.log("a", 1, true)`)
 	if r.Output != "a 1 true\n" {
 		t.Fatalf("output %q", r.Output)
 	}
 }
 
 func TestFSWriteReadEditGlob(t *testing.T) {
-	v := newVM(t, ModeAuto, nil)
+	v := newVM(t)
 	ctx := context.Background()
 	r := v.Exec(ctx, `fs.write("src/a.ts", "hello rateLimit"); fs.write("src/b.ts", "x")`)
 	if r.Err != "" {
@@ -58,7 +58,7 @@ func TestFSWriteReadEditGlob(t *testing.T) {
 }
 
 func TestEditErrors(t *testing.T) {
-	v := newVM(t, ModeAuto, nil)
+	v := newVM(t)
 	ctx := context.Background()
 	v.Exec(ctx, `fs.write("a.txt", "x x")`)
 	if r := v.Exec(ctx, `fs.edit("a.txt", "x", "y")`); !strings.Contains(r.Err, "matches 2") {
@@ -72,39 +72,8 @@ func TestEditErrors(t *testing.T) {
 	}
 }
 
-func TestPathEscapeBlocked(t *testing.T) {
-	v := newVM(t, ModeAuto, nil)
-	for _, code := range []string{`fs.read("../../etc/passwd")`, `fs.write("/etc/meno-x", "1")`} {
-		if r := v.Exec(context.Background(), code); r.Err == "" {
-			t.Fatalf("escape not blocked: %s", code)
-		}
-	}
-}
-
-func TestAskModeDeniedAndApproved(t *testing.T) {
-	calls := 0
-	v := newVM(t, ModeAsk, func(a, tg string) bool { calls++; return a == "fs.write" })
-	ctx := context.Background()
-	if r := v.Exec(ctx, `fs.write("ok.txt","1")`); r.Err != "" {
-		t.Fatalf("approved write failed: %s", r.Err)
-	}
-	if r := v.Exec(ctx, `sh("echo hi")`); r.Err == "" {
-		t.Fatal("denied sh must fail")
-	}
-	if calls != 2 {
-		t.Fatalf("approve calls %d", calls)
-	}
-}
-
-func TestAutoModeNoPrompt(t *testing.T) {
-	v := newVM(t, ModeAuto, func(a, tg string) bool { t.Fatal("should not prompt"); return false })
-	if r := v.Exec(context.Background(), `fs.write("z.txt","1")`); r.Err != "" {
-		t.Fatal(r.Err)
-	}
-}
-
 func TestShellRunsInRootAndReturnsCode(t *testing.T) {
-	v := newVM(t, ModeAuto, nil)
+	v := newVM(t)
 	r := v.Exec(context.Background(), `sh("pwd; exit 3").code`)
 	if r.Value != "3" {
 		t.Fatalf("exit code %+v", r)
@@ -112,7 +81,7 @@ func TestShellRunsInRootAndReturnsCode(t *testing.T) {
 }
 
 func TestTimeoutInterrupts(t *testing.T) {
-	v := New(Options{Gate: NewGate(t.TempDir(), ModeAuto, nil), Timeout: 100 * time.Millisecond})
+	v := New(Options{Root: t.TempDir(), Timeout: 100 * time.Millisecond})
 	start := time.Now()
 	r := v.Exec(context.Background(), `while(true){}`)
 	if !r.TimedOut || !strings.Contains(r.Err, "timeout") || time.Since(start) > 3*time.Second {
@@ -124,7 +93,7 @@ func TestTimeoutInterrupts(t *testing.T) {
 }
 
 func TestAbortViaContext(t *testing.T) {
-	v := newVM(t, ModeAuto, nil)
+	v := newVM(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() { time.Sleep(50 * time.Millisecond); cancel() }()
 	r := v.Exec(ctx, `while(true){}`)
@@ -134,7 +103,7 @@ func TestAbortViaContext(t *testing.T) {
 }
 
 func TestResetClearsGlobals(t *testing.T) {
-	v := newVM(t, ModeAuto, nil)
+	v := newVM(t)
 	v.Exec(context.Background(), `var keep = 7`)
 	v.Reset()
 	if r := v.Exec(context.Background(), `typeof keep`); r.Value != "undefined" {
@@ -143,15 +112,15 @@ func TestResetClearsGlobals(t *testing.T) {
 }
 
 func TestAwaitCodeRuns(t *testing.T) {
-	v := newVM(t, ModeAuto, nil)
-	r := v.Exec(context.Background(), "const x = await Promise.resolve(5); print(x * 2)")
+	v := newVM(t)
+	r := v.Exec(context.Background(), "const x = await Promise.resolve(5); console.log(x * 2)")
 	if r.Err != "" || r.Output != "10\n" {
 		t.Fatalf("await: %+v", r)
 	}
 }
 
 func TestSyntaxErrorReported(t *testing.T) {
-	v := newVM(t, ModeAuto, nil)
+	v := newVM(t)
 	if r := v.Exec(context.Background(), `let = ;`); r.Err == "" {
 		t.Fatal("syntax error not reported")
 	}
@@ -180,7 +149,7 @@ func TestGlobMatching(t *testing.T) {
 func TestEditRespectsFileRoot(t *testing.T) {
 	root := t.TempDir()
 	os.WriteFile(filepath.Join(root, "f.txt"), []byte("abc"), 0o644)
-	v := New(Options{Gate: NewGate(root, ModeAuto, nil)})
+	v := New(Options{Root: root})
 	v.Exec(context.Background(), `fs.edit("f.txt","b","B")`)
 	b, _ := os.ReadFile(filepath.Join(root, "f.txt"))
 	if string(b) != "aBc" {

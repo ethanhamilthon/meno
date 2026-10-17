@@ -35,7 +35,7 @@ func (s *scripted) Stream(ctx context.Context, req llm.Request, emit func(llm.Ev
 }
 
 func newRunner(cl llm.Client, evs *[]Ev) *Runner {
-	vm := jsvm.New(jsvm.Options{Gate: jsvm.NewGate(".", jsvm.ModeAuto, nil), Timeout: 2 * time.Second})
+	vm := jsvm.New(jsvm.Options{Root: ".", Timeout: 2 * time.Second})
 	return &Runner{D: Deps{
 		Client: cl, Provider: llm.Provider{Name: "t"}, Model: "m", VM: vm,
 		Thinking: true, Emit: func(e Ev) { *evs = append(*evs, e) },
@@ -44,7 +44,7 @@ func newRunner(cl llm.Client, evs *[]Ev) *Runner {
 
 func TestTurnWithJSThenAnswer(t *testing.T) {
 	cl := &scripted{steps: [][]llm.Event{
-		{{Kind: llm.EvText, Text: "checking"}, {Kind: llm.EvTool, CallID: "c1", Code: "print(2*21)"}, {Kind: llm.EvDone}},
+		{{Kind: llm.EvText, Text: "checking"}, {Kind: llm.EvTool, CallID: "c1", Code: "console.log(2*21)"}, {Kind: llm.EvDone}},
 		{{Kind: llm.EvText, Text: "answer 42"}, {Kind: llm.EvDone}},
 	}}
 	var evs []Ev
@@ -56,7 +56,7 @@ func TestTurnWithJSThenAnswer(t *testing.T) {
 	if len(s.Snapshot()) != 3 {
 		t.Fatalf("turns %d: %+v", len(s.Snapshot()), s.Snapshot())
 	}
-	if s.Snapshot()[1].Code != "print(2*21)" || !strings.Contains(s.Snapshot()[1].Output, "42") || s.Snapshot()[1].Text != "checking" {
+	if s.Snapshot()[1].Code != "console.log(2*21)" || !strings.Contains(s.Snapshot()[1].Output, "42") || s.Snapshot()[1].Text != "checking" {
 		t.Fatalf("js turn: %+v", s.Snapshot()[1])
 	}
 	if s.Snapshot()[2].Text != "answer 42" {
@@ -97,16 +97,19 @@ func TestJSErrorIsFedBack(t *testing.T) {
 	}
 }
 
-func TestStepLimit(t *testing.T) {
+func TestNoStepLimit(t *testing.T) {
 	var steps [][]llm.Event
-	for i := 0; i < MaxSteps+1; i++ {
+	for i := 0; i < 60; i++ {
 		steps = append(steps, []llm.Event{{Kind: llm.EvTool, CallID: "c", Code: "1"}})
 	}
+	steps = append(steps, []llm.Event{{Kind: llm.EvText, Text: "done"}})
 	var evs []Ev
 	r := newRunner(&scripted{steps: steps}, &evs)
-	err := r.Turn(context.Background(), NewSession(".", "m"), "q")
-	if err == nil || !strings.Contains(err.Error(), "step limit") {
-		t.Fatalf("want step limit, got %v", err)
+	if err := r.Turn(context.Background(), NewSession(".", "m"), "q"); err != nil {
+		t.Fatalf("long tool loop must not hit a limit: %v", err)
+	}
+	if evs[len(evs)-1].Kind != EvDone {
+		t.Fatalf("last event %+v", evs[len(evs)-1])
 	}
 }
 
@@ -138,12 +141,12 @@ func TestStreamErrorSurfaces(t *testing.T) {
 func TestSessionSaveLoadList(t *testing.T) {
 	dir := t.TempDir()
 	s := NewSession(".", "m")
-	s.Replace([]Turn{{Role: llm.RoleUser, Text: "проверь роуты"}, {Role: llm.RoleAssistant, Code: "1", Output: "1"}})
+	s.Replace([]Turn{{Role: llm.RoleUser, Text: "check routes"}, {Role: llm.RoleAssistant, Code: "1", Output: "1"}})
 	if err := SaveSession(dir, s); err != nil {
 		t.Fatal(err)
 	}
 	got, err := LoadSession(dir, s.ID)
-	if err != nil || got.Title != "проверь роуты" || len(got.Turns) != 2 {
+	if err != nil || got.Title != "check routes" || len(got.Turns) != 2 {
 		t.Fatalf("load: %v %+v", err, got)
 	}
 	list, err := ListSessions(dir)
@@ -166,7 +169,7 @@ func TestSaveRejectsEmptyID(t *testing.T) {
 }
 
 func TestTitleTruncatesLongRunes(t *testing.T) {
-	s := &Session{Turns: []Turn{{Role: llm.RoleUser, Text: strings.Repeat("я", 100)}}}
+	s := &Session{Turns: []Turn{{Role: llm.RoleUser, Text: strings.Repeat("é", 100)}}}
 	if got := deriveTitle(s); len([]rune(got)) != 60 {
 		t.Fatalf("len %d", len([]rune(got)))
 	}

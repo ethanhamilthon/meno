@@ -1,7 +1,7 @@
 package app
 
 import (
-	"strings"
+	"fmt"
 
 	"github.com/gdamore/tcell/v2"
 
@@ -43,16 +43,23 @@ func (a *App) modelKey(k *tcell.EventKey) {
 
 func (a *App) drawModel(c ui.Canvas, w, h int) {
 	list := a.modelList()
-	bw := 560
-	bh := 2 + 1 + 1 + 1 + min(len(list), 8)*1 + 2 + 2
+	bw := 66
+	shown := min(len(list), 8)
+	body := shown
+	if len(list) > 0 {
+		body++ // detail line of the selected model
+	} else {
+		body = 1
+	}
+	bh := 4 + body + 3 // title, gap, search, gap | gap, effort, gap+hint
 	b := centered(w, h, bw, bh)
 	b.frame(c)
-	searchRow(c, b, 0, string(a.st.Query), itoa(len(list))+" / "+itoa(len(a.allModels())))
-	y := 2
-	for i, m := range list {
-		if i >= 8 {
-			break
-		}
+	titledSearch(c, b, "model", itoa(len(list))+" / "+itoa(len(a.allModels())), string(a.st.Query), "search models")
+	y := 4
+	rows := max(0, min(8, b.h-9))
+	start := max(0, a.st.Sel-rows+1)
+	for i := start; i < len(list) && i < start+rows; i++ {
+		m := list[i]
 		sel := i == a.st.Sel
 		bg := b.bg(sel)
 		b.fill(c, y, bg)
@@ -61,12 +68,32 @@ func (a *App) drawModel(c ui.Canvas, w, h int) {
 			mark = "▸"
 		}
 		b.put(c, 2, y, mark, ui.Blue, bg)
-		b.put(c, 4, y, m.ID, ui.FgWhite, bg)
+		fg := ui.FgSoft
+		if sel {
+			fg = ui.FgWhite
+		}
+		b.put(c, 4, y, ui.Truncate(m.ID, max(0, b.w-8-ui.TextWidth(m.Provider))), fg, bg)
 		b.putRight(c, y, m.Provider, ui.FgDim, bg)
 		y++
 		if sel {
 			b.fill(c, y, bg)
-			b.put(c, 4, y, "provider "+m.Provider, ui.FgDim, bg)
+			detail := "metadata unavailable"
+			for _, provider := range a.st.Providers {
+				if provider.Name == m.Provider {
+					if info, ok := llm.LookupMetadata(a.st.Pricing, provider, m.ID); ok {
+						context := "?"
+						if info.Context > 0 {
+							context = compactTokens(info.Context)
+						}
+						detail = context + " ctx · pricing unavailable"
+						if !info.MissingPricing {
+							detail = fmt.Sprintf("%s ctx · $%g / $%g per 1M", context, info.Input, info.Output)
+						}
+					}
+					break
+				}
+			}
+			b.put(c, 4, y, detail, ui.FgDim, bg)
 			y++
 		}
 	}
@@ -78,5 +105,4 @@ func (a *App) drawModel(c ui.Canvas, w, h int) {
 	b.put(c, 2, y+1, "effort", ui.FgDim, ui.BgPopup)
 	chips(c, b, y+1, 12, config.Choices("effort"), a.st.Settings.Effort)
 	b.hint(c, "↑/↓ model · ←/→ effort · enter apply · esc close")
-	_ = strings.TrimSpace
 }

@@ -4,35 +4,53 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
-	"meno/internal/store"
 	"os"
-	"path/filepath"
-	"sort"
 	"time"
 
 	"meno/internal/llm"
 )
 
 type Turn struct {
-	Role     string    `json:"role"`
-	Text     string    `json:"text"`
-	Thinking string    `json:"thinking,omitempty"`
-	CallID   string    `json:"call_id,omitempty"`
-	Code     string    `json:"code,omitempty"`
-	Output   string    `json:"output,omitempty"`
-	Err      string    `json:"err,omitempty"`
+	// Replay is the complete assistant output; subsequent tool turns share its group.
+	Replay      *llm.Msg  `json:"replay,omitempty"`
+	ReplayGroup string    `json:"replay_group,omitempty"`
+	Role        string    `json:"role"`
+	Text        string    `json:"text"`
+	Thinking    string    `json:"thinking,omitempty"`
+	CallID      string    `json:"call_id,omitempty"`
+	Code        string    `json:"code,omitempty"`
+	Output      string    `json:"output,omitempty"`
+	Err         string    `json:"err,omitempty"`
+	Time        time.Time `json:"time"`
+}
+
+type RequestUsage struct {
+	Provider string    `json:"provider"`
+	Model    string    `json:"model"`
+	Usage    llm.Usage `json:"usage"`
+	Cost     *float64  `json:"cost,omitempty"`
 	Time     time.Time `json:"time"`
 }
 
+type Metrics struct {
+	LastUsage llm.Usage `json:"last_usage"`
+	Usage     llm.Usage `json:"usage"`
+	Spent     float64   `json:"spent"`
+	Context   int       `json:"context"`
+	Unpriced  bool      `json:"unpriced,omitempty"`
+}
+
 type Session struct {
-	ID        string    `json:"id"`
-	Title     string    `json:"title"`
-	Cwd       string    `json:"cwd"`
-	Model     string    `json:"model"`
-	UpdatedAt time.Time `json:"updated_at"`
-	Summary   string    `json:"summary,omitempty"`
-	Log       *SafeLog  `json:"-"`
-	Turns     []Turn    `json:"turns"`
+	Requests  []RequestUsage `json:"requests,omitempty"`
+	Metrics   Metrics        `json:"metrics"`
+	ID        string         `json:"id"`
+	Title     string         `json:"title"`
+	Cwd       string         `json:"cwd"`
+	Model     string         `json:"model"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	Summary   string         `json:"summary,omitempty"`
+	Log       *SafeLog       `json:"-"`
+	Turns     []Turn         `json:"turns"`
 }
 
 func (s *Session) ensureLog() *SafeLog {
@@ -44,6 +62,7 @@ func (s *Session) ensureLog() *SafeLog {
 
 func (s *Session) Append(t Turn) { s.ensureLog().Append(t) }
 
+func (s *Session) Len() int         { return s.ensureLog().Len() }
 func (s *Session) Snapshot() []Turn { return s.ensureLog().Snapshot() }
 
 func (s *Session) Replace(turns []Turn) { s.ensureLog().Replace(turns) }
@@ -51,6 +70,7 @@ func (s *Session) Replace(turns []Turn) { s.ensureLog().Replace(turns) }
 type SessionInfo struct {
 	ID        string
 	Title     string
+	Cwd       string
 	UpdatedAt time.Time
 	Turns     int
 	JSRuns    int
@@ -68,6 +88,7 @@ func NewSession(cwd, model string) *Session {
 	return s
 }
 
+// SaveSession persists the session into dir/sessions.db in one transaction.
 func SaveSession(dir string, s *Session) error {
 	if s.ID == "" {
 		return errors.New("session id is empty")
@@ -77,48 +98,38 @@ func SaveSession(dir string, s *Session) error {
 	if s.Title == "" {
 		s.Title = deriveTitle(s)
 	}
-	return store.SaveJSON(filepath.Join(dir, s.ID+".json"), s)
+	db, err := openDB(dir)
+	if err != nil {
+		return err
+	}
+	return writeSession(db, s)
 }
 
 func LoadSession(dir, id string) (*Session, error) {
-	var s Session
-	if err := store.LoadJSON(filepath.Join(dir, id+".json"), &s); err != nil {
+	if _, err := os.Stat(dir); err != nil {
 		return nil, err
 	}
-	if s.ID == "" {
-		return nil, os.ErrNotExist
-	}
-	s.ensureLog()
-	return &s, nil
-}
-
-func ListSessions(dir string) ([]SessionInfo, error) {
-	ents, err := os.ReadDir(dir)
-	if errors.Is(err, os.ErrNotExist) {
-		return nil, nil
-	}
+	db, err := openDB(dir)
 	if err != nil {
 		return nil, err
 	}
-	var out []SessionInfo
-	for _, e := range ents {
-		if filepath.Ext(e.Name()) != ".json" {
-			continue
-		}
-		s, err := LoadSession(dir, e.Name()[:len(e.Name())-5])
-		if err != nil {
-			continue
-		}
-		js := 0
-		for _, t := range s.Snapshot() {
-			if t.Code != "" {
-				js++
-			}
-		}
-		out = append(out, SessionInfo{ID: s.ID, Title: s.Title, UpdatedAt: s.UpdatedAt, Turns: len(s.Turns), JSRuns: js})
+	s, err := readSession(db, id)
+	if err != nil {
+		return nil, err
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].UpdatedAt.After(out[j].UpdatedAt) })
-	return out, nil
+	s.ensureLog()
+	return s, nil
+}
+
+func ListSessions(dir string) ([]SessionInfo, error) {
+	if _, err := os.Stat(dir); errors.Is(err, os.ErrNotExist) {
+		return nil, nil
+	}
+	db, err := openDB(dir)
+	if err != nil {
+		return nil, err
+	}
+	return listSessions(db)
 }
 
 func deriveTitle(s *Session) string {
@@ -134,22 +145,41 @@ func deriveTitle(s *Session) string {
 	return "untitled"
 }
 
+func toolResult(t Turn) llm.Msg {
+	res := t.Output
+	if t.Err != "" {
+		res += "\nERROR: " + t.Err
+	}
+	return llm.Msg{Role: llm.RoleTool, CallID: t.CallID, Text: res}
+}
+
 func (s *Session) ToMsgs() []llm.Msg {
 	var out []llm.Msg
 	if s.Summary != "" {
 		out = append(out, llm.Msg{Role: llm.RoleUser, Text: "Summary of earlier conversation:\n" + s.Summary})
 	}
-	for _, t := range s.Snapshot() {
+	turns := s.Snapshot()
+	for i := 0; i < len(turns); i++ {
+		t := turns[i]
+		if t.Replay != nil {
+			out = append(out, *t.Replay)
+			if t.CallID != "" {
+				out = append(out, toolResult(t))
+			}
+			for i+1 < len(turns) && t.ReplayGroup != "" && turns[i+1].ReplayGroup == t.ReplayGroup {
+				i++
+				if turns[i].CallID != "" {
+					out = append(out, toolResult(turns[i]))
+				}
+			}
+			continue
+		}
 		switch {
 		case t.Role == llm.RoleUser:
 			out = append(out, llm.Msg{Role: llm.RoleUser, Text: t.Text})
-		case t.Code != "":
+		case t.Code != "" || t.CallID != "":
 			out = append(out, llm.Msg{Role: llm.RoleAssistant, Text: t.Text, CallID: t.CallID, Code: t.Code})
-			res := t.Output
-			if t.Err != "" {
-				res += "\nERROR: " + t.Err
-			}
-			out = append(out, llm.Msg{Role: llm.RoleTool, CallID: t.CallID, Text: res})
+			out = append(out, toolResult(t))
 		case t.Role == llm.RoleAssistant:
 			out = append(out, llm.Msg{Role: llm.RoleAssistant, Text: t.Text})
 		}

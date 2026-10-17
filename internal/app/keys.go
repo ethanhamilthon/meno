@@ -7,17 +7,31 @@ import (
 )
 
 func (a *App) onKey(k *tcell.EventKey) {
-	if a.st.Pending != nil {
-		a.onApprovalKey(k)
+	if k.Key() == tcell.KeyCtrlC {
+		a.abortTurn()
 		return
 	}
 	if a.st.Over != OverNone {
 		a.onOverlayKey(k)
 		return
 	}
-	if k.Key() == tcell.KeyCtrlC {
-		a.abortTurn()
+	switch k.Key() {
+	case tcell.KeyPgUp:
+		_, h := a.scr.Size()
+		a.scrollBy(max(1, h-a.bottomHeight()-1))
 		return
+	case tcell.KeyPgDn:
+		_, h := a.scr.Size()
+		a.scrollBy(-max(1, h-a.bottomHeight()-1))
+		return
+	case tcell.KeyEnd:
+		if a.st.Mode != ui.ModeInsert {
+			a.st.Scroll = 0
+			if a.st.Mode == ui.ModeNormal {
+				a.st.InLog = false // follow the tail: back to the input
+			}
+			return
+		}
 	}
 	switch a.st.Mode {
 	case ui.ModeInsert:
@@ -32,99 +46,176 @@ func (a *App) onKey(k *tcell.EventKey) {
 }
 
 func (a *App) onInsertKey(k *tcell.EventKey) {
+	a.clampCursor()
 	if a.acActive() && a.acKey(k) {
 		return
 	}
+	word := k.Modifiers()&(tcell.ModAlt|tcell.ModCtrl) != 0
 	switch k.Key() {
 	case tcell.KeyEsc:
-		a.st.Mode = ui.ModeNormal
+		a.leaveInsert()
 	case tcell.KeyEnter:
-		if k.Modifiers()&tcell.ModAlt != 0 {
-			a.st.Input = append(a.st.Input, '\n')
+		// Shift+Enter needs a terminal that reports it (kitty/CSI-u protocol);
+		// Alt+Enter and Ctrl+J work everywhere.
+		if k.Modifiers()&(tcell.ModShift|tcell.ModAlt|tcell.ModCtrl) != 0 {
+			a.insertNewline()
 			return
 		}
 		a.submit()
+	case tcell.KeyCtrlJ:
+		a.insertNewline()
 	case tcell.KeyBackspace, tcell.KeyBackspace2:
-		if n := len(a.st.Input); n > 0 {
-			a.st.Input = a.st.Input[:n-1]
+		a.backspace()
+	case tcell.KeyDelete:
+		a.deleteForward()
+	case tcell.KeyLeft:
+		if word {
+			a.moveWord(-1)
+		} else {
+			a.moveLeft()
 		}
+	case tcell.KeyRight:
+		if word {
+			a.moveWord(1)
+		} else {
+			a.moveRight()
+		}
+	case tcell.KeyUp:
+		a.moveVert(-1)
+	case tcell.KeyDown:
+		a.moveVert(1)
+	case tcell.KeyHome, tcell.KeyCtrlA:
+		a.moveLineEdge(-1)
+	case tcell.KeyEnd, tcell.KeyCtrlE:
+		a.moveLineEdge(1)
 	case tcell.KeyRune:
-		a.st.Input = append(a.st.Input, k.Rune())
-		if k.Rune() == ':' && len(a.st.Input) == 1 {
-			a.st.Input = nil
-			a.st.Mode = ui.ModeCommand
-			a.st.Cmd = nil
-		}
+		// Commands are not available while typing; leave insert mode first (esc, then ':').
+		a.insertAtCursor([]rune{k.Rune()})
 	}
 }
 
 func (a *App) onNormalKey(k *tcell.EventKey) {
-	switch {
-	case k.Rune() == 'i' || k.Rune() == 'a' || k.Key() == tcell.KeyEnter:
-		a.st.Mode = ui.ModeInsert
-	case k.Rune() == ':':
-		a.st.Mode = ui.ModeCommand
-		a.st.Cmd = nil
-	case k.Rune() == 'v' || k.Rune() == 'V':
-		a.st.Mode = ui.ModeVisual
-		a.st.Visual = a.lastTurnIndex()
-	case k.Rune() == 'j' || k.Key() == tcell.KeyDown:
-		a.scrollBy(-1)
-	case k.Rune() == 'k' || k.Key() == tcell.KeyUp:
-		a.scrollBy(1)
-	case k.Rune() == 'y':
-		a.st.Yank = string(a.st.Input)
-	case k.Rune() == 'p':
-		a.st.Input = append(a.st.Input, []rune(a.st.Yank)...)
-	case k.Rune() == 'r':
-		a.runLastJS()
-	case k.Rune() == '#':
-		a.st.Mode = ui.ModeInsert
-		a.st.Input = append(a.st.Input, '#')
-	case k.Rune() == '?':
-		a.openOverlay(OverHelp)
-	case k.Rune() == 'q':
-		a.quit = true
-	case k.Key() == tcell.KeyEsc:
-		a.st.Input = nil
+	r := normalRune(k)
+	if r == 0 {
+		switch k.Key() {
+		case tcell.KeyEsc:
+			a.st.VimBuf = nil
+		case tcell.KeyCtrlR:
+			a.redo()
+		case tcell.KeyCtrlV:
+			a.startVisual('b')
+		case tcell.KeyCtrlE:
+			a.scrollBy(-1)
+		case tcell.KeyCtrlY:
+			a.scrollBy(1)
+		case tcell.KeyCtrlD, tcell.KeyCtrlF:
+			a.scrollBy(-a.halfPage(k.Key() == tcell.KeyCtrlF))
+		case tcell.KeyCtrlU, tcell.KeyCtrlB:
+			a.scrollBy(a.halfPage(k.Key() == tcell.KeyCtrlB))
+		}
+		return
+	}
+	// Keys that are not part of a pending command.
+	if len(a.st.VimBuf) == 0 {
+		switch r {
+		case '\n':
+			a.beginInsert(a.snapshot())
+			return
+		case ':':
+			a.st.Mode = ui.ModeCommand
+			a.st.Cmd = nil
+			return
+		case 'v', 'V':
+			a.startVisual(r)
+			return
+		case '#':
+			a.beginInsert(a.snapshot())
+			a.insertAtCursor([]rune{'#'})
+			return
+		case '?':
+			a.openOverlay(OverHelp)
+			return
+		case 'q':
+			a.runCommand("q")
+			return
+		}
+	}
+	a.st.VimBuf = append(a.st.VimBuf, r)
+	cmd, state := parseVim(a.st.VimBuf, false)
+	switch state {
+	case parseInvalid:
+		a.st.VimBuf = nil
+	case parseDone:
+		a.st.VimBuf = nil
+		a.execNormal(cmd)
 	}
 }
 
-func (a *App) onVisualKey(k *tcell.EventKey) {
-	switch {
-	case k.Key() == tcell.KeyEsc || k.Rune() == 'n':
-		a.st.Mode = ui.ModeNormal
-	case k.Rune() == 'j' || k.Key() == tcell.KeyDown:
-		a.st.Visual = a.nextJSTurn(a.st.Visual, 1)
-	case k.Rune() == 'k' || k.Key() == tcell.KeyUp:
-		a.st.Visual = a.nextJSTurn(a.st.Visual, -1)
-	case k.Rune() == 'y':
-		a.st.Yank = a.selectedCode()
-		a.st.Mode = ui.ModeNormal
-	case k.Rune() == 'p':
-		a.st.Input = append(a.st.Input, []rune(a.selectedCode())...)
-		a.st.Mode = ui.ModeInsert
-	case k.Rune() == 'r':
-		a.runSelectedJS()
-		a.st.Mode = ui.ModeNormal
+// normalRune maps a key to the vim key it stands for (0 = not a text key).
+func normalRune(k *tcell.EventKey) rune {
+	switch k.Key() {
+	case tcell.KeyRune:
+		if k.Rune() == ' ' {
+			return 'l'
+		}
+		return k.Rune()
+	case tcell.KeyLeft, tcell.KeyBackspace, tcell.KeyBackspace2:
+		return 'h'
+	case tcell.KeyRight:
+		return 'l'
+	case tcell.KeyUp:
+		return 'k'
+	case tcell.KeyDown:
+		return 'j'
+	case tcell.KeyHome:
+		return '0'
+	case tcell.KeyDelete:
+		return 'x'
+	case tcell.KeyEnter:
+		return '\n'
 	}
+	return 0
+}
+
+func (a *App) halfPage(full bool) int {
+	_, h := a.scr.Size()
+	if full {
+		return max(1, h-a.bottomHeight()-1)
+	}
+	return max(1, (h-a.bottomHeight())/2)
 }
 
 func (a *App) onCommandKey(k *tcell.EventKey) {
+	rows := commandRows(a)
 	switch k.Key() {
+	case tcell.KeyUp:
+		a.st.CmdSel = clampSel(a.st.CmdSel-1, len(rows))
+	case tcell.KeyDown:
+		a.st.CmdSel = clampSel(a.st.CmdSel+1, len(rows))
+	case tcell.KeyTab:
+		if len(rows) > 0 {
+			a.st.Cmd = []rune(rows[clampSel(a.st.CmdSel, len(rows))][1:])
+			a.st.CmdSel = 0
+		}
 	case tcell.KeyEsc:
 		a.st.Mode = ui.ModeNormal
 		a.st.Cmd = nil
 	case tcell.KeyEnter:
 		cmd := string(a.st.Cmd)
+		if len(rows) > 0 {
+			cmd = rows[clampSel(a.st.CmdSel, len(rows))][1:]
+		}
+		a.st.CmdSel = 0
 		a.st.Cmd = nil
 		a.st.Mode = ui.ModeNormal
 		a.runCommand(cmd)
 	case tcell.KeyBackspace, tcell.KeyBackspace2:
 		if n := len(a.st.Cmd); n > 0 {
 			a.st.Cmd = a.st.Cmd[:n-1]
+			a.st.CmdSel = 0
 		}
 	case tcell.KeyRune:
 		a.st.Cmd = append(a.st.Cmd, k.Rune())
+		a.st.CmdSel = 0
 	}
 }

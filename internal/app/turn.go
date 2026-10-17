@@ -3,10 +3,10 @@ package app
 import (
 	"context"
 	"strings"
+	"time"
 
 	"meno/internal/agent"
 	"meno/internal/llm"
-	"meno/internal/ui"
 )
 
 func (a *App) submit() {
@@ -14,22 +14,20 @@ func (a *App) submit() {
 	if text == "" || a.st.Running {
 		return
 	}
-	if strings.HasPrefix(text, "#") {
-		if p, ok := configFindPrompt(a.st.Prompts, text); ok {
-			a.st.Input = []rune(p.Template)
-			return
-		}
-		a.st.Toast = "unknown prompt " + text
+	if _, ok := a.currentProvider(); !ok {
+		a.notifyErr("provider not configured · select provider and model with :model")
 		return
 	}
-	a.st.Input = nil
+	a.setInput(nil)
+	a.st.Undo, a.st.Redo, a.st.InsBase = nil, nil, a.snapshot()
 	a.startTurn(text)
 }
 
 func (a *App) startTurn(text string) {
+	a.reloadSkills()
 	p, ok := a.currentProvider()
 	if !ok {
-		a.st.Toast = "provider not configured for model " + a.st.Settings.Model
+		a.notifyErr("provider not configured for model " + a.st.Settings.Model)
 		return
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -37,18 +35,23 @@ func (a *App) startTurn(text string) {
 	a.cancel = cancel
 	a.mu.Unlock()
 	a.st.Running = true
+	a.st.Phase = "thinking"
+	a.st.Scroll = 0
+	a.clearLive()
 	sess := a.st.Session
+	sess.Append(agent.Turn{Role: llm.RoleUser, Text: text})
 	runner := &agent.Runner{D: agent.Deps{
 		Client: a.client(p), Provider: p, Model: a.st.Settings.Model,
-		Effort: a.st.Settings.Effort, System: systemPrompt(a.paths.Cwd),
-		VM: a.vm, Thinking: a.st.Settings.Thinking == "on",
-		Emit: func(e agent.Ev) { a.events <- agentEv{ev: e} },
+		Effort: a.st.Settings.Effort, System: a.systemPrompt(),
+		VM: a.vm, Thinking: a.st.Settings.Thinking != "off", ModelTimeout: a.st.Settings.ModelTimeout(),
+		Emit: func(e agent.Ev) { a.postEvent(agentEv{ev: e}) },
 	}}
 	a.running.Add(1)
 	go func() {
 		defer a.running.Done()
-		err := runner.Turn(ctx, sess, text)
-		a.events <- turnDone{err: err}
+		defer cancel()
+		err := runner.Continue(ctx, sess)
+		a.postEvent(turnDone{err: err})
 	}()
 }
 
@@ -62,20 +65,74 @@ func (a *App) abortTurn() {
 
 func (a *App) onAgent(e agent.Ev) {
 	switch e.Kind {
+	case agent.EvThink, agent.EvText, agent.EvCode, agent.EvJSStart, agent.EvJSEnd:
+		a.st.LiveBase = e.Turns
+	}
+	switch e.Kind {
+	case agent.EvThink:
+		a.st.LiveThink += e.Thinking
+		a.st.Phase = "thinking"
+	case agent.EvText:
+		a.st.LiveText += e.Text
+		a.st.Phase = "writing"
+	case agent.EvCode:
+		a.st.Phase = "writing"
+		a.liveCall(e.CallID).Code = e.Code
+	case agent.EvJSStart:
+		lc := a.liveCall(e.CallID)
+		lc.Code, lc.Running = e.Code, true
+		a.st.Phase = "running"
+	case agent.EvJSEnd:
+		// The finished call (and the text before it) is in the session now.
+		a.dropLiveCall(e.CallID)
+		a.st.LiveText, a.st.LiveThink = "", ""
+		a.st.Phase = "thinking"
+	case agent.EvDone, agent.EvAborted:
+		a.clearLive()
+		a.st.Phase = ""
 	case agent.EvUsage:
-		a.st.Usage = e.Usage
+		u := e.Usage
+		a.st.Usage.In += u.In
+		a.st.Usage.Out += u.Out
+		a.st.Usage.Cached += u.Cached
+		a.st.Usage.CacheWrite += u.CacheWrite
+		a.st.LastUsage = u
+		a.st.Context = u.In + u.Out
+		p, model := e.Provider, e.Model
+		if model == "" {
+			p, _ = a.currentProvider()
+			model = a.st.Settings.Model
+		}
+		record := agent.RequestUsage{Provider: p.Name, Model: model, Usage: u, Time: time.Now().UTC()}
+		if info, ok := llm.LookupMetadata(a.st.Pricing, p, model); ok && info.CanPrice(u) {
+			cost := info.Cost(u)
+			record.Cost = &cost
+			a.st.Spent += cost
+		} else if u.In > 0 || u.Out > 0 || u.Cached > 0 || u.CacheWrite > 0 {
+			a.st.Unpriced = true
+		}
+		if a.st.Session != nil {
+			a.st.Session.Requests = append(a.st.Session.Requests, record)
+		}
 	case agent.EvError:
-		a.st.Toast = e.Err
+		a.notifyErr(e.Err)
 	}
 }
 
 func (a *App) onTurnDone(err error) {
 	a.st.Running = false
+	a.st.Phase = ""
+	a.mu.Lock()
 	a.cancel = nil
+	a.mu.Unlock()
+	a.clearLive()
 	if err != nil && !isAbort(err) {
-		a.st.Toast = err.Error()
+		a.notifyErr(err.Error())
 	}
-	_ = agent.SaveSession(a.paths.SessionsDir(), a.st.Session)
+	a.st.Session.Metrics = agent.Metrics{LastUsage: a.st.LastUsage, Usage: a.st.Usage, Spent: a.st.Spent, Context: a.st.Context, Unpriced: a.st.Unpriced}
+	if err := agent.SaveSession(a.paths.SessionsDir(), a.st.Session); err != nil {
+		a.notifyErr("save failed: " + err.Error())
+	}
 }
 
 func isAbort(err error) bool {
@@ -94,58 +151,43 @@ func (a *App) currentProvider() (llm.Provider, bool) {
 	return llm.Provider{}, false
 }
 
-func systemPrompt(cwd string) string {
-	return "You are meno, a coding agent. Your only tool is js: run JavaScript with fs.read/write/edit/glob/exists and sh(cmd). Working directory: " + cwd + "."
-}
-
-func (a *App) lastTurnIndex() int {
-	turns := a.st.Session.Snapshot()
-	for i := len(turns) - 1; i >= 0; i-- {
-		if turns[i].Code != "" {
-			return i
-		}
-	}
-	return 0
-}
-
-func (a *App) nextJSTurn(from, step int) int {
-	turns := a.st.Session.Snapshot()
-	for i := from + step; i >= 0 && i < len(turns); i += step {
-		if turns[i].Code != "" {
-			return i
-		}
-	}
-	return from
-}
-
-func (a *App) selectedCode() string {
-	turns := a.st.Session.Snapshot()
-	if a.st.Visual < 0 || a.st.Visual >= len(turns) {
-		return ""
-	}
-	return turns[a.st.Visual].Code
-}
-
-func (a *App) runSelectedJS() {
-	code := a.selectedCode()
-	if code == "" {
-		return
-	}
-	a.st.Session.Append(agent.Turn{Role: llm.RoleUser, Text: "[direct run]", Code: code})
-	res := a.vm.Exec(context.Background(), code)
-	a.st.Session.Append(agent.Turn{Role: llm.RoleAssistant, Code: code, Output: res.Output + res.Value, Err: res.Err, CallID: agent.NewID()})
-}
-
-func (a *App) runLastJS() {
-	a.st.Mode = ui.ModeVisual
-	a.st.Visual = a.lastTurnIndex()
-	a.runSelectedJS()
-	a.st.Mode = ui.ModeNormal
-}
-
 func (a *App) scrollBy(d int) {
-	a.st.Scroll += d
-	if a.st.Scroll < 0 {
-		a.st.Scroll = 0
+	w, h := a.scr.Size()
+	maxScroll := max(0, len(a.transcriptWithSelection(w))-max(0, h-a.bottomHeight()))
+	a.st.Scroll = min(max(0, a.st.Scroll+d), maxScroll)
+}
+
+func (a *App) clearLive() {
+	a.st.LiveText, a.st.LiveThink, a.st.LiveCalls = "", "", nil
+}
+
+// liveCall finds the live call with this id. Chat streams may deliver code
+// before the id is known: such a call is adopted by the first event that has
+// one.
+func (a *App) liveCall(id string) *liveCall {
+	calls := a.st.LiveCalls
+	for i := range calls {
+		if id != "" && calls[i].ID == id {
+			return &calls[i]
+		}
 	}
+	for i := len(calls) - 1; i >= 0; i-- {
+		if calls[i].ID == "" && !calls[i].Running {
+			calls[i].ID = id
+			return &calls[i]
+		}
+		break
+	}
+	a.st.LiveCalls = append(a.st.LiveCalls, liveCall{ID: id})
+	return &a.st.LiveCalls[len(a.st.LiveCalls)-1]
+}
+
+func (a *App) dropLiveCall(id string) {
+	out := a.st.LiveCalls[:0]
+	for _, c := range a.st.LiveCalls {
+		if c.ID != id {
+			out = append(out, c)
+		}
+	}
+	a.st.LiveCalls = out
 }

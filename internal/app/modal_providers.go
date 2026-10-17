@@ -52,7 +52,7 @@ func (a *App) providersKey(k *tcell.EventKey) {
 func (a *App) drawProviders(c ui.Canvas, w, h int) {
 	items := a.providersItems()
 	header := titleRow("providers", "")
-	listBox(c, w, h, 620, header, items, a.st.Sel, "j/k select · enter edit · n new · d delete · esc close")
+	listBox(c, w, h, 73, header, items, a.st.Sel, "j/k select · enter edit · n new · d delete · esc close")
 }
 
 func (a *App) providerEditKey(k *tcell.EventKey) {
@@ -71,7 +71,7 @@ func (a *App) providerEditKey(k *tcell.EventKey) {
 func (a *App) saveProviderEdit() {
 	p := a.st.EditProv
 	if err := llm.Validate(p); err != nil {
-		a.st.Toast = err.Error()
+		a.notifyErr(err.Error())
 		return
 	}
 	if a.st.EditIdx >= 0 && a.st.EditIdx < len(a.st.Providers) {
@@ -80,7 +80,7 @@ func (a *App) saveProviderEdit() {
 		a.st.Providers = append(a.st.Providers, p)
 	}
 	a.persistProviders()
-	a.st.Toast = "provider saved"
+	a.notify("provider saved")
 }
 
 func (a *App) providerFields() []field {
@@ -94,7 +94,7 @@ func (a *App) providerFields() []field {
 }
 
 func (a *App) drawProviderEdit(c ui.Canvas, w, h int) {
-	b := centered(w, h, 620, 10)
+	b := centered(w, h, 73, 10)
 	b.frame(c)
 	b.put(c, 2, 0, "providers /", ui.FgDim, ui.BgPopup)
 	b.put(c, 14, 0, a.st.EditProv.Name, ui.Blue, ui.BgPopup)

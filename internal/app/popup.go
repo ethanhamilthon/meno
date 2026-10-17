@@ -6,12 +6,18 @@ import (
 	"meno/internal/ui"
 )
 
-type box struct{ x, y, w, h int }
+// box is the content area of a dialog; the painted surface (ox..) extends one
+// row above and below it so every dialog has a padding of 1.
+type box struct{ x, y, w, h, oy, oh int }
 
-func centered(sw, sh, w, h int) box {
-	w = min(w, sw)
-	h = min(h, sh)
-	return box{(sw - w) / 2, (sh - h) / 2, w, h}
+// modalWidth is shared by every dialog, regardless of its contents.
+func modalWidth(sw int) int { return min(max(0, sw), max(1, sw/2)) }
+
+func centered(sw, sh, _, h int) box {
+	w := modalWidth(sw)
+	oh := max(0, min(h+2, sh))
+	oy := (sh - oh) / 2
+	return box{x: (sw - w) / 2, y: oy + 1, w: w, h: max(0, oh-2), oy: oy, oh: oh}
 }
 
 func (b box) bg(sel bool) tcell.Color {
@@ -22,11 +28,21 @@ func (b box) bg(sel bool) tcell.Color {
 }
 
 func (b box) fill(c ui.Canvas, y int, bg tcell.Color) {
-	c.Fill(b.x, b.y+y, b.w, 1, bg)
+	if y < 0 || y >= b.h {
+		return
+	}
+	inset := 0
+	if bg == ui.BgPopupSel || bg == ui.BgPopupIn {
+		inset = min(2, b.w/2)
+	}
+	c.Fill(b.x+inset, b.y+y, max(0, b.w-2*inset), 1, bg)
 }
 
 func (b box) put(c ui.Canvas, x, y int, text string, fg, bg tcell.Color) int {
-	return c.Text(b.x+x, b.y+y, b.w-x, text, tcell.StyleDefault.Foreground(fg).Background(bg))
+	if x < 0 || y < 0 || y >= b.h {
+		return 0
+	}
+	return c.Text(b.x+x, b.y+y, max(0, b.w-x-2), text, tcell.StyleDefault.Foreground(fg).Background(bg))
 }
 
 func (b box) putRight(c ui.Canvas, y int, text string, fg, bg tcell.Color) {
@@ -40,7 +56,8 @@ func (b box) hint(c ui.Canvas, text string) {
 }
 
 func (b box) frame(c ui.Canvas) {
-	c.Fill(b.x, b.y, b.w, b.h, ui.BgPopup)
+	c.Dim()
+	c.Fill(b.x, b.oy, b.w, b.oh, ui.BgPopup)
 }
 
 type item struct {
@@ -61,7 +78,21 @@ func itemsHeight(items []item, sel int) int {
 }
 
 func drawItems(c ui.Canvas, b box, y int, items []item, sel int) {
-	for i, it := range items {
+	capacity := max(0, b.h-y-2)
+	start := 0
+	used := 0
+	for i := 0; i <= sel && i < len(items); i++ {
+		used++
+		if i == sel && items[i].detail != "" {
+			used++
+		}
+		for used > capacity && start < i {
+			start++
+			used--
+		}
+	}
+	for i := start; i < len(items) && y < b.h-2; i++ {
+		it := items[i]
 		isSel := i == sel
 		bg := b.bg(isSel)
 		b.fill(c, y, bg)
@@ -81,12 +112,16 @@ func drawItems(c ui.Canvas, b box, y int, items []item, sel int) {
 		if isSel {
 			lfg = ui.FgWhite
 		}
-		b.put(c, x, y, it.label, lfg, bg)
+		labelW := max(0, b.w-x-2)
+		if it.right != "" {
+			labelW = max(0, labelW-ui.TextWidth(it.right)-2)
+		}
+		b.put(c, x, y, ui.Truncate(it.label, labelW), lfg, bg)
 		if it.right != "" {
 			b.putRight(c, y, it.right, ui.FgDim, bg)
 		}
 		y++
-		if isSel && it.detail != "" {
+		if isSel && it.detail != "" && y < b.h-2 {
 			b.fill(c, y, bg)
 			b.put(c, 4, y, it.detail, ui.FgDim, bg)
 			y++
@@ -98,7 +133,11 @@ type headerFn func(c ui.Canvas, b box)
 
 func titleRow(title, sub string) headerFn {
 	return func(c ui.Canvas, b box) {
-		b.put(c, 2, 0, title, ui.Blue, ui.BgPopup)
+		titleW := max(0, b.w-4)
+		if sub != "" {
+			titleW = max(0, titleW-ui.TextWidth(sub)-2)
+		}
+		b.put(c, 2, 0, ui.Truncate(title, titleW), ui.Blue, ui.BgPopup)
 		if sub != "" {
 			b.putRight(c, 0, sub, ui.FgDim, ui.BgPopup)
 		}
@@ -132,15 +171,29 @@ func chips(c ui.Canvas, b box, y, x int, opts []string, cur string) int {
 	return x
 }
 
-func searchRow(c ui.Canvas, b box, y int, query, count string) {
-	b.fill(c, y, ui.BgTerm)
-	b.put(c, 2, y, "/", ui.Blue, ui.BgTerm)
-	b.put(c, 4, y, query+"▏", ui.FgWhite, ui.BgTerm)
-	b.putRight(c, y, count, ui.FgDim, ui.BgTerm)
+// searchRow draws the search input on a slightly darker surface. An empty
+// query shows the dim placeholder after the cursor.
+func searchRow(c ui.Canvas, b box, y int, query, placeholder, count string) {
+	if y < 0 || y >= b.h {
+		return
+	}
+	b.fill(c, y, ui.BgPopupIn)
+	b.put(c, 2, y, "/", ui.Blue, ui.BgPopupIn)
+	queryW := max(0, b.w-6-ui.TextWidth(count)-2)
+	if query == "" {
+		x := b.x + 4
+		x += c.Text(x, b.y+y, queryW, "█", ui.Style{FG: ui.FgWhite, BG: ui.BgPopupIn}.TCell())
+		c.Text(x, b.y+y, max(0, queryW-1), placeholder, ui.Style{FG: ui.FgDim, BG: ui.BgPopupIn}.TCell())
+	} else {
+		query = ui.Truncate(query, max(0, queryW-1))
+		c.Text(b.x+4, b.y+y, queryW, query+"█", ui.Style{FG: ui.FgWhite, BG: ui.BgPopupIn}.TCell())
+	}
+	b.putRight(c, y, count, ui.FgDim, ui.BgPopupIn)
 }
 
-func searchHeader(query, count func() string) headerFn {
-	return func(c ui.Canvas, b box) {
-		searchRow(c, b, 0, query(), count())
-	}
+// titledSearch is the shared header of searchable lists: title row, blank row,
+// search row. Lists start at row 4.
+func titledSearch(c ui.Canvas, b box, title, sub, query, placeholder string) {
+	titleRow(title, sub)(c, b)
+	searchRow(c, b, 2, query, placeholder, "")
 }

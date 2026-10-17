@@ -34,6 +34,7 @@ func run() error {
 		return err
 	}
 	defer scr.Fini()
+	scr.EnableMouse(tcell.MouseButtonEvents)
 	a, err := app.New(scr, paths, llm.NewClient)
 	if err != nil {
 		return err

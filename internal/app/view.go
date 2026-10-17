@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"strings"
 
 	"meno/internal/ui"
@@ -8,30 +9,37 @@ import (
 
 func (a *App) modelLabel() string {
 	if a.st.Settings.Model == "" {
-		return "модель не выбрана · :model"
+		return "no model selected · :model"
+	}
+	if a.st.Settings.Effort == "" {
+		return a.st.Settings.Model
 	}
 	return a.st.Settings.Model + " (" + a.st.Settings.Effort + ")"
 }
 
 func (a *App) statsText() string {
-	return "tokens " + itoa(a.st.Usage.In) + " / " + itoa(a.st.Usage.Out)
-}
-
-func (a *App) transcriptLines(w int) []ui.Line {
-	if a.st.Session == nil {
-		return nil
+	u := a.st.LastUsage
+	cache := a.sessionCacheHit()
+	cost := "n/a"
+	info, ok := a.modelInfo()
+	if a.st.Unpriced {
+		cost = "n/a"
+	} else if ok || a.st.Spent > 0 {
+		cost = fmt.Sprintf("~$%.4f", a.st.Spent)
 	}
-	return ui.BuildLines(a.st.Session.Snapshot(), w, a.jsOpts(), a.st.Settings.Thinking == "on")
+	ctx := itoa(a.st.Context)
+	if ok && info.Context > 0 {
+		ctx += fmt.Sprintf("/%d %.0f%%", info.Context, 100*float64(a.st.Context)/float64(info.Context))
+	}
+	return fmt.Sprintf("last in %d · out %d · cache hit %.0f%% · write %d · session in %d · out %d · spent %s · ctx %s", u.In, u.Out, cache, u.CacheWrite, a.st.Usage.In, a.st.Usage.Out, cost, ctx)
 }
 
 func (a *App) jsOpts() ui.JSOpts {
-	js := ui.JSOpts{Output: a.st.Settings.JSOutput == "on", Lines: a.st.Settings.JSLines}
-	switch a.st.Settings.JSCode {
-	case "lines":
-		js.Mode = ui.JSLines
-	case "off":
-		js.Mode = ui.JSOff
-	}
+	js := ui.JSOpts{Lines: a.st.Settings.JSLines, OutLines: a.st.Settings.JSOutLines}
+	js.Mode = jsMode(a.st.Settings.JSCode)
+	js.OutMode = jsMode(a.st.Settings.JSOutput)
+	js.ThinkMode = jsMode(a.st.Settings.Thinking)
+	js.ThinkLines = a.st.Settings.ThinkLines
 	return js
 }
 
@@ -42,40 +50,62 @@ const (
 	composerPadY = 1
 )
 
-// drawComposer draws the input band. Text starts at the padded origin; the cursor
-// is always visible, including on an empty input.
+// drawComposer draws the input band. Text starts at the padded origin; the real
+// terminal cursor marks the edit position (see applyCursor).
 func (a *App) drawComposer(c ui.Canvas, x, y, w, h int) {
-	textX := x + composerPadX
-	innerW := w - 2*composerPadX
+	pad := min(composerPadX, max(0, (w-1)/2))
+	textX := x + pad
+	innerW := max(0, w-2*pad)
 	row := y
 	if h > composerPadY+1 {
 		row = y + composerPadY
 	}
 	bg := ui.BgUser
-	if a.st.Toast != "" && len(a.st.Input) == 0 {
-		c.Text(textX, row, innerW, a.st.Toast, ui.Style{FG: ui.FgDim, BG: bg}.TCell())
-		return
-	}
+	a.clampCursor()
 	if len(a.st.Input) == 0 {
-		c.Text(textX, row, innerW, "▏", ui.Style{FG: ui.FgWhite, BG: bg}.TCell())
-		c.Text(textX+2, row, innerW-2, "напиши задачу, #промпт или :команду", ui.Style{FG: ui.FgDim, BG: bg}.TCell())
+		if !a.st.InLog {
+			a.cur = cursorPos{textX, row, true}
+		}
+		text, fg := a.placeholder(), ui.FgDim
+		c.Text(textX, row, innerW, text, ui.Style{FG: fg, BG: bg}.TCell())
 		return
 	}
-	c.Text(textX, row, innerW, string(a.st.Input)+"▏", ui.Style{FG: ui.FgWhite, BG: bg}.TCell())
+	rows := layoutInput(a.st.Input, max(1, innerW))
+	avail := max(1, h-2*composerPadY)
+	if h <= composerPadY+1 {
+		avail = 1
+	}
+	cr := cursorRow(rows, a.st.Cursor)
+	// Keep the cursor row inside the visible window.
+	top := min(max(0, a.st.InputTop), max(0, len(rows)-avail))
+	if cr < top {
+		top = cr
+	}
+	if cr >= top+avail {
+		top = cr - avail + 1
+	}
+	a.st.InputTop = top
+	toks := a.inputTokens()
+	mask := a.inputSelMask()
+	for i := 0; i < avail && top+i < len(rows); i++ {
+		a.drawInputRow(c, textX, row+i, innerW, rows[top+i], toks, bg, mask)
+	}
+	col := widthBetween(a.st.Input, rows[cr].start, a.st.Cursor)
+	if !a.st.InLog {
+		a.cur = cursorPos{textX + min(col, max(0, innerW-1)), row + cr - top, true}
+	}
 }
 
 func (a *App) drawCommandList(c ui.Canvas, x, y, w int) {
-	for i, name := range commandRows(a) {
-		bg, fg := ui.BgPopup, ui.FgSoft
-		mark := " "
-		if i == 0 {
-			bg, fg, mark = ui.BgPopupSel, ui.FgWhite, "▸"
-		}
-		c.Fill(x, y+i, w, 1, bg)
-		c.Text(x+2, y+i, 2, mark, ui.Style{FG: ui.Blue, BG: bg}.TCell())
-		c.Text(x+4, y+i, 20, name, ui.Style{FG: fg, BG: bg}.TCell())
-		c.Text(x+24, y+i, w-26, cmdDesc(name), ui.Style{FG: ui.FgDim, BG: bg}.TCell())
+	a.drawCommandRows(c, x, y, w, commandMaxRows)
+}
+func (a *App) drawCommandRows(c ui.Canvas, x, y, w, rows int) {
+	all := commandRows(a)
+	cells := make([]acCell, len(all))
+	for i, name := range all {
+		cells[i] = acCell{name, cmdDesc(name), ui.FgWhite}
 	}
+	drawAcGrid(c, x, y, w, rows, cells, a.st.CmdSel)
 }
 
 func cmdDesc(name string) string {
@@ -87,9 +117,16 @@ func cmdDesc(name string) string {
 	return ""
 }
 
+// drawCommandLine is the whole bottom input in command mode: no padding, no status.
 func (a *App) drawCommandLine(c ui.Canvas, x, y, w int) {
-	c.Fill(x, y, w, 1, ui.BgTerm)
-	c.Text(x+2, y, w-4, ":"+string(a.st.Cmd)+"█", ui.Style{FG: ui.FgWhite, BG: ui.BgTerm}.TCell())
+	c.Fill(x, y, w, 1, ui.BgUser)
+	rs := []rune(":" + string(a.st.Cmd))
+	for len(rs) > 0 && ui.TextWidth(string(rs))+1 > w {
+		rs = rs[1:]
+	}
+	text := string(rs)
+	c.Text(x, y, w, text, ui.Style{FG: ui.FgWhite, BG: ui.BgUser}.TCell())
+	a.cur = cursorPos{x + min(ui.TextWidth(text), max(0, w-1)), y, true}
 }
 
 func commandRows(a *App) []string {
@@ -112,13 +149,23 @@ var commandList = []cmdDef{
 	{":model", "model & effort"},
 	{":skills", "load skills"},
 	{":mcp", "mcp servers"},
-	{":prompts", "saved #prompts"},
 	{":providers", "api keys & urls"},
 	{":settings", "display & repl"},
+	{":theme", "color theme"},
 	{":reset", "reset js vm"},
 	{":compact", "compact context"},
 	{":export", "export markdown"},
 	{":stop", "stop running js"},
 	{":help", "keys & commands"},
 	{":q", "quit meno"},
+}
+
+func jsMode(v string) ui.JSMode {
+	switch v {
+	case "lines":
+		return ui.JSLines
+	case "off":
+		return ui.JSOff
+	}
+	return ui.JSFull
 }

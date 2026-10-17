@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"strings"
 
 	"meno/internal/agent"
@@ -8,12 +9,22 @@ import (
 	"meno/internal/ui"
 )
 
+// interruptsAgent lists commands that would pull the session, VM or process out
+// from under a running agent. Everything else (dialogs, export...) is safe.
+var interruptsAgent = map[string]bool{
+	"new": true, "resume": true, "reset": true, "clear": true, "compact": true, "q": true, "quit": true,
+}
+
 func (a *App) runCommand(raw string) {
 	fields := strings.Fields(raw)
 	if len(fields) == 0 {
 		return
 	}
 	name := fields[0]
+	if a.st.Running && interruptsAgent[name] {
+		a.notifyErr("agent is running · :stop it first (or ctrl+c)")
+		return
+	}
 	args := fields[1:]
 	switch name {
 	case "q", "quit":
@@ -22,13 +33,24 @@ func (a *App) runCommand(raw string) {
 		a.saveSession()
 		a.st.Session = agent.NewSession(a.paths.Cwd, a.st.Settings.Model)
 		a.st.Scroll = 0
+		a.st.LastUsage = llm.Usage{}
+		a.st.Usage = llm.Usage{}
+		a.st.Spent = 0
+		a.st.Context = 0
+		a.st.Unpriced = false
+		a.vm.Reset()
 	case "reset":
 		a.vm.Reset()
-		a.st.Toast = "js vm restarted"
+		a.notify("js vm restarted")
 	case "compact":
 		a.compact()
 	case "clear":
 		a.st.Session.Replace(nil)
+		a.st.Session.Summary = ""
+		a.st.Scroll = 0
+		a.st.Context = 0
+		// Usage and cost are cumulative for this session, not its current context.
+		a.saveSession()
 	case "export":
 		a.exportSession(args)
 	case "stop":
@@ -43,36 +65,52 @@ func (a *App) runCommand(raw string) {
 	case "providers":
 		a.openOverlay(OverProviders)
 	case "skills":
+		a.reloadSkills()
 		a.openOverlay(OverSkills)
+	case "theme":
+		a.openTheme()
 	case "mcp":
 		a.openOverlay(OverMCP)
-	case "prompts":
-		a.openOverlay(OverPrompts)
 	case "resume":
 		a.openResume()
 	default:
-		a.st.Toast = "unknown command :" + name
+		a.notifyErr("unknown command :" + name)
 	}
 }
 
 func (a *App) saveSession() {
-	if a.st.Session.Snapshot() != nil {
-		_ = agent.SaveSession(a.paths.SessionsDir(), a.st.Session)
+	if a.st.Session == nil {
+		return
+	}
+	a.st.Session.Metrics = agent.Metrics{LastUsage: a.st.LastUsage, Usage: a.st.Usage, Spent: a.st.Spent, Context: a.st.Context, Unpriced: a.st.Unpriced}
+	// Empty sessions must also be saved: :clear may have removed persisted turns.
+	if err := agent.SaveSession(a.paths.SessionsDir(), a.st.Session); err != nil {
+		a.notifyErr("save failed: " + err.Error())
 	}
 }
 
 func (a *App) compact() {
 	p, ok := a.currentProvider()
 	if !ok {
-		a.st.Toast = "provider not configured"
+		a.notifyErr("provider not configured")
 		return
 	}
-	before, after, err := agent.Compact(contextBG(), a.client(p), p, a.st.Settings.Model, a.st.Session)
-	if err != nil {
-		a.st.Toast = "compact failed: " + err.Error()
-		return
-	}
-	a.st.Toast = "контекст сжат · " + itoa(before) + " → " + itoa(after) + " токенов"
+	ctx, cancel := context.WithCancel(context.Background())
+	a.mu.Lock()
+	a.cancel = cancel
+	a.mu.Unlock()
+	a.st.Running = true
+	a.st.Phase = "compacting"
+	sess, model, client := a.st.Session, a.st.Settings.Model, a.client(p)
+	a.running.Add(1)
+	go func() {
+		defer a.running.Done()
+		defer cancel()
+		before, after, err := agent.Compact(ctx, client, p, model, sess, func(u llm.Usage) {
+			a.postEvent(agentEv{ev: agent.Ev{Kind: agent.EvUsage, Usage: u, Provider: p, Model: model}})
+		})
+		a.postEvent(compactDone{before: before, after: after, err: err})
+	}()
 }
 
 func (a *App) exportSession(args []string) {
@@ -95,14 +133,18 @@ func (a *App) exportSession(args []string) {
 		}
 	}
 	if err := writeFile(name, b.String()); err != nil {
-		a.st.Toast = "export failed: " + err.Error()
+		a.notifyErr("export failed: " + err.Error())
 		return
 	}
-	a.st.Toast = "сессия сохранена в ./" + name
+	a.notify("session saved to ./" + name)
 }
 
 func (a *App) openResume() {
-	list, _ := agent.ListSessions(a.paths.SessionsDir())
+	list, err := agent.ListSessions(a.paths.SessionsDir())
+	if err != nil {
+		a.notifyErr("resume failed: " + err.Error())
+		return
+	}
 	a.st.Sessions = list
 	a.st.Sel = 0
 	a.openOverlay(OverResume)

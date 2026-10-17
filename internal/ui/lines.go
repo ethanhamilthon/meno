@@ -17,6 +17,18 @@ type Line struct {
 	BG   tcell.Color
 }
 
+// Text is the plain text of the line (what the user sees, without the left padding).
+func (l Line) Text() string {
+	var b strings.Builder
+	for _, s := range l.Segs {
+		b.WriteString(s.Text)
+	}
+	return b.String()
+}
+
+// PadX is the left padding DrawLine puts before the first segment.
+const PadX = padX
+
 func (l Line) Width() int {
 	n := 0
 	for _, s := range l.Segs {
@@ -43,15 +55,23 @@ func WrapLines(text string, width int, mk func(string) Line) []Line {
 	return out
 }
 
-func CodeLines(code string, bg tcell.Color, max int) []Line {
+// CodeLines highlights code and soft-wraps rows longer than width (width <= 0
+// disables wrapping). max limits the number of rendered rows (0 = all).
+func CodeLines(code string, bg tcell.Color, width, max int) []Line {
 	var out []Line
-	src := strings.Split(code, "\n")
-	for i, l := range src {
-		if max > 0 && i == max {
-			out = append(out, Line{Segs: []Seg{{Text: "  …", FG: FgDim}}, BG: bg})
-			break
+	for _, src := range strings.Split(code, "\n") {
+		segs := HighlightJS(src)
+		rows := []Line{{Segs: segs, BG: bg}}
+		if width > 0 {
+			rows = wrapSegments(segs, width)
 		}
-		out = append(out, Line{Segs: HighlightJS(l), BG: bg})
+		for _, r := range rows {
+			if max > 0 && len(out) == max {
+				return append(out, Line{Segs: []Seg{{Text: "  …", FG: FgDim}}, BG: bg})
+			}
+			r.BG = bg
+			out = append(out, r)
+		}
 	}
 	return out
 }

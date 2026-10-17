@@ -125,6 +125,7 @@ func TestChatStreamToolCallAssembly(t *testing.T) {
 		w.Write([]byte("data: {\"choices\":[{\"delta\":{\"content\":\"A\"}}]}\n\n" +
 			"data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"t1\",\"function\":{\"arguments\":\"{\\\"code\\\":\"}}]}}]}\n\n" +
 			"data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"\\\"2+2\\\"}\"}}]}}]}\n\n" +
+			"data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"tool_calls\"}]}\n\n" +
 			"data: {\"choices\":[],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":4}}\n\n" +
 			"data: [DONE]\n\n"))
 	}))
@@ -153,5 +154,106 @@ func TestHTTPErrorSurfaces(t *testing.T) {
 	err := NewClient(p).Stream(context.Background(), Request{Provider: p, Msgs: []Msg{{Role: RoleUser, Text: "x"}}}, func(Event) {})
 	if err == nil || !strings.Contains(err.Error(), "401") {
 		t.Fatalf("want 401 error, got %v", err)
+	}
+}
+
+func TestStreamTerminalValidation(t *testing.T) {
+	tool := `{"type":"response.output_item.done","item":{"id":"fc_1","type":"function_call","call_id":"call_1","name":"js","arguments":"{\"code\":\"print(1)\"}"}}`
+	chatTool := `{"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_1","function":{"name":"js","arguments":"{\"code\":\"print(1)\"}"}}]}}]}`
+	for _, tt := range []struct {
+		name, proto, stream, want string
+		tools                     int
+	}{
+		{"responses EOF", ProtoResponses, tool, "unexpected EOF", 1},
+		{"responses DONE only", ProtoResponses, tool + "\n[DONE]", "unexpected EOF", 1},
+		{"responses failed", ProtoResponses, tool + `
+{"type":"response.failed","response":{"status":"failed","error":{"code":"server_error","message":"backend failed"}}}`, "backend failed", 1},
+		{"responses incomplete", ProtoResponses, tool + `
+{"type":"response.incomplete","response":{"status":"incomplete","incomplete_details":{"reason":"max_output_tokens"}}}`, "max_output_tokens", 1},
+		{"responses nested error", ProtoResponses, `{"type":"error","error":{"message":"nested failure"}}`, "nested failure", 0},
+		{"responses false completion", ProtoResponses, tool + `
+{"type":"response.completed","response":{"status":"incomplete","incomplete_details":{"reason":"max_output_tokens"}}}`, "max_output_tokens", 1},
+		{"responses missing call ID", ProtoResponses, `{"type":"response.output_item.done","item":{"id":"fc_1","type":"function_call","name":"js","arguments":"{}"}}
+{"type":"response.completed"}`, "missing call_id", 0},
+		{"chat EOF", ProtoChat, chatTool, "unexpected EOF", 0},
+		{"chat failed", ProtoChat, chatTool + `
+{"error":{"message":"backend failed"}}
+[DONE]`, "backend failed", 0},
+		{"chat length", ProtoChat, chatTool + `
+{"choices":[{"delta":{},"finish_reason":"length"}]}
+[DONE]`, "length", 0},
+		{"chat filtered", ProtoChat, chatTool + `
+{"choices":[{"delta":{},"finish_reason":"content_filter"}]}
+[DONE]`, "content_filter", 0},
+		{"chat malformed", ProtoChat, chatTool + "\n{", "chat stream", 0},
+		{"chat finish only", ProtoChat, chatTool + `
+{"choices":[{"delta":{},"finish_reason":"tool_calls"}]}`, "", 1},
+		{"chat DONE only", ProtoChat, chatTool + "\n[DONE]", "", 1},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				for _, data := range strings.Split(tt.stream, "\n") {
+					_, _ = w.Write([]byte("data: " + data + "\n\n"))
+				}
+			}))
+			defer srv.Close()
+			p := Provider{BaseURL: srv.URL, Protocol: tt.proto}
+			var events []Event
+			err := NewClient(p).Stream(context.Background(), Request{Provider: p, Tools: true}, func(e Event) { events = append(events, e) })
+			if tt.want != "" && (err == nil || !strings.Contains(err.Error(), tt.want)) {
+				t.Fatalf("want %q, got %v", tt.want, err)
+			}
+			if tt.want == "" && err != nil {
+				t.Fatal(err)
+			}
+			tools, done := 0, 0
+			for _, e := range events {
+				if e.Kind == EvTool {
+					tools++
+				}
+				if e.Kind == EvDone {
+					done++
+				}
+			}
+			if tools != tt.tools || (tt.want != "" && done != 0) || (tt.want == "" && done != 1) {
+				t.Fatalf("events: %+v", events)
+			}
+		})
+	}
+}
+
+func TestResponsesOutputDeduplication(t *testing.T) {
+	for _, tt := range []struct {
+		name, first, second string
+		conflict            bool
+	}{
+		{"item ID", `{"id":"r1","type":"reasoning","summary":[]}`, `{"summary":[],"type":"reasoning","id":"r1"}`, false},
+		{"call ID", `{"type":"function_call","call_id":"c1","name":"js","arguments":"{}"}`, `{"type":"function_call","call_id":"c1","name":"js","arguments":"{}"}`, false},
+		{"item conflict", `{"id":"r1","type":"reasoning","summary":[]}`, `{"id":"r1","type":"reasoning","summary":["changed"]}`, true},
+		{"call conflict", `{"id":"f1","type":"function_call","call_id":"c1","arguments":"{}"}`, `{"id":"f2","type":"function_call","call_id":"c1","arguments":"{}"}`, true},
+		{"changed call ID", `{"id":"f1","type":"function_call","call_id":"c1","arguments":"{}"}`, `{"id":"f1","type":"function_call","call_id":"c2","arguments":"{}"}`, true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				for _, item := range []string{tt.first, tt.second} {
+					_, _ = w.Write([]byte(`data: {"type":"response.output_item.done","item":` + item + "}\n\n"))
+				}
+				_, _ = w.Write([]byte("data: {\"type\":\"response.completed\",\"response\":{\"status\":\"completed\"}}\n\n"))
+			}))
+			defer srv.Close()
+			p := Provider{BaseURL: srv.URL, Protocol: ProtoResponses}
+			items, done := 0, 0
+			err := NewClient(p).Stream(context.Background(), Request{Provider: p}, func(e Event) {
+				if e.Kind == EvTool || e.Kind == EvHistory {
+					items++
+				}
+				if e.Kind == EvDone {
+					done++
+				}
+			})
+			if (err != nil) != tt.conflict || items != 1 || (tt.conflict && done != 0) || (!tt.conflict && done != 1) {
+				t.Fatalf("err=%v items=%d done=%d", err, items, done)
+			}
+		})
 	}
 }

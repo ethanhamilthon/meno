@@ -1,0 +1,243 @@
+package app
+
+import (
+	"unicode"
+
+	"github.com/rivo/uniseg"
+)
+
+// vrow is one visual composer row: input[start:end] (rune offsets). soft marks a
+// row that ended because of wrapping rather than a newline or the end of input.
+type vrow struct {
+	start, end int
+	soft       bool
+}
+
+func cellWidth(g string) int {
+	if g == "\t" {
+		return 4
+	}
+	return uniseg.StringWidth(g)
+}
+
+// layoutInput splits the input into visual rows. One column is always kept free
+// so the cursor can sit after the last character of a full row.
+func layoutInput(in []rune, innerW int) []vrow {
+	wrap := max(1, innerW-1)
+	var rows []vrow
+	ls := 0
+	for {
+		le := ls
+		for le < len(in) && in[le] != '\n' {
+			le++
+		}
+		rs, col, off := ls, 0, ls
+		g := uniseg.NewGraphemes(string(in[ls:le]))
+		for g.Next() {
+			s := g.Str()
+			n := len([]rune(s))
+			gw := cellWidth(s)
+			if col+gw > wrap && col > 0 {
+				rows = append(rows, vrow{rs, off, true})
+				rs, col = off, 0
+			}
+			col += gw
+			off += n
+		}
+		rows = append(rows, vrow{rs, le, false})
+		if le >= len(in) {
+			return rows
+		}
+		ls = le + 1
+	}
+}
+
+// cursorRow is the row holding the cursor: the last row starting at or before it.
+func cursorRow(rows []vrow, cursor int) int {
+	r := 0
+	for i, row := range rows {
+		if row.start <= cursor {
+			r = i
+		}
+	}
+	return r
+}
+
+// widthBetween is the display width of in[from:to].
+func widthBetween(in []rune, from, to int) int {
+	w := 0
+	g := uniseg.NewGraphemes(string(in[from:to]))
+	for g.Next() {
+		w += cellWidth(g.Str())
+	}
+	return w
+}
+
+func lastGraphemeLen(rs []rune) int {
+	n := 0
+	g := uniseg.NewGraphemes(string(rs))
+	for g.Next() {
+		n = len([]rune(g.Str()))
+	}
+	return n
+}
+
+func firstGraphemeLen(rs []rune) int {
+	g := uniseg.NewGraphemes(string(rs))
+	if g.Next() {
+		return len([]rune(g.Str()))
+	}
+	return 0
+}
+
+func (a *App) clampCursor() {
+	a.st.Cursor = min(max(0, a.st.Cursor), len(a.st.Input))
+}
+
+// setInput replaces the whole input and puts the cursor at its end.
+func (a *App) setInput(rs []rune) {
+	a.st.InLog = false
+	a.st.Input = rs
+	a.st.Cursor = len(rs)
+	a.st.WantSet = false
+	a.st.Sel = 0
+}
+
+func (a *App) insertAtCursor(rs []rune) {
+	a.clampCursor()
+	c := a.st.Cursor
+	out := make([]rune, 0, len(a.st.Input)+len(rs))
+	out = append(out, a.st.Input[:c]...)
+	out = append(out, rs...)
+	out = append(out, a.st.Input[c:]...)
+	a.st.Input = out
+	a.st.Cursor = c + len(rs)
+	a.st.WantSet = false
+	a.st.Sel = 0
+}
+
+func (a *App) insertNewline() { a.insertAtCursor([]rune{'\n'}) }
+
+func (a *App) deleteRange(from, to int) {
+	if from >= to {
+		return
+	}
+	out := make([]rune, 0, len(a.st.Input)-(to-from))
+	out = append(out, a.st.Input[:from]...)
+	out = append(out, a.st.Input[to:]...)
+	a.st.Input = out
+	a.st.Cursor = from
+	a.st.WantSet = false
+	a.st.Sel = 0
+}
+
+func (a *App) backspace() {
+	a.clampCursor()
+	c := a.st.Cursor
+	if c == 0 {
+		return
+	}
+	a.deleteRange(c-lastGraphemeLen(a.st.Input[:c]), c)
+}
+
+func (a *App) deleteForward() {
+	a.clampCursor()
+	c := a.st.Cursor
+	if c >= len(a.st.Input) {
+		return
+	}
+	a.deleteRange(c, c+firstGraphemeLen(a.st.Input[c:]))
+}
+
+func (a *App) moveLeft() {
+	a.clampCursor()
+	if c := a.st.Cursor; c > 0 {
+		a.st.Cursor = c - lastGraphemeLen(a.st.Input[:c])
+	}
+	a.st.WantSet, a.st.Sel = false, 0
+}
+
+func (a *App) moveRight() {
+	a.clampCursor()
+	if c := a.st.Cursor; c < len(a.st.Input) {
+		a.st.Cursor = c + firstGraphemeLen(a.st.Input[c:])
+	}
+	a.st.WantSet, a.st.Sel = false, 0
+}
+
+// moveWord jumps to the previous (dir<0) or next (dir>0) word boundary.
+func (a *App) moveWord(dir int) {
+	a.clampCursor()
+	in, c := a.st.Input, a.st.Cursor
+	if dir < 0 {
+		for c > 0 && unicode.IsSpace(in[c-1]) {
+			c--
+		}
+		for c > 0 && !unicode.IsSpace(in[c-1]) {
+			c--
+		}
+	} else {
+		for c < len(in) && unicode.IsSpace(in[c]) {
+			c++
+		}
+		for c < len(in) && !unicode.IsSpace(in[c]) {
+			c++
+		}
+	}
+	a.st.Cursor, a.st.WantSet, a.st.Sel = c, false, 0
+}
+
+// moveLineEdge moves to the start (dir<0) or end (dir>0) of the logical line.
+func (a *App) moveLineEdge(dir int) {
+	a.clampCursor()
+	in, c := a.st.Input, a.st.Cursor
+	if dir < 0 {
+		for c > 0 && in[c-1] != '\n' {
+			c--
+		}
+	} else {
+		for c < len(in) && in[c] != '\n' {
+			c++
+		}
+	}
+	a.st.Cursor, a.st.WantSet, a.st.Sel = c, false, 0
+}
+
+// moveVert moves the cursor one visual row up (d<0) or down (d>0), keeping the
+// column. On the first/last row it jumps to the start/end of the input.
+func (a *App) moveVert(d int) {
+	a.clampCursor()
+	w, _ := a.scr.Size()
+	in := a.st.Input
+	rows := layoutInput(in, a.composerInnerWidth(w))
+	r := cursorRow(rows, a.st.Cursor)
+	if !a.st.WantSet {
+		a.st.WantCol, a.st.WantSet = widthBetween(in, rows[r].start, a.st.Cursor), true
+	}
+	a.st.Sel = 0
+	nr := r + d
+	if nr < 0 {
+		a.st.Cursor = 0
+		return
+	}
+	if nr >= len(rows) {
+		a.st.Cursor = len(in)
+		return
+	}
+	row := rows[nr]
+	idx, col := row.start, 0
+	g := uniseg.NewGraphemes(string(in[row.start:row.end]))
+	for g.Next() {
+		gw := cellWidth(g.Str())
+		if col+gw > a.st.WantCol {
+			break
+		}
+		col += gw
+		idx += len([]rune(g.Str()))
+	}
+	// A cursor at the end of a wrapped row would render at the next row's start.
+	if row.soft && idx == row.end && idx > row.start {
+		idx -= lastGraphemeLen(in[row.start:idx])
+	}
+	a.st.Cursor = idx
+}

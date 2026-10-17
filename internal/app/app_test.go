@@ -46,7 +46,7 @@ func TestMainScreenRenders(t *testing.T) {
 	if !strings.Contains(out, "INSERT") {
 		t.Fatalf("status badge missing:\n%s", out)
 	}
-	if !strings.Contains(out, "модель не выбрана") {
+	if !strings.Contains(out, "no model selected") {
 		t.Fatalf("empty-model status missing:\n%s", out)
 	}
 }
@@ -54,14 +54,14 @@ func TestMainScreenRenders(t *testing.T) {
 func TestTypeAndSendPlaceholder(t *testing.T) {
 	a, scr := newTestApp(t)
 	defer scr.Fini()
-	for _, r := range "привет" {
+	for _, r := range "héllo" {
 		a.onKey(tcell.NewEventKey(tcell.KeyRune, r, tcell.ModNone))
 	}
-	if string(a.st.Input) != "привет" {
+	if string(a.st.Input) != "héllo" {
 		t.Fatalf("input %q", string(a.st.Input))
 	}
 	a.onKey(tcell.NewEventKey(tcell.KeyBackspace2, 0, tcell.ModNone))
-	if string(a.st.Input) != "приве" {
+	if string(a.st.Input) != "héll" {
 		t.Fatalf("backspace %q", string(a.st.Input))
 	}
 }
@@ -69,6 +69,7 @@ func TestTypeAndSendPlaceholder(t *testing.T) {
 func TestCommandModeEnterAndEscape(t *testing.T) {
 	a, scr := newTestApp(t)
 	defer scr.Fini()
+	a.onKey(tcell.NewEventKey(tcell.KeyEsc, 0, tcell.ModNone)) // commands start from normal mode
 	a.onKey(tcell.NewEventKey(tcell.KeyRune, ':', tcell.ModNone))
 	if a.st.Mode.Label() != "COMMAND" {
 		t.Fatalf("mode %s", a.st.Mode.Label())

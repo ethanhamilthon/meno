@@ -11,6 +11,10 @@ import (
 	"time"
 )
 
+// callTimeout is the longest a tool call may take; the caller's context ends
+// it sooner.
+const callTimeout = 10 * time.Minute
+
 type Tool struct {
 	Name        string          `json:"name"`
 	Description string          `json:"description"`
@@ -20,18 +24,93 @@ type Tool struct {
 type Client struct {
 	Server Server
 	cmd    *exec.Cmd
+	closer func() // set by remote transports
 	conn   *conn
 	Tools  []Tool
 	done   chan struct{}
 }
 
-func Start(ctx context.Context, s Server) (*Client, error) {
-	if s.Transport != TransportStdio {
-		return nil, fmt.Errorf("transport %s not supported in this build", s.Transport)
+// parseCommand supports shell-style quoting and escaping, without invoking a
+// shell or expanding variables, substitutions, globs, or operators.
+func parseCommand(command string) ([]string, error) {
+	var args []string
+	var word strings.Builder
+	var quote byte
+	started := false
+	for i := 0; i < len(command); i++ {
+		c := command[i]
+		if quote == '\'' {
+			if c == '\'' {
+				quote = 0
+			} else {
+				word.WriteByte(c)
+			}
+			continue
+		}
+		if c == '\\' {
+			if i+1 == len(command) {
+				return nil, errors.New("mcp: trailing command escape")
+			}
+			next := command[i+1]
+			if quote == '"' && next != '"' && next != '\\' && next != '$' && next != '`' && next != '\n' {
+				word.WriteByte(c)
+				continue
+			}
+			i++
+			if next != '\n' {
+				word.WriteByte(next)
+				started = true
+			}
+			continue
+		}
+		if quote == '"' {
+			if c == '"' {
+				quote = 0
+			} else {
+				word.WriteByte(c)
+			}
+			continue
+		}
+		switch c {
+		case '\'', '"':
+			quote = c
+			started = true
+		case ' ', '\t', '\n', '\r':
+			if started {
+				args = append(args, word.String())
+				word.Reset()
+				started = false
+			}
+		default:
+			word.WriteByte(c)
+			started = true
+		}
 	}
-	parts := strings.Fields(s.Command)
-	if len(parts) == 0 {
-		return nil, errors.New("empty command")
+	if quote != 0 {
+		return nil, errors.New("mcp: unterminated command quote")
+	}
+	if started {
+		args = append(args, word.String())
+	}
+	if len(args) == 0 || args[0] == "" {
+		return nil, errors.New("mcp: empty command")
+	}
+	return args, nil
+}
+
+func Start(ctx context.Context, s Server) (*Client, error) {
+	switch s.Transport {
+	case TransportHTTP:
+		return startHTTP(ctx, s)
+	case TransportSSE:
+		return startSSE(ctx, s)
+	case TransportStdio:
+	default:
+		return nil, fmt.Errorf("unknown transport %q", s.Transport)
+	}
+	parts, err := parseCommand(s.Command)
+	if err != nil {
+		return nil, err
 	}
 	cmd := exec.CommandContext(ctx, parts[0], parts[1:]...)
 	cmd.Env = os.Environ()
@@ -61,7 +140,8 @@ func Start(ctx context.Context, s Server) (*Client, error) {
 	return c, nil
 }
 
-func (c *Client) wait(ctx context.Context, ch chan rpcMsg, timeout time.Duration) (json.RawMessage, error) {
+func (c *Client) wait(ctx context.Context, ch chan rpcMsg, id int64, timeout time.Duration) (json.RawMessage, error) {
+	defer c.conn.pending.Delete(id)
 	t := time.NewTimer(timeout)
 	defer t.Stop()
 	select {
@@ -80,27 +160,29 @@ func (c *Client) wait(ctx context.Context, ch chan rpcMsg, timeout time.Duration
 }
 
 func (c *Client) initialize(ctx context.Context) error {
-	_, ch, _, err := c.conn.call("initialize", map[string]any{
-		"protocolVersion": "2025-06-18",
+	_, ch, id, err := c.conn.call("initialize", map[string]any{
+		"protocolVersion": protocolVersion,
 		"capabilities":    map[string]any{},
 		"clientInfo":      map[string]any{"name": "meno", "version": "0.1"},
 	})
 	if err != nil {
 		return err
 	}
-	if _, err := c.wait(ctx, ch, 10*time.Second); err != nil {
+	if _, err := c.wait(ctx, ch, id, 10*time.Second); err != nil {
 		return err
 	}
-	_ = c.conn.send(map[string]any{"jsonrpc": "2.0", "method": "notifications/initialized"})
+	if err := c.conn.send(map[string]any{"jsonrpc": "2.0", "method": "notifications/initialized"}); err != nil {
+		return err
+	}
 	return c.refresh(ctx)
 }
 
 func (c *Client) refresh(ctx context.Context) error {
-	_, ch, _, err := c.conn.call("tools/list", map[string]any{})
+	_, ch, id, err := c.conn.call("tools/list", map[string]any{})
 	if err != nil {
 		return err
 	}
-	raw, err := c.wait(ctx, ch, 10*time.Second)
+	raw, err := c.wait(ctx, ch, id, 10*time.Second)
 	if err != nil {
 		return err
 	}
@@ -115,11 +197,11 @@ func (c *Client) refresh(ctx context.Context) error {
 }
 
 func (c *Client) Call(ctx context.Context, tool string, args map[string]any) (string, error) {
-	_, ch, _, err := c.conn.call("tools/call", map[string]any{"name": tool, "arguments": args})
+	_, ch, id, err := c.conn.call("tools/call", map[string]any{"name": tool, "arguments": args})
 	if err != nil {
 		return "", err
 	}
-	raw, err := c.wait(ctx, ch, 60*time.Second)
+	raw, err := c.wait(ctx, ch, id, callTimeout)
 	if err != nil {
 		return "", err
 	}
@@ -132,7 +214,8 @@ func ExtractText(raw json.RawMessage) (string, error) {
 			Type string `json:"type"`
 			Text string `json:"text"`
 		} `json:"content"`
-		IsError bool `json:"isError"`
+		Structured json.RawMessage `json:"structuredContent"`
+		IsError    bool            `json:"isError"`
 	}
 	if err := json.Unmarshal(raw, &r); err != nil {
 		return "", err
@@ -144,6 +227,9 @@ func ExtractText(raw json.RawMessage) (string, error) {
 		}
 	}
 	s := strings.Join(parts, "\n")
+	if s == "" && len(r.Structured) > 0 && string(r.Structured) != "null" {
+		s = string(r.Structured)
+	}
 	if r.IsError {
 		return s, errors.New(s)
 	}
@@ -151,10 +237,15 @@ func ExtractText(raw json.RawMessage) (string, error) {
 }
 
 func (c *Client) Close() {
-	if c.cmd.Process != nil {
-		_ = c.cmd.Process.Kill()
+	if c.closer != nil {
+		c.closer()
 	}
-	_ = c.cmd.Wait()
+	if c.cmd != nil {
+		if c.cmd.Process != nil {
+			_ = c.cmd.Process.Kill()
+		}
+		_ = c.cmd.Wait()
+	}
 }
 
 func (c *Client) Alive() bool {

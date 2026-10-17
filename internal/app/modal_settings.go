@@ -19,7 +19,6 @@ var settingRows = []settingRow{
 	{"js output", "js_output"},
 	{"thinking", "thinking"},
 	{"js timeout", "js_timeout"},
-	{"permissions", "permissions"},
 }
 
 func (a *App) settingsKey(k *tcell.EventKey) {
@@ -37,50 +36,92 @@ func (a *App) settingsKey(k *tcell.EventKey) {
 	case k.Key() == tcell.KeyRight:
 		a.st.Settings.Cycle(settingRows[a.st.Sel].key, 1)
 		a.persistSettings()
-	case k.Rune() == '+' || k.Rune() == '=':
-		a.st.Settings.AdjustLines(1)
-		a.persistSettings()
-	case k.Rune() == '-':
-		a.st.Settings.AdjustLines(-1)
+	case k.Rune() == '+' || k.Rune() == '=' || k.Rune() == '-':
+		key := settingRows[a.st.Sel].key
+		if config.NumOption(key) == "" {
+			return
+		}
+		delta := 1
+		if k.Rune() == '-' {
+			delta = -1
+		}
+		a.st.Settings.AdjustNum(key, delta)
 		a.persistSettings()
 	}
 }
 
+// optLabel is how a choice of a setting is written: the numeric choices carry
+// their number ("lines 5", "30 sec").
+func optLabel(s *config.Settings, key, opt string) string {
+	if opt != config.NumOption(key) {
+		return opt
+	}
+	if opt == "sec" {
+		return strconv.Itoa(s.NumFor(key)) + " sec"
+	}
+	return opt + " " + strconv.Itoa(s.NumFor(key))
+}
+
 func (a *App) drawSettings(c ui.Canvas, w, h int) {
 	bh := 4 + len(settingRows) + 1
-	b := centered(w, h, 560, bh)
+	b := centered(w, h, 66, bh)
 	b.frame(c)
 	b.put(c, 2, 0, "settings", ui.Blue, ui.BgPopup)
 	y := 2
 	for i, r := range settingRows {
 		sel := i == a.st.Sel
-		bg := b.bg(sel)
+		bg := ui.BgPopup
 		b.fill(c, y, bg)
 		mark := " "
 		if sel {
 			mark = "▸"
 		}
 		b.put(c, 2, y, mark, ui.Blue, bg)
-		b.put(c, 4, y, padCol(r.label, 14), ui.FgSoft, bg)
-		x := 20
+		fg := ui.FgSoft
+		if sel {
+			fg = ui.FgWhite
+		}
 		cur := a.st.Settings.Get(r.key)
-		for _, o := range config.Choices(r.key) {
-			label := o
-			if r.key == "js_code" && o == "lines" {
-				label = "lines " + strconv.Itoa(a.st.Settings.JSLines)
+		opts := config.Choices(r.key)
+		labels := make([]string, len(opts))
+		width := 0
+		for j, o := range opts {
+			labels[j] = optLabel(&a.st.Settings, r.key, o)
+			width += ui.TextWidth(labels[j]) + 3
+		}
+		x, padding := 20, " "
+		if width-1 > b.w-x-2 {
+			x, padding = 16, ""
+			width -= 2 * len(opts)
+		}
+		if width-1 > b.w-x-2 {
+			for j, o := range opts {
+				if o == cur {
+					opts, labels = []string{o}, []string{labels[j]}
+					break
+				}
 			}
-			fg, obg := ui.FgSoft, ui.BgPopup
+			x = max(4, b.w-2-ui.TextWidth(labels[0]))
+		}
+		b.put(c, 4, y, ui.Truncate(padCol(r.label, 14), max(0, x-5)), fg, bg)
+		for j, o := range opts {
+			label := labels[j]
+			fg, obg := ui.FgDim, ui.BgPopup
 			if o == cur {
 				fg, obg = ui.FgBlack, ui.Blue
-				if r.key != "js_code" {
+				if config.NumOption(r.key) == "" {
 					obg = ui.FgSoft
 				}
 			}
-			x += b.put(c, x, y, " "+label+" ", fg, obg) + 1
+			x += b.put(c, x, y, padding+label+padding, fg, obg) + 1
 		}
 		y++
 	}
-	b.hint(c, "j/k move · ←/→ change · +/- lines · esc close")
+	hint := "j/k move · ←/→ change · +/- number · esc close"
+	if ui.TextWidth(hint) > b.w-4 {
+		hint = "j/k move · ←/→ set · esc close"
+	}
+	b.hint(c, hint)
 }
 
 func padCol(s string, n int) string { return ui.Pad(s, n) }

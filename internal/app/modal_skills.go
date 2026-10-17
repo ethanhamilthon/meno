@@ -40,5 +40,9 @@ func (a *App) drawSkills(c ui.Canvas, w, h int) {
 		}
 		items = append(items, item{glyph: g, glyphFG: gfg, label: s.Name, right: s.Scope, detail: s.Desc})
 	}
-	a.searchList(c, w, h, 620, len(a.st.Skills), items, "↑/↓ move · space toggle · esc close")
+	empty := ""
+	if len(a.st.Skills) == 0 {
+		empty = "add .md files to .meno/skills"
+	}
+	a.searchListEmpty(c, w, h, 73, len(a.st.Skills), "skills", "search skills", items, "↑/↓ move · space toggle · esc close", empty)
 }

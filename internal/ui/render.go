@@ -22,15 +22,25 @@ func DrawBar(c Canvas, x, y, w int, bg tcell.Color, left, mid, right []Seg) {
 	for _, s := range left {
 		cx += c.Text(cx, y, x+w-cx, s.Text, tcell.StyleDefault.Foreground(s.FG).Background(bg))
 	}
-	rw := 0
-	for _, s := range right {
-		rw += TextWidth(s.Text)
+	rw := TextWidth(joinSegs(right))
+	// Keep both edge anchors visible on narrow terminals. The center is optional.
+	rightW := max(0, w-(cx-x)-1)
+	if rw > rightW {
+		right = []Seg{{Text: Truncate(joinSegs(right), rightW), FG: FgDim}}
+		rw = TextWidth(joinSegs(right))
 	}
 	rx := x + w - rw
-	mx := x + (w-TextWidth(joinSegs(mid)))/2
+	mw := TextWidth(joinSegs(mid))
+	mx := x + (w-mw)/2
+	if mx < cx+1 || mx+mw > rx-1 {
+		mx = cx + 1
+		if mx+mw > rx-1 {
+			mid = nil
+		}
+	}
 	cx = mx
 	for _, s := range mid {
-		cx += c.Text(cx, y, w, s.Text, tcell.StyleDefault.Foreground(s.FG).Background(bg))
+		cx += c.Text(cx, y, max(0, rx-1-cx), s.Text, tcell.StyleDefault.Foreground(s.FG).Background(bg))
 	}
 	cx = rx
 	for _, s := range right {
@@ -47,5 +57,5 @@ func joinSegs(s []Seg) string {
 }
 
 func Badge(c Canvas, x, y int, label string, bg tcell.Color) int {
-	return c.Text(x, y, 1000, " "+label+" ", tcell.StyleDefault.Foreground(FgBlack).Background(bg).Bold(true))
+	return c.Text(x, y, 1000, " "+label+" ", tcell.StyleDefault.Foreground(FgBlack).Background(bg))
 }

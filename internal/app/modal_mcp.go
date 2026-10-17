@@ -1,6 +1,8 @@
 package app
 
 import (
+	"strings"
+
 	"github.com/gdamore/tcell/v2"
 
 	"meno/internal/mcp"
@@ -21,16 +23,30 @@ func (a *App) mcpItems() []item {
 	for _, s := range a.st.Servers {
 		g, gfg := "○", ui.FgDim
 		right := "stopped"
+		detail := mcpTarget(s)
 		switch {
 		case !s.Enabled:
 			right = "disabled"
+		case a.mcp.Starting(s.Name):
+			g, gfg = "◌", ui.Yellow
+			right = "starting…"
 		case a.mcp.Running(s.Name):
 			g, gfg = "●", ui.Green
-			right = s.Transport + " · running"
+			tools := a.mcp.ToolsOf(s.Name)
+			right = s.Transport + " · " + itoa(len(tools)) + " tools"
+			if len(tools) > 0 {
+				names := make([]string, len(tools))
+				for i, t := range tools {
+					names[i] = t.Name
+				}
+				detail = strings.Join(names, ", ")
+			}
 		case a.mcp.Err(s.Name) != "":
+			g, gfg = "✕", ui.Red
 			right = "error"
+			detail = a.mcp.Err(s.Name)
 		}
-		out = append(out, item{glyph: g, glyphFG: gfg, label: s.Name, right: right, detail: mcpTarget(s)})
+		out = append(out, item{glyph: g, glyphFG: gfg, label: s.Name, right: right, detail: detail})
 	}
 	return append(out, item{glyph: "+", glyphFG: ui.Blue, label: "new mcp server", accent: true})
 }
@@ -53,6 +69,7 @@ func (a *App) mcpKey(k *tcell.EventKey) {
 	}
 }
 
+// startMCP (re)starts server i in the background, or stops it when disabled.
 func (a *App) startMCP(i int) {
 	if i < 0 || i >= len(a.st.Servers) {
 		return
@@ -62,9 +79,7 @@ func (a *App) startMCP(i int) {
 		a.mcp.Stop(s.Name)
 		return
 	}
-	if err := a.mcp.Start(contextBG(), s); err != nil {
-		a.st.Toast = s.Name + ": " + err.Error()
-	}
+	a.startMCPAsync(s)
 }
 
 func (a *App) openMCPEdit(i int) {
@@ -86,7 +101,7 @@ func (a *App) drawMCP(c ui.Canvas, w, h int) {
 		}
 	}
 	header := titleRow("mcp servers", itoa(running)+" running · "+itoa(a.mcp.ToolCount())+" tools")
-	listBox(c, w, h, 620, header, a.mcpItems(), a.st.Sel,
+	listBox(c, w, h, 73, header, a.mcpItems(), a.st.Sel,
 		"j/k select · space toggle · enter edit · n new · r restart · esc close")
 }
 
@@ -97,6 +112,17 @@ func (a *App) mcpFields() []field {
 		{label: "transport", opts: mcpTransports, get: func() string { return s.Transport }, set: func(v string) error { s.Transport = v; return nil }},
 		{label: "command", get: func() string { return s.Command }, set: func(v string) error { s.Command = v; return nil }},
 		{label: "url", get: func() string { return s.URL }, set: func(v string) error { s.URL = v; return nil }},
+		{label: "headers", get: func() string { return envString(s.Headers) }, set: func(v string) error {
+			m, err := parseEnv(v)
+			if err != nil {
+				return err
+			}
+			if len(m) == 0 {
+				m = nil
+			}
+			s.Headers = m
+			return nil
+		}},
 		{label: "env", get: func() string { return envString(s.Env) }, set: func(v string) error {
 			m, err := parseEnv(v)
 			if err != nil {
@@ -127,12 +153,12 @@ func (a *App) mcpEditKey(k *tcell.EventKey) {
 func (a *App) saveMCPEdit() {
 	s := a.st.EditMCP
 	if err := mcp.ValidateServer(s); err != nil {
-		a.st.Toast = err.Error()
+		a.notifyErr(err.Error())
 		return
 	}
 	for j, o := range a.st.Servers {
 		if j != a.st.EditIdx && o.Name == s.Name {
-			a.st.Toast = "mcp server " + s.Name + " already exists"
+			a.notifyErr("mcp server " + s.Name + " already exists")
 			return
 		}
 	}
@@ -147,12 +173,12 @@ func (a *App) saveMCPEdit() {
 	}
 	a.persistServers()
 	a.startMCP(a.st.EditIdx)
-	a.st.Toast = "mcp saved"
+	a.notify("mcp saved")
 }
 
 func (a *App) drawMCPEdit(c ui.Canvas, w, h int) {
 	fs := a.mcpFields()
-	b := centered(w, h, 620, len(fs)+6)
+	b := centered(w, h, 73, len(fs)+6)
 	b.frame(c)
 	b.put(c, 2, 0, "mcp /", ui.FgDim, ui.BgPopup)
 	name := a.st.EditMCP.Name

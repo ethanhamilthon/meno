@@ -41,7 +41,11 @@ func (c *conn) send(v any) error {
 	if err != nil {
 		return err
 	}
-	_, err = c.w.Write(append(b, '\n'))
+	b = append(b, '\n')
+	n, err := c.w.Write(b)
+	if err == nil && n != len(b) {
+		err = io.ErrShortWrite
+	}
 	return err
 }
 
@@ -50,20 +54,43 @@ func (c *conn) call(method string, params any) (json.RawMessage, chan rpcMsg, in
 	ch := make(chan rpcMsg, 1)
 	c.pending.Store(id, ch)
 	err := c.send(map[string]any{"jsonrpc": "2.0", "id": id, "method": method, "params": params})
+	if err != nil {
+		c.pending.Delete(id)
+	}
 	return nil, ch, id, err
+}
+
+// handle routes one JSON-RPC message from the server: a response goes to the
+// call waiting for it, a ping is answered, everything else is ignored.
+func (c *conn) handle(line []byte) {
+	var m rpcMsg
+	if json.Unmarshal(line, &m) != nil || m.ID == nil {
+		return
+	}
+	if m.Method == "ping" {
+		_ = c.send(map[string]any{"jsonrpc": "2.0", "id": *m.ID, "result": map[string]any{}})
+		return
+	}
+	if m.Result == nil && m.Error == nil {
+		return
+	}
+	if v, ok := c.pending.LoadAndDelete(*m.ID); ok {
+		v.(chan rpcMsg) <- m
+	}
+}
+
+// fail completes a pending call with a transport error.
+func (c *conn) fail(id int64, err error) {
+	if v, ok := c.pending.LoadAndDelete(id); ok {
+		v.(chan rpcMsg) <- rpcMsg{ID: &id, Error: &rpcError{Code: -32000, Message: err.Error()}}
+	}
 }
 
 func (c *conn) dispatch(r io.Reader) error {
 	sc := bufio.NewScanner(r)
 	sc.Buffer(make([]byte, 64*1024), 32*1024*1024)
 	for sc.Scan() {
-		var m rpcMsg
-		if json.Unmarshal(sc.Bytes(), &m) != nil || m.ID == nil || (m.Result == nil && m.Error == nil) {
-			continue
-		}
-		if v, ok := c.pending.LoadAndDelete(*m.ID); ok {
-			v.(chan rpcMsg) <- m
-		}
+		c.handle(sc.Bytes())
 	}
 	return sc.Err()
 }

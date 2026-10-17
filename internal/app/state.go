@@ -19,23 +19,44 @@ const (
 	OverSkills
 	OverMCP
 	OverMCPEdit
-	OverPrompts
 	OverResume
+	OverTheme
 	OverHelp
-	OverPromptEdit
 )
 
-type State struct {
-	Mode    ui.Mode
-	Over    Overlay
-	Input   []rune
-	Cursor  int
-	Cmd     []rune
-	Scroll  int
-	Sel     int
-	Query   []rune
-	Status  string
+// liveCall is a tool call that is not in the session yet: its code is still
+// streaming from the model, or it is executing.
+type liveCall struct {
+	ID      string
+	Code    string
 	Running bool
+}
+
+type State struct {
+	Mode      ui.Mode
+	Over      Overlay
+	Input     []rune
+	Cursor    int // rune index of the text cursor inside Input
+	WantCol   int // sticky column for up/down movement
+	WantSet   bool
+	InputTop  int    // first visible composer row
+	Phase     string // what the running agent is doing: thinking, writing, running, compacting
+	CmdSel    int
+	LiveText  string
+	LiveThink string
+	LiveBase  int        // session length the live state was produced at
+	LiveCalls []liveCall // tool calls streaming in or executing
+	Unpriced  bool
+	Spent     float64
+	Context   int
+	Pricing   map[string]llm.ModelInfo
+	Cmd       []rune
+	LogLines  int
+	Scroll    int
+	Sel       int
+	Query     []rune
+	Status    string
+	Running   bool
 
 	Settings  config.Settings
 	Providers []llm.Provider
@@ -44,24 +65,41 @@ type State struct {
 	Loading   map[string]bool
 	Skills    []config.Skill
 	Servers   []mcp.Server
-	Prompts   []config.Prompt
 	Sessions  []agent.SessionInfo
 
 	Session *agent.Session
-	Visual  int
-	Yank    string
 	Field   int
 	Editing bool
 	Buffer  []rune
 
-	Usage   llm.Usage
-	Pending any
-	Toast   string
+	LastUsage llm.Usage
+	Usage     llm.Usage
+	Notices   []notice
 
-	EditIdx    int
-	EditProv   llm.Provider
-	EditMCP    mcp.Server
-	EditPrompt config.Prompt
+	// Vim editing state of the input (normal / visual mode).
+	VimBuf    []rune // keys of the command being typed (counts, operator...)
+	Reg       string // unnamed register
+	RegLine   bool   // register holds whole lines
+	Undo      []snap
+	Redo      []snap
+	InsBase   snap   // input as it was when the current insert session began
+	LastFind  string // f F t T of the last find, for ; and ,
+	LastFindC rune
+
+	// Cursor in the timeline (normal / visual mode). When InLog is false the
+	// cursor is Cursor inside Input.
+	InLog   bool
+	LogLine int
+	LogCol  int
+	// Visual selection: kind 'v', 'V' or 'b' (block); the anchor mirrors the cursor.
+	VKind     rune
+	AnchorLog bool
+	ALine     int
+	ACol      int
+
+	EditIdx  int
+	EditProv llm.Provider
+	EditMCP  mcp.Server
 }
 
 func NewState() *State {

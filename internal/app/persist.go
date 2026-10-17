@@ -4,25 +4,19 @@ import "time"
 
 func (a *App) persistProviders() {
 	if err := a.store.SaveProviders(a.st.Providers); err != nil {
-		a.st.Toast = err.Error()
+		a.notifyErr(err.Error())
 	}
 }
 
 func (a *App) persistServers() {
 	if err := a.store.SaveServers(a.st.Servers); err != nil {
-		a.st.Toast = err.Error()
+		a.notifyErr(err.Error())
 	}
 }
 
 func (a *App) persistSkills() {
 	if err := a.store.SaveSkills(a.st.Skills); err != nil {
-		a.st.Toast = err.Error()
-	}
-}
-
-func (a *App) persistPrompts() {
-	if err := a.store.SavePrompts(a.st.Prompts); err != nil {
-		a.st.Toast = err.Error()
+		a.notifyErr(err.Error())
 	}
 }
 

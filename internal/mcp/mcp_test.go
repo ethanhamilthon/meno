@@ -32,11 +32,11 @@ for line in sys.stdin:
 
 func fakeCmd(t *testing.T) string {
 	t.Helper()
-	p := filepath.Join(t.TempDir(), "fake.py")
+	p := filepath.Join(t.TempDir(), "fake server.py")
 	if err := os.WriteFile(p, []byte(fakeServer), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	return "python3 " + p
+	return "python3 '" + p + "'"
 }
 
 func TestStdioHandshakeAndCall(t *testing.T) {

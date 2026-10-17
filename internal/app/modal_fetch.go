@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"sort"
 	"time"
 
 	"meno/internal/llm"
@@ -20,7 +21,7 @@ func (a *App) fetchModels() {
 			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 			defer cancel()
 			ms, err := llm.FetchModels(ctx, p)
-			a.events <- modelsLoaded{provider: p.Name, models: ms, err: err}
+			a.postEvent(modelsLoaded{provider: p.Name, models: ms, err: err})
 		}(p)
 	}
 }
@@ -36,11 +37,23 @@ func (a *App) onModelsLoaded(m modelsLoaded) {
 	delete(a.st.ModelErr, m.provider)
 }
 
-// allModels returns the models of every provider, in provider order.
+// allModels merges cached catalog entries with live discovery, in provider order.
 func (a *App) allModels() []llm.Model {
 	var out []llm.Model
 	for _, p := range a.st.Providers {
-		out = append(out, a.st.Models[p.Name]...)
+		models := llm.CatalogModels(a.st.Pricing, p)
+		seen := make(map[string]bool, len(models))
+		for _, m := range models {
+			seen[m.ID] = true
+		}
+		for _, m := range a.st.Models[p.Name] {
+			if !seen[m.ID] {
+				models = append(models, m)
+				seen[m.ID] = true
+			}
+		}
+		sort.Slice(models, func(i, j int) bool { return models[i].ID < models[j].ID })
+		out = append(out, models...)
 	}
 	return out
 }

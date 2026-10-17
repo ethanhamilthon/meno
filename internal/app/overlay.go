@@ -25,8 +25,9 @@ func (a *App) backOverlay() {
 		a.st.Over, a.st.Sel, a.st.Field = OverProviders, max(a.st.EditIdx, 0), 0
 	case OverMCPEdit:
 		a.st.Over, a.st.Sel, a.st.Field = OverMCP, max(a.st.EditIdx, 0), 0
-	case OverPromptEdit:
-		a.st.Over, a.st.Sel, a.st.Field = OverPrompts, max(a.st.EditIdx, 0), 0
+	case OverTheme:
+		a.cancelTheme()
+		a.closeOverlay()
 	default:
 		a.closeOverlay()
 	}
@@ -54,14 +55,12 @@ func (a *App) onOverlayKey(k *tcell.EventKey) {
 		a.mcpKey(k)
 	case OverMCPEdit:
 		a.mcpEditKey(k)
-	case OverPrompts:
-		a.promptsKey(k)
 	case OverResume:
 		a.resumeKey(k)
+	case OverTheme:
+		a.themeKey(k)
 	case OverHelp:
 		a.helpKey(k)
-	case OverPromptEdit:
-		a.promptEditKey(k)
 	}
 }
 
@@ -81,14 +80,12 @@ func (a *App) drawOverlay(c ui.Canvas, w, h int) {
 		a.drawMCP(c, w, h)
 	case OverMCPEdit:
 		a.drawMCPEdit(c, w, h)
-	case OverPrompts:
-		a.drawPrompts(c, w, h)
 	case OverResume:
 		a.drawResume(c, w, h)
+	case OverTheme:
+		a.drawTheme(c, w, h)
 	case OverHelp:
 		a.drawHelp(c, w, h)
-	case OverPromptEdit:
-		a.drawPromptEdit(c, w, h)
 	}
 }
 
@@ -114,9 +111,8 @@ func (a *App) navKey(k *tcell.EventKey, n int, jk bool) bool {
 }
 
 func (a *App) persistSettings() {
-	a.gate.SetMode(a.st.Settings.Permissions)
 	a.vm.SetTimeout(a.st.Settings.TimeoutDuration())
 	if err := a.store.SaveSettings(a.st.Settings); err != nil {
-		a.st.Toast = err.Error()
+		a.notifyErr(err.Error())
 	}
 }

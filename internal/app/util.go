@@ -6,7 +6,7 @@ import (
 	"strconv"
 )
 
-func contextBG() context.Context { return context.Background() }
+func contextBackground() context.Context { return context.Background() }
 
 func itoa(n int) string { return strconv.Itoa(n) }
 

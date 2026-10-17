@@ -11,10 +11,10 @@ func TestPadAndTruncateWideRunes(t *testing.T) {
 	if got := Pad("ab", 5); got != "ab   " {
 		t.Fatalf("pad %q", got)
 	}
-	if got := Pad("привет", 3); got != "привет" {
+	if got := Pad("héllo", 3); got != "héllo" {
 		t.Fatalf("pad must not cut: %q", got)
 	}
-	if got := Truncate("привет мир", 5); TextWidth(got) > 5 {
+	if got := Truncate("héllo world", 5); TextWidth(got) > 5 {
 		t.Fatalf("truncate too wide: %q (%d)", got, TextWidth(got))
 	}
 	if got := Truncate("abc", 1); got != "" {
@@ -60,7 +60,7 @@ func TestModeLabels(t *testing.T) {
 }
 
 func TestCodeLinesRespectMax(t *testing.T) {
-	lines := CodeLines("a\nb\nc\nd", BgJSDone, 2)
+	lines := CodeLines("a\nb\nc\nd", BgJSDone, 0, 2)
 	if len(lines) != 3 || lines[2].Segs[0].Text != "  …" {
 		t.Fatalf("expected 2 code lines + ellipsis, got %d", len(lines))
 	}
@@ -69,5 +69,17 @@ func TestCodeLinesRespectMax(t *testing.T) {
 func TestPlainKeepsBackground(t *testing.T) {
 	if l := Plain("x", tcell.ColorWhite, BgUser); l.BG != BgUser {
 		t.Fatal("plain line lost background")
+	}
+}
+
+func TestCodeLinesWrapLongRows(t *testing.T) {
+	lines := CodeLines("const s = '"+strings.Repeat("x", 50)+"';\nok", BgJSDone, 20, 0)
+	if len(lines) < 4 {
+		t.Fatalf("long row not wrapped: %d rows", len(lines))
+	}
+	for _, l := range lines {
+		if l.Width() > 20 || l.BG != BgJSDone {
+			t.Fatalf("row width %d bg %v", l.Width(), l.BG)
+		}
 	}
 }

@@ -1,80 +1,134 @@
 package app
 
-import "meno/internal/ui"
+import (
+	"fmt"
+	"time"
+
+	"meno/internal/ui"
+)
 
 func (a *App) drawMain(c ui.Canvas, w, h int) {
-	bottom := a.bottomHeight()
+	bottom := min(h, a.bottomHeight())
 	logH := h - bottom
 	lines := a.transcriptWithSelection(w)
-	if len(lines) == 0 {
+	if a.timelineEmpty() {
 		a.drawWelcome(c, 0, 0, w, logH)
+		// Notices on a fresh session sit at the bottom of the hero screen.
+		for i := 0; i < len(lines) && i < logH; i++ {
+			ui.DrawLine(c, 0, logH-1-i, w, lines[len(lines)-1-i])
+		}
 	} else {
 		a.drawLog(c, 0, 0, w, logH, lines)
+	}
+	if gap := a.logGap(); gap > 0 && bottom > gap {
+		c.Fill(0, logH, w, gap, ui.BgTerm)
+		a.drawBottom(c, 0, logH+gap, w, bottom-gap)
+		return
 	}
 	a.drawBottom(c, 0, logH, w, bottom)
 }
 
-// composerRows: top padding, text row, bottom padding (design: 18/20 padding band).
-const composerRows = composerPadY*2 + 1
-
-func (a *App) bottomHeight() int {
-	n := 0
-	if a.st.Mode == ui.ModeCommand {
-		n = len(commandRows(a)) + 1
-	} else {
-		n = composerRows
+// logGap is the blank row between the last block of the timeline and the
+// input, so the last message does not touch the input. It is part of the
+// bottom area, so every scroll and cursor computation already accounts for it.
+func (a *App) logGap() int {
+	if a.timelineEmpty() && len(a.currentNotices()) == 0 {
+		return 0
 	}
-	return n + a.acHeight() + 1
+	return 1
 }
 
+const commandMaxRows = 25
+
+func (a *App) bottomHeight() int {
+	if a.st.Mode == ui.ModeCommand {
+		w, _ := a.scr.Size()
+		return acRowCount(len(commandRows(a)), w) + 1 + a.logGap()
+	}
+	return a.composerHeight() + a.acHeight() + 1 + a.logGap()
+}
 func (a *App) drawLog(c ui.Canvas, x, y, w, h int, lines []ui.Line) {
 	c.Fill(x, y, w, h, ui.BgTerm)
-	start := 0
-	if len(lines) > h {
-		start = len(lines) - h - a.st.Scroll
-		if start < 0 {
-			start = 0
-		}
+	if a.st.Scroll > 0 && len(lines) > a.st.LogLines {
+		a.st.Scroll += len(lines) - a.st.LogLines
 	}
+	a.st.LogLines = len(lines)
+	a.st.Scroll = min(max(0, a.st.Scroll), max(0, len(lines)-h))
+	start := max(0, len(lines)-h-a.st.Scroll)
 	for i := 0; i < h && start+i < len(lines); i++ {
 		ui.DrawLine(c, x, y+i, w, lines[start+i])
 	}
+	a.paintLog(c, x, y, w, h, lines, start)
 }
-
 func (a *App) drawBottom(c ui.Canvas, x, y, w, h int) {
-	if a.st.Mode == ui.ModeCommand {
-		a.drawCommandList(c, x, y, w)
-		n := len(commandRows(a))
-		y += n
-		h -= n
-		c.Fill(x, y, w, h-1, ui.BgTerm)
-		a.drawCommandLine(c, x, y, w)
-		a.drawStatus(c, x, y+h-1, w)
+	if h <= 0 {
 		return
 	}
-	inputH := h - 1
-	if ac := a.acHeight(); ac > 0 {
-		a.drawAutocomplete(c, x, y, w)
-		y += ac
-		inputH -= ac
+	if a.st.Mode == ui.ModeCommand {
+		// Command mode owns the whole bottom: completion rows and one input line.
+		rows := min(acRowCount(len(commandRows(a)), w), h-1)
+		a.drawCommandRows(c, x, y, w, rows)
+		a.drawCommandLine(c, x, y+h-1, w)
+		return
 	}
-	c.Fill(x, y, w, inputH, ui.BgUser)
-	a.drawComposer(c, x, y, w, inputH)
-	a.drawStatus(c, x, y+inputH, w)
+	statusY := y + h - 1
+	bodyH := max(0, h-1)
+	if bodyH > 0 {
+		ac := min(a.acHeight(), max(0, bodyH-a.composerHeight()))
+		if ac > 0 {
+			a.drawAutocompleteRows(c, x, y, w, ac)
+		}
+		y += ac
+		bodyH -= ac
+		c.Fill(x, y, w, bodyH, ui.BgUser)
+		a.drawComposer(c, x, y, w, bodyH)
+	}
+	a.drawStatus(c, x, statusY, w)
+}
+func (a *App) drawStatus(c ui.Canvas, x, y, w int) {
+	label := a.st.Mode.Label()
+	if a.st.Over != OverNone {
+		labels := map[Overlay]string{OverModel: "MODEL", OverSettings: "SETTINGS", OverProviders: "PROVIDERS", OverProviderEdit: "PROVIDER", OverSkills: "SKILLS", OverMCP: "MCP", OverMCPEdit: "MCP", OverResume: "RESUME", OverTheme: "THEME", OverHelp: "HELP"}
+		if name := labels[a.st.Over]; name != "" {
+			label = name
+		}
+	}
+	left := []ui.Seg{{Text: " " + label + " ", FG: ui.FgBlack}}
+	center := a.statusUsageText()
+	if hint := a.visualHint(); hint != "" {
+		center = hint
+	}
+	mid := []ui.Seg{{Text: center, FG: ui.FgDim}}
+	dot, color := "○ ", ui.FgDim
+	if a.st.Running {
+		// Blink while the agent works: 500ms on, 500ms off.
+		dot, color = "● ", ui.Green
+		if time.Now().UnixMilli()/500%2 == 1 {
+			color = ui.FgDim
+		}
+	}
+	right := []ui.Seg{{Text: dot, FG: color}, {Text: a.modelLabel(), FG: ui.FgDim}, {Text: " ", FG: ui.FgDim}}
+	ui.DrawBar(c, x, y, w, ui.BgTerm, left, mid, right)
+	ui.Badge(c, x, y, label, a.st.Mode.Color())
 }
 
-func (a *App) drawStatus(c ui.Canvas, x, y, w int) {
-	left := []ui.Seg{{Text: " " + a.st.Mode.Label() + " ", FG: ui.FgBlack}}
-	midText := a.statsText()
-	if h := a.visualHint(); h != "" {
-		midText = h
+func compactTokens(n int) string {
+	if n >= 1000000 {
+		return fmt.Sprintf("%.1fm", float64(n)/1000000)
 	}
-	mid := []ui.Seg{{Text: midText, FG: ui.FgDim}}
-	right := []ui.Seg{
-		{Text: "● ", FG: ui.Green},
-		{Text: a.modelLabel(), FG: ui.FgDim},
-		{Text: " ", FG: ui.FgDim},
+	if n >= 1000 {
+		if n%1000 == 0 {
+			return fmt.Sprintf("%dk", n/1000)
+		}
+		return fmt.Sprintf("%.1fk", float64(n)/1000)
 	}
-	ui.DrawBar(c, x, y, w, ui.BgTerm, left, mid, right)
-	ui.Badge(c, x, y, a.st.Mode.Label(), a.st.Mode.Color())
+	return fmt.Sprint(n)
+}
+
+func (a *App) contextLabel() string {
+	text := compactTokens(a.st.Context)
+	if info, ok := a.modelInfo(); ok && info.Context > 0 {
+		text += " / " + compactTokens(info.Context)
+	}
+	return text
 }

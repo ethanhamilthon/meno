@@ -1,6 +1,8 @@
 package app
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -27,7 +29,7 @@ func TestWelcomeShownWhenEmpty(t *testing.T) {
 	defer scr.Fini()
 	a.draw()
 	out := screenText(scr)
-	for _, want := range []string{":model", "#prompt", "███"} {
+	for _, want := range []string{":model", "/skill", "███"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("welcome missing %q:\n%s", want, out)
 		}
@@ -37,12 +39,30 @@ func TestWelcomeShownWhenEmpty(t *testing.T) {
 func TestSkillsToggleAndSearch(t *testing.T) {
 	a, scr := newTestApp(t)
 	defer scr.Fini()
-	a.st.Skills = config.DefaultSkills()
-	a.openOverlay(OverSkills)
-	before := a.st.Skills[0].Enabled
+	dir := a.paths.GlobalSkillsDir()
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for name, text := range map[string]string{"alpha.md": "---\ndescription: first skill\n---\n", "beta.md": "second skill\n"} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(text), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	a.runCommand("skills")
+	if len(a.st.Skills) != 2 || !a.st.Skills[0].Enabled {
+		t.Fatalf("skills not discovered: %+v", a.st.Skills)
+	}
+	a.draw()
+	if text := screenText(scr); !strings.Contains(text, "alpha") || !strings.Contains(text, "first skill") || !strings.Contains(text, "global") {
+		t.Fatalf("skills not shown:\n%s", text)
+	}
 	a.onKey(key(' '))
-	if a.st.Skills[0].Enabled == before {
+	if a.st.Skills[0].Enabled {
 		t.Fatal("space did not toggle skill")
+	}
+	saved, _ := a.store.LoadSkills()
+	if saved[0].Enabled || !saved[1].Enabled {
+		t.Fatalf("toggle not persisted: %+v", saved)
 	}
 	typeRunes(a, "zzz-none")
 	if n := len(a.skillIdx()); n != 0 {
@@ -54,31 +74,23 @@ func TestSkillsToggleAndSearch(t *testing.T) {
 	}
 }
 
+func TestSkillsDialogExplainsWhereToPutSkills(t *testing.T) {
+	a, scr := newTestApp(t)
+	defer scr.Fini()
+	a.runCommand("skills")
+	a.draw()
+	if text := screenText(scr); !strings.Contains(text, ".meno/skills") {
+		t.Fatalf("no hint for an empty skills list:\n%s", text)
+	}
+}
+
 func TestResumeOverlayNoSessions(t *testing.T) {
 	a, scr := newTestApp(t)
 	defer scr.Fini()
 	a.openResume()
 	a.draw()
-	if !strings.Contains(screenText(scr), "nothing here") {
+	if !strings.Contains(screenText(scr), "no matching sessions") {
 		t.Fatal("resume overlay not rendered")
-	}
-}
-
-func TestPromptSaveRejectsDuplicateAndBadName(t *testing.T) {
-	a, _ := newTestApp(t)
-	defer a.scr.Fini()
-	a.st.Prompts = []config.Prompt{{Name: "rate-limit", Scope: "project", Template: "x"}}
-	a.openPromptEdit(-1)
-	a.st.EditPrompt.Name = "rate-limit"
-	a.st.EditPrompt.Template = "y"
-	a.savePromptEdit()
-	if len(a.st.Prompts) != 1 || a.st.Toast == "" {
-		t.Fatalf("duplicate accepted: %+v toast=%q", a.st.Prompts, a.st.Toast)
-	}
-	a.st.EditPrompt.Name = "Bad Name!"
-	a.savePromptEdit()
-	if len(a.st.Prompts) != 1 {
-		t.Fatal("invalid name accepted")
 	}
 }
 
@@ -99,7 +111,7 @@ func TestMCPEditRejectsInvalidServer(t *testing.T) {
 	a.openMCPEdit(-1)
 	a.st.EditMCP.Name = ""
 	a.saveMCPEdit()
-	if len(a.st.Servers) != before || a.st.Toast == "" {
+	if len(a.st.Servers) != before || a.lastNotice() == "" {
 		t.Fatalf("invalid server saved: %+v", a.st.Servers)
 	}
 }
@@ -109,7 +121,7 @@ func TestHelpClosesOnQ(t *testing.T) {
 	defer scr.Fini()
 	a.openOverlay(OverHelp)
 	a.draw()
-	if !strings.Contains(screenText(scr), ":compact") {
+	if !strings.Contains(screenText(scr), "modes & navigation") {
 		t.Fatal("help rows missing")
 	}
 	a.onKey(key('q'))
@@ -118,30 +130,27 @@ func TestHelpClosesOnQ(t *testing.T) {
 	}
 }
 
-func TestPromptAutocompleteCompletesOnEnter(t *testing.T) {
+func TestSkillAutocompleteCompletesOnTab(t *testing.T) {
 	a, _ := newTestApp(t)
 	defer a.scr.Fini()
-	a.st.Prompts = []config.Prompt{
-		{Name: "rate-limit", Scope: "project", Template: "add rl"},
-		{Name: "unit-tests", Scope: "global", Template: "tests"},
-	}
-	typeRunes(a, "#rat")
+	a.st.Skills = []config.Skill{{Name: "rate-limit", Desc: "add rl", Enabled: true}, {Name: "unit-tests", Desc: "tests", Enabled: true}}
+	typeRunes(a, "/rat")
 	if !a.acActive() || len(a.acMatches()) != 1 {
-		t.Fatalf("autocomplete not active for #rat: %v", a.acMatches())
+		t.Fatalf("autocomplete not active for /rat: %v", a.acMatches())
 	}
 	a.onKey(keyK(tcell.KeyTab))
-	if got := string(a.st.Input); got != "#rate-limit " {
+	if got := string(a.st.Input); got != "/rate-limit " {
 		t.Fatalf("completed to %q", got)
 	}
 }
 
-func TestPromptAutocompleteEscLeavesInsert(t *testing.T) {
+func TestSkillAutocompleteEscLeavesInsert(t *testing.T) {
 	a, _ := newTestApp(t)
 	defer a.scr.Fini()
-	a.st.Prompts = []config.Prompt{{Name: "rate-limit", Scope: "project", Template: "x"}}
-	typeRunes(a, "#r")
+	a.st.Skills = []config.Skill{{Name: "rate-limit", Desc: "x", Enabled: true}}
+	typeRunes(a, "/r")
 	a.onKey(keyK(tcell.KeyEsc))
-	if a.st.Mode != ui.ModeNormal || a.acActive() || string(a.st.Input) != "#r" {
+	if a.st.Mode != ui.ModeNormal || a.acActive() || string(a.st.Input) != "/r" {
 		t.Fatalf("esc: mode=%v input=%q", a.st.Mode, string(a.st.Input))
 	}
 }
@@ -164,12 +173,14 @@ func TestVisualModeShowsHintAndSelection(t *testing.T) {
 func TestCommandModeShowsListAndLine(t *testing.T) {
 	a, scr := newTestApp(t)
 	defer scr.Fini()
+	a.onKey(keyK(tcell.KeyEsc))
 	a.onKey(key(':'))
 	typeRunes(a, "mo")
 	a.draw()
 	out := screenText(scr)
-	if !strings.Contains(out, ":mo█") {
-		t.Fatalf("command line missing:\n%s", out)
+	_, h := scr.Size()
+	if !strings.HasPrefix(visualRow(scr, h-1), ":mo") {
+		t.Fatalf("command line missing on the last row:\n%s", out)
 	}
 	if !strings.Contains(out, ":model") {
 		t.Fatalf("command list missing:\n%s", out)
@@ -180,7 +191,7 @@ func TestEmptyComposerShowsCursor(t *testing.T) {
 	a, scr := newTestApp(t)
 	defer scr.Fini()
 	a.draw()
-	if !strings.Contains(screenText(scr), "▏") {
+	if !cursorVisible(scr) {
 		t.Fatal("cursor missing on empty composer")
 	}
 }
@@ -188,6 +199,7 @@ func TestEmptyComposerShowsCursor(t *testing.T) {
 func TestCommandEnterRunsCommand(t *testing.T) {
 	a, scr := newTestApp(t)
 	defer scr.Fini()
+	a.onKey(keyK(tcell.KeyEsc))
 	a.onKey(key(':'))
 	typeRunes(a, "help")
 	a.onKey(keyK(tcell.KeyEnter))
