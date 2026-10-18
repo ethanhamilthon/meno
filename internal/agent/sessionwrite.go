@@ -84,8 +84,8 @@ func writeSessionTx(tx *sql.Tx, s *Session) (pend Pending, err error) {
 	if _, err = tx.Exec("DELETE FROM requests WHERE session_id = ?", s.ID); err != nil {
 		return pend, err
 	}
-	ins, err := tx.Prepare(`INSERT INTO turns(session_id,seq,role,text,thinking,call_id,code,output,err,replay,replay_group,time,system,attachments,kind,elapsed_ms,limit_ms,timed_out,run,hid,event_id)
-		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+	ins, err := tx.Prepare(`INSERT INTO turns(session_id,seq,role,text,thinking,call_id,code,output,err,replay,replay_group,time,system,attachments,kind,elapsed_ms,limit_ms,timed_out,run,hid,event_id,title)
+		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
 	if err != nil {
 		return pend, err
 	}
@@ -108,7 +108,7 @@ func writeSessionTx(tx *sql.Tx, s *Session) (pend Pending, err error) {
 			return pend, merr
 		}
 		if _, err = ins.Exec(s.ID, i, t.Role, t.Text, t.Thinking, t.CallID, t.Code, t.Output, t.Err, replay, t.ReplayGroup, ts(t.Time),
-			t.System, attachments, t.Kind, t.ElapsedMs, t.LimitMs, b2i(t.TimedOut), run, t.HID, t.EventID); err != nil {
+			t.System, attachments, t.Kind, t.ElapsedMs, t.LimitMs, b2i(t.TimedOut), run, t.HID, t.EventID, t.Title); err != nil {
 			return pend, err
 		}
 	}

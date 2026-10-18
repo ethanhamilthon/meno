@@ -52,6 +52,8 @@ type Turn struct {
 	ElapsedMs int64 `json:"elapsed_ms,omitempty"`
 	LimitMs   int64 `json:"limit_ms,omitempty"`
 	TimedOut  bool  `json:"timed_out,omitempty"`
+	// Title is the short description of a js call that the model wrote.
+	Title string `json:"title,omitempty"`
 	// Run sums up the work that ended with this turn: set on the last turn of
 	// every Continue, whether it finished, failed or was stopped.
 	Run *RunStats `json:"run,omitempty"`

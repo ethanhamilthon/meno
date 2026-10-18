@@ -253,7 +253,7 @@ func (a *App) drawWelcome(c ui.Canvas, x, y, w, h int) {
 		}
 		drawLogo(c, logoX, logoY, x, y, w, h)
 		if r, ok := row(12); ok {
-			drawSegs(c, x, r, w, []seg{{versionLabel, ui.FgDim, false}})
+			drawSegs(c, x, r, w, a.versionSegs())
 		}
 		if r, ok := row(15); ok {
 			drawSegs(c, x, r, w, a.infoLine(w))
@@ -264,7 +264,7 @@ func (a *App) drawWelcome(c ui.Canvas, x, y, w, h int) {
 		return
 	}
 	if r, ok := row(0); ok {
-		drawSegs(c, x, r, w, []seg{{"meno", ui.Blue, true}, {" " + versionLabel, ui.FgDim, false}})
+		drawSegs(c, x, r, w, append([]seg{{"meno", ui.Blue, true}, {" ", ui.FgDim, false}}, a.versionSegs()...))
 	}
 	if r, ok := row(1); ok {
 		drawSegs(c, x, r, w, tag)

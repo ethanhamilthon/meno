@@ -1,5 +1,6 @@
 GO ?= go
 BIN ?= meno
+DEV_HOME ?= $(HOME)/.meno-dev
 
 .PHONY: version build install run test race vet fmt size check term bench clean
 
@@ -13,8 +14,10 @@ version:
 install:
 	$(GO) install ./cmd/meno
 
+# Runs the dev build with its own MENO_HOME, so it never touches the data of an
+# installed meno. Override with: make run DEV_HOME=/some/dir
 run: build
-	./$(BIN)
+	MENO_HOME=$(DEV_HOME) ./$(BIN)
 
 test:
 	$(GO) test ./...

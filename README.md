@@ -22,8 +22,10 @@ curl -fsSL https://github.com/ethanhamilthon/meno/releases/latest/download/insta
 curl -fsSL https://github.com/ethanhamilthon/meno/releases/latest/download/install.sh | sh -s -- v0.1.0   # a version
 ```
 
-Options (environment): `MENO_INSTALL_DIR`, `MENO_REPO`, `MENO_BASE_URL`. Update by running
-the installer again. Remove with `uninstall.sh` (`--purge` also deletes `~/.meno`).
+Options (environment): `MENO_INSTALL_DIR`, `MENO_REPO`, `MENO_BASE_URL`. Update with `meno update`
+(or run the installer again). meno checks for a new release when it starts and says so on the
+welcome screen; set `MENO_NO_UPDATE_CHECK=1` to turn that off. `meno -v` prints the version and
+`meno -h` the usage. Remove with `uninstall.sh` (`--purge` also deletes `~/.meno`).
 You can also download an archive from the
 [releases page](https://github.com/ethanhamilthon/meno/releases) and verify it with
 `sha256sum -c SHA256SUMS`.
@@ -73,7 +75,7 @@ skills are listed in the prompt and `/name` in a message asks for one.
 
 ## Files
 
-Everything lives in `$MENO_HOME` (default `~/.meno`):
+Everything lives in `$MENO_HOME` (default `~/.meno`; `make run` uses `~/.meno-dev`, so a dev build does not mix with an installed one):
 
 | | |
 | --- | --- |

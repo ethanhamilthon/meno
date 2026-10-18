@@ -27,7 +27,7 @@ func readSession(db *sql.DB, id string) (*Session, error) {
 	if err := json.Unmarshal([]byte(metrics), &s.Metrics); err != nil {
 		return nil, fmt.Errorf("session %s metrics: %w", id, err)
 	}
-	rows, err := db.Query("SELECT role,text,thinking,call_id,code,output,err,replay,replay_group,time,system,attachments,kind,elapsed_ms,limit_ms,timed_out,run,hid,event_id FROM turns WHERE session_id = ? ORDER BY seq", id)
+	rows, err := db.Query("SELECT role,text,thinking,call_id,code,output,err,replay,replay_group,time,system,attachments,kind,elapsed_ms,limit_ms,timed_out,run,hid,event_id,title FROM turns WHERE session_id = ? ORDER BY seq", id)
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +37,7 @@ func readSession(db *sql.DB, id string) (*Session, error) {
 		var replay sql.NullString
 		var when, attachments, run string
 		var timedOut int
-		if err := rows.Scan(&t.Role, &t.Text, &t.Thinking, &t.CallID, &t.Code, &t.Output, &t.Err, &replay, &t.ReplayGroup, &when, &t.System, &attachments, &t.Kind, &t.ElapsedMs, &t.LimitMs, &timedOut, &run, &t.HID, &t.EventID); err != nil {
+		if err := rows.Scan(&t.Role, &t.Text, &t.Thinking, &t.CallID, &t.Code, &t.Output, &t.Err, &replay, &t.ReplayGroup, &when, &t.System, &attachments, &t.Kind, &t.ElapsedMs, &t.LimitMs, &timedOut, &run, &t.HID, &t.EventID, &t.Title); err != nil {
 			return nil, err
 		}
 		t.TimedOut = timedOut != 0

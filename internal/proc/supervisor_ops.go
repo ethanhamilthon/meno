@@ -42,10 +42,12 @@ func (s *Supervisor) CancelOwner(session, owner string) {
 // it takes, or until ctx ends). A timeout never cancels the task. waitTimedOut
 // is true when the task was still running.
 func (s *Supervisor) Wait(ctx context.Context, session, id string, timeout time.Duration) (t Task, waitTimedOut bool, err error) {
+	// liveTask first: a task that is gone from live has its final status stored,
+	// so the Get below cannot see a stale "running".
+	r := s.liveTask(id)
 	if t, err = s.Get(session, id); err != nil {
 		return t, false, err
 	}
-	r := s.liveTask(id)
 	if r == nil {
 		return t, false, nil
 	}

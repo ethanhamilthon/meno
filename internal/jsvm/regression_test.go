@@ -45,7 +45,8 @@ func TestTimeoutRaceDoesNotPoisonNextExecution(t *testing.T) {
 	v := New(Options{Root: t.TempDir(), Timeout: time.Millisecond})
 	for i := 0; i < 30; i++ {
 		v.Exec(context.Background(), `while(true){}`)
-		if r := v.Exec(context.Background(), `1+1`); r.Err != "" || r.Value != "2" {
+		// The check runs under its own generous limit: 1ms is too tight for a slow runner.
+		if r := v.ExecTimeout(context.Background(), `1+1`, 5*time.Second); r.Err != "" || r.Value != "2" {
 			t.Fatalf("iteration %d: %+v", i, r)
 		}
 	}

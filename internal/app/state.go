@@ -33,6 +33,7 @@ const (
 type liveCall struct {
 	ID      string
 	Code    string
+	Title   string
 	Running bool
 	// Started and Limit describe the execution: when it began and the timeout
 	// it runs under (0 = none).
@@ -53,15 +54,17 @@ type retryState struct {
 type State struct {
 	*Runtime
 
-	Over     Overlay
-	TasksUI  tasksView
-	AgentsUI agentsView
-	CmdSel   int
-	Pricing  map[string]llm.ModelInfo
-	Cmd      []rune
-	Sel      int
-	Query    []rune
-	Status   string
+	Over Overlay
+	// UpdateTag is the newer release the background check found ("" if none).
+	UpdateTag string
+	TasksUI   tasksView
+	AgentsUI  agentsView
+	CmdSel    int
+	Pricing   map[string]llm.ModelInfo
+	Cmd       []rune
+	Sel       int
+	Query     []rune
+	Status    string
 
 	Settings  config.Settings
 	Providers []llm.Provider

@@ -35,7 +35,10 @@ func (a *App) onAgent(e agent.Ev) {
 		a.liveCall(e.CallID).Code = e.Code
 	case agent.EvJSStart:
 		lc := a.liveCall(e.CallID)
-		lc.Code, lc.Running = e.Code, true
+		lc.Code, lc.Title, lc.Running = e.Code, e.Title, true
+		if e.Title != "" {
+			a.st.Title = e.Title
+		}
 		lc.Started, lc.Limit = time.Now(), e.Limit
 		a.st.Phase = "running"
 	case agent.EvJSEnd:

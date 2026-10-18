@@ -72,7 +72,7 @@ func (a *App) transcriptWithSelection(w int) []ui.Line {
 		if saved {
 			continue
 		}
-		live.Code = call.Code
+		live.Code, live.Title = call.Code, call.Title
 		liveJS := js
 		liveJS.Running = true
 		liveJS.Streaming = !call.Running // highlight only once the whole source has arrived

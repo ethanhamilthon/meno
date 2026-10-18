@@ -13,6 +13,7 @@ type Ev struct {
 	Text     string
 	Thinking string
 	Code     string
+	Title    string // the model's short title of the call an EvJSStart announces
 	Output   string
 	Err      string
 	CallID   string

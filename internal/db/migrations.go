@@ -206,4 +206,8 @@ DELETE FROM journal WHERE ns = 'state';
 ALTER TABLE providers ADD COLUMN run TEXT NOT NULL DEFAULT '';
 ALTER TABLE providers ADD COLUMN models_json TEXT NOT NULL DEFAULT '{}';
 `,
+	`
+-- The short title the model gives each js call.
+ALTER TABLE turns ADD COLUMN title TEXT NOT NULL DEFAULT '';
+`,
 }

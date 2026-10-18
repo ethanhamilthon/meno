@@ -43,6 +43,7 @@ type Runtime struct {
 
 	Running   bool
 	Queue     agent.Queue // messages written while the turn runs; the runner takes them between steps
+	Title     string      // title of the latest js call of this run; "" until the first one
 	Phase     string      // what the running agent is doing: thinking, writing, running, compacting
 	Ask       *askState   // question from the agent waiting for an answer
 	Retry     *retryState // set while a failed model request waits to be sent again

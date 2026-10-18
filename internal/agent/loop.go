@@ -190,6 +190,7 @@ func (r *Runner) abort(s *Session) error {
 type call struct {
 	ID      string
 	Code    string
+	Title   string
 	Timeout *float64 // seconds, when the model asked for one
 }
 

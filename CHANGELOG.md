@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.2
+
+- `meno update` installs the latest GitHub release over the running binary (SHA-256 checked). `meno -v` and `meno -h` are new; any other unknown command prints an error, points to `meno -h` and exits 1. Only a bare `meno` opens the UI.
+- At start meno looks for a newer release (at most every 6 hours; `MENO_NO_UPDATE_CHECK=1` turns it off) and shows it on the welcome screen and as a notice.
+- Every js call carries a `title` (up to 6 words) written by the model. It sits in the bottom right corner of the code block. The composer shows the latest title instead of `thinking...`; `thinking...` stays only until the first call of a run, and `writing...` shows while the model streams.
+- `make run` uses its own `MENO_HOME` (`~/.meno-dev`), so a dev build does not mix with an installed one.
+- Fixes for flaky CI tests: `tasks.wait` could return a stale `running` status for a task that had just finished.
+
 ## 0.1.1
 
 - Single version source: `internal/version/VERSION`; the CLI, welcome screen and help title all read it.

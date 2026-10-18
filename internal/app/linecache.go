@@ -27,7 +27,7 @@ type lineCache struct {
 const lineCacheMax = 6000
 
 func turnSig(t agent.Turn) string {
-	return fmt.Sprintf("%d/%d/%d/%d/%d/%v/%d", len(t.Text), len(t.Code), len(t.Output), len(t.Err), t.ElapsedMs, t.Run != nil, len(t.Attachments))
+	return fmt.Sprintf("%d/%d/%d/%d/%d/%v/%d/%d", len(t.Text), len(t.Code), len(t.Output), len(t.Err), t.ElapsedMs, t.Run != nil, len(t.Attachments), len(t.Title))
 }
 
 // optsKey is the part of the display options that changes persisted layouts.

@@ -49,6 +49,7 @@ VM, provider APIs, MCP integrations, and SQLite persistence.
 | `internal/config/` | Paths, settings, providers, skills, MCP configuration, and the read-only `provider.json`/`mcp.json` overlays (`overlay.go`). Start with `paths.go`, `settings.go`, `store.go`. |
 | `internal/db/` | Shared SQLite database; additive versioned migrations live in `migrations.go`, opening in `db.go`. |
 | `internal/proc/` | Background process supervisor: process groups, bounded rotating disk logs, durable task results; `daemon.go` runs the provider `run` commands. |
+| `internal/update/` | `meno update` and the start-up check: latest GitHub release, SHA-256 verified install over the executable, cached check in `$MENO_HOME/update.json`. |
 | `internal/version/` | Single version source: `VERSION` file (embedded); `Label()` feeds the welcome screen and help title, `Number()` feeds `--version`. Bump it for every release. |
 | `internal/store/` | Reusable JSON loading and atomic saving; `json.go`. |
 | `internal/safe/` | Panic containment for goroutines and UI handlers: `Call`, `Recover`, `Go`; `safe.go`. |

@@ -47,8 +47,12 @@ func (a *App) placeholder() string {
 		return placeholderIdle
 	}
 	text := a.st.Phase + "..."
-	if a.st.Phase == "" {
+	switch {
+	case a.st.Phase == "":
 		text = "working..."
+	case a.st.Title != "" && (a.st.Phase == "thinking" || a.st.Phase == "running"):
+		// After the first js call the title of the latest one says what is going on.
+		text = a.st.Title + "..."
 	}
 	if !a.st.RunStart.IsZero() {
 		text += " " + clock(time.Since(a.st.RunStart))

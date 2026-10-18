@@ -216,9 +216,11 @@ func (s *Supervisor) supervise(r *running, pumps *sync.WaitGroup) {
 		}
 	}
 	r.task = t
+	// Saved before the task leaves live: Wait treats "not live" as "finished",
+	// so the stored status must already be final by then.
+	_ = s.save(t)
 	delete(s.live, t.ID)
 	s.mu.Unlock()
-	_ = s.save(t)
 	if s.hooks.Finished != nil {
 		s.hooks.Finished(t) // before done closes: a waiter that acks sees the event
 	}

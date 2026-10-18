@@ -71,6 +71,8 @@ type App struct {
 	clipboard func() ([]byte, error)
 	// notifier replaces the way signals are made (tests).
 	notifier func(cmd string, env []string)
+	// checkUpdate looks for a newer release (see SetUpdateCheck); nil: no check.
+	checkUpdate func(ctx context.Context) string
 }
 
 func New(scr tcell.Screen, paths config.Paths, client func(llm.Provider) llm.Client) (*App, error) {
@@ -152,6 +154,7 @@ func (a *App) Close() {
 func (a *App) Run(ctx context.Context) error {
 	a.scr.EnablePaste()
 	a.fetchMetadata()
+	a.startUpdateCheck()
 	a.startProviderRuns()
 	a.startServers()
 	safe.Go(func() {
@@ -229,6 +232,8 @@ func (a *App) handle(msg any) {
 		a.onPickResults(m)
 	case errNotice:
 		a.notifyErr(m.text)
+	case updateAvailable:
+		a.onUpdateAvailable(m.tag)
 	case tasksLoaded:
 		a.onTasksLoaded(m)
 	case bgLoaded:

@@ -48,7 +48,7 @@ func (r *Runner) streamAttempt(ctx context.Context, s *Session) ([]call, llm.Msg
 				legacy := llm.Msg{Role: llm.RoleAssistant, CallID: id, Code: e.Code}
 				args = legacy.Calls()[0].Arguments
 			}
-			c := call{ID: id, Code: e.Code}
+			c := call{ID: id, Code: e.Code, Title: llm.ToolTitle(e.Arguments)}
 			if r.D.ModelTimeout && e.Arguments != "" {
 				_, c.Timeout = llm.ToolArgs(e.Arguments)
 			}
@@ -79,9 +79,9 @@ func (r *Runner) runJS(ctx context.Context, s *Session, text string, c call, rep
 		c.ID = NewID()
 	}
 	limit := r.limit(c)
-	r.emit(s, Ev{Kind: EvJSStart, Code: c.Code, CallID: c.ID, Limit: limit})
+	r.emit(s, Ev{Kind: EvJSStart, Code: c.Code, Title: c.Title, CallID: c.ID, Limit: limit})
 	res := r.exec(ctx, c)
-	turn := Turn{Replay: replay, ReplayGroup: group, Role: llm.RoleAssistant, Text: text, CallID: c.ID, Code: c.Code, Output: res.Output, Err: res.Err, Time: nowUTC()}
+	turn := Turn{Replay: replay, ReplayGroup: group, Role: llm.RoleAssistant, Text: text, CallID: c.ID, Code: c.Code, Title: c.Title, Output: res.Output, Err: res.Err, Time: nowUTC()}
 	if res.Elapsed > 0 {
 		turn.ElapsedMs = max(1, res.Elapsed.Milliseconds())
 		turn.LimitMs = limit.Milliseconds()

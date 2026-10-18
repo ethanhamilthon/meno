@@ -3,6 +3,7 @@ package llm
 import (
 	"context"
 	"encoding/json"
+	"strings"
 )
 
 const (
@@ -106,7 +107,13 @@ func (m Msg) Calls() []ToolCall {
 }
 
 func ToolSchema(modelTimeout bool) map[string]any {
-	props := map[string]any{"code": map[string]any{"type": "string"}}
+	props := map[string]any{
+		"code": map[string]any{"type": "string"},
+		"title": map[string]any{
+			"type":        "string",
+			"description": "What this code does, in at most 6 words (for example \"Read the config files\"). Shown to the user.",
+		},
+	}
 	if modelTimeout {
 		props["timeout"] = map[string]any{
 			"type":        "number",
@@ -120,13 +127,32 @@ func ToolSchema(modelTimeout bool) map[string]any {
 		"parameters": map[string]any{
 			"type":       "object",
 			"properties": props,
-			"required":   []string{"code"},
+			"required":   []string{"code", "title"},
 		},
 	}
 }
 
 // ToolDescription is shown to the model as the description of the js tool.
 const ToolDescription = "Run JavaScript in a persistent VM. The code runs synchronously and the value of the last expression is returned; the available globals are described in the system prompt."
+
+// MaxTitleRunes bounds the title of a js call, whatever the model sent.
+const MaxTitleRunes = 60
+
+// ToolTitle returns the short title the model gave a js call: whitespace
+// collapsed and cut to MaxTitleRunes. It is empty when there is none.
+func ToolTitle(args string) string {
+	var a struct {
+		Title string `json:"title"`
+	}
+	if json.Unmarshal([]byte(args), &a) != nil {
+		return ""
+	}
+	t := strings.Join(strings.Fields(a.Title), " ")
+	if r := []rune(t); len(r) > MaxTitleRunes {
+		t = strings.TrimSpace(string(r[:MaxTitleRunes-1])) + "…"
+	}
+	return t
+}
 
 // ToolArgs decodes the arguments of a js tool call. timeout is nil unless the
 // model passed one (seconds).

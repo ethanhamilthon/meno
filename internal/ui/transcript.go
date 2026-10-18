@@ -131,6 +131,8 @@ func jsBlock(t agent.Turn, w int, js JSOpts) []Line {
 		if badge, ok := timingBadge(t, js); ok {
 			lines = withBadge(lines, badge, w, Band(bg))
 		}
+		// The title sits in the bottom right corner.
+		lines = withTitle(lines, t.Title, w, Band(bg))
 		out = append(out, lines...)
 	} else if badge, ok := timingBadge(t, js); ok && (t.Err != "" || t.TimedOut) {
 		// With the code hidden only the news that matter (a failure, a timeout)

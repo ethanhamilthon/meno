@@ -9,7 +9,7 @@ import (
 
 func TestShellCommandHasNoControllingTerminal(t *testing.T) {
 	sh := Shell{Root: t.TempDir(), Timeout: 10 * time.Second}
-	res, err := sh.Run(context.Background(), "if : </dev/tty 2>/dev/null; then echo tty; else echo notty; fi")
+	res, err := sh.Run(context.Background(), "if true </dev/tty 2>/dev/null; then echo tty; else echo notty; fi")
 	if err != nil {
 		t.Fatal(err)
 	}

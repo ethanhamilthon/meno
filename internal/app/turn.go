@@ -63,6 +63,7 @@ func (a *App) startTurn(msg agent.Message) {
 	a.st.Running = true
 	a.st.LastErr = false
 	a.st.Phase = "preparing"
+	a.st.Title = ""
 	a.st.RunStart, a.st.RunTurns, a.st.RunJS, a.st.RunUsage0 = time.Now(), 0, 0, a.st.Usage
 	a.st.Scroll = 0
 	a.clearLive()
