@@ -2,11 +2,8 @@ package config
 
 import (
 	"encoding/json"
-	"fmt"
 	"strconv"
 	"strings"
-
-	"meno/internal/notify"
 )
 
 type Settings struct {
@@ -45,6 +42,15 @@ type Settings struct {
 	// "bell": the terminal bell.
 	NotifyCommand string `json:"notify_command"`
 	NotifySound   string `json:"notify_sound"`
+	NotifyVolume  int    `json:"notify_volume"`
+	// WebSearch picks the fallback search backend of websearch(): auto,
+	// brave, tavily, duckduckgo or off. WebSearchKey is the Brave or Tavily key.
+	WebSearch    string `json:"websearch"`
+	WebSearchKey string `json:"websearch_key"`
+	// Subagent defaults when agents.spawn omits provider, model, or effort.
+	SubagentProvider string `json:"subagent_provider,omitempty"`
+	SubagentModel    string `json:"subagent_model,omitempty"`
+	SubagentEffort   string `json:"subagent_effort,omitempty"`
 	// CompactPercent is the share of the context window at which meno compacts
 	// before a request; CompactKeep the recent messages that always stay;
 	// CompactSummaryTokens the target size of the summary.
@@ -144,115 +150,9 @@ func DefaultSettings() Settings {
 		JSTimeout:      "sec",
 		JSTimeoutSec:   30,
 		CompactPercent: 80, CompactKeep: 8, CompactSummaryTokens: 4000,
-		Notify:      "off",
-		NotifySound: "default",
+		Notify:       "off",
+		NotifySound:  "default",
+		NotifyVolume: 100,
+		WebSearch:    "auto",
 	}
-}
-
-var choices = map[string][]string{
-	"js_code":      {"all", "lines", "off"},
-	"js_output":    {"all", "lines", "off"},
-	"js_strings":   {"off", "lines"},
-	"images":       {"auto", "off", "kitty", "sixel", "iterm"},
-	"thinking":     {"all", "lines", "off"},
-	"js_timeout":   {"sec", "off", "model"},
-	"js_timing":    {"all", "slow", "off"},
-	"turn_summary": {"on", "off"},
-	"effort":       {"low", "medium", "high", "max"},
-	"notify":       {"off", "question", "done"},
-	// One choice: the row only carries the number (the threshold in percent).
-	"compact_percent": {"percent"},
-	"notify_sound":    append([]string{"default", "bell"}, notify.Names()...),
-}
-
-func SettingKeys() []string {
-	return []string{"js_code", "js_strings", "images", "js_output", "thinking", "js_timeout", "js_timing", "turn_summary", "notify", "notify_sound", "compact_percent"}
-}
-
-func Choices(key string) []string { return choices[key] }
-
-func (s *Settings) Get(key string) string {
-	switch key {
-	case "js_code":
-		return s.JSCode
-	case "js_output":
-		return s.JSOutput
-	case "js_strings":
-		return s.JSStrings
-	case "images":
-		return s.ImagesProtocol
-	case "thinking":
-		return s.Thinking
-	case "js_timeout":
-		return s.JSTimeout
-	case "js_timing":
-		return s.JSTiming
-	case "turn_summary":
-		return s.TurnSummary
-	case "effort":
-		return s.Effort
-	case "notify_sound":
-		return s.NotifySound
-	case "notify":
-		return s.Notify
-	case "compact_percent":
-		return "percent"
-	}
-	return ""
-}
-
-func (s *Settings) Set(key, val string) error {
-	opts, ok := choices[key]
-	if !ok {
-		return fmt.Errorf("unknown setting %q", key)
-	}
-	for _, o := range opts {
-		if o == val {
-			s.setRaw(key, val)
-			return nil
-		}
-	}
-	return fmt.Errorf("invalid value %q for %s", val, key)
-}
-
-func (s *Settings) setRaw(key, val string) {
-	switch key {
-	case "js_code":
-		s.JSCode = val
-	case "js_output":
-		s.JSOutput = val
-	case "js_strings":
-		s.JSStrings = val
-	case "images":
-		s.ImagesProtocol = val
-	case "thinking":
-		s.Thinking = val
-	case "js_timeout":
-		s.JSTimeout = val
-	case "js_timing":
-		s.JSTiming = val
-	case "turn_summary":
-		s.TurnSummary = val
-	case "effort":
-		s.Effort = val
-	case "notify_sound":
-		s.NotifySound = val
-	case "notify":
-		s.Notify = val
-	}
-}
-
-func (s *Settings) Cycle(key string, step int) string {
-	opts := choices[key]
-	cur := s.Get(key)
-	idx := 0
-	for i, o := range opts {
-		if o == cur {
-			idx = i
-		}
-	}
-	n := len(opts)
-	idx = ((idx+step)%n + n) % n
-	s.setRaw(key, opts[idx])
-	return opts[idx]
 }

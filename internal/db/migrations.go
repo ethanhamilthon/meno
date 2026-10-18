@@ -210,4 +210,14 @@ ALTER TABLE providers ADD COLUMN models_json TEXT NOT NULL DEFAULT '{}';
 -- The short title the model gives each js call.
 ALTER TABLE turns ADD COLUMN title TEXT NOT NULL DEFAULT '';
 `,
+	`
+-- Named snippets the user saves from the terminal and pastes into the
+-- composer. They are global: not tied to a session.
+CREATE TABLE snippets (
+	name       TEXT PRIMARY KEY,
+	text       TEXT NOT NULL,
+	created_at TEXT NOT NULL DEFAULT '',
+	updated_at TEXT NOT NULL DEFAULT ''
+);
+`,
 }
