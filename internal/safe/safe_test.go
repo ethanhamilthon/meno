@@ -18,10 +18,10 @@ func TestCallReturnsPanicAsError(t *testing.T) {
 
 func TestGoReportsPanicWithoutCrashing(t *testing.T) {
 	got := make(chan error, 1)
-	Go(func() { var m map[string]int; m["x"] = 1 }, func(err error) { got <- err })
+	Go(func() { var p *int; *p = 1 }, func(err error) { got <- err })
 	select {
 	case err := <-got:
-		if err == nil || !strings.Contains(err.Error(), "nil map") {
+		if err == nil || !strings.Contains(err.Error(), "nil pointer") {
 			t.Fatalf("unexpected error: %v", err)
 		}
 	case <-time.After(5 * time.Second):

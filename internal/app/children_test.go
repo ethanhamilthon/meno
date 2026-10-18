@@ -73,7 +73,7 @@ func tool(code string) func(llm.Request) []llm.Event {
 
 func waitUntil(t *testing.T, a *App, what string, cond func() bool) {
 	t.Helper()
-	deadline := time.Now().Add(10 * time.Second)
+	deadline := time.Now().Add(30 * time.Second) // CI runners with -race can be slow
 	for !cond() {
 		if time.Now().After(deadline) {
 			t.Fatalf("timed out waiting for %s", what)

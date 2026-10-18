@@ -152,16 +152,6 @@ func (a *App) openSession(id string) {
 	}
 }
 
-// hasTurnAfter reports whether the session has a turn newer than history ID hid.
-func hasTurnAfter(s *agent.Session, hid int64) bool {
-	for _, t := range s.Snapshot() {
-		if t.HID > hid {
-			return true
-		}
-	}
-	return false
-}
-
 // tildePath shortens the home directory to ~.
 func tildePath(p string) string {
 	if h, err := os.UserHomeDir(); err == nil && h != "" && (p == h || strings.HasPrefix(p, h+string(os.PathSeparator))) {

@@ -65,16 +65,6 @@ func (a *App) modelInfo() (llm.ModelInfo, bool) {
 	return p.Lookup(a.st.Pricing, modelOf(a))
 }
 
-// sessionCacheHit is the share of input tokens served from the cache over all
-// requests of the session, in percent.
-func (a *App) sessionCacheHit() float64 {
-	u := a.st.Usage
-	if u.In <= 0 {
-		return 0
-	}
-	return 100 * float64(min(max(0, u.Cached), u.In)) / float64(u.In)
-}
-
 // statusUsageText is the session line of the status bar, with icons instead of
 // words: tokens in/out, cache hit of the last request/of the session, the
 // context in use/window, and the spend. Everything in it is about the session:
