@@ -96,7 +96,7 @@ func TestAskUserFormSubmit(t *testing.T) {
 			s.Say("set up storage")
 			s.Type("my unfinished draft")
 			scr := s.WaitForWithin("agent asks", 10*time.Second)
-			for _, want := range []string{"Which database?", "sqlite", "postgres", "suggested: postgres", "Submit", "Cancel", "question 1/2"} {
+			for _, want := range []string{"Which database?", "sqlite", "postgres", "suggested: postgres", "Next", "Cancel", "question 1/2"} {
 				if !strings.Contains(scr, want) {
 					t.Fatalf("form misses %q:\n%s", want, scr)
 				}
@@ -105,8 +105,7 @@ func TestAskUserFormSubmit(t *testing.T) {
 				t.Fatalf("draft should be set aside:\n%s", scr)
 			}
 			s.Send(Down)
-			s.Send(Enter) // postgres
-			s.Send("]")   // next question; text questions start in typing mode
+			s.Send(Enter) // selects postgres and advances to question 2 (text, starts in typing mode)
 			s.Type("8080")
 			s.Send(Esc) // leaves typing; the form stays
 			time.Sleep(500 * time.Millisecond)
@@ -114,7 +113,7 @@ func TestAskUserFormSubmit(t *testing.T) {
 			if !strings.Contains(scr, "agent asks") {
 				t.Fatalf("Esc must not close the form:\n%s", scr)
 			}
-			s.Send(Enter) // Esc after typing moved the focus to Submit
+			s.Send(Enter) // Esc after typing moved the focus to Next, which submits on the last question
 			scr = s.WaitFor("great, configured")
 			if !strings.Contains(scr, "db=pgport=8080") && !strings.Contains(scr, "db=pg") {
 				t.Fatalf("\n%s", scr)
@@ -168,7 +167,7 @@ func TestAskFormOnNarrowTerminal(t *testing.T) {
 	s := start(t, options{fake: f, cols: 40, rows: 24})
 	s.Say("go")
 	s.WaitFor("agent asks")
-	s.WaitFor("Submit")
+	s.WaitFor("Cancel")
 	for i, l := range strings.Split(s.Screen(), "\n") {
 		if n := len([]rune(l)); n > 40 {
 			t.Fatalf("row %d is %d wide: %q", i, n, l)
@@ -178,10 +177,7 @@ func TestAskFormOnNarrowTerminal(t *testing.T) {
 		t.Fatalf("question or actions cut off:\n%s", scr)
 	}
 	s.Resize(100, 32)
-	s.WaitFor("[ Submit ]")
-	s.Send("1")
-	s.Send("\t\t\t")
-	s.Send("\t")
+	s.WaitFor("[ Cancel ]")
 	s.Send(Enter)
 	s.WaitFor("all done")
 }

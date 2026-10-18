@@ -8,6 +8,7 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 
+	"meno/internal/attach"
 	"meno/internal/objtag"
 	"meno/internal/pathsearch"
 	"meno/internal/safe"
@@ -143,6 +144,10 @@ func (a *App) pickItems() []acItem {
 			desc = "folder"
 		case e.Symlink:
 			desc = "symlink"
+		default:
+			if _, ok := attach.PathFromText(e.Path, ""); ok {
+				desc = "image"
+			}
 		}
 		out = append(out, acItem{kind: '@', name: e.Rel, desc: desc})
 	}
@@ -186,12 +191,22 @@ func (a *App) pickKey(k *tcell.EventKey) bool {
 	return true
 }
 
-// pickAccept replaces the @ word with one object. A folder reference and
-// entering a folder are separate actions: this is the reference.
+// pickAccept replaces the @ word with one object, or attaches an image file.
+// A folder reference and entering a folder are separate actions: this is the reference.
 func (a *App) pickAccept(e pathsearch.Entry) {
 	start, end, _, ok := a.pickToken()
 	if !ok {
 		return
+	}
+	if !e.Dir {
+		if p, ok := attach.PathFromText(e.Path, userHome()); ok {
+			in := a.st.Input
+			a.st.Input = append(append([]rune{}, in[:start]...), in[end:]...)
+			a.st.Cursor, a.st.WantSet, a.st.Sel = start, false, 0
+			a.st.Pick = nil
+			a.attachFile(p, false)
+			return
+		}
 	}
 	kind := objtag.File
 	if e.Dir {

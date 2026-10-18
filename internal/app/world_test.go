@@ -158,7 +158,7 @@ func TestAgentsChangeIsReportedToTheAgentItself(t *testing.T) {
 	agentsFile := filepath.Join(paths.Cwd, "AGENTS.md")
 	os.WriteFile(agentsFile, []byte("v1"), 0o644)
 	cl.script = [][]llm.Event{
-		{{Kind: llm.EvTool, CallID: "c1", Code: "fs.write(" + quote(agentsFile) + ", 'v2')"}},
+		{{Kind: llm.EvTool, CallID: "c1", Code: "fs.write(" + quote(agentsFile) + ", 'v2', {overwrite: true})"}},
 		{{Kind: llm.EvText, Text: "done"}, {Kind: llm.EvDone}},
 	}
 	say(t, a, "edit it")

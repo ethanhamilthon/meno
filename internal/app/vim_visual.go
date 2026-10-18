@@ -17,6 +17,9 @@ func (a *App) startVisual(kind rune) {
 }
 
 func (a *App) exitVisual() {
+	// Remember the text: :save_snippet runs after visual mode has ended.
+	t, top := a.doc()
+	a.st.SelText = joinRngs(t, a.selRngs(t, top))
 	a.st.Mode, a.st.VKind, a.st.VimBuf = ui.ModeNormal, 0, nil
 	a.normClampCursor()
 }

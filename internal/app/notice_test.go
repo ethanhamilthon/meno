@@ -6,6 +6,7 @@ import (
 
 	"meno/internal/agent"
 	"meno/internal/llm"
+	"meno/internal/version"
 )
 
 func TestNoticesGoToTimelineNotInput(t *testing.T) {
@@ -14,7 +15,7 @@ func TestNoticesGoToTimelineNotInput(t *testing.T) {
 	a.draw()
 	a.runCommand("nope")
 	a.draw()
-	if out := screenText(s); !strings.Contains(out, "unknown command :nope") || !strings.Contains(out, "v0.1") {
+	if out := screenText(s); !strings.Contains(out, "unknown command :nope") || !strings.Contains(out, version.Label()) {
 		t.Fatalf("notice must sit over the welcome screen:\n%s", out)
 	}
 	if strings.Contains(visualRow(s, 27), "unknown command") {

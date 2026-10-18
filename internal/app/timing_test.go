@@ -25,6 +25,7 @@ func TestTimingSettingsInTheDialog(t *testing.T) {
 	a, s := newTestApp(t)
 	defer s.Fini()
 	a.openOverlay(OverSettings)
+	a.onKey(keyK(tcell.KeyTab))
 	a.draw()
 	text := screenText(s)
 	for _, want := range []string{"js timing", "slow only", "turn summary"} {

@@ -2,7 +2,6 @@ package app
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
@@ -10,37 +9,6 @@ import (
 
 	"meno/internal/llm"
 )
-
-// cacheReport explains, from fingerprints and usage only, how the last request
-// related to the one before it. It contains no message text.
-func (a *App) cacheReport() {
-	fps := make([]llm.Fingerprint, len(a.st.Reqs))
-	for i, r := range a.st.Reqs {
-		fps[i] = llm.FingerprintOf(r)
-	}
-	if len(fps) == 0 {
-		a.notify("cache: no request sent in this session yet")
-		return
-	}
-	last := fps[len(fps)-1]
-	head := fmt.Sprintf("last request: %s, system %d chars #%s, %d messages", last.Model, last.SystemLen, last.SystemHash, last.Messages)
-	if len(fps) == 1 {
-		a.notify(head + " · no earlier request to compare")
-		return
-	}
-	prev := fps[0]
-	shared := last.SharedPrefix(prev)
-	var cmp string
-	switch {
-	case shared < 0:
-		cmp = "the system prompt, model or tools changed: nothing can be served from the prefix cache"
-	case shared == prev.Messages:
-		cmp = fmt.Sprintf("the previous request's %d messages are all a prefix of this one", shared)
-	default:
-		cmp = fmt.Sprintf("prefix shared through message %d of the previous %d (it diverges at message %d)", shared, prev.Messages, shared+1)
-	}
-	a.notify(head + " · " + cmp + " · usage: last " + cacheText(a.st.LastUsage))
-}
 
 // debugPayload returns the opt-in request logger: with MENO_DEBUG_PAYLOADS=1
 // every request is appended, in full, to $MENO_HOME/debug/requests.jsonl. The

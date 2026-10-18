@@ -14,7 +14,6 @@ const (
 	focusBody = iota
 	focusPrev
 	focusNext
-	focusSubmit
 	focusCancel
 	focusCount
 )
@@ -77,11 +76,23 @@ func newAskState(f jsvm.Form) *askState {
 	return st
 }
 
-// enter shows question i with the cursor on its first row.
+// enter shows question i with the cursor on its selected row (or first row).
 func (st *askState) enter(i int) {
 	st.Cur = min(max(i, 0), len(st.F.Questions)-1)
 	st.Row, st.Focus, st.Notice = 0, focusBody, ""
-	st.Typing = st.F.Questions[st.Cur].Type == jsvm.TypeText
+	q := st.F.Questions[st.Cur]
+	st.Typing = q.Type == jsvm.TypeText
+	if q.Type != jsvm.TypeText {
+		for idx, picked := range st.Ans[st.Cur].Picked {
+			if picked {
+				st.Row = idx
+				break
+			}
+		}
+		if q.Type == jsvm.TypeSingle && strings.TrimSpace(string(st.Ans[st.Cur].Other)) != "" {
+			st.Row = len(q.Options)
+		}
+	}
 }
 
 func (st *askState) q() jsvm.FormQuestion { return st.F.Questions[st.Cur] }

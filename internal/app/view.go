@@ -84,6 +84,8 @@ func (a *App) drawComposer(c ui.Canvas, x, y, w, h int) {
 	bg := ui.BgUser
 	a.clampCursor()
 	if len(a.st.Input) == 0 {
+		a.st.ComposerRows = []vrow{{0, 0, false}}
+		a.st.ComposerX, a.st.ComposerY, a.st.ComposerTop = textX, row, 0
 		if !a.st.InLog {
 			a.cur = cursorPos{textX, row, true}
 		}
@@ -106,6 +108,7 @@ func (a *App) drawComposer(c ui.Canvas, x, y, w, h int) {
 		top = cr - avail + 1
 	}
 	a.st.InputTop = top
+	a.st.ComposerRows, a.st.ComposerX, a.st.ComposerY, a.st.ComposerTop = rows, textX, row, top
 	toks := a.inputTokens()
 	mask := a.inputSelMask()
 	for i := 0; i < avail && top+i < len(rows); i++ {
@@ -177,18 +180,17 @@ var commandList = []cmdDef{
 	{":rename", "rename this session"},
 	{":tasks", "background processes"},
 	{":agents", "working subagents"},
-	{":cache", "prompt-cache diagnostics"},
 	{":sessions", "switch session"},
 	{":cd", "change directory"},
 	{":model", "model & effort"},
 	{":skills", "load skills"},
 	{":mcp", "mcp servers"},
 	{":providers", "api keys & urls"},
-	{":settings", "display & repl"},
-	{":theme", "color theme"},
+	{":settings", "settings"},
 	{":compact", "compact context"},
-	{":attach", "attach an image"},
-	{":notify", "sound when done"},
+	{":snippets", "saved snippets"},
+	{":save_snippet", "save the selection"},
+	{":paste_snippet", "insert a snippet"},
 	{":export", "export markdown"},
 	{":stop", "stop this turn"},
 	{":help", "keys & commands"},

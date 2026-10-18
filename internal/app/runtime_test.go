@@ -203,7 +203,6 @@ func TestBackgroundQuestionWaitsAndIsAnswerableAfterSwitching(t *testing.T) {
 		t.Fatalf("panel after switching:\n%s", screenText(scr))
 	}
 	a.onKey(tcell.NewEventKey(tcell.KeyRune, '2', tcell.ModNone)) // the second option
-	a.st.Ask.Focus = focusSubmit
 	a.onKey(keyK(tcell.KeyEnter))
 	pump(t, a, func() bool { return !asker.Running })
 	reqs := cl.requests()

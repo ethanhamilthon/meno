@@ -21,6 +21,7 @@ func (m *childMgr) build(c *childRun, pr llm.Provider, model, effort, system str
 	vm := jsvm.New(jsvm.Options{Root: c.sess.Cwd, Timeout: st.TimeoutDuration()})
 	vm.SetMCP(mcpHost{a.mcp, mcp.ResultStore{Dir: filepath.Join(a.paths.Home, "mcp-results")}, c.sess.ID})
 	vm.SetSessionHost(sessionHost{a: a, sid: c.sess.ID, sess: c.sess, child: true})
+	vm.SetWebSearch(webSearchHost{a: a, sid: c.sess.ID, provider: pr.Name, model: model})
 	vm.SetAgents(childAgents{m, c}, true)
 	c.vm = vm
 	c.deps = agent.Deps{

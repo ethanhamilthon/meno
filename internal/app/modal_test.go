@@ -12,6 +12,7 @@ import (
 	"meno/internal/config"
 	"meno/internal/llm"
 	"meno/internal/ui"
+	"meno/internal/version"
 )
 
 func key(r rune) *tcell.EventKey { return tcell.NewEventKey(tcell.KeyRune, r, tcell.ModNone) }
@@ -29,7 +30,7 @@ func TestWelcomeShownWhenEmpty(t *testing.T) {
 	defer scr.Fini()
 	a.draw()
 	out := screenText(scr)
-	for _, want := range []string{"efficient and stable AI harness", "write", "skills", ":help", "v0.1", "no model selected"} {
+	for _, want := range []string{"efficient and stable AI harness", "write", "skills", ":help", version.Label(), "no model selected"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("welcome missing %q:\n%s", want, out)
 		}

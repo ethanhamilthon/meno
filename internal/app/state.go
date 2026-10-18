@@ -21,11 +21,11 @@ const (
 	OverMCP
 	OverMCPEdit
 	OverSessions
-	OverTheme
 	OverHelp
 	OverFork
 	OverTasks
 	OverAgents
+	OverSnippets
 )
 
 // liveCall is a tool call that is not in the session yet: its code is still
@@ -66,13 +66,25 @@ type State struct {
 	Query     []rune
 	Status    string
 
-	Settings  config.Settings
-	Providers []llm.Provider
-	Models    map[string][]llm.Model // provider name -> fetched model ids
-	ModelErr  map[string]string      // provider name -> last fetch error
-	Loading   map[string]bool
-	Skills    []config.Skill
-	Servers   []mcp.Server
+	Settings   config.Settings
+	Providers  []llm.Provider
+	Models     map[string][]llm.Model // provider name -> fetched model ids
+	ModelErr   map[string]string      // provider name -> last fetch error
+	Loading    map[string]bool
+	Skills     []config.Skill
+	Servers    []mcp.Server
+	Snippets   []config.Snippet
+	SnippetDel string
+
+	// SelText is the text of the last visual or mouse selection; :save_snippet
+	// reads it. Registers are shared by all sessions, and so is this.
+	SelText string
+
+	// Composer geometry of the last draw, for mouse selection in the composer.
+	ComposerRows []vrow
+	ComposerX    int
+	ComposerY    int
+	ComposerTop  int
 
 	Field   int
 	Editing bool

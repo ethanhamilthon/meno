@@ -112,6 +112,7 @@ func (a *App) newRuntime(sess *agent.Session, cwd string) *Runtime {
 	rt.VM.SetAsker(appAsker{a, sess.ID})
 	rt.VM.SetViewer(appViewer{a, sess.ID, &rt.Queue})
 	rt.VM.SetSessionHost(sessionHost{a: a, sid: sess.ID})
+	rt.VM.SetWebSearch(webSearchHost{a: a, sid: sess.ID})
 	if a.tasks != nil && sess.Kind != agent.KindChild {
 		rt.VM.SetTasks(tasksHost{a, sess.ID})
 	}

@@ -3,7 +3,6 @@ package app
 import (
 	"errors"
 	"os"
-	"path/filepath"
 	"runtime"
 	"strings"
 
@@ -66,24 +65,6 @@ func (a *App) onImageReady(m imageReady) {
 		}
 		a.insertImage(m.img, m.after)
 	})
-}
-
-// attachCommand implements :attach [path]: a file, or the clipboard without an argument.
-func (a *App) attachCommand(arg string) {
-	arg = strings.TrimSpace(arg)
-	if arg == "" {
-		a.attachFromClipboard(false)
-		return
-	}
-	if p, ok := attach.PathFromText(arg, userHome()); ok {
-		arg = p
-	} else if strings.HasPrefix(arg, "~/") {
-		arg = filepath.Join(userHome(), arg[2:])
-	}
-	if !filepath.IsAbs(arg) {
-		arg = filepath.Join(a.st.Cwd, arg)
-	}
-	a.attachFile(arg, false)
 }
 
 func userHome() string {

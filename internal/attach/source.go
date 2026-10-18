@@ -32,7 +32,7 @@ func Clipboard(goos string) ([]byte, error) {
 	case "linux":
 		return clipboardLinux(ctx)
 	}
-	return nil, errors.New("clipboard images are not supported on " + goos + " · use :attach <path>")
+	return nil, errors.New("clipboard images are not supported on " + goos + " · drop a file or use @")
 }
 
 func clipboardDarwin(ctx context.Context) ([]byte, error) {
@@ -72,7 +72,7 @@ func clipboardLinux(ctx context.Context) ([]byte, error) {
 		list = func() ([]byte, error) { return run(ctx, "xclip", "-selection", "clipboard", "-t", "TARGETS", "-o") }
 		get = func(t string) ([]byte, error) { return run(ctx, "xclip", "-selection", "clipboard", "-t", t, "-o") }
 	default:
-		return nil, errors.New("clipboard images need wl-paste or xclip · use :attach <path>")
+		return nil, errors.New("clipboard images need wl-paste or xclip · drop a file or use @")
 	}
 	types, err := list()
 	if err != nil {

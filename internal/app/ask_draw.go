@@ -26,10 +26,10 @@ const (
 // narrowest still names every action.
 func askButtonLabels(inner int) (labels [focusCount]string, gap int) {
 	sets := [][focusCount]string{
-		{"", "[ ‹ Prev ]", "[ Next › ]", "[ Submit ]", "[ Cancel ]"},
-		{"", "[‹ Prev]", "[Next ›]", "[Submit]", "[Cancel]"},
-		{"", "[‹]", "[›]", "[Submit]", "[Cancel]"},
-		{"", "[‹]", "[›]", "[OK]", "[✕]"},
+		{"", "[ ‹ Prev ]", "[ Next › ]", "[ Cancel ]"},
+		{"", "[‹ Prev]", "[Next ›]", "[Cancel]"},
+		{"", "[‹]", "[›]", "[Cancel]"},
+		{"", "[‹]", "[›]", "[✕]"},
 	}
 	for _, set := range sets {
 		for _, g := range []int{2, 1} {
@@ -158,9 +158,9 @@ func (a *App) drawAskForm(c ui.Canvas, w, h int) {
 	// Buttons.
 	labels, gap := askButtonLabels(inner)
 	rows = append(rows, askRow{text: "", fg: ui.FgSoft, bg: bg})
-	hint := "tab move · ↑/↓ choose · space toggle · enter activate · esc stays here"
+	hint := "↑/↓ move · space mark · enter next · ←/shift+tab back · tab buttons"
 	if st.Typing {
-		hint = "typing · enter/esc done · ctrl+u clear"
+		hint = "typing · enter next · shift+tab back · esc buttons · ctrl+u clear"
 	}
 	if ui.TextWidth(hint) > inner {
 		hint = "tab · ↑↓ · space · enter"

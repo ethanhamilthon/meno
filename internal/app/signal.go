@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"time"
 
@@ -50,6 +51,7 @@ func (a *App) signal(event string) {
 	if cmd == "" {
 		cmd = soundCommand(s.NotifySound)
 	}
+	volume := s.NotifyVolume
 	env := []string{"MENO_NOTIFY_EVENT=" + event}
 	if a.st.Session != nil {
 		env = append(env, "MENO_NOTIFY_SESSION="+a.st.Session.ID, "MENO_NOTIFY_TITLE="+a.st.Session.DisplayTitle())
@@ -58,11 +60,11 @@ func (a *App) signal(event string) {
 		a.notifier(cmd, env)
 		return
 	}
-	a.notifyNow(cmd, env)
+	a.notifyNow(cmd, env, volume)
 }
 
 // notifyNow rings the bell or starts the command in the background.
-func (a *App) notifyNow(cmd string, env []string) {
+func (a *App) notifyNow(cmd string, env []string, volume int) {
 	if cmd == "" || cmd == "bell" {
 		_ = a.scr.Beep()
 		return
@@ -72,7 +74,7 @@ func (a *App) notifyNow(cmd string, env []string) {
 		ctx, cancel := context.WithTimeout(context.Background(), notifyTimeout)
 		defer cancel()
 		if name, ok := strings.CutPrefix(cmd, "sound:"); ok {
-			if err := notify.Play(ctx, name); err != nil {
+			if err := notify.Play(ctx, name, volume); err != nil {
 				_ = a.scr.Beep()
 			}
 			return
@@ -81,4 +83,24 @@ func (a *App) notifyNow(cmd string, env []string) {
 		c.Env = append(os.Environ(), env...)
 		_ = c.Run()
 	}()
+}
+
+// soundCommand keeps the legacy platform default while offering portable cues.
+func soundCommand(name string) string {
+	switch name {
+	case "", "default":
+		return defaultNotifyCommand(runtime.GOOS)
+	case "bell":
+		return "bell"
+	default:
+		return "sound:" + name
+	}
+}
+
+// Preview ignores the notification mode but does not change it.
+func (a *App) previewNotifySound() {
+	saved := a.st.Settings.Notify
+	a.st.Settings.Notify = "done"
+	a.signal("done")
+	a.st.Settings.Notify = saved
 }

@@ -28,7 +28,7 @@ func TestNewStartsWithoutAccounting(t *testing.T) {
 func TestRemovedCommandsAreUnknown(t *testing.T) {
 	a, s := newTestApp(t)
 	defer s.Fini()
-	for _, cmd := range []string{"clear", "resume"} {
+	for _, cmd := range []string{"clear", "resume", "cache", "notify", "attach", "theme"} {
 		a.st.Notices = nil
 		a.runCommand(cmd)
 		if !strings.Contains(a.lastNotice(), "unknown command") {
@@ -36,7 +36,8 @@ func TestRemovedCommandsAreUnknown(t *testing.T) {
 		}
 	}
 	for _, c := range commandList {
-		if c.name == ":clear" || c.name == ":resume" {
+		switch c.name {
+		case ":clear", ":resume", ":cache", ":notify", ":attach", ":theme":
 			t.Fatalf("%s still in the command list", c.name)
 		}
 	}

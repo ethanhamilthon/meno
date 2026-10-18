@@ -93,7 +93,7 @@ func (a *App) drawBottom(c ui.Canvas, x, y, w, h int) {
 func (a *App) drawStatus(c ui.Canvas, x, y, w int) {
 	label := a.st.Mode.Label()
 	if a.st.Over != OverNone {
-		labels := map[Overlay]string{OverModel: "MODEL", OverSettings: "SETTINGS", OverProviders: "PROVIDERS", OverProviderEdit: "PROVIDER", OverSkills: "SKILLS", OverMCP: "MCP", OverMCPEdit: "MCP", OverSessions: "SESSIONS", OverTheme: "THEME", OverHelp: "HELP", OverFork: "FORK", OverTasks: "TASKS", OverAgents: "AGENTS"}
+		labels := map[Overlay]string{OverModel: "MODEL", OverSettings: "SETTINGS", OverProviders: "PROVIDERS", OverProviderEdit: "PROVIDER", OverSkills: "SKILLS", OverMCP: "MCP", OverMCPEdit: "MCP", OverSessions: "SESSIONS", OverHelp: "HELP", OverFork: "FORK", OverTasks: "TASKS", OverAgents: "AGENTS", OverSnippets: "SNIPPETS"}
 		if name := labels[a.st.Over]; name != "" {
 			label = name
 		}

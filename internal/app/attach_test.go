@@ -171,14 +171,16 @@ func TestEmptyPasteLooksAtClipboard(t *testing.T) {
 	}
 }
 
-func TestAttachCommandAndNormalModeP(t *testing.T) {
+func TestAtPickerAttachesImageAndNormalModeP(t *testing.T) {
 	a, scr, _ := e2eApp(t, &scriptedClient{})
 	defer scr.Fini()
 	p := filepath.Join(a.st.Cwd, "pic.png")
 	if err := os.WriteFile(p, testPNG(t, 5, 5), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	a.runCommand("attach pic.png")
+	typeRunes(a, "@pic.png")
+	pump(t, a, func() bool { return a.st.Pick != nil && a.st.Pick.ResultsFor == "pic.png" && len(a.st.Pick.Items) > 0 })
+	a.onKey(keyK(tcell.KeyEnter))
 	waitImage(t, a)
 	if len(a.st.Images) != 1 || string(a.st.Input) != "[Image #1] " {
 		t.Fatalf("input=%q", string(a.st.Input))

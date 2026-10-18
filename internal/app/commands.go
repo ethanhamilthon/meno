@@ -47,18 +47,18 @@ func (a *App) runCommand(raw string) {
 		a.openFork()
 	case "rename":
 		a.renameSession(strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(raw), name)))
-	case "cache":
-		a.cacheReport()
 	case "agents":
 		a.openAgents()
 	case "tasks":
 		a.openTasks()
 	case "compact":
 		a.compact()
-	case "notify":
-		a.notifyCommand(strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(raw), name)))
-	case "attach":
-		a.attachCommand(strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(raw), name)))
+	case "snippets":
+		a.openSnippets()
+	case "save_snippet":
+		a.saveSnippet(args)
+	case "paste_snippet":
+		a.pasteSnippet(args)
 	case "export":
 		a.exportSession(args)
 	case "stop":
@@ -69,14 +69,13 @@ func (a *App) runCommand(raw string) {
 		a.fetchModels()
 		a.openOverlay(OverModel)
 	case "settings":
+		a.fetchModels()
 		a.openOverlay(OverSettings)
 	case "providers":
 		a.openOverlay(OverProviders)
 	case "skills":
 		a.reloadSkills()
 		a.openOverlay(OverSkills)
-	case "theme":
-		a.openTheme()
 	case "mcp":
 		a.openOverlay(OverMCP)
 	case "sessions":

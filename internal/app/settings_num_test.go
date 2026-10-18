@@ -39,8 +39,13 @@ func TestSettingsNumbersForThinkingAndTimeout(t *testing.T) {
 		t.Fatalf("thinking lines %d, js lines %d", a.st.Settings.ThinkLines, a.st.Settings.JSLines)
 	}
 	a.draw()
-	if text := screenText(s); !strings.Contains(text, "lines 4") || !strings.Contains(text, "35 sec") {
-		t.Fatalf("numbers not shown:\n%s", text)
+	if text := screenText(s); !strings.Contains(text, "lines 4") {
+		t.Fatalf("thinking lines not shown:\n%s", text)
+	}
+	a.st.Sel = settingIdx(t, "js_timeout")
+	a.draw()
+	if text := screenText(s); !strings.Contains(text, "35 sec") {
+		t.Fatalf("timeout seconds not shown:\n%s", text)
 	}
 	// Cycling reaches off and model; the VM follows the setting.
 	a.st.Sel = settingIdx(t, "js_timeout")
@@ -57,6 +62,36 @@ func TestSettingsNumbersForThinkingAndTimeout(t *testing.T) {
 	a.onKey(key('+'))
 	if a.st.Settings.JSTimeoutSec != 40 {
 		t.Fatalf("+ still adjusts the stored seconds: %d", a.st.Settings.JSTimeoutSec)
+	}
+}
+
+func TestSettingsWebSearchBackendAndKey(t *testing.T) {
+	a, s := newTestApp(t)
+	defer s.Fini()
+	a.openOverlay(OverSettings)
+	a.st.Sel = settingIdx(t, "websearch")
+	a.draw()
+	if text := screenText(s); !strings.Contains(text, "Web") || !strings.Contains(text, "auto") {
+		t.Fatalf("Web tab missing:\n%s", text)
+	}
+	a.onKey(keyK(tcell.KeyRight))
+	if a.st.Settings.WebSearch != "brave" {
+		t.Fatalf("backend %q", a.st.Settings.WebSearch)
+	}
+	a.st.Sel = settingIdx(t, "websearch_key")
+	a.onKey(keyK(tcell.KeyEnter))
+	typeRunes(a, "brave-key")
+	a.onKey(keyK(tcell.KeyEnter))
+	if a.st.Settings.WebSearchKey != "brave-key" {
+		t.Fatalf("key %q", a.st.Settings.WebSearchKey)
+	}
+	saved, err := a.store.LoadSettings()
+	if err != nil || saved.WebSearchKey != "brave-key" || saved.WebSearch != "brave" {
+		t.Fatalf("not persisted: %+v %v", saved, err)
+	}
+	a.draw()
+	if text := screenText(s); strings.Contains(text, "brave-key") || !strings.Contains(text, "••") {
+		t.Fatalf("key not masked:\n%s", text)
 	}
 }
 

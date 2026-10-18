@@ -41,6 +41,7 @@ func (p parentAgents) Spawn(tc jsvm.TaskCall, spec map[string]any) (any, error) 
 			return
 		}
 		prov, model, effort = rt.Session.Provider, rt.Session.Model, rt.Session.Effort
+		prov, model, effort = subagentDefaults(p.a.st.Settings, spec, prov, model, effort)
 		for _, k := range []string{"provider", "model", "effort"} {
 			v, set := spec[k]
 			if !set {

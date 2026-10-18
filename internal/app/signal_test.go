@@ -113,31 +113,6 @@ func TestSignalNotSentWhenQueuedMessageRestartsTurn(t *testing.T) {
 	}
 }
 
-func TestNotifyCommand(t *testing.T) {
-	a, scr, _ := e2eApp(t, &scriptedClient{})
-	defer scr.Fini()
-	var s signals
-	a.notifier = s.record
-	a.runCommand("notify done")
-	a.runCommand("notify command say finished")
-	if a.st.Settings.Notify != "done" || a.st.Settings.NotifyCommand != "say finished" {
-		t.Fatalf("%+v", a.st.Settings)
-	}
-	a.runCommand("notify test")
-	a.runCommand("notify off")
-	a.runCommand("notify test question")
-	if len(s.events) != 2 || s.events[0] != "done" || s.events[1] != "question" || s.cmds[0] != "say finished" {
-		t.Fatalf("signals: %v %v", s.events, s.cmds)
-	}
-	if a.st.Settings.Notify != "off" {
-		t.Fatal("test must not change the mode")
-	}
-	a.runCommand("notify loud")
-	if !strings.Contains(a.lastNotice(), "usage") {
-		t.Fatalf("notice: %q", a.lastNotice())
-	}
-}
-
 func TestDefaultNotifyCommand(t *testing.T) {
 	if !strings.HasPrefix(defaultNotifyCommand("darwin"), "afplay ") || defaultNotifyCommand("linux") != "" {
 		t.Fatal("defaults")

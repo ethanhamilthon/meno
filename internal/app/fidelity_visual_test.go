@@ -77,16 +77,28 @@ func TestVisualReferenceBottom(t *testing.T) {
 	exportVisual(t, s, "main")
 }
 
+// logoCellLit reports whether a cell of the wordmark box is lit: a letter
+// pixel or its shadow one cell down and to the right.
+func logoCellLit(ri, i int) bool {
+	if i >= 0 && i < logoW && ri >= 0 && ri < logoH && []rune(logoRows[ri])[i] != ' ' {
+		return true
+	}
+	if ri >= 1 && ri-1 < logoH && i >= 1 && i-1 < logoW {
+		return []rune(logoRows[ri-1])[i-1] != ' '
+	}
+	return false
+}
+
 func TestVisualWelcomeAlignment(t *testing.T) {
 	a, s := visualFixture(t, 112, 36)
 	a.draw()
 	top := (32 - welcomeBlockH) / 2
 	x := (112 - logoW) / 2
 	for ri, want := range logoRows {
-		got := string([]rune(visualRow(s, top+3+ri))[x : x+logoW])
+		got := []rune(visualRow(s, top+3+ri))[x : x+logoW]
 		for i, r := range []rune(want) {
-			if r != ' ' && []rune(got)[i] != r {
-				t.Fatalf("logo row %d col %d: got %q want %q", ri, i, []rune(got)[i], r)
+			if lit := got[i] != ' '; lit != logoCellLit(ri, i) {
+				t.Fatalf("logo shape row %d col %d: lit=%v want %v (main %v)", ri, i, lit, logoCellLit(ri, i), r != ' ')
 			}
 		}
 	}
@@ -113,11 +125,48 @@ func TestWelcomeWaveAnimates(t *testing.T) {
 	}
 }
 
+// logoFrame returns the lit mask and the glyphs of the wordmark on screen.
+func logoFrame(s tcell.SimulationScreen, top, x int) (mask, glyphs string) {
+	for ri, want := range logoRows {
+		row := []rune(visualRow(s, top+3+ri))
+		for i := range []rune(want) {
+			if row[x+i] != ' ' {
+				mask += "1"
+				glyphs += string(row[x+i])
+			} else {
+				mask += "0"
+			}
+		}
+	}
+	return
+}
+
+func TestWelcomeLogoScramblesWithoutChangingShape(t *testing.T) {
+	a, s := visualFixture(t, 112, 36)
+	top := (32 - welcomeBlockH) / 2
+	x := (112 - logoW) / 2
+	a.draw()
+	mask1, glyphs1 := logoFrame(s, top, x)
+	time.Sleep(250 * time.Millisecond)
+	a.draw()
+	mask2, glyphs2 := logoFrame(s, top, x)
+	if mask1 != mask2 {
+		t.Fatalf("wordmark shape changed:\n%s\n%s", mask1, mask2)
+	}
+	if glyphs1 == glyphs2 {
+		t.Fatalf("the glyphs did not scramble: %q", glyphs1)
+	}
+	if strings.Trim(glyphs1, " ") == "" {
+		t.Fatal("no lit pixels")
+	}
+}
+
 func TestVisualModalGridAndSelection(t *testing.T) {
 	a, s := visualFixture(t, 112, 36)
 	a.openOverlay(OverSettings)
 	a.draw()
-	b := centered(112, 36, 66, 4+len(settingRows)+1)
+	_, _, _, tab := settingTabFor(a.st.Sel)
+	b := centered(112, 36, 66, 4+len(tab.rows)+1)
 	_, _, st, _ := s.GetContent(b.x, b.y)
 	_, bg, _ := st.Decompose()
 	if bg != ui.BgPopup {

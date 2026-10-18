@@ -20,9 +20,10 @@ func TestNarrowSettingsChoices(t *testing.T) {
 					t.Fatal(err)
 				}
 				a.draw()
-				b := centered(40, 12, 66, 5+len(settingRows))
-				start := max(0, i-max(1, b.h-5)+1)
-				y := b.y + 2 + i - start
+				_, _, rowInTab, tab := settingTabFor(i)
+				b := centered(40, 12, 66, 5+len(tab.rows))
+				start := max(0, rowInTab-max(1, b.h-5)+1)
+				y := b.y + 2 + rowInTab - start
 				row := visualRow(s, y)
 				if !strings.Contains(row, "▸ ") {
 					t.Fatalf("selected label missing: %q", row)

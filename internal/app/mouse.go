@@ -18,6 +18,7 @@ import (
 // key or click.
 type mouseState struct {
 	down, dragging bool
+	input          bool // the drag began in the composer
 	clicks         int
 	at             time.Time
 	x, y           int
@@ -84,6 +85,55 @@ func (a *App) logPos(x, y int, clamp bool) (p vpos, ok bool) {
 	return vpos{i, textCol([]rune(lines[i].Text()), x-ui.PadX)}, true
 }
 
+// mousePos maps a screen cell to a document position, in the timeline or in
+// the composer.
+func (a *App) mousePos(x, y int, clamp bool) (vpos, bool) {
+	if y >= a.logHeight() {
+		return a.inputPosAt(x, y, clamp)
+	}
+	return a.logPos(x, y, clamp)
+}
+
+// inputPosAt maps a screen cell to a composer line and rune column. The
+// geometry comes from the last drawComposer call.
+func (a *App) inputPosAt(x, y int, clamp bool) (vpos, bool) {
+	rows := a.st.ComposerRows
+	if len(rows) == 0 || a.st.Mode == ui.ModeCommand {
+		return vpos{}, false
+	}
+	idx := y - a.st.ComposerY + a.st.ComposerTop
+	if idx < 0 || idx >= len(rows) {
+		if !clamp {
+			return vpos{}, false
+		}
+		idx = min(max(idx, 0), len(rows)-1)
+	}
+	row := rows[idx]
+	lo, hi := min(row.start, len(a.st.Input)), min(row.end, len(a.st.Input))
+	col := inputColAt(a.st.Input[lo:hi], x-a.st.ComposerX)
+	// Composer rows wrap; document lines do not. The start of a wrapped row
+	// gives its logical line and column.
+	in := a.inputText()
+	p := in.pos(lo)
+	w, _ := a.scr.Size()
+	return vpos{len(a.transcriptWithSelection(w)) + p.line, p.col + col}, true
+}
+
+// inputColAt is the rune index covered by display column col.
+func inputColAt(rs []rune, col int) int {
+	if col <= 0 {
+		return 0
+	}
+	acc := 0
+	for i, r := range rs {
+		acc += cellWidth(string(r))
+		if col < acc {
+			return i
+		}
+	}
+	return len(rs)
+}
+
 // textCol is the index of the rune that covers display column col.
 func textCol(rs []rune, col int) int {
 	if col <= 0 {
@@ -100,10 +150,11 @@ func textCol(rs []rune, col int) int {
 }
 
 func (a *App) mousePress(x, y int) {
-	p, ok := a.logPos(x, y, false)
+	p, ok := a.mousePos(x, y, false)
 	if !ok || a.st.Mode == ui.ModeCommand {
 		return
 	}
+	a.mouse.input = y >= a.logHeight()
 	if a.st.Mode == ui.ModeInsert {
 		a.leaveInsert()
 	}
@@ -130,12 +181,14 @@ func (a *App) mousePress(x, y int) {
 }
 
 func (a *App) mouseDrag(x, y int) {
-	if logH := a.logHeight(); y <= 0 {
-		a.scrollBy(1)
-	} else if y >= logH-1 {
-		a.scrollBy(-1)
+	if !a.mouse.input {
+		if logH := a.logHeight(); y <= 0 {
+			a.scrollBy(1)
+		} else if y >= logH-1 {
+			a.scrollBy(-1)
+		}
 	}
-	p, ok := a.logPos(x, y, true)
+	p, ok := a.mousePos(x, y, true)
 	if !ok {
 		return
 	}
@@ -160,6 +213,7 @@ func (a *App) mouseRelease() {
 	}
 	t, top := a.doc()
 	text := joinRngs(t, a.selRngs(t, top))
+	a.st.SelText = text
 	a.setReg(text, a.st.VKind == 'V')
 	a.notify(fmt.Sprintf("copied %d characters", utf8.RuneCountInString(text)))
 }
