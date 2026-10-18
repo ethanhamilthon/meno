@@ -53,6 +53,34 @@ func TestPresetsAreDistinctValidWAV(t *testing.T) {
 	}
 }
 
+func TestWAVVolumeScalesSamples(t *testing.T) {
+	full, err := WAV("chime", 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	quiet, err := WAV("chime", 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	peak := func(b []byte) int {
+		m := 0
+		for i := 44; i+1 < len(b); i += 2 {
+			v := int(int16(binary.LittleEndian.Uint16(b[i : i+2])))
+			if v < 0 {
+				v = -v
+			}
+			if v > m {
+				m = v
+			}
+		}
+		return m
+	}
+	pf, pq := peak(full), peak(quiet)
+	if pq <= 0 || pq >= pf/3 {
+		t.Fatalf("expected 20%% peak (%d) to be ~1/5 of 100%% peak (%d)", pq, pf)
+	}
+}
+
 func TestPlayerSelection(t *testing.T) {
 	for _, tc := range []struct {
 		os, available string

@@ -54,16 +54,21 @@ func Names() []string {
 
 // WAV returns mono 16-bit PCM at 22050 Hz. A short attack and exponential
 // decay keep cues quiet and prevent abrupt clicks at note boundaries.
-func WAV(name string) ([]byte, error) {
+// Optional volume scales samples by volume/100 (default 100).
+func WAV(name string, volume ...int) ([]byte, error) {
+	vol := 100
+	if len(volume) > 0 && volume[0] > 0 {
+		vol = min(100, volume[0])
+	}
 	for _, p := range presets {
 		if p.name == name {
-			return render(p), nil
+			return render(p, float64(vol)/100), nil
 		}
 	}
 	return nil, fmt.Errorf("unknown notification sound %q", name)
 }
 
-func render(p preset) []byte {
+func render(p preset, scale float64) []byte {
 	const rate = 22050
 	n := int(p.duration * rate)
 	samples := n * len(p.notes)
@@ -82,7 +87,7 @@ func render(p preset) []byte {
 			phase := 2 * math.Pi * hz * t
 			envelope := math.Min(1, t/.008) * math.Exp(-5*t/p.duration) * math.Min(1, float64(n-1-i)/220)
 			wave := (math.Sin(phase) + p.harmonic*math.Sin(phase*2.01)) / (1 + p.harmonic)
-			_ = binary.Write(&out, binary.LittleEndian, int16(wave*envelope*10000))
+			_ = binary.Write(&out, binary.LittleEndian, int16(wave*envelope*10000*scale))
 		}
 	}
 	return out.Bytes()

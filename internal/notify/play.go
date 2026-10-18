@@ -10,8 +10,8 @@ import (
 
 // Play uses a platform player without a shell. Temporary audio is removed even
 // if playback fails or the caller's deadline expires.
-func Play(ctx context.Context, name string) error {
-	data, err := WAV(name)
+func Play(ctx context.Context, name string, volume ...int) error {
+	data, err := WAV(name, volume...)
 	if err != nil {
 		return err
 	}
