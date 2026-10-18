@@ -21,7 +21,7 @@ done** say exactly what is missing; nothing here claims behavior that was not ru
 | Background tasks: process groups, rotating logs, notify dedup, :tasks | done | proc/proc_test.go, app/tasks_test.go |
 | Subagents: spawn, report/block/resume, prohibited bindings, :agents, usage accounting | done | app/children_test.go, children_more_test.go |
 | Automatic compaction safety net | done | agent/autocompact_test.go |
-| Cache: usage units, unknown ≠ 0, request fingerprints, :cache, opt-in payload log | done | llm/fingerprint_test.go, app/diagnostics_test.go |
+| Cache: usage units, unknown ≠ 0, request fingerprints, opt-in payload log (`MENO_DEBUG_PAYLOADS=1`) | done | llm/fingerprint_test.go |
 | Benchmarks and per-turn layout cache | done | docs/performance.md |
 | JS highlighting of completed source, string folding (`js strings` setting) | done | ui/jscode_test.go |
 | @ picker (async, unfiltered, fuzzy, folders, symlinks) and atomic file/folder/skill objects in every editing mode | done | pathsearch tests, app/picker_test.go (random edit test) |

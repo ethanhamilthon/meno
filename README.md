@@ -2,14 +2,14 @@
 
 A terminal coding agent for individual developers. It has one tool, `js`: a
 fresh JavaScript runtime ([goja](https://github.com/dop251/goja)) per call with
-the file system, a shell, HTTP, background tasks,
+the file system, a shell, web search, background tasks,
 subagents and your MCP servers inside it. The UI is a vim-style TUI built on
 [tcell](https://github.com/gdamore/tcell). Pure Go, no CGO. macOS and Linux
 (arm64, amd64). MIT licensed.
 
 **There is no sandbox.** The agent runs with your permissions: `fs` reads and
-writes any path, `sh` runs any command, `fetch` reaches any URL. Run it where
-you would run a shell you trust the model with.
+writes any path, `sh` runs any command, and `websearch` or `sh(curl)` reaches
+any URL. Run it where you would run a shell you trust the model with.
 
 ## Install
 
@@ -19,7 +19,7 @@ in `~/.local/bin` (`/usr/local/bin` when run as root):
 
 ```sh
 curl -fsSL https://github.com/ethanhamilthon/meno/releases/latest/download/install.sh | sh
-curl -fsSL https://github.com/ethanhamilthon/meno/releases/latest/download/install.sh | sh -s -- v0.1.0   # a version
+curl -fsSL https://github.com/ethanhamilthon/meno/releases/latest/download/install.sh | sh -s -- v0.2.0   # a version
 ```
 
 Options (environment): `MENO_INSTALL_DIR`, `MENO_REPO`, `MENO_BASE_URL`. Update with `meno update`
@@ -39,7 +39,7 @@ make build && ./meno        # or: make install
 
 ## Releasing
 
-Push a tag: `git tag v0.1.0 && git push origin v0.1.0`. The `release` workflow runs
+Push a tag: `git tag v0.2.0 && git push origin v0.2.0`. The `release` workflow runs
 `make check`, builds the four archives with `scripts/release.sh`, verifies the checksums
 and publishes a GitHub release with the archives, `SHA256SUMS`, `install.sh` and `uninstall.sh` attached
 (tags containing `-`, such as `v0.2.0-rc1`, are pre-releases). The `ci` workflow tests
@@ -59,7 +59,7 @@ every push and pull request on Linux and macOS and installs a snapshot build wit
 
 | | |
 | --- | --- |
-| [The agent's tool](docs/tools.md) | every global the model can use: fs, sh, session, tasks, agents, askUser, mcp, help |
+| [The agent's tool](docs/tools.md) | every global the model can use: fs, sh, websearch, session, tasks, agents, askUser, mcp, help |
 | [Sessions, history and events](docs/sessions.md) | :new, :fork, :cd, compaction, steering, :stop |
 | [Interface](docs/ui.md) | keys, commands, timeline, Markdown, images, JS display |
 | [Settings](docs/settings.md), [notifications](docs/notifications.md) | |
@@ -79,7 +79,7 @@ Everything lives in `$MENO_HOME` (default `~/.meno`; `make run` uses `~/.meno-de
 
 | | |
 | --- | --- |
-| `meno.db` | SQLite (mode 0600): settings, providers (**API keys in plain text**), MCP servers, skill state, model catalog cache, sessions, history, tasks, agents |
+| `meno.db` | SQLite (mode 0600): settings, providers (**API keys in plain text**), MCP servers, skill state, snippets, model catalog cache, sessions, history, tasks, agents |
 | `attachments/` | image bytes, named by hash |
 | `tasks/` | bounded logs of background tasks |
 | `mcp-results/` | complete MCP tool results and their binary artifacts, per session |

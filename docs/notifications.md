@@ -1,19 +1,21 @@
 # Notification sounds
 
-Open `:settings` and select **notify sound**. Use Left/Right to cycle through
-25 built-in sounds, plus `default` and `bell`. Each change previews and saves
-the choice, even when notifications are off. Choosing a sound clears any custom
-notification command. Short terminals scroll to keep the selected setting visible.
+Open `:settings` and the **Notify** tab:
 
-Commands:
+| Setting | Values |
+| --- | --- |
+| notify | `off` (default), `question`, `done` — when meno signals that you are needed |
+| notify sound | `default`, `bell`, or one of the built-in sounds; changing it previews the sound |
+| notify volume | `20`, `40`, `60`, `80`, `100` (default `100`); changing it previews the sound |
+| notify command | an optional shell command that replaces the built-in sound; `bell` forces the terminal bell |
 
-- `:notify sounds` lists the available names.
-- `:notify sound chime` selects, saves, and previews a sound.
-- `:notify test` previews the current signal without changing notification mode.
-- `:notify off|question|done` controls when signals occur. Notifications are off
-  by default. `question` signals questions from the agent; `done` also signals
-  successful or failed turns. Your own Ctrl+C does not signal. This applies to
-  background sessions too.
+Volume scales the built-in samples. It does not apply when **notify command** is
+set: a custom command makes its own sound. Clearing **notify sound** is not
+needed: choosing a sound clears a custom command.
+
+Notifications are global: a background session that needs you signals too. Your
+own Ctrl+C does not signal. `question` signals questions from the agent;
+`done` also signals the end of a turn, with success or error.
 
 ## Built-in sounds
 
@@ -34,9 +36,8 @@ keep the platform default. Unknown names reset to `default` when loaded.
 
 ## Custom commands
 
-`:notify command <cmd>` overrides the selected sound. Commands run via `sh -c`
-in the background (five-second timeout), with `MENO_NOTIFY_EVENT` (`question`,
-`done`, or `error`), `MENO_NOTIFY_SESSION`, and `MENO_NOTIFY_TITLE` in the environment.
-`:notify command bell` forces the terminal bell. `:notify command` without an
-argument clears the override and restores the selected sound. An old
-`notify_question: on` setting migrates to `notify: question`.
+A custom **notify command** runs via `sh -c` in the background (five-second
+timeout), with `MENO_NOTIFY_EVENT` (`question`, `done`, or `error`),
+`MENO_NOTIFY_SESSION`, and `MENO_NOTIFY_TITLE` in the environment. The volume
+setting is ignored. Leave the field empty to return to the selected sound.
+An old `notify_question: on` setting migrates to `notify: question`.

@@ -1,7 +1,7 @@
 # The agent's tool
 
 The model has one tool, `js`. **Every call runs in a fresh runtime**: declarations,
-`globalThis` changes, patched builtins and `env` edits do not survive the call.
+`globalThis` changes and patched builtins do not survive the call.
 Durable data lives in files and tasks. `help()` lists the topics; `help("name")` returns the full API of one global (the text is embedded in `internal/jsvm/help/`). Host functions are
 synchronous; `await` works on values that are already settled and a promise that
 stays pending is an error. The last expression, or an explicit top-level
@@ -15,7 +15,8 @@ result share one 64 KB budget; there is a timeout (a setting).
 | `fs.search(query, {root?, glob?, regex?, caseSensitive?, includeIgnored?, limit?, cursor?})` | `{matches: [{path, line, column, text}], nextCursor, truncated}`; columns are Unicode scalar positions; skips git-ignored files unless asked |
 | `fs.patch(path, [{oldText, newText}], {expectedHash})` | all-or-nothing exact edits against what `inspect` showed; each `oldText` must match once; atomic replace keeping permissions |
 | `fs.edit`, `fs.write`, `fs.glob`, `fs.exists` | `edit` needs a unique match and says where the near misses are |
-| `sh(cmd)`, `fetch`, `env`, `URL`, `console` | as before |
+| `sh(cmd)`, `console` | shell and output; there is no `fetch`, `URL`, `URLSearchParams` or `env` global |
+| `websearch(query, {count?})` | `{query, backend, answer?, results: [{title, url, snippet}]}`; provider-native search, then Brave or Tavily from settings, then DuckDuckGo; `count` is 1..10 (default 5) |
 | `session.models({provider?, refresh?})` | models of enabled providers with known capabilities; `null` means unknown |
 | `tasks.start/list/status/logs/wait/cancel` | background processes, see below |
 | `agents.spawn/list/status/send/wait/result/cancel` | subagents, see below |
@@ -28,14 +29,18 @@ result share one 64 KB budget; there is a timeout (a setting).
 `askUser({questions: [{id, text, type: "single"|"multi"|"text", options: [{id, label}], recommendation}], timeout})`
 returns `{answers: [{id, selected, text}]}`. Every question is required and the
 user can always add custom text. `Tab`/`Shift+Tab` move focus, `Space` toggles,
-`Enter` activates, `[`/`]` change question, clicks work. `Submit` checks every
-question and focuses the first unanswered one; `Cancel` makes the call throw
-`AskCancelled` (`AskTimeout` after the timeout). `Esc` never closes the form.
+`[`/`]` change question, clicks work. Enter selects a single choice, marks a
+multi choice or accepts text and goes to the next question; Enter on the last
+question sends every answer at once. Going back with the arrow keys or
+`Shift+Tab` keeps what was already answered. There is no separate submit step.
+`Cancel` makes the call throw `AskCancelled` (`AskTimeout` after the timeout).
+`Esc` never closes the form.
 
 ## Tasks
 
 `tasks.start(cmd, {cwd?, env?, name?, timeout?, notify?})` starts `/bin/sh -c` in its
-own process group with stdin closed and returns `{id}`. Logs are kept on disk, at
+own process group with stdin closed and returns `{id}`. The process inherits the
+environment of meno; `env` adds or overrides single values. Logs are kept on disk, at
 most 10 MiB per task (newest kept, lost ranges are reported). When a task ends
 the agent is told through the steering queue unless `notify: false` or it already
 saw the result in a successful `tasks.wait`. `:tasks` shows the session's tasks,
@@ -47,7 +52,9 @@ Tasks live only while meno is open; a task found running after a crash is marked
 
 `agents.spawn({task, cwd?, provider?, model?, effort?})` starts a child session that
 sees only the task text, `AGENTS.md` of its directory and the ordinary tools: no
-`askUser`, no tasks, no further agents.
+`askUser`, no tasks, no further agents. Provider, model and effort fall back one
+by one: the spawn argument, then the defaults in settings, then this agent's
+values.
 Children report with `agents.report`, ask for help with `agents.block` and finish by
 answering. `:agents` lists only working children of the session; open one to watch
 and message it. Their spend is shown apart (`delegated`), unknown prices stay

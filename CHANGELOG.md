@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.2.0
+
+- `websearch(query, {count?})` replaces `fetch`. It asks the provider's native web search first, then Brave or Tavily (Web tab: backend and key), then the keyless DuckDuckGo fallback; `count` is 1..10.
+- The js runtime no longer has `fetch`, `URL`, `URLSearchParams` or the `env` global. For another HTTP API use `sh(curl ...)`. Background tasks still take `env`, and a name that appears twice now replaces the old value instead of stacking.
+- New host helpers: `hash` (sha256, sha1, md5, also for files), `path` (join, dirname, basename, resolve and the rest) and `base64`/`btoa`/`atob`, all UTF-8 safe.
+- `help("sh")`, `help("view")` and `help("websearch")` reach their topics through aliases, and an unknown topic lists the aliases along with the topic names.
+- A batched script that redeclares a top-level `let` or `const` no longer fails with "identifier has already been declared": the parser turns those declarations into `var`.
+- `fs.write` refuses to replace an existing file unless it gets `{overwrite: true}`; the error points to `fs.patch` and `fs.edit`. `fs.patch` reports the line where the old text stopped matching, with what the file has there and what the patch expected.
+- Settings are split into tabs: General, Display, Web, Notify, Agents and Context (`Tab`/`]` and `Shift+Tab`/`[`).
+- `:cache`, `:notify`, `:attach` and `:theme` are gone. The theme is a setting with a live preview, images come in by paste, drag and drop, or an image picked with `@`, and the opt-in payload log stays behind `MENO_DEBUG_PAYLOADS=1`.
+- Notify volume (20 to 100 percent) scales the built-in sounds and previews on change; it is ignored for a custom `notify_command`.
+- Snippets: `:save_snippet <name>` stores the selection from the composer or the transcript, `:paste_snippet <name>` inserts it at the cursor, and `:snippets` lists, renames and deletes. They live in `meno.db` (new additive migration).
+- Defaults for subagents: `subagent_provider`, `subagent_model` and `subagent_effort` (Agents tab). `agents.spawn` falls back field by field: the value it was given, then the setting, then the calling agent's value.
+- askUser forms lost the separate Submit button: `Enter` selects and advances, and `Enter` on the last question sends every answer at once. Going back with the arrow keys or `Shift+Tab` keeps what was filled in.
+- The welcome wordmark scrambles the glyph of every lit pixel while the wave moves behind it.
+- The system prompt and the js tool description now name `websearch` instead of `fetch`, `URL` and `env`.
+
 ## 0.1.2
 
 - `meno update` installs the latest GitHub release over the running binary (SHA-256 checked). `meno -v` and `meno -h` are new; any other unknown command prints an error, points to `meno -h` and exits 1. Only a bare `meno` opens the UI.

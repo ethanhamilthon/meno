@@ -33,8 +33,8 @@
 
 ## Repo map
 
-meno is a Go terminal coding agent with a tcell UI, a persistent goja JavaScript
-VM, provider APIs, MCP integrations, and SQLite persistence.
+meno is a Go terminal coding agent with a tcell UI, a fresh-per-call goja
+JavaScript VM, provider APIs, MCP integrations, and SQLite persistence.
 
 | Path | Responsibility / starting points |
 | --- | --- |
@@ -42,11 +42,12 @@ VM, provider APIs, MCP integrations, and SQLite persistence.
 | `internal/app/` | TUI controller, state, input, commands, modals, session/runtime wiring. Start with `app.go`, `state.go`, `runtime.go`, `turn.go`. |
 | `internal/ui/` | Rendering primitives, themes, Markdown, transcript layout, widgets. Start with `render.go`, `transcript.go`, `theme.go`. |
 | `internal/agent/` | Agent loop, events, retries, queues, compaction, sessions. Start with `loop.go`, `session.go`, `sessiondb.go`; history/fork/versioned store in `history.go`, `fork.go`, `kv.go`; steering queue in `events.go`; subagent records in `agents_store.go`; retrieval in `retrieval.go`. |
-| `internal/llm/` | Provider API clients, streaming, model catalog, usage and protocol types. Start with `types.go`, `http.go`, `chat.go`, `responses.go`. |
-| `internal/jsvm/` | Fresh-per-call JS runtime and its bindings: filesystem (`fs_*.go`), shell, HTTP, session, tasks, agents, askUser forms, MCP, and `help` (topic texts in `help/*.md`). Start with `vm.go`, `exec.go`, `compile.go` and `prelude.js`. |
+| `internal/llm/` | Provider API clients, streaming, native web search, model catalog, usage and protocol types. Start with `types.go`, `http.go`, `chat.go`, `responses.go`, `websearch.go`. |
+| `internal/jsvm/` | Fresh-per-call JS runtime and its bindings: filesystem (`fs_*.go`), shell, web search, session, tasks, agents, askUser forms, MCP, and `help` (topic texts in `help/*.md`). Start with `vm.go`, `exec.go`, `compile.go` and `prelude.js`. |
 | `internal/mcp/` | MCP server lifecycle, transports, JSON-RPC, tool schemas, typed results and the local result/artifact store. Start with `manager.go`, `client.go`, `result.go`, `store.go`. |
+| `internal/websearch/` | Brave, Tavily and keyless DuckDuckGo search backends; `search.go` dispatches by backend. |
 | `internal/prompt/` | System prompt assembly and built-in tool instructions; `prompt.go`. |
-| `internal/config/` | Paths, settings, providers, skills, MCP configuration, and the read-only `provider.json`/`mcp.json` overlays (`overlay.go`). Start with `paths.go`, `settings.go`, `store.go`. |
+| `internal/config/` | Paths, settings, providers, skills, snippets, MCP configuration, and the read-only `provider.json`/`mcp.json` overlays (`overlay.go`). Start with `paths.go`, `settings.go`, `store.go`, `snippets.go`. |
 | `internal/db/` | Shared SQLite database; additive versioned migrations live in `migrations.go`, opening in `db.go`. |
 | `internal/proc/` | Background process supervisor: process groups, bounded rotating disk logs, durable task results; `daemon.go` runs the provider `run` commands. |
 | `internal/update/` | `meno update` and the start-up check: latest GitHub release, SHA-256 verified install over the executable, cached check in `$MENO_HOME/update.json`. |

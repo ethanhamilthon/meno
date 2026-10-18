@@ -10,10 +10,11 @@ supports every motion and yank (`y` copies through OSC 52). `:` opens commands.
 | `Enter` / `Shift+Enter` | send / new line |
 | `Enter` while the agent works | steering: queued above the input, delivered before the next model request; `↑` on an empty input takes it back |
 | `Ctrl+C` | abort this session's active request |
-| `Ctrl+V`, `:attach [path]` | attach a PNG/JPEG from the clipboard or a file |
+| `Ctrl+V`, drag and drop, `@` | attach a PNG/JPEG from the clipboard, a dropped file or the picker |
 | `:new :fork :rename :sessions :cd :compact :export` | sessions, see [sessions](sessions.md) |
 | `:tasks :agents` | background processes, working subagents |
-| `:model :settings :theme :skills :mcp :providers` | dialogs |
+| `:model :settings :skills :mcp :providers` | dialogs |
+| `:snippets :save_snippet <name> :paste_snippet <name>` | saved text: list, save the selection, insert at the cursor |
 | `:stop :q :q!` | stop the active request, quit, quit and cancel everything |
 
 `:reset` no longer exists: every JS call starts fresh.
@@ -25,10 +26,16 @@ boxes, form fields, command arguments, the target of `f t r`) is never translate
 `Ctrl`+letter of another layout works where the terminal reports the letter (kitty
 keyboard protocol); other terminals send a control code or nothing for it.
 
-**Mouse.** The wheel scrolls the timeline. Drag over the timeline to select text (it
-is a visual selection and is copied through OSC 52 when you let go), double-click
-selects a word, triple-click a line; `Esc` or the next click clears it. The input,
-the status bar and dialogs are not selectable with the mouse.
+**Mouse.** The wheel scrolls the timeline. Drag over the timeline or the composer
+to select text (it is a visual selection and is copied through OSC 52 when you let
+go), double-click selects a word, triple-click a line; `Esc` or the next click
+clears it. The status bar and dialogs are not selectable with the mouse.
+
+**Snippets.** Select text with `v`, `V`, `Ctrl+V` or the mouse, then
+`:save_snippet <name>` stores it. `:paste_snippet <name>` inserts it into the
+composer at the cursor and returns to insert mode. `:snippets` lists them:
+Enter pastes, `r` renames, `d` twice deletes. Snippets are global and live in
+`meno.db`; a name uses letters, digits, dot, dash or underscore.
 
 ## Timeline
 

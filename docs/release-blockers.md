@@ -37,7 +37,7 @@ idea-capture-only scope of the original review.
 
 | Blocker | Status | Evidence / what is left |
 | --- | --- | --- |
-| Cache behavior | Instrumented, cause not confirmed | Usage units, request fingerprints, `:cache` and the opt-in payload log exist (llm/fingerprint_test.go, app/diagnostics_test.go). The 85% report has not been reproduced against a real provider. |
+| Cache behavior | Instrumented, cause not confirmed | Usage units, request fingerprints and the opt-in payload log (`MENO_DEBUG_PAYLOADS=1`) exist (llm/fingerprint_test.go). The 85% report has not been reproduced against a real provider. |
 | Code highlighting | Fixed for completed code | ui/jscode_test.go and the split markdown tests cover it. Streaming blocks are shown plain on purpose. |
 | TUI performance | Partly measured | Benchmarks and the per-turn layout cache are in docs/performance.md. The plan block no longer moves while a reply streams (app/plan_anchor_test.go). No p95 on a real terminal has been measured. |
 | `@` picker, atomic input objects | Implemented | internal/pathsearch, internal/objtag and their tests. |
