@@ -18,44 +18,7 @@ import (
 const File = "meno.db"
 
 // Version is the current schema version; see migrations.
-const Version = 1
-
-// migrations[i] upgrades the schema from version i to i+1.
-var migrations = []string{`
-CREATE TABLE meta (
-	key   TEXT PRIMARY KEY,
-	value TEXT NOT NULL
-);
-CREATE TABLE settings (
-	key        TEXT PRIMARY KEY,
-	value_json TEXT NOT NULL
-);
-CREATE TABLE providers (
-	pos      INTEGER PRIMARY KEY,
-	name     TEXT NOT NULL UNIQUE,
-	base_url TEXT NOT NULL DEFAULT '',
-	api_key  TEXT NOT NULL DEFAULT '',
-	protocol TEXT NOT NULL DEFAULT ''
-);
-CREATE TABLE mcp_servers (
-	pos          INTEGER PRIMARY KEY,
-	name         TEXT NOT NULL UNIQUE,
-	transport    TEXT NOT NULL DEFAULT '',
-	command      TEXT NOT NULL DEFAULT '',
-	url          TEXT NOT NULL DEFAULT '',
-	enabled      INTEGER NOT NULL DEFAULT 1,
-	env_json     TEXT NOT NULL DEFAULT '{}',
-	headers_json TEXT NOT NULL DEFAULT '{}'
-);
-CREATE TABLE skills_state (
-	name    TEXT PRIMARY KEY,
-	enabled INTEGER NOT NULL
-);
-CREATE TABLE model_catalog (
-	model TEXT PRIMARY KEY,
-	data  TEXT NOT NULL
-);
-`}
+const Version = 6
 
 var (
 	mu    sync.Mutex
@@ -94,7 +57,9 @@ func Open(home string) (*sql.DB, error) {
 	return d, nil
 }
 
-func migrate(d *sql.DB) error {
+func migrate(d *sql.DB) error { return migrateTo(d, Version) }
+
+func migrateTo(d *sql.DB, target int) error {
 	var v int
 	if err := d.QueryRow("PRAGMA user_version").Scan(&v); err != nil {
 		return err
@@ -102,7 +67,7 @@ func migrate(d *sql.DB) error {
 	if v > Version {
 		return fmt.Errorf("database schema %d is newer than this meno (%d)", v, Version)
 	}
-	for ; v < Version; v++ {
+	for ; v < target; v++ {
 		tx, err := d.Begin()
 		if err != nil {
 			return err
@@ -130,4 +95,23 @@ func CloseAll() {
 		_ = d.Close()
 		delete(conns, p)
 	}
+}
+
+// OpenOld creates home/meno.db at an older schema version and returns an
+// uncached handle, so upgrade tests can seed data in the old layout. The
+// caller closes it; db.Open then migrates the file forward.
+func OpenOld(home string, version int) (*sql.DB, error) {
+	if err := os.MkdirAll(home, 0o755); err != nil {
+		return nil, err
+	}
+	d, err := sql.Open("sqlite", "file:"+filepath.Join(home, File)+"?_pragma=journal_mode(WAL)&_pragma=foreign_keys(1)")
+	if err != nil {
+		return nil, err
+	}
+	d.SetMaxOpenConns(1)
+	if err := migrateTo(d, version); err != nil {
+		d.Close()
+		return nil, err
+	}
+	return d, nil
 }

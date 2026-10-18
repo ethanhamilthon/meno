@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"time"
+
+	"meno/internal/notify"
 )
 
 type Settings struct {
@@ -15,6 +16,10 @@ type Settings struct {
 	JSCode   string `json:"js_code"`
 	JSLines  int    `json:"js_lines"`
 	JSOutput string `json:"js_output"`
+	// JSStrings is off or lines: with lines, string literals in tool-call source
+	// show only their first JSStringLines lines of content (0 = just a marker).
+	JSStrings     string `json:"js_strings"`
+	JSStringLines int    `json:"js_string_lines"`
 	// JSOutLines is the row limit of js output in "lines" mode.
 	JSOutLines int `json:"js_output_lines"`
 	// Thinking is all/lines/off like js code; ThinkLines is its row limit.
@@ -39,6 +44,18 @@ type Settings struct {
 	// default of the platform (a sound on macOS, else the terminal bell);
 	// "bell": the terminal bell.
 	NotifyCommand string `json:"notify_command"`
+	NotifySound   string `json:"notify_sound"`
+	// CompactPercent is the share of the context window at which meno compacts
+	// before a request; CompactKeep the recent messages that always stay;
+	// CompactSummaryTokens the target size of the summary.
+	CompactPercent       int `json:"compact_percent"`
+	CompactKeep          int `json:"compact_keep"`
+	CompactSummaryTokens int `json:"compact_summary_tokens"`
+	// ImagesProtocol is auto, off, kitty, sixel or iterm: which terminal
+	// graphics protocol draws images in the timeline.
+	ImagesProtocol string `json:"images_protocol"`
+	// TodoCollapsed keeps the plan block folded; the user toggles it with :todo.
+	TodoCollapsed bool `json:"todo_collapsed"`
 }
 
 // UnmarshalJSON restores safe defaults for obsolete enum values and invalid
@@ -87,11 +104,23 @@ func (s *Settings) UnmarshalJSON(data []byte) error {
 	if st.JSLines < 1 || st.JSLines > MaxLines {
 		st.JSLines = defaults.JSLines
 	}
+	if st.JSStringLines < 0 || st.JSStringLines > MaxLines {
+		st.JSStringLines = defaults.JSStringLines
+	}
 	if st.JSOutLines < 1 || st.JSOutLines > MaxLines {
 		st.JSOutLines = defaults.JSOutLines
 	}
 	if st.ThinkLines < 1 || st.ThinkLines > MaxLines {
 		st.ThinkLines = defaults.ThinkLines
+	}
+	if st.CompactPercent < 10 || st.CompactPercent > 95 {
+		st.CompactPercent = defaults.CompactPercent
+	}
+	if st.CompactKeep < 2 || st.CompactKeep > 200 {
+		st.CompactKeep = defaults.CompactKeep
+	}
+	if st.CompactSummaryTokens < 500 || st.CompactSummaryTokens > 30000 {
+		st.CompactSummaryTokens = defaults.CompactSummaryTokens
 	}
 	if st.JSTimeoutSec < 1 || st.JSTimeoutSec > MaxTimeoutSec {
 		st.JSTimeoutSec = defaults.JSTimeoutSec
@@ -102,35 +131,42 @@ func (s *Settings) UnmarshalJSON(data []byte) error {
 
 func DefaultSettings() Settings {
 	return Settings{
-		Effort:       "high",
-		JSCode:       "all",
-		JSLines:      5,
-		JSOutput:     "all",
-		JSOutLines:   5,
-		Thinking:     "all",
-		JSTiming:     "all",
-		TurnSummary:  "on",
-		ThinkLines:   5,
-		Theme:        "meno",
-		JSTimeout:    "sec",
-		JSTimeoutSec: 30,
-		Notify:       "off",
+		Effort:         "high",
+		JSCode:         "all",
+		JSLines:        5,
+		JSOutput:       "all",
+		JSOutLines:     5,
+		JSStrings:      "off",
+		JSStringLines:  3,
+		Thinking:       "all",
+		JSTiming:       "all",
+		TurnSummary:    "on",
+		ThinkLines:     5,
+		Theme:          "meno",
+		JSTimeout:      "sec",
+		JSTimeoutSec:   30,
+		CompactPercent: 80, CompactKeep: 8, CompactSummaryTokens: 4000,
+		Notify:      "off",
+		NotifySound: "default",
 	}
 }
 
 var choices = map[string][]string{
 	"js_code":      {"all", "lines", "off"},
 	"js_output":    {"all", "lines", "off"},
+	"js_strings":   {"off", "lines"},
+	"images":       {"auto", "off", "kitty", "sixel", "iterm"},
 	"thinking":     {"all", "lines", "off"},
 	"js_timeout":   {"sec", "off", "model"},
 	"js_timing":    {"all", "slow", "off"},
 	"turn_summary": {"on", "off"},
 	"effort":       {"low", "medium", "high", "max"},
 	"notify":       {"off", "question", "done"},
+	"notify_sound": append([]string{"default", "bell"}, notify.Names()...),
 }
 
 func SettingKeys() []string {
-	return []string{"js_code", "js_output", "thinking", "js_timeout", "js_timing", "turn_summary", "notify"}
+	return []string{"js_code", "js_strings", "images", "js_output", "thinking", "js_timeout", "js_timing", "turn_summary", "notify", "notify_sound"}
 }
 
 func Choices(key string) []string { return choices[key] }
@@ -141,6 +177,10 @@ func (s *Settings) Get(key string) string {
 		return s.JSCode
 	case "js_output":
 		return s.JSOutput
+	case "js_strings":
+		return s.JSStrings
+	case "images":
+		return s.ImagesProtocol
 	case "thinking":
 		return s.Thinking
 	case "js_timeout":
@@ -151,6 +191,8 @@ func (s *Settings) Get(key string) string {
 		return s.TurnSummary
 	case "effort":
 		return s.Effort
+	case "notify_sound":
+		return s.NotifySound
 	case "notify":
 		return s.Notify
 	}
@@ -177,6 +219,10 @@ func (s *Settings) setRaw(key, val string) {
 		s.JSCode = val
 	case "js_output":
 		s.JSOutput = val
+	case "js_strings":
+		s.JSStrings = val
+	case "images":
+		s.ImagesProtocol = val
 	case "thinking":
 		s.Thinking = val
 	case "js_timeout":
@@ -187,6 +233,8 @@ func (s *Settings) setRaw(key, val string) {
 		s.TurnSummary = val
 	case "effort":
 		s.Effort = val
+	case "notify_sound":
+		s.NotifySound = val
 	case "notify":
 		s.Notify = val
 	}
@@ -206,92 +254,3 @@ func (s *Settings) Cycle(key string, step int) string {
 	s.setRaw(key, opts[idx])
 	return opts[idx]
 }
-
-// MaxLines bounds the "lines <n>" limits, MaxTimeoutSec the "<n> sec" timeout.
-const (
-	MaxLines      = 50
-	MaxTimeoutSec = 3600
-)
-
-// NumOption is the choice of a setting that carries a number: "lines" for
-// js_code, js_output and thinking, "sec" for js_timeout. Other settings return "".
-func NumOption(key string) string {
-	switch key {
-	case "js_code", "js_output", "thinking":
-		return "lines"
-	case "js_timeout":
-		return "sec"
-	}
-	return ""
-}
-
-// NumFor returns the number that belongs to a setting's numeric choice.
-func (s *Settings) NumFor(key string) int {
-	switch key {
-	case "js_output":
-		return s.JSOutLines
-	case "thinking":
-		return s.ThinkLines
-	case "js_timeout":
-		return s.JSTimeoutSec
-	}
-	return s.JSLines
-}
-
-// timeoutStep is the size of one +/- press at n seconds: fine at the start,
-// coarser for long timeouts.
-func timeoutStep(n int) int {
-	switch {
-	case n < 10:
-		return 1
-	case n < 60:
-		return 5
-	case n < 600:
-		return 30
-	}
-	return 300
-}
-
-// AdjustNum changes the number of a setting's numeric choice by one step in the
-// direction of delta and returns the new value.
-func (s *Settings) AdjustNum(key string, delta int) int {
-	if key == "js_timeout" {
-		n := s.JSTimeoutSec
-		switch {
-		case delta > 0:
-			n += timeoutStep(n)
-		case delta < 0:
-			n -= timeoutStep(n - 1)
-		}
-		s.JSTimeoutSec = min(MaxTimeoutSec, max(1, n))
-		return s.JSTimeoutSec
-	}
-	p := &s.JSLines
-	switch key {
-	case "js_output":
-		p = &s.JSOutLines
-	case "thinking":
-		p = &s.ThinkLines
-	}
-	*p = min(MaxLines, max(1, *p+delta))
-	return *p
-}
-
-// DefaultTimeout applies when the timeout setting says nothing usable and
-// when the model is in charge but names no timeout.
-const DefaultTimeout = 30 * time.Second
-
-func (s Settings) TimeoutDuration() time.Duration {
-	switch s.JSTimeout {
-	case "sec":
-		if s.JSTimeoutSec > 0 {
-			return time.Duration(s.JSTimeoutSec) * time.Second
-		}
-	case "off":
-		return 0
-	}
-	return DefaultTimeout
-}
-
-// ModelTimeout reports whether the model chooses the js timeout per call.
-func (s Settings) ModelTimeout() bool { return s.JSTimeout == "model" }

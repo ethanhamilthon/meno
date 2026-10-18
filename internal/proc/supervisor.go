@@ -1,0 +1,243 @@
+// Package proc supervises background processes started by the main agent:
+// one process group per task, bounded logs on disk, durable final results.
+package proc
+
+import (
+	"bufio"
+	"database/sql"
+	"errors"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"sync"
+	"sync/atomic"
+	"syscall"
+	"time"
+)
+
+// Task statuses.
+const (
+	Starting    = "starting"
+	Running     = "running"
+	Succeeded   = "succeeded"
+	Failed      = "failed"
+	Cancelled   = "cancelled"
+	TimedOut    = "timed_out"
+	Interrupted = "interrupted"
+)
+
+var graceTime atomic.Int64 // nanoseconds
+
+func init() { graceTime.Store(int64(5 * time.Second)) }
+
+// SetGraceTime changes how long a cancelled process group may take to exit
+// after SIGTERM before it is killed (default five seconds).
+func SetGraceTime(d time.Duration) { graceTime.Store(int64(d)) }
+
+// Task is a process and its outcome.
+type Task struct {
+	ID       string        `json:"id"`
+	Session  string        `json:"session"`
+	Owner    string        `json:"owner"` // root request that started it
+	Name     string        `json:"name"`
+	Command  string        `json:"command"`
+	Cwd      string        `json:"cwd"`
+	Status   string        `json:"status"`
+	ExitCode *int          `json:"exitCode"`
+	Reason   string        `json:"reason"`
+	Notify   bool          `json:"notify"`
+	Timeout  time.Duration `json:"-"`
+	Started  time.Time     `json:"started"`
+	Ended    time.Time     `json:"ended"`
+}
+
+// Terminal reports whether the task is over.
+func (t Task) Terminal() bool { return t.Status != Starting && t.Status != Running }
+
+// StartOptions describe a task. Env entries are KEY=VALUE and replace the
+// inherited environment; Cwd and Env are captured at the call.
+type StartOptions struct {
+	Session, Owner, Name, Command, Cwd string
+	Env                                []string
+	Timeout                            time.Duration // 0: no limit
+	Notify                             bool
+}
+
+// Hooks connect the supervisor to the rest of the program.
+type Hooks struct {
+	// Finished is called once when a task reaches a terminal state, after it
+	// is stored. It must not block.
+	Finished func(Task)
+}
+
+// Supervisor owns the running tasks of one meno process.
+type Supervisor struct {
+	d     *sql.DB
+	dir   string // logs: dir/<session>/<id>.log
+	hooks Hooks
+	limit int64
+
+	mu      sync.Mutex
+	live    map[string]*running
+	waiters map[string]int // tasks someone is waiting for right now
+	closing bool
+	wg      sync.WaitGroup
+}
+
+type running struct {
+	task      Task
+	cmd       *exec.Cmd
+	done      chan struct{}
+	cancelled bool
+	timedOut  bool
+	log       *logWriter
+}
+
+// New returns a supervisor on the database d. Tasks that a previous run left
+// unfinished are marked interrupted; nothing is restarted.
+func New(d *sql.DB, logDir string, h Hooks) (*Supervisor, error) {
+	s := &Supervisor{d: d, dir: logDir, hooks: h, limit: DefaultLogLimit, live: map[string]*running{}, waiters: map[string]int{}}
+	return s, s.markInterrupted()
+}
+
+// SetLogLimit changes the disk budget of logs of tasks started afterwards.
+func (s *Supervisor) SetLogLimit(n int64) { s.limit = n }
+
+func (s *Supervisor) logPath(session, id string) string {
+	return filepath.Join(s.dir, session, id+".log")
+}
+
+// Start launches the command with /bin/sh -c in its own process group, stdin
+// closed, and returns once the process exists. Everything is validated first.
+func (s *Supervisor) Start(o StartOptions) (Task, error) {
+	if o.Command == "" {
+		return Task{}, errors.New("tasks.start: command is empty")
+	}
+	if o.Session == "" {
+		return Task{}, errors.New("tasks.start: no session")
+	}
+	if st, err := os.Stat(o.Cwd); err != nil || !st.IsDir() {
+		return Task{}, fmt.Errorf("tasks.start: cwd %q is not a directory", o.Cwd)
+	}
+	if o.Timeout < 0 {
+		return Task{}, errors.New("tasks.start: timeout must not be negative")
+	}
+	s.mu.Lock()
+	if s.closing {
+		s.mu.Unlock()
+		return Task{}, errors.New("tasks.start: meno is shutting down")
+	}
+	s.mu.Unlock()
+	t := Task{ID: "t" + newID(), Session: o.Session, Owner: o.Owner, Name: o.Name, Command: o.Command, Cwd: o.Cwd,
+		Status: Starting, Notify: o.Notify, Timeout: o.Timeout, Started: time.Now().UTC()}
+	lw, err := newLogWriter(s.logPath(t.Session, t.ID), s.limit)
+	if err != nil {
+		return Task{}, err
+	}
+	cmd := exec.Command("/bin/sh", "-c", o.Command)
+	cmd.Dir = o.Cwd
+	if o.Env != nil {
+		cmd.Env = o.Env
+	} else {
+		cmd.Env = os.Environ()
+	}
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	stdout, err1 := cmd.StdoutPipe()
+	stderr, err2 := cmd.StderrPipe()
+	if err := errors.Join(err1, err2); err != nil {
+		lw.close()
+		return Task{}, err
+	}
+	if err := s.save(t); err != nil {
+		lw.close()
+		return Task{}, err
+	}
+	if err := cmd.Start(); err != nil {
+		lw.close()
+		t.Status, t.Reason, t.Ended = Failed, "could not start: "+err.Error(), time.Now().UTC()
+		_ = s.save(t)
+		return Task{}, fmt.Errorf("tasks.start: %w", err)
+	}
+	t.Status = Running
+	_ = s.save(t)
+	r := &running{task: t, cmd: cmd, done: make(chan struct{}), log: lw}
+	s.mu.Lock()
+	s.live[t.ID] = r
+	s.mu.Unlock()
+	var pumps sync.WaitGroup
+	pumps.Add(2)
+	go lw.pump(Stdout, bufio.NewReader(stdout), pumps.Done)
+	go lw.pump(Stderr, bufio.NewReader(stderr), pumps.Done)
+	s.wg.Add(1)
+	go s.supervise(r, &pumps)
+	return t, nil
+}
+
+func (s *Supervisor) supervise(r *running, pumps *sync.WaitGroup) {
+	defer s.wg.Done()
+	var timer *time.Timer
+	if r.task.Timeout > 0 {
+		timer = time.AfterFunc(r.task.Timeout, func() {
+			s.mu.Lock()
+			r.timedOut = true
+			s.mu.Unlock()
+			s.terminate(r)
+		})
+	}
+	pumps.Wait() // output is drained before Wait closes the pipes
+	err := r.cmd.Wait()
+	if timer != nil {
+		timer.Stop()
+	}
+	r.log.close()
+	s.mu.Lock()
+	t := r.task
+	t.Ended = time.Now().UTC()
+	code := r.cmd.ProcessState.ExitCode()
+	switch {
+	case r.cancelled:
+		t.Status, t.Reason = Cancelled, "cancelled"
+	case r.timedOut:
+		t.Status, t.Reason = TimedOut, fmt.Sprintf("exceeded the timeout of %s", r.task.Timeout)
+	case err == nil:
+		t.Status, t.ExitCode = Succeeded, &code
+	default:
+		t.Status, t.ExitCode = Failed, &code
+		if code < 0 {
+			t.ExitCode, t.Reason = nil, "terminated by a signal: "+err.Error()
+		}
+	}
+	if r.cancelled || r.timedOut {
+		if code >= 0 {
+			t.ExitCode = &code
+		}
+	}
+	r.task = t
+	delete(s.live, t.ID)
+	s.mu.Unlock()
+	_ = s.save(t)
+	if s.hooks.Finished != nil {
+		s.hooks.Finished(t) // before done closes: a waiter that acks sees the event
+	}
+	close(r.done)
+}
+
+// terminate sends SIGTERM to the process group and SIGKILL after GraceTime.
+func (s *Supervisor) terminate(r *running) {
+	pgid := r.cmd.Process.Pid
+	_ = syscall.Kill(-pgid, syscall.SIGTERM)
+	go func() {
+		select {
+		case <-r.done:
+		case <-time.After(time.Duration(graceTime.Load())):
+			_ = syscall.Kill(-pgid, syscall.SIGKILL)
+		}
+	}()
+}
+
+func (s *Supervisor) liveTask(id string) *running {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.live[id]
+}
