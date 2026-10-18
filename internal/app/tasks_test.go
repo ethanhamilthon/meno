@@ -33,13 +33,15 @@ func TestTaskCompletionWakesIdleSession(t *testing.T) {
 }
 
 // An explicit successful wait acknowledges the completion, so the model is
-// not told twice; a notify:false task never wakes the session.
+// not told twice; a notify:false task never wakes the session. The task
+// sleeps so the wait is in place before it ends: the test session is idle, and
+// an event queued before the wait would start a continuation at once.
 func TestWaitAcknowledgesAndNotifyFalseStaysQuiet(t *testing.T) {
 	cl := &recClient{}
 	a, scr, _ := e2eApp(t, cl)
 	defer scr.Fini()
 	say(t, a, "go")
-	got := execJS(t, a, "const t = tasks.start('echo hi'); const r = tasks.wait(t.id, {timeout: 10}); r.status + ':' + r.waitTimedOut", nil)
+	got := execJS(t, a, "const t = tasks.start('sleep 0.2; echo hi'); const r = tasks.wait(t.id, {timeout: 10}); r.status + ':' + r.waitTimedOut", nil)
 	if got != "succeeded:false" {
 		t.Fatalf("wait: %q", got)
 	}
