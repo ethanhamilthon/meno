@@ -16,7 +16,8 @@ The runtime is synchronous. Do not use async, await, Promise, or then. The call 
 Globals:
 - fs: read, inspect, search, patch, edit, write, glob, exists. To change a file, read it with fs.inspect and pass its sha256 to fs.patch as expectedHash.
 - sh(cmd) returns {stdout, stderr, code, timedOut}. view(path) shows a PNG or JPEG after the call.
-- fetch, env, URL, URLSearchParams, console.log.`
+- websearch(query, {count?}) searches the web and returns {query, backend, answer?, results: [{title, url, snippet}]}. Use it for fresh facts. For another HTTP API use sh(curl ...): there is no fetch, URL or env.
+- console.log.`
 
 const (
 	jsGlobalsMain  = "\n- session, askUser, tasks, agents, mcp, mcpTools, mcpResults, mcpServers."

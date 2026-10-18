@@ -114,14 +114,55 @@ func matchProblem(src, old string, n int) string {
 		}
 		return fmt.Sprintf("old text matches %d times (%s); add surrounding context to make it unique", n, strings.Join(where, ", "))
 	}
-	first := strings.TrimSpace(strings.SplitN(strings.TrimSpace(old), "\n", 2)[0])
-	if first != "" {
-		for i, line := range strings.Split(src, "\n") {
-			if strings.Contains(line, first) {
-				return fmt.Sprintf("old text not found; its first line appears at line %d: %q (the following lines differ)", i+1, clip(line, 120))
+	oldLines := strings.Split(strings.TrimSuffix(old, "\n"), "\n")
+	firstIdx := 0
+	for firstIdx < len(oldLines) && strings.TrimSpace(oldLines[firstIdx]) == "" {
+		firstIdx++
+	}
+	if firstIdx < len(oldLines) {
+		first := strings.TrimSpace(oldLines[firstIdx])
+		srcLines := strings.Split(src, "\n")
+		bestStart, bestMatched, divLine, fileLine, oldLine := -1, 0, 0, "", ""
+		for i, line := range srcLines {
+			if !strings.Contains(line, first) || i < firstIdx {
+				continue
+			}
+			start := i - firstIdx
+			matched := 0
+			for k := 0; k < len(oldLines); k++ {
+				si := start + k
+				if si >= len(srcLines) {
+					if k > bestMatched || bestStart < 0 {
+						bestStart, bestMatched, divLine = start, k, si+1
+						fileLine, oldLine = "<EOF>", oldLines[k]
+					}
+					break
+				}
+				ok := srcLines[si] == oldLines[k] ||
+					(k == 0 && strings.HasSuffix(srcLines[si], oldLines[k])) ||
+					(k == len(oldLines)-1 && strings.HasPrefix(srcLines[si], oldLines[k])) ||
+					(k == firstIdx && k == 0 && strings.Contains(srcLines[si], first) && len(oldLines) > 1)
+				if !ok {
+					if k > bestMatched || bestStart < 0 {
+						bestStart, bestMatched, divLine = start, k, si+1
+						fileLine, oldLine = srcLines[si], oldLines[k]
+					}
+					break
+				}
+				matched++
+			}
+			if matched == len(oldLines) && bestStart < 0 {
+				bestStart, bestMatched, divLine = start, matched, start+1
+				fileLine, oldLine = srcLines[start], oldLines[0]
 			}
 		}
-		for i, line := range strings.Split(src, "\n") {
+		if bestStart >= 0 {
+			if len(oldLines) == 1 || divLine == bestStart+1 {
+				return fmt.Sprintf("old text not found; its first line appears at line %d: %q", bestStart+1, clip(fileLine, 120))
+			}
+			return fmt.Sprintf("old text not found; its first line appears at line %d, stopped matching at line %d (file has %q, old has %q)", bestStart+1, divLine, clip(fileLine, 120), clip(oldLine, 120))
+		}
+		for i, line := range srcLines {
 			if strings.EqualFold(strings.Join(strings.Fields(line), " "), strings.Join(strings.Fields(first), " ")) {
 				return fmt.Sprintf("old text not found; line %d matches apart from whitespace or case: %q", i+1, clip(line, 120))
 			}

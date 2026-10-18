@@ -108,7 +108,22 @@ func (v *VM) bindFS() {
 		throw(err)
 		return rt.ToValue(map[string]any{"sha256": sum, "replacements": n})
 	})
-	_ = obj.Set("write", func(p, content string) error { return fsh().Write(p, content) })
+	_ = obj.Set("write", func(c goja.FunctionCall) goja.Value {
+		p := strArg(rt, c.Arguments, 0, "path")
+		content := strArg(rt, c.Arguments, 1, "content")
+		overwrite := false
+		if len(c.Arguments) > 2 && !goja.IsUndefined(c.Arguments[2]) && !goja.IsNull(c.Arguments[2]) {
+			if b, ok := c.Arguments[2].Export().(bool); ok {
+				overwrite = b
+			} else {
+				o := optsArg(rt, c.Arguments, 2)
+				checkKeys(rt, "fs.write", o, "overwrite")
+				overwrite, _ = o["overwrite"].(bool)
+			}
+		}
+		throw(fsh().Write(p, content, overwrite))
+		return goja.Undefined()
+	})
 	_ = obj.Set("edit", func(p, o, n string) (int, error) { return fsh().Edit(p, o, n) })
 	_ = obj.Set("glob", func(p string) ([]string, error) { return fsh().Glob(p) })
 	_ = obj.Set("exists", func(p string) bool { return fsh().Exists(p) })

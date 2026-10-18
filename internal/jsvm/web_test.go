@@ -2,10 +2,7 @@ package jsvm
 
 import (
 	"context"
-	"io"
-	"net/http"
-	"net/http/httptest"
-	"os"
+	"errors"
 	"strings"
 	"testing"
 )
@@ -32,88 +29,81 @@ func TestConsoleReplacesPrint(t *testing.T) {
 	}
 }
 
-func TestEnvIsVisibleToShell(t *testing.T) {
+func TestWebGlobalsAreGone(t *testing.T) {
+	v := New(Options{Root: t.TempDir()})
+	r := run(t, v, "[typeof fetch, typeof URL, typeof URLSearchParams, typeof env, typeof Headers, typeof Response].join(' ')")
+	if r.Value != "undefined undefined undefined undefined undefined undefined" {
+		t.Fatalf("web globals still exist: %q", r.Value)
+	}
+}
+
+func TestShellSeesTheProcessEnv(t *testing.T) {
 	t.Setenv("MENO_TEST_ENV", "from-process")
 	v := New(Options{Root: t.TempDir()})
-	r := run(t, v, "env.MENO_TEST_ENV")
+	r := run(t, v, "sh('echo $MENO_TEST_ENV').stdout.trim()")
 	if r.Value != "from-process" {
-		t.Fatalf("env: %q", r.Value)
-	}
-	r = run(t, v, "env.MENO_JS_SET = 'from-js'; sh('echo $MENO_JS_SET $MENO_TEST_ENV').stdout.trim()")
-	if r.Value != "from-js from-process" {
 		t.Fatalf("shell env: %q", r.Value)
 	}
-	if os.Getenv("MENO_JS_SET") != "" {
-		t.Fatal("js env leaked into the process")
-	}
 }
 
-func TestURL(t *testing.T) {
+type fakeWebSearch struct {
+	query string
+	opts  map[string]any
+	res   any
+	err   error
+}
+
+func (f *fakeWebSearch) Search(_ context.Context, query string, opts map[string]any) (any, error) {
+	f.query, f.opts = query, opts
+	return f.res, f.err
+}
+
+func TestWebsearchCallsTheHost(t *testing.T) {
 	v := New(Options{Root: t.TempDir()})
-	r := run(t, v, `const u = new URL('https://user:pw@Example.com:8080/a/b?x=1&y=two%20words#frag');
-[u.protocol, u.host, u.hostname, u.port, u.pathname, u.search, u.hash, u.origin, u.username, u.searchParams.get('y')].join('|')`)
-	want := "https:|example.com:8080|example.com|8080|/a/b|?x=1&y=two%20words|#frag|https://example.com:8080|user|two words"
-	if r.Value != want {
-		t.Fatalf("got %q\nwant %q", r.Value, want)
+	h := &fakeWebSearch{res: map[string]any{
+		"query": "golang", "backend": "duckduckgo",
+		"results": []any{map[string]any{"title": "Go", "url": "https://go.dev", "snippet": "The language"}},
+	}}
+	v.SetWebSearch(h)
+	r := run(t, v, "JSON.stringify(websearch('  golang  ', {count: 3}))")
+	if h.query != "  golang  " || h.opts["count"] != int64(3) {
+		t.Fatalf("host got %q %+v", h.query, h.opts)
 	}
-	r = run(t, v, `const u = new URL('https://user:pw@Example.com:8080/a/b?x=1&y=two%20words#frag'); u.searchParams.append('z', 'a b&c'); u.searchParams.set('x', '9'); u.searchParams.delete('y'); u.href`)
-	if r.Value != "https://user:pw@example.com:8080/a/b?x=9&z=a+b%26c#frag" {
-		t.Fatalf("href: %q", r.Value)
-	}
-	r = run(t, v, `new URL('../c?q=1', 'http://h.test/a/b/d').href + ' ' + new URL('http://h.test').pathname + ' ' + URL.canParse('nope') + ' ' + [...new URLSearchParams({a: '1', b: '2'})].join(';') + ' ' + JSON.stringify(new URL('file:///tmp/x'))`)
-	if r.Value != "http://h.test/a/c?q=1 / false a,1;b,2 \"file:///tmp/x\"" {
-		t.Fatalf("misc: %q", r.Value)
-	}
-	if r := v.Exec(context.Background(), "new URL('not a url')"); !strings.Contains(r.Err, "Invalid URL") {
-		t.Fatalf("invalid: %+v", r)
+	for _, want := range []string{"\"backend\":\"duckduckgo\"", "\"url\":\"https://go.dev\""} {
+		if !strings.Contains(r.Value, want) {
+			t.Fatalf("value %q misses %s", r.Value, want)
+		}
 	}
 }
 
-func TestFetch(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/echo":
-			b, _ := io.ReadAll(r.Body)
-			w.Header().Set("X-Seen", r.Method+" "+r.Header.Get("X-Test")+" "+r.Header.Get("Content-Type"))
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(`{"body":` + string(mustQuote(string(b))) + `}`))
-		case "/missing":
-			http.NotFound(w, r)
-		case "/go":
-			http.Redirect(w, r, "/echo", http.StatusFound)
-		}
-	}))
-	defer srv.Close()
+func TestWebsearchValidatesArguments(t *testing.T) {
 	v := New(Options{Root: t.TempDir()})
-	pre := "const base = " + string(mustQuote(srv.URL)) + ";\n"
-	r := run(t, v, pre+`const res = fetch(base + '/echo', {method: 'POST', headers: {'X-Test': 'yes'}, body: new URLSearchParams({a: '1'})});
-[res.ok, res.status, res.headers.get('x-seen'), res.json().body].join('|')`)
-	if r.Value != "true|200|POST yes application/x-www-form-urlencoded;charset=UTF-8|a=1" {
-		t.Fatalf("post: %q", r.Value)
-	}
-	r = run(t, v, pre+"const m = fetch(base + '/missing'); [m.ok, m.status, m.statusText, m.text().trim()].join('|')")
-	if r.Value != "false|404|Not Found|404 page not found" {
-		t.Fatalf("404: %q", r.Value)
-	}
-	// await is optional: awaiting plain values works too.
-	r = run(t, v, pre+"const rr = await fetch(base + '/go'); const j = await rr.json(); return [rr.redirected, new URL(rr.url).pathname, typeof j.body].join('|')")
-	if r.Value != "true|/echo|string" {
-		t.Fatalf("redirect: %q", r.Value)
-	}
-	if r := v.Exec(context.Background(), "fetch('http://127.0.0.1:1/')"); r.Err == "" {
-		t.Fatal("connection error not reported")
+	v.SetWebSearch(&fakeWebSearch{res: map[string]any{"results": []any{}}})
+	for _, code := range []string{
+		"websearch()",
+		"websearch(1)",
+		"websearch('q', {count: 0})",
+		"websearch('q', {count: 11})",
+		"websearch('q', {count: 'three'})",
+		"websearch('q', {depth: 2})",
+	} {
+		if r := v.Exec(context.Background(), code); r.Err == "" {
+			t.Errorf("%s: expected an error", code)
+		}
 	}
 }
 
-func mustQuote(s string) []byte {
-	var b strings.Builder
-	b.WriteByte('"')
-	for _, c := range s {
-		if c == '"' || c == '\\' {
-			b.WriteByte('\\')
-		}
-		b.WriteRune(c)
+func TestWebsearchReportsHostErrors(t *testing.T) {
+	v := New(Options{Root: t.TempDir()})
+	v.SetWebSearch(&fakeWebSearch{err: errors.New("no backend")})
+	if r := v.Exec(context.Background(), "websearch('q')"); !strings.Contains(r.Err, "no backend") {
+		t.Fatalf("error %q", r.Err)
 	}
-	b.WriteByte('"')
-	return []byte(b.String())
+}
+
+func TestWebsearchNeedsAHost(t *testing.T) {
+	v := New(Options{Root: t.TempDir()})
+	if r := v.Exec(context.Background(), "typeof websearch"); r.Value != "undefined" {
+		t.Fatalf("websearch without a host: %q", r.Value)
+	}
 }

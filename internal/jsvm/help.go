@@ -21,7 +21,7 @@ type helpTopic struct {
 
 // helpTopics are the topics of help(), in the order help() lists them.
 var helpTopics = []helpTopic{
-	{name: "js", line: "runtime rules, sh, view, fetch, env", file: "js.md"},
+	{name: "js", line: "runtime rules, sh, view, websearch", file: "js.md"},
 	{name: "fs", line: "read, inspect, search, patch, edit, write, glob, exists", file: "fs.md"},
 	{name: "session", line: "models", file: "session.md", childFile: "session-child.md"},
 	{name: "askUser", line: "ask the user questions in one form", file: "askUser.md", mainOnly: true},
@@ -43,6 +43,48 @@ func HelpTopics(child bool) []string {
 	return out
 }
 
+var helpAliases = map[string]string{
+	"sh":         "js",
+	"view":       "js",
+	"websearch":  "js",
+	"web_search": "js",
+	"hash":       "js",
+	"path":       "js",
+	"base64":     "js",
+	"btoa":       "js",
+	"atob":       "js",
+	"console":    "js",
+	"ask":        "askUser",
+	"askuser":    "askUser",
+	"mcpresults": "mcp",
+	"mcptools":   "mcp",
+	"mcpservers": "mcpServers",
+}
+
+func resolveHelpTopic(name string) string {
+	trimmed := strings.TrimSpace(name)
+	if i := strings.IndexByte(trimmed, '.'); i > 0 {
+		prefix := trimmed[:i]
+		for _, t := range helpTopics {
+			if strings.EqualFold(t.name, prefix) {
+				return t.name
+			}
+		}
+		if alias, ok := helpAliases[strings.ToLower(prefix)]; ok {
+			return alias
+		}
+	}
+	for _, t := range helpTopics {
+		if strings.EqualFold(t.name, trimmed) {
+			return t.name
+		}
+	}
+	if alias, ok := helpAliases[strings.ToLower(trimmed)]; ok {
+		return alias
+	}
+	return name
+}
+
 func helpText(name string, child bool) (string, error) {
 	if name == "" {
 		var b strings.Builder
@@ -55,9 +97,13 @@ func helpText(name string, child bool) (string, error) {
 		}
 		return b.String(), nil
 	}
+	target := resolveHelpTopic(name)
 	for _, t := range helpTopics {
-		if t.name != name || (child && t.mainOnly) {
+		if t.name != target {
 			continue
+		}
+		if child && t.mainOnly {
+			return "", fmt.Errorf("help: unknown topic %q in a subagent (only the main agent has %s; topics: %s)", name, t.name, strings.Join(HelpTopics(child), ", "))
 		}
 		file := t.file
 		if child && t.childFile != "" {
@@ -66,7 +112,7 @@ func helpText(name string, child bool) (string, error) {
 		b, err := helpFS.ReadFile("help/" + file)
 		return string(b), err
 	}
-	return "", fmt.Errorf("help: unknown topic %q (topics: %s)", name, strings.Join(HelpTopics(child), ", "))
+	return "", fmt.Errorf("help: unknown topic %q (topics: %s; for sh, view, websearch, hash, path, base64 see help(\"js\"))", name, strings.Join(HelpTopics(child), ", "))
 }
 
 func (v *VM) bindHelp() {

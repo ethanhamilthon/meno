@@ -4,6 +4,7 @@ askUser({questions: [{id, text, type, options?, recommendation?}], timeout?}) sh
 - Ids are unique and not empty. Use at most 20 questions. Every question is required. The user can always add custom text.
 - For single, custom text is an alternative to one option. Then selected is empty and text holds it.
 - For multi, selected options and text can both be present. For text, text is the answer.
+- Pressing Enter on the last question sends all answers at once.
 - recommendation is only shown to the user. It is never selected for them.
 - timeout is in seconds. 0 or missing waits as long as it takes.
 If the user cancels, askUser throws AskCancelled. If the time runs out, it throws AskTimeout. Catch them if you can go on. Do not ask the same rejected form again.

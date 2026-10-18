@@ -5,6 +5,7 @@ import (
 
 	"github.com/dop251/goja"
 	"github.com/dop251/goja/ast"
+	"github.com/dop251/goja/token"
 )
 
 // codeKind says how a piece of tool code is run.
@@ -27,8 +28,23 @@ type compiled struct {
 // script because it uses a top-level return or await is parsed inside a
 // function instead, and its last expression statement becomes an explicit
 // return. The decision comes from the parser, never from searching the text.
+func compileSource(src string) (*goja.Program, error) {
+	prog, err := goja.Compile("tool.js", src, false)
+	if err == nil || !strings.Contains(err.Error(), "has already been declared") {
+		return prog, err
+	}
+	ast0, perr := goja.Parse("tool.js", src)
+	if perr != nil || !relaxLexical(ast0) {
+		return nil, err
+	}
+	if prog, cerr := goja.CompileAST(ast0, false); cerr == nil {
+		return prog, nil
+	}
+	return nil, err
+}
+
 func compile(code string) (compiled, error) {
-	prog, scriptErr := goja.Compile("tool.js", code, false)
+	prog, scriptErr := compileSource(code)
 	if scriptErr == nil {
 		return compiled{prog, kindScript}, nil
 	}
@@ -39,7 +55,7 @@ func compile(code string) (compiled, error) {
 			asyncErr = err
 			continue
 		}
-		prog, err := goja.Compile("tool.js", src, false)
+		prog, err := compileSource(src)
 		if err != nil {
 			asyncErr = err
 			continue
@@ -91,4 +107,45 @@ func firstFunction(p *ast.Program) *ast.FunctionLiteral {
 		}
 	}
 	return nil
+}
+
+// relaxLexical turns top-level let/const declarations into var statements when
+// a batched script redeclares the same identifier in one tool call.
+func relaxLexical(p *ast.Program) bool {
+	changed := relaxList(p.Body)
+	if len(p.Body) == 1 {
+		if es, ok := p.Body[0].(*ast.ExpressionStatement); ok {
+			if call, ok := es.Expression.(*ast.CallExpression); ok {
+				if fn, ok := call.Callee.(*ast.FunctionLiteral); ok && fn.Body != nil {
+					changed = relaxList(fn.Body.List) || changed
+				}
+			}
+		}
+	}
+	return changed
+}
+
+func relaxList(list []ast.Statement) bool {
+	changed := false
+	for i, st := range list {
+		lex, ok := st.(*ast.LexicalDeclaration)
+		if !ok {
+			continue
+		}
+		if lex.Token == token.CONST {
+			allInit := true
+			for _, b := range lex.List {
+				if b.Initializer == nil {
+					allInit = false
+					break
+				}
+			}
+			if !allInit {
+				continue
+			}
+		}
+		list[i] = &ast.VariableStatement{Var: lex.Idx, List: lex.List}
+		changed = true
+	}
+	return changed
 }

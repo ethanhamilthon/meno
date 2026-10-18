@@ -36,12 +36,18 @@ func (f FS) Read(p string) (string, error) {
 	return string(b), err
 }
 
-func (f FS) Write(p, content string) error {
+func (f FS) Write(p, content string, overwrite ...bool) error {
 	full, err := f.path(p)
 	if err != nil {
 		return err
 	}
 	defer lockPath(full)()
+	allowOverwrite := len(overwrite) > 0 && overwrite[0]
+	if !allowOverwrite {
+		if _, err := os.Stat(full); err == nil {
+			return fmt.Errorf("fs.write: %s already exists (use fs.patch or fs.edit to change it, or pass {overwrite: true})", p)
+		}
+	}
 	if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
 		return err
 	}

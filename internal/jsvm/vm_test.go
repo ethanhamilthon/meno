@@ -18,8 +18,8 @@ func newVM(t *testing.T) *VM {
 func TestNothingPersistsAcrossExec(t *testing.T) {
 	v := newVM(t)
 	ctx := context.Background()
-	v.Exec(ctx, "var n = 2; const c = 3; globalThis.g = 4; env.X = 'y'; Array.prototype.sum = 1")
-	for _, probe := range []string{"typeof n", "typeof c", "typeof g", "typeof env.X", "typeof [].sum"} {
+	v.Exec(ctx, "var n = 2; const c = 3; globalThis.g = 4; Array.prototype.sum = 1")
+	for _, probe := range []string{"typeof n", "typeof c", "typeof g", "typeof [].sum"} {
 		if r := v.Exec(ctx, probe); r.Value != "undefined" {
 			t.Fatalf("%s survived: %+v", probe, r)
 		}

@@ -15,7 +15,7 @@ func (v *VM) Exec(ctx context.Context, code string) Result {
 }
 
 // ExecTimeout runs code with a timeout of its own (0 = no limit) instead of the
-// configured one. The timeout covers sh() and fetch() calls made by the code.
+// configured one. The timeout covers sh() and websearch() calls made by the code.
 func (v *VM) ExecTimeout(ctx context.Context, code string, timeout time.Duration) Result {
 	return v.exec(ctx, code, &timeout)
 }
@@ -34,7 +34,9 @@ func (v *VM) exec(ctx context.Context, code string, override *time.Duration) Res
 	if err := ctx.Err(); err != nil {
 		return Result{Err: err.Error()}
 	}
-	v.ctx = ctx
+	callCtx, cancelCall := context.WithCancel(ctx)
+	defer cancelCall()
+	v.ctx = callCtx
 	var timedOut atomic.Bool
 	timerDone := make(chan struct{})
 	var timer *time.Timer
@@ -52,6 +54,7 @@ func (v *VM) exec(ctx context.Context, code string, override *time.Duration) Res
 	if timeout > 0 {
 		timer = time.AfterFunc(timeout, func() {
 			timedOut.Store(true)
+			cancelCall()
 			v.rt.Interrupt("timeout")
 			close(timerDone)
 		})
@@ -72,7 +75,7 @@ func (v *VM) exec(ctx context.Context, code string, override *time.Duration) Res
 	if err != nil {
 		r.Err = err.Error()
 		if timedOut.Load() {
-			r.Err = fmt.Sprintf("js timeout after %s", timeout)
+			r.Err = fmt.Sprintf("js timeout after %s: the call took too long and was stopped (pass a higher timeout to the js tool, or run long commands in the background with tasks.start)", timeout)
 		}
 		return r
 	}

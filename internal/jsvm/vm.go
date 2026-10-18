@@ -2,8 +2,7 @@ package jsvm
 
 import (
 	"context"
-	"fmt"
-	"sort"
+	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -39,6 +38,7 @@ type VM struct {
 	tasksHost    atomic.Pointer[TasksHost]
 	agentsHost   atomic.Pointer[AgentsHost]
 	agentsChild  atomic.Bool
+	webHost      atomic.Pointer[WebSearcher]
 }
 
 type Options struct {
@@ -65,8 +65,8 @@ func (v *VM) fresh() {
 	v.bind()
 }
 
-// SetRoot changes the working directory of fs and sh. Variables survive; the
-// next call sees the new directory. It does not wait for a running Exec.
+// SetRoot changes the working directory of fs and sh. The next call sees the
+// new directory. It does not wait for a running Exec.
 func (v *VM) SetRoot(dir string) {
 	v.rootMu.Lock()
 	v.root = dir
@@ -90,21 +90,8 @@ func (v *VM) SetTimeout(d time.Duration) {
 func (v *VM) bind() {
 	rt := v.rt
 	_ = rt.Set("__write", func(s string) { v.write(s) })
-	_ = rt.Set("__parseURL", func(href, base string) any {
-		if m := ParseURL(href, base); m != nil {
-			return m
-		}
-		return nil
-	})
-	_ = rt.Set("__fetch", func(rawURL, method string, headers map[string]string, body string, hasBody bool, redirect string) (map[string]any, error) {
-		r, err := Fetch(v.ctx, v.active, rawURL, method, headers, body, hasBody, redirect)
-		if err != nil {
-			return nil, err
-		}
-		return map[string]any{"status": r.Status, "statusText": r.StatusText, "url": r.URL, "redirected": r.Redirected, "headers": r.Headers, "body": r.Body}, nil
-	})
-	_ = rt.Set("env", environ())
 	v.bindFS()
+	v.bindStdlib()
 	_ = rt.Set("sh", func(cmd string) (map[string]any, error) {
 		res, err := (Shell{Root: v.Root(), Timeout: v.active, MaxOut: v.maxOut, Env: v.shellEnv()}).Run(v.ctx, cmd)
 		if err != nil {
@@ -119,6 +106,7 @@ func (v *VM) bind() {
 	v.bindMCPResults()
 	v.bindTasks()
 	v.bindAgents()
+	v.bindWebSearch()
 	v.bindHelp()
 	if _, err := rt.RunProgram(preludeProg); err != nil {
 		panic("jsvm prelude: " + err.Error())
@@ -129,23 +117,9 @@ func (v *VM) bind() {
 	v.stringify = captureStringify(rt)
 }
 
-// shellEnv is the environment for sh(): the JS object env, so that
-// env.FOO = "x" is visible to the commands the code starts.
-func (v *VM) shellEnv() []string {
-	m, ok := v.rt.Get("env").Export().(map[string]any)
-	if !ok {
-		return nil
-	}
-	out := make([]string, 0, len(m))
-	for k, val := range m {
-		if val == nil {
-			continue
-		}
-		out = append(out, k+"="+fmt.Sprint(val))
-	}
-	sort.Strings(out)
-	return out
-}
+// shellEnv is the environment for sh() and background tasks: the process
+// environment as it is now. There is no JS env object any more.
+func (v *VM) shellEnv() []string { return os.Environ() }
 
 func (v *VM) write(s string) {
 	remaining := max(0, v.maxOut-v.out.buf.Len())

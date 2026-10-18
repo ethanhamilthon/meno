@@ -133,7 +133,7 @@ func ToolSchema(modelTimeout bool) map[string]any {
 }
 
 // ToolDescription is shown to the model as the description of the js tool.
-const ToolDescription = "Run JavaScript in a persistent VM. The code runs synchronously and the value of the last expression is returned; the available globals are described in the system prompt."
+const ToolDescription = "Run JavaScript in a clean runtime. The code runs synchronously and the value of the last expression is returned; the available globals are described in the system prompt."
 
 // MaxTitleRunes bounds the title of a js call, whatever the model sent.
 const MaxTitleRunes = 60

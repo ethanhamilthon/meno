@@ -4,6 +4,7 @@ import (
 	"context"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/dop251/goja"
@@ -81,13 +82,25 @@ func (v *VM) bindTasks() {
 		}
 		if e, ok := o["env"]; ok {
 			over := stringMap(rt, e, "env")
-			keys := make([]string, 0, len(over))
-			for k := range over {
+			// The environment is a replace list, not a concatenation: a
+			// duplicate name would otherwise leave the old value in front.
+			env := map[string]string{}
+			for _, kv := range tc.Env {
+				if k, v, ok := strings.Cut(kv, "="); ok {
+					env[k] = v
+				}
+			}
+			for k, v := range over {
+				env[k] = v
+			}
+			keys := make([]string, 0, len(env))
+			for k := range env {
 				keys = append(keys, k)
 			}
 			sort.Strings(keys)
+			tc.Env = tc.Env[:0]
 			for _, k := range keys {
-				tc.Env = append(tc.Env, k+"="+over[k])
+				tc.Env = append(tc.Env, k+"="+env[k])
 			}
 		}
 		if t, ok := o["timeout"]; ok {

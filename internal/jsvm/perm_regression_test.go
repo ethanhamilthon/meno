@@ -39,7 +39,7 @@ func TestFSInternalSymlinksAndSymlinkRoot(t *testing.T) {
 					t.Fatalf("exists %s: false", path)
 				}
 			}
-			if err := fs.Write("file.txt", "original"); err != nil {
+			if err := fs.Write("file.txt", "original", true); err != nil {
 				t.Fatal(err)
 			}
 			if n, err := fs.Edit("directory/file.txt", "original", "edited"); err != nil || n != 1 {
@@ -48,7 +48,7 @@ func TestFSInternalSymlinksAndSymlinkRoot(t *testing.T) {
 			if got, err := fs.Read("data/file.txt"); err != nil || got != "edited" {
 				t.Fatalf("read edited: %q, %v", got, err)
 			}
-			if err := fs.Write("directory/new/deep.txt", "created"); err != nil {
+			if err := fs.Write("directory/new/deep.txt", "created", true); err != nil {
 				t.Fatal(err)
 			}
 			if got, err := fs.Read("data/new/deep.txt"); err != nil || got != "created" {
@@ -83,7 +83,7 @@ func TestFSExternalPathsAndSymlinks(t *testing.T) {
 		if n, err := fs.Edit(path, "original", "changed"); err != nil || n != 1 {
 			t.Fatalf("edit %s: %d, %v", path, n, err)
 		}
-		if err := fs.Write(path, "original"); err != nil {
+		if err := fs.Write(path, "original", true); err != nil {
 			t.Fatal(err)
 		}
 	}
