@@ -122,9 +122,9 @@ type respEv struct {
 			Reason string `json:"reason"`
 		} `json:"incomplete_details"`
 		Usage *struct {
-			Details struct {
-				Cached     int `json:"cached_tokens"`
-				CacheWrite int `json:"cache_write_tokens"`
+			Details *struct {
+				Cached     *int `json:"cached_tokens"`
+				CacheWrite *int `json:"cache_write_tokens"`
 			} `json:"input_tokens_details"`
 			InputTokens  int `json:"input_tokens"`
 			OutputTokens int `json:"output_tokens"`
@@ -254,7 +254,16 @@ func (s *responsesStream) handle(e SSEEvent, emit func(Event)) error {
 		s.completed = true
 		u := Usage{}
 		if ev.Response != nil && ev.Response.Usage != nil {
-			u = Usage{In: ev.Response.Usage.InputTokens, Out: ev.Response.Usage.OutputTokens, Cached: ev.Response.Usage.Details.Cached, CacheWrite: ev.Response.Usage.Details.CacheWrite}
+			u = Usage{In: ev.Response.Usage.InputTokens, Out: ev.Response.Usage.OutputTokens}
+			if d := ev.Response.Usage.Details; d != nil && (d.Cached != nil || d.CacheWrite != nil) {
+				u.CacheReported = true
+				if d.Cached != nil {
+					u.Cached = *d.Cached
+				}
+				if d.CacheWrite != nil {
+					u.CacheWrite = *d.CacheWrite
+				}
+			}
 		}
 		emit(Event{Kind: EvDone, Usage: u})
 	}

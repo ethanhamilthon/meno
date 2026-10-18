@@ -139,7 +139,7 @@ func TestCacheWireUsage(t *testing.T) {
 						usage = e.Usage
 					}
 				})
-				if err != nil || usage != (Usage{In: 100, Out: 10, Cached: 60, CacheWrite: 30}) {
+				if err != nil || usage != (Usage{In: 100, Out: 10, Cached: 60, CacheWrite: 30, CacheReported: true}) {
 					t.Fatalf("usage %+v: %v", usage, err)
 				}
 			})

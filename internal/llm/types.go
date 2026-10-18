@@ -64,11 +64,17 @@ const (
 	EvError     = "error"
 )
 
+// Usage is the token accounting of one request, in the provider's units: In is
+// all input tokens of the request including those served from the cache
+// (Cached) and those written to it (CacheWrite), for both protocols. CacheReported
+// says whether the provider reported cache details at all; without it Cached and
+// CacheWrite are unknown, not zero.
 type Usage struct {
-	In         int
-	Out        int
-	Cached     int
-	CacheWrite int
+	In            int
+	Out           int
+	Cached        int
+	CacheWrite    int
+	CacheReported bool
 }
 
 type Request struct {

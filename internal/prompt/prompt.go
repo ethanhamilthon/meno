@@ -16,20 +16,6 @@ import (
 // identityPrompt is the first section: who the agent is, nothing else.
 const identityPrompt = "You are meno, a coding agent."
 
-// jsToolPrompt documents the only tool and the globals of its VM.
-const jsToolPrompt = `## The js tool
-Your only tool is js. It runs JavaScript in a persistent VM: top-level let, const and function declarations survive between calls. Everything is synchronous: there is no await and there are no Promises. The value of the last expression is returned. Output is capped at 64 KB per call and every call has a timeout.
-Globals:
-- fs.read(path), fs.write(path, text), fs.edit(path, old, new), fs.glob(pattern), fs.exists(path): files at any path; relative paths resolve against the working directory. fs.edit needs a unique match.
-- sh(cmd) -> {stdout, stderr, code, timedOut}: run a shell command in the working directory.
-- view(path): look at a PNG or JPEG file. The image is queued and shown to you as a message right after this call finishes; the call itself only returns a confirmation.
-- fetch(url, init), env, URL, URLSearchParams, console.log(...).
-- askUser, mcpServers and mcp: described below.`
-
-// askPrompt documents askUser.
-const askPrompt = `## Asking the user
-askUser(question, {choices?: string[], customAnswer?: boolean, timeout?: seconds}) pauses your code, shows the question to the user and returns the answer as a string: free text, or one of choices (with choices, the user may also type their own answer unless customAnswer is false). Use it only when the answer cannot be found by reading files, running commands or searching the project, and never to ask permission for ordinary actions. One uncertainty per question, short, with choices when there are few options. If the user declines (error "user declined to answer") or does not answer in time, do not repeat the question: continue with a sensible default or explain what you need.`
-
 // mcpAdminPrompt documents mcpServers.
 const mcpAdminPrompt = `## Managing MCP servers
 mcpServers manages the MCP server configuration; changes are saved, applied at once and shown to the user. Every method is synchronous.
@@ -46,7 +32,7 @@ func skillsPrompt(lines []string) string {
 
 // mcpToolsPrompt lists the tools of the running MCP servers (one line each).
 func mcpToolsPrompt(lines []string) string {
-	return "## MCP tools\nCall them from js as mcp.<server>.<tool>({...}). Calls are synchronous and return the result text (JSON.parse it when it is JSON); a failed call throws. mcpTools() returns every tool with its full input schema.\n\n" + strings.Join(lines, "\n")
+	return "## MCP tools\nCall them from js as mcp.<server>.<tool>({...}). A call is synchronous and returns {text, structuredContent, content, artifacts, isError, resultId, truncated}: text is only the server's text blocks (JSON.parse it yourself if you expect JSON), structuredContent is the server's own structured data or null, artifacts are files saved locally for images and other binary parts. A tool's own failure has isError true; transport failures throw. Big results are cut and truncated is true: read the rest with mcpResults.read(resultId, {offset, limit}) -> {text, offset, end, size, nextOffset}; mcpResults.info(resultId) lists the artifacts. mcpTools() returns every tool with its full input schema.\n\n" + strings.Join(lines, "\n")
 }
 
 // Skill is one enabled skill as the model sees it.
@@ -74,7 +60,10 @@ const MaxInstructions = 256 << 10
 
 // Input is everything the system prompt depends on.
 type Input struct {
-	Cwd           string
+	Cwd string
+	// Subagent builds the prompt of a child agent: no askUser, tasks or
+	// agents.spawn, and the child's own instructions.
+	Subagent      bool
 	Skills        []Skill
 	GlobalAgents  Instructions
 	ProjectAgents Instructions
@@ -96,7 +85,18 @@ func Build(in Input) string {
 	}
 	add(identityPrompt)
 	add(jsToolPrompt)
-	add(askPrompt)
+	add(statePrompt)
+	if in.Subagent {
+		add(subagentSessionPrompt)
+		add(todoPrompt)
+		add(subagentPrompt)
+	} else {
+		add(sessionPrompt)
+		add(todoPrompt)
+		add(askPrompt)
+		add(tasksPrompt)
+		add(agentsPrompt)
+	}
 	add(mcpAdminPrompt)
 	add(skillsSection(in.Skills))
 	add(instructionsSection("Global instructions", in.GlobalAgents))

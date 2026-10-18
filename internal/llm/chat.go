@@ -107,7 +107,16 @@ func (chatClient) Stream(ctx context.Context, req Request, emit func(Event)) err
 			}
 		}
 		if c.Usage != nil {
-			usage = Usage{In: c.Usage.PromptTokens, Out: c.Usage.CompletionTokens, Cached: c.Usage.Details.Cached, CacheWrite: c.Usage.Details.CacheWrite}
+			usage = Usage{In: c.Usage.PromptTokens, Out: c.Usage.CompletionTokens}
+			if d := c.Usage.Details; d != nil && (d.Cached != nil || d.CacheWrite != nil) {
+				usage.CacheReported = true
+				if d.Cached != nil {
+					usage.Cached = *d.Cached
+				}
+				if d.CacheWrite != nil {
+					usage.CacheWrite = *d.CacheWrite
+				}
+			}
 
 		}
 		return nil
@@ -160,9 +169,9 @@ type chatChunk struct {
 		} `json:"delta"`
 	} `json:"choices"`
 	Usage *struct {
-		Details struct {
-			Cached     int `json:"cached_tokens"`
-			CacheWrite int `json:"cache_write_tokens"`
+		Details *struct {
+			Cached     *int `json:"cached_tokens"`
+			CacheWrite *int `json:"cache_write_tokens"`
 		} `json:"prompt_tokens_details"`
 		PromptTokens     int `json:"prompt_tokens"`
 		CompletionTokens int `json:"completion_tokens"`
