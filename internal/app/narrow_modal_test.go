@@ -20,7 +20,8 @@ func TestNarrowSettingsChoices(t *testing.T) {
 				}
 				a.draw()
 				b := centered(40, 12, 66, 5+len(settingRows))
-				y := b.y + 2 + i
+				start := max(0, i-max(1, b.h-5)+1)
+				y := b.y + 2 + i - start
 				row := visualRow(s, y)
 				if !strings.Contains(row, "▸ ") {
 					t.Fatalf("selected label missing: %q", row)
@@ -59,7 +60,7 @@ func TestNarrowHelpHeaderAndCommands(t *testing.T) {
 	if !strings.Contains(row, "help · meno") || !strings.Contains(row, "v0.1") {
 		t.Fatalf("help header collides: %q", row)
 	}
-	for _, want := range []string{"restart goja vm", "switch sessions"} {
+	for _, want := range []string{"fork from a message", "switch sessions"} {
 		found := false
 		for i, r := range helpRows {
 			if r.desc != want {

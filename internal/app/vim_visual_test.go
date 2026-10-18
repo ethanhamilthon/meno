@@ -24,15 +24,6 @@ func visualApp(t *testing.T) *App {
 	return a
 }
 
-func logIndex(a *App, text string) int {
-	for i, l := range a.logText() {
-		if strings.Contains(string(l), text) {
-			return i
-		}
-	}
-	return -1
-}
-
 func TestVimCursorWalksIntoTimelineAndBack(t *testing.T) {
 	a := visualApp(t)
 	top := len(a.logText())

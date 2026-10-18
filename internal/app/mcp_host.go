@@ -2,17 +2,24 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"path/filepath"
 	"time"
+	"unicode/utf8"
 
 	"meno/internal/config"
 	"meno/internal/jsvm"
 	"meno/internal/mcp"
 )
 
-// mcpHost lets the js VM call the tools of the running MCP servers.
-type mcpHost struct{ m *mcp.Manager }
+// mcpHost lets the js VM call the tools of the running MCP servers. Complete
+// results are stored per session before the VM sees a bounded projection.
+type mcpHost struct {
+	m       *mcp.Manager
+	results mcp.ResultStore
+	sid     string
+}
 
 func (h mcpHost) Tools() []jsvm.MCPTool {
 	var out []jsvm.MCPTool
@@ -24,12 +31,105 @@ func (h mcpHost) Tools() []jsvm.MCPTool {
 	return out
 }
 
-func (h mcpHost) Call(ctx context.Context, server, tool string, args map[string]any) (string, error) {
+// projectionBytes bounds each part of a result shown to the model.
+const projectionBytes = 32 << 10
+
+func (h mcpHost) Call(ctx context.Context, server, tool string, args map[string]any) (jsvm.MCPResult, error) {
 	c, ok := h.m.Client(server)
 	if !ok {
-		return "", errors.New("server " + server + " is not running")
+		return jsvm.MCPResult{}, errors.New("server " + server + " is not running")
 	}
-	return c.Call(ctx, tool, args)
+	res, err := c.CallResult(ctx, tool, args)
+	if err != nil {
+		return jsvm.MCPResult{}, err
+	}
+	out := jsvm.MCPResult{Text: res.Text, Structured: res.Structured, Content: res.Content, IsError: res.IsError}
+	st, serr := h.results.Save(h.sid, server, tool, res)
+	out.ResultID = st.ID
+	out.Notes = st.Notes
+	if serr != nil {
+		out.ResultID = ""
+		out.Notes = append(out.Notes, "result could not be stored locally: "+serr.Error())
+		out.Truncated = true
+	}
+	for _, a := range st.Artifacts {
+		out.Artifacts = append(out.Artifacts, map[string]any{"index": a.Index, "kind": a.Kind, "mime": a.Mime, "size": a.Size, "path": a.Path, "uri": a.URI})
+	}
+	if len(out.Text) > projectionBytes {
+		out.Text, out.Truncated = cutText(out.Text, projectionBytes), true
+	}
+	if len(out.Structured) > projectionBytes {
+		out.Structured, out.Truncated = nil, true
+		out.Notes = append(out.Notes, "structuredContent is too large to show; read it with mcpResults.read")
+	}
+	out.Content = boundContent(out.Content, &out.Truncated)
+	if out.Truncated && out.ResultID != "" {
+		out.Notes = append(out.Notes, "read the complete result with mcpResults.read('"+out.ResultID+"', {offset})")
+	}
+	return out, nil
+}
+
+// boundContent drops binary payloads (they are artifacts) and cuts long text.
+func boundContent(blocks []json.RawMessage, truncated *bool) []json.RawMessage {
+	out := make([]json.RawMessage, len(blocks))
+	budget := projectionBytes
+	for i, raw := range blocks {
+		var m map[string]any
+		if json.Unmarshal(raw, &m) != nil {
+			out[i] = raw
+			continue
+		}
+		for _, holder := range []map[string]any{m, nested(m, "resource")} {
+			if holder == nil {
+				continue
+			}
+			for _, k := range []string{"data", "blob"} {
+				if s, ok := holder[k].(string); ok && len(s) > 0 {
+					delete(holder, k)
+					holder["artifact"] = "see artifacts"
+				}
+			}
+			if s, ok := holder["text"].(string); ok {
+				if len(s) > budget {
+					holder["text"], *truncated = cutText(s, max(budget, 0)), true
+				}
+				budget -= min(len(s), budget)
+			}
+		}
+		out[i], _ = json.Marshal(m)
+	}
+	return out
+}
+
+func nested(m map[string]any, k string) map[string]any {
+	n, _ := m[k].(map[string]any)
+	return n
+}
+
+func cutText(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	for n > 0 && !utf8.RuneStart(s[n]) {
+		n--
+	}
+	return s[:n]
+}
+
+func (h mcpHost) ResultInfo(id string) (any, error) {
+	st, err := h.results.Info(h.sid, id)
+	if err != nil {
+		return nil, err
+	}
+	return toAny(st)
+}
+
+func (h mcpHost) ResultRead(id string, offset, limit int) (any, error) {
+	sl, err := h.results.Read(h.sid, id, offset, limit)
+	if err != nil {
+		return nil, err
+	}
+	return toAny(sl)
 }
 
 // agentsPaths returns the global and the project AGENTS.md locations.

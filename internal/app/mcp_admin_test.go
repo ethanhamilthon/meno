@@ -51,7 +51,7 @@ func TestAgentManagesMCPServers(t *testing.T) {
 	if !strings.Contains(got, `"ok":true`) || !strings.Contains(got, "echo") {
 		t.Fatalf("add: %s", got)
 	}
-	if got := js("mcp.fake.echo({msg: 'hi'})"); got != "echo:hi" {
+	if got := js("mcp.fake.echo({msg: 'hi'}).text"); got != "echo:hi" {
 		t.Fatalf("call %q", got)
 	}
 	list := js("JSON.stringify(mcpServers.list())")
@@ -79,7 +79,7 @@ func TestAgentManagesMCPServers(t *testing.T) {
 	if got := js("mcpServers.restart('fake').error"); !strings.Contains(got, "disabled") {
 		t.Fatalf("restart disabled: %s", got)
 	}
-	if got := js("mcpServers.update('fake', {enabled: true, name: 'renamed'}).ok + ' ' + mcp.renamed.echo({msg: 'x'})"); got != "true echo:x" {
+	if got := js("mcpServers.update('fake', {enabled: true, name: 'renamed'}).ok + ' ' + mcp.renamed.echo({msg: 'x'}).text"); got != "true echo:x" {
 		t.Fatalf("rename: %s", got)
 	}
 	if got := js("mcpServers.remove('renamed').ok + ' ' + mcpServers.remove('renamed').ok"); got != "true false" {

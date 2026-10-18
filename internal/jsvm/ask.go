@@ -4,28 +4,60 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sort"
+	"math"
 	"time"
 
 	"github.com/dop251/goja"
 )
 
-// Question is what askUser puts to the human.
-type Question struct {
-	Text         string
-	Choices      []string      // empty: free text
-	CustomAnswer bool          // with Choices: may the user type something else
-	Timeout      time.Duration // 0: wait as long as it takes
+// Question types.
+const (
+	TypeSingle = "single"
+	TypeMulti  = "multi"
+	TypeText   = "text"
+)
+
+// Limits of one form.
+const (
+	MaxQuestions = 20
+	MaxOptions   = 20
+)
+
+// FormOption is a choice the agent supplies.
+type FormOption struct{ ID, Label string }
+
+// FormQuestion is one required question. Custom text is always allowed.
+type FormQuestion struct {
+	ID, Text, Type string
+	Options        []FormOption
+	Recommendation string // shown as context, never selected for the user
 }
 
-// Asker shows a Question to the user and returns the answer. It must return
-// ErrDeclined when the user refuses, and return when ctx ends.
+// Form is what askUser puts to the human: all questions at once.
+type Form struct {
+	Questions []FormQuestion
+	Timeout   time.Duration // 0: wait until answered, cancelled or the program exits
+}
+
+// FormAnswer answers one question. Selected holds option IDs in the order the
+// options were given; Text is the custom (or free) text, "" when none.
+type FormAnswer struct {
+	ID       string
+	Selected []string
+	Text     string
+}
+
+// Asker shows a Form and returns one answer per question in input order. It
+// returns ErrCancelled when the user cancels and must return when ctx ends.
 type Asker interface {
-	Ask(ctx context.Context, q Question) (string, error)
+	Ask(ctx context.Context, f Form) ([]FormAnswer, error)
 }
 
-// ErrDeclined is what an Asker returns when the user refuses to answer.
-var ErrDeclined = errors.New("user declined to answer")
+// Errors an Asker returns; askUser turns them into AskCancelled and AskTimeout.
+var (
+	ErrCancelled = errors.New("the user cancelled the questions")
+	ErrTimeout   = errors.New("the user did not answer in time")
+)
 
 // SetAsker enables askUser.
 func (v *VM) SetAsker(a Asker) { v.asker.Store(&a) }
@@ -37,89 +69,130 @@ func (v *VM) askerOrNil() Asker {
 	return nil
 }
 
-const maxChoices = 20
+func str(m map[string]any, k string) (string, bool) {
+	s, ok := m[k].(string)
+	return s, ok
+}
 
-// parseQuestion validates the arguments of askUser(question, {choices, customAnswer, timeout}).
-func parseQuestion(args []goja.Value) (Question, error) {
-	q := Question{CustomAnswer: true}
-	if len(args) == 0 || args[0] == nil {
-		return q, errors.New("askUser: the question is required")
-	}
-	text, ok := args[0].Export().(string)
-	if !ok || text == "" {
-		return q, errors.New("askUser: the question must be a non-empty string")
-	}
-	q.Text = text
-	if len(args) < 2 || goja.IsUndefined(args[1]) || goja.IsNull(args[1]) {
-		return q, nil
-	}
-	opts, ok := args[1].Export().(map[string]any)
-	if !ok {
-		return q, errors.New("askUser: the second argument must be an object {choices, customAnswer, timeout}")
-	}
-	keys := make([]string, 0, len(opts))
-	for k := range opts {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	for _, k := range keys {
-		v := opts[k]
-		switch k {
-		case "choices":
-			list, ok := v.([]any)
-			if !ok {
-				return q, errors.New("askUser: choices must be an array of strings")
-			}
-			if len(list) > maxChoices {
-				return q, fmt.Errorf("askUser: at most %d choices", maxChoices)
-			}
-			for _, c := range list {
-				s, ok := c.(string)
-				if !ok || s == "" {
-					return q, errors.New("askUser: choices must be non-empty strings")
-				}
-				q.Choices = append(q.Choices, s)
-			}
-		case "customAnswer":
-			b, ok := v.(bool)
-			if !ok {
-				return q, errors.New("askUser: customAnswer must be true or false")
-			}
-			q.CustomAnswer = b
-		case "timeout":
-			var secs float64
-			switch n := v.(type) {
-			case int64:
-				secs = float64(n)
-			case float64:
-				secs = n
-			default:
-				return q, errors.New("askUser: timeout must be a number of seconds")
-			}
-			if secs < 0 {
-				return q, errors.New("askUser: timeout must not be negative")
-			}
-			q.Timeout = time.Duration(secs * float64(time.Second))
-		default:
-			return q, fmt.Errorf("askUser: unknown option %q (allowed: choices, customAnswer, timeout)", k)
+// ParseForm validates the argument of askUser before any UI is shown.
+func ParseForm(spec map[string]any) (Form, error) {
+	var f Form
+	for k := range spec {
+		if k != "questions" && k != "timeout" {
+			return f, fmt.Errorf("askUser: unknown option %q (allowed: questions, timeout)", k)
 		}
 	}
-	if !q.CustomAnswer && len(q.Choices) == 0 {
-		return q, errors.New("askUser: customAnswer=false requires choices")
+	if v, ok := spec["timeout"]; ok && v != nil {
+		var secs float64
+		switch n := v.(type) {
+		case int64:
+			secs = float64(n)
+		case float64:
+			secs = n
+		default:
+			return f, errors.New("askUser: timeout must be a number of seconds")
+		}
+		if math.IsNaN(secs) || math.IsInf(secs, 0) || secs < 0 {
+			return f, errors.New("askUser: timeout must be a finite number of seconds, 0 or more")
+		}
+		f.Timeout = time.Duration(secs * float64(time.Second))
 	}
-	return q, nil
+	qs, ok := spec["questions"].([]any)
+	if !ok || len(qs) == 0 {
+		return f, errors.New("askUser: pass {questions: [{id, text, type, options}], timeout?}; at least one question is required")
+	}
+	if len(qs) > MaxQuestions {
+		return f, fmt.Errorf("askUser: at most %d questions", MaxQuestions)
+	}
+	seen := map[string]bool{}
+	for i, raw := range qs {
+		m, ok := raw.(map[string]any)
+		if !ok {
+			return f, fmt.Errorf("askUser: question %d must be an object", i)
+		}
+		for k := range m {
+			switch k {
+			case "id", "text", "type", "options", "recommendation":
+			default:
+				return f, fmt.Errorf("askUser: question %d: unknown field %q", i, k)
+			}
+		}
+		q := FormQuestion{}
+		q.ID, ok = str(m, "id")
+		if !ok || q.ID == "" {
+			return f, fmt.Errorf("askUser: question %d needs a non-empty string id", i)
+		}
+		if seen[q.ID] {
+			return f, fmt.Errorf("askUser: duplicate question id %q", q.ID)
+		}
+		seen[q.ID] = true
+		if q.Text, ok = str(m, "text"); !ok || q.Text == "" {
+			return f, fmt.Errorf("askUser: question %q needs non-empty text", q.ID)
+		}
+		if q.Type, ok = str(m, "type"); !ok || (q.Type != TypeSingle && q.Type != TypeMulti && q.Type != TypeText) {
+			return f, fmt.Errorf("askUser: question %q: type must be single, multi or text", q.ID)
+		}
+		if r, has := m["recommendation"]; has && r != nil {
+			if q.Recommendation, ok = r.(string); !ok {
+				return f, fmt.Errorf("askUser: question %q: recommendation must be a string", q.ID)
+			}
+		}
+		opts, hasOpts := m["options"].([]any)
+		if raw, has := m["options"]; has && raw != nil && !hasOpts {
+			return f, fmt.Errorf("askUser: question %q: options must be an array", q.ID)
+		}
+		if q.Type == TypeText {
+			if len(opts) != 0 {
+				return f, fmt.Errorf("askUser: text question %q takes no options", q.ID)
+			}
+		} else if len(opts) == 0 {
+			return f, fmt.Errorf("askUser: question %q needs options (or use type \"text\")", q.ID)
+		}
+		if len(opts) > MaxOptions {
+			return f, fmt.Errorf("askUser: question %q has more than %d options", q.ID, MaxOptions)
+		}
+		ids := map[string]bool{}
+		for j, o := range opts {
+			om, ok := o.(map[string]any)
+			if !ok {
+				return f, fmt.Errorf("askUser: question %q option %d must be {id, label}", q.ID, j)
+			}
+			opt := FormOption{}
+			if opt.ID, ok = str(om, "id"); !ok || opt.ID == "" {
+				return f, fmt.Errorf("askUser: question %q option %d needs a non-empty id", q.ID, j)
+			}
+			if opt.Label, ok = str(om, "label"); !ok || opt.Label == "" {
+				return f, fmt.Errorf("askUser: question %q option %q needs a non-empty label", q.ID, opt.ID)
+			}
+			if ids[opt.ID] {
+				return f, fmt.Errorf("askUser: question %q has two options with id %q", q.ID, opt.ID)
+			}
+			ids[opt.ID] = true
+			q.Options = append(q.Options, opt)
+		}
+		f.Questions = append(f.Questions, q)
+	}
+	return f, nil
 }
 
 func (v *VM) bindAsk() {
 	rt := v.rt
-	_ = rt.GlobalObject().DefineDataProperty("askUser", rt.ToValue(func(call goja.FunctionCall) goja.Value {
-		q, err := parseQuestion(call.Arguments)
+	_ = rt.Set("__ask", func(call goja.FunctionCall) goja.Value {
+		spec, ok := goja.Undefined().Export(), false
+		if len(call.Arguments) > 0 {
+			spec = call.Arguments[0].Export()
+		}
+		m, ok := spec.(map[string]any)
+		if !ok {
+			panic(rt.NewGoError(errors.New("askUser: pass {questions: [{id, text, type, options}], timeout?}")))
+		}
+		form, err := ParseForm(m)
 		if err != nil {
 			panic(rt.NewGoError(err))
 		}
 		asker := v.askerOrNil()
 		if asker == nil {
-			panic(rt.NewGoError(errors.New("askUser: interactive input is not available")))
+			panic(rt.NewGoError(errors.New("askUser: interactive input is not available here")))
 		}
 		parent := v.ctx
 		if parent == nil {
@@ -129,20 +202,36 @@ func (v *VM) bindAsk() {
 		resume := v.pauseTimeout()
 		defer resume()
 		ctx, cancel := parent, context.CancelFunc(func() {})
-		if q.Timeout > 0 {
-			ctx, cancel = context.WithTimeout(parent, q.Timeout)
+		if form.Timeout > 0 {
+			ctx, cancel = context.WithTimeout(parent, form.Timeout)
 		}
 		defer cancel()
-		ans, err := asker.Ask(ctx, q)
-		if err != nil {
-			switch {
-			case errors.Is(err, ErrDeclined):
-				err = ErrDeclined
-			case parent.Err() == nil && errors.Is(ctx.Err(), context.DeadlineExceeded):
-				err = fmt.Errorf("user did not answer within %gs", q.Timeout.Seconds())
-			}
-			panic(rt.NewGoError(err))
+		answers, err := asker.Ask(ctx, form)
+		switch {
+		case err == nil:
+		case errors.Is(err, ErrCancelled):
+			return rt.ToValue(map[string]any{"status": "cancelled"})
+		case parent.Err() == nil && (errors.Is(err, ErrTimeout) || errors.Is(ctx.Err(), context.DeadlineExceeded)):
+			return rt.ToValue(map[string]any{"status": "timeout", "seconds": form.Timeout.Seconds()})
+		default:
+			panic(rt.NewGoError(err)) // parent cancellation and failures propagate
 		}
-		return rt.ToValue(ans)
-	}), goja.FLAG_TRUE, goja.FLAG_FALSE, goja.FLAG_FALSE)
+		// Objects are built key by key so the order is always id, selected, text.
+		out := make([]any, len(answers))
+		for i, a := range answers {
+			sel := make([]any, len(a.Selected))
+			for j, s := range a.Selected {
+				sel[j] = s
+			}
+			o := rt.NewObject()
+			_ = o.Set("id", a.ID)
+			_ = o.Set("selected", rt.NewArray(sel...))
+			_ = o.Set("text", a.Text)
+			out[i] = o
+		}
+		res := rt.NewObject()
+		_ = res.Set("status", "ok")
+		_ = res.Set("answers", rt.NewArray(out...))
+		return res
+	})
 }

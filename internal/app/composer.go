@@ -41,10 +41,7 @@ func (a *App) composerHeight() int {
 // placeholder is shown while the input is empty; it reflects what the agent is doing.
 func (a *App) placeholder() string {
 	if a.st.Ask != nil {
-		if a.st.Ask.Typing {
-			return "your answer..."
-		}
-		return "choose an option above..."
+		return "answer the questions above..."
 	}
 	if !a.st.Running {
 		return placeholderIdle
@@ -106,6 +103,15 @@ func (a *App) drawInputRow(c ui.Canvas, x, y, maxW int, row vrow, toks []tokSpan
 		}
 		if s == "\t" {
 			s = "    "
+		}
+		if r := []rune(s); len(r) == 1 {
+			if o, ok := objectAt(r[0]); ok {
+				s = o.Label()
+				st = ui.Style{FG: ui.Blue, BG: bg}.TCell()
+				if idx < len(mask) && mask[idx] {
+					st = st.Background(ui.BgSelect)
+				}
+			}
 		}
 		col += c.Text(x+col, y, maxW-col, s, st)
 		idx += len([]rune(g.Str()))

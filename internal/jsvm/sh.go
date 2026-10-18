@@ -119,14 +119,3 @@ func validPrefix(s string, limit int) string {
 	}
 	return s[:end]
 }
-
-func truncate(s string, limit int) string {
-	if limit <= 0 {
-		return ""
-	}
-	if len(s) <= limit {
-		return strings.ToValidUTF8(s, "?")
-	}
-	marker := truncationMarker(limit)
-	return validPrefix(s, limit-len(marker)) + marker
-}

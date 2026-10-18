@@ -2,8 +2,6 @@ package agent
 
 import (
 	"database/sql"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,49 +10,8 @@ import (
 	"time"
 
 	"meno/internal/db"
-	"meno/internal/llm"
 	"meno/internal/store"
 )
-
-const schema = `
-CREATE TABLE IF NOT EXISTS sessions (
-	id         TEXT PRIMARY KEY,
-	title      TEXT NOT NULL DEFAULT '',
-	cwd        TEXT NOT NULL DEFAULT '',
-	provider   TEXT NOT NULL DEFAULT '',
-	model      TEXT NOT NULL DEFAULT '',
-	effort     TEXT NOT NULL DEFAULT '',
-	summary    TEXT NOT NULL DEFAULT '',
-	metrics    TEXT NOT NULL DEFAULT '{}',
-	updated_at TEXT NOT NULL
-);
-CREATE INDEX IF NOT EXISTS sessions_updated ON sessions(updated_at DESC);
-CREATE TABLE IF NOT EXISTS turns (
-	session_id   TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-	seq          INTEGER NOT NULL,
-	role         TEXT NOT NULL,
-	text         TEXT NOT NULL DEFAULT '',
-	thinking     TEXT NOT NULL DEFAULT '',
-	call_id      TEXT NOT NULL DEFAULT '',
-	code         TEXT NOT NULL DEFAULT '',
-	output       TEXT NOT NULL DEFAULT '',
-	err          TEXT NOT NULL DEFAULT '',
-	replay       TEXT,
-	replay_group TEXT NOT NULL DEFAULT '',
-	time         TEXT NOT NULL,
-	PRIMARY KEY (session_id, seq)
-) WITHOUT ROWID;
-CREATE TABLE IF NOT EXISTS requests (
-	session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-	seq        INTEGER NOT NULL,
-	provider   TEXT NOT NULL DEFAULT '',
-	model      TEXT NOT NULL DEFAULT '',
-	usage      TEXT NOT NULL,
-	cost       REAL,
-	time       TEXT NOT NULL,
-	PRIMARY KEY (session_id, seq)
-) WITHOUT ROWID;
-`
 
 // CloseSessionStores closes every opened database (flushing the WAL).
 func CloseSessionStores() { db.CloseAll() }
@@ -77,9 +34,6 @@ func openDB(home string) (*sql.DB, error) {
 	if sessInit[d] {
 		return d, nil
 	}
-	if _, err := d.Exec(schema); err != nil {
-		return nil, fmt.Errorf("session db: %w", err)
-	}
 	if err := ensureColumns(d); err != nil {
 		return nil, fmt.Errorf("session db: %w", err)
 	}
@@ -87,6 +41,9 @@ func openDB(home string) (*sql.DB, error) {
 	legacy := filepath.Join(home, "sessions")
 	importOldDB(d, filepath.Join(legacy, "sessions.db"))
 	migrateLegacy(d, legacy)
+	// Summaries of imported legacy sessions become revision 0.
+	_, _ = d.Exec(`INSERT OR IGNORE INTO summaries(session_id,rev,summary,covers_through,created_at)
+		SELECT id, 0, summary, 0, updated_at FROM sessions WHERE legacy = 1 AND summary <> ''`)
 	return d, nil
 }
 
@@ -163,6 +120,7 @@ func importOldDB(d *sql.DB, old string) {
 		"INSERT OR IGNORE INTO sessions(id,title,cwd,model,summary,metrics,updated_at) SELECT id,title,cwd,model,summary,metrics,updated_at FROM old.sessions",
 		"INSERT OR IGNORE INTO turns(session_id,seq,role,text,thinking,call_id,code,output,err,replay,replay_group,time) SELECT session_id,seq,role,text,thinking,call_id,code,output,err,replay,replay_group,time FROM old.turns",
 		"INSERT OR IGNORE INTO requests(session_id,seq,provider,model,usage,cost,time) SELECT session_id,seq,provider,model,usage,cost,time FROM old.requests",
+		"UPDATE sessions SET legacy = 1, coverage = CASE WHEN summary <> '' THEN 'partial' ELSE coverage END WHERE legacy = 0 AND id IN (SELECT id FROM old.sessions)",
 		"INSERT INTO meta(key,value) VALUES('migrated_sessions_db','1')",
 	} {
 		if _, err := tx.Exec(q); err != nil {
@@ -193,6 +151,10 @@ func migrateLegacy(d *sql.DB, dir string) {
 		var exists int
 		_ = d.QueryRow("SELECT COUNT(1) FROM sessions WHERE id = ?", s.ID).Scan(&exists)
 		if exists == 0 {
+			s.Legacy = true
+			if s.Summary != "" {
+				s.Coverage = CoveragePartial
+			}
 			if err := writeSession(d, &s); err != nil {
 				continue
 			}
@@ -206,197 +168,4 @@ func ts(t time.Time) string { return t.UTC().Format(time.RFC3339Nano) }
 func parseTS(s string) time.Time {
 	t, _ := time.Parse(time.RFC3339Nano, s)
 	return t
-}
-
-func writeSession(db *sql.DB, s *Session) (err error) {
-	tx, err := db.Begin()
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if err != nil {
-			_ = tx.Rollback()
-		}
-	}()
-	metrics, err := json.Marshal(s.Metrics)
-	if err != nil {
-		return err
-	}
-	if _, err = tx.Exec(`INSERT INTO sessions(id,title,cwd,provider,model,effort,summary,metrics,updated_at) VALUES(?,?,?,?,?,?,?,?,?)
-		ON CONFLICT(id) DO UPDATE SET title=excluded.title, cwd=excluded.cwd, provider=excluded.provider, model=excluded.model,
-		effort=excluded.effort, summary=excluded.summary, metrics=excluded.metrics, updated_at=excluded.updated_at`,
-		s.ID, s.Title, s.Cwd, s.Provider, s.Model, s.Effort, s.Summary, string(metrics), ts(s.UpdatedAt)); err != nil {
-		return err
-	}
-	// Turns may be rewritten wholesale (compaction), so replace them.
-	if _, err = tx.Exec("DELETE FROM turns WHERE session_id = ?", s.ID); err != nil {
-		return err
-	}
-	if _, err = tx.Exec("DELETE FROM requests WHERE session_id = ?", s.ID); err != nil {
-		return err
-	}
-	ins, err := tx.Prepare(`INSERT INTO turns(session_id,seq,role,text,thinking,call_id,code,output,err,replay,replay_group,time,system,attachments,kind,elapsed_ms,limit_ms,timed_out,run)
-		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
-	if err != nil {
-		return err
-	}
-	defer ins.Close()
-	for i, t := range s.Turns {
-		var replay any
-		if t.Replay != nil {
-			b, merr := json.Marshal(t.Replay)
-			if merr != nil {
-				err = merr
-				return err
-			}
-			replay = string(b)
-		}
-		attachments := ""
-		if len(t.Attachments) != 0 {
-			b, merr := json.Marshal(t.Attachments)
-			if merr != nil {
-				err = merr
-				return err
-			}
-			attachments = string(b)
-		}
-		run := ""
-		if t.Run != nil {
-			b, merr := json.Marshal(t.Run)
-			if merr != nil {
-				err = merr
-				return err
-			}
-			run = string(b)
-		}
-		timedOut := 0
-		if t.TimedOut {
-			timedOut = 1
-		}
-		if _, err = ins.Exec(s.ID, i, t.Role, t.Text, t.Thinking, t.CallID, t.Code, t.Output, t.Err, replay, t.ReplayGroup, ts(t.Time), t.System, attachments, t.Kind, t.ElapsedMs, t.LimitMs, timedOut, run); err != nil {
-			return err
-		}
-	}
-	req, err := tx.Prepare("INSERT INTO requests(session_id,seq,provider,model,usage,cost,time) VALUES(?,?,?,?,?,?,?)")
-	if err != nil {
-		return err
-	}
-	defer req.Close()
-	for i, r := range s.Requests {
-		usage, merr := json.Marshal(r.Usage)
-		if merr != nil {
-			err = merr
-			return err
-		}
-		var cost any
-		if r.Cost != nil {
-			cost = *r.Cost
-		}
-		if _, err = req.Exec(s.ID, i, r.Provider, r.Model, string(usage), cost, ts(r.Time)); err != nil {
-			return err
-		}
-	}
-	return tx.Commit()
-}
-
-func readSession(db *sql.DB, id string) (*Session, error) {
-	var s Session
-	var metrics, updated string
-	err := db.QueryRow("SELECT id,title,cwd,provider,model,effort,summary,metrics,updated_at FROM sessions WHERE id = ?", id).
-		Scan(&s.ID, &s.Title, &s.Cwd, &s.Provider, &s.Model, &s.Effort, &s.Summary, &metrics, &updated)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, os.ErrNotExist
-	}
-	if err != nil {
-		return nil, err
-	}
-	s.UpdatedAt = parseTS(updated)
-	if err := json.Unmarshal([]byte(metrics), &s.Metrics); err != nil {
-		return nil, fmt.Errorf("session %s metrics: %w", id, err)
-	}
-	rows, err := db.Query("SELECT role,text,thinking,call_id,code,output,err,replay,replay_group,time,system,attachments,kind,elapsed_ms,limit_ms,timed_out,run FROM turns WHERE session_id = ? ORDER BY seq", id)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var t Turn
-		var replay sql.NullString
-		var when, attachments, run string
-		var timedOut int
-		if err := rows.Scan(&t.Role, &t.Text, &t.Thinking, &t.CallID, &t.Code, &t.Output, &t.Err, &replay, &t.ReplayGroup, &when, &t.System, &attachments, &t.Kind, &t.ElapsedMs, &t.LimitMs, &timedOut, &run); err != nil {
-			return nil, err
-		}
-		t.TimedOut = timedOut != 0
-		if run != "" {
-			var rs RunStats
-			// A damaged summary must not make the session unreadable: it only decorates.
-			if json.Unmarshal([]byte(run), &rs) == nil {
-				t.Run = &rs
-			}
-		}
-		if attachments != "" {
-			if err := json.Unmarshal([]byte(attachments), &t.Attachments); err != nil {
-				return nil, fmt.Errorf("session %s attachments: %w", id, err)
-			}
-		}
-		if replay.Valid {
-			var m llm.Msg
-			if err := json.Unmarshal([]byte(replay.String), &m); err != nil {
-				return nil, fmt.Errorf("session %s replay: %w", id, err)
-			}
-			t.Replay = &m
-		}
-		t.Time = parseTS(when)
-		s.Turns = append(s.Turns, t)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	rq, err := db.Query("SELECT provider,model,usage,cost,time FROM requests WHERE session_id = ? ORDER BY seq", id)
-	if err != nil {
-		return nil, err
-	}
-	defer rq.Close()
-	for rq.Next() {
-		var r RequestUsage
-		var usage, when string
-		var cost sql.NullFloat64
-		if err := rq.Scan(&r.Provider, &r.Model, &usage, &cost, &when); err != nil {
-			return nil, err
-		}
-		if err := json.Unmarshal([]byte(usage), &r.Usage); err != nil {
-			return nil, err
-		}
-		if cost.Valid {
-			c := cost.Float64
-			r.Cost = &c
-		}
-		r.Time = parseTS(when)
-		s.Requests = append(s.Requests, r)
-	}
-	return &s, rq.Err()
-}
-
-func listSessions(db *sql.DB, limit int) ([]SessionInfo, error) {
-	rows, err := db.Query(`SELECT s.id, s.title, s.cwd, s.updated_at,
-		(SELECT COUNT(1) FROM turns t WHERE t.session_id = s.id),
-		(SELECT COUNT(1) FROM turns t WHERE t.session_id = s.id AND (t.code <> '' OR t.call_id <> '')),
-		s.provider, s.model, s.effort
-		FROM sessions s ORDER BY s.updated_at DESC LIMIT ?`, limit)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var out []SessionInfo
-	for rows.Next() {
-		var i SessionInfo
-		var updated string
-		if err := rows.Scan(&i.ID, &i.Title, &i.Cwd, &updated, &i.Turns, &i.JSRuns, &i.Provider, &i.Model, &i.Effort); err != nil {
-			return nil, err
-		}
-		i.UpdatedAt = parseTS(updated)
-		out = append(out, i)
-	}
-	return out, rows.Err()
 }

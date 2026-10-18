@@ -37,7 +37,7 @@ func TestVMExactOutputAndReturnedValue(t *testing.T) {
 	if r.Output != "1234567\n" || r.Value != "12345678" || r.Err != "" {
 		t.Fatalf("exact budget: %+v", r)
 	}
-	r = v.Exec(context.Background(), `({toString(){throw new Error("conversion failed")}})`)
+	r = v.Exec(context.Background(), `({toJSON(){throw new Error("conversion failed")}})`)
 	if !strings.Contains(r.Err, "conversion failed") {
 		t.Fatalf("conversion exception: %+v", r)
 	}

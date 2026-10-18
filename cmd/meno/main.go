@@ -14,7 +14,14 @@ import (
 	"meno/internal/llm"
 )
 
+// version is set at release time with -ldflags "-X main.version=…".
+var version = "dev"
+
 func main() {
+	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "version") {
+		fmt.Println("meno", version)
+		return
+	}
 	if err := run(); err != nil {
 		fmt.Fprintln(os.Stderr, "meno:", err)
 		os.Exit(1)

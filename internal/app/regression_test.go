@@ -95,7 +95,7 @@ func TestRunningSessionGuards(t *testing.T) {
 	defer s.Fini()
 	id := a.st.Session.ID
 	a.st.Running = true
-	for _, cmd := range []string{"reset", "compact", "cd /"} {
+	for _, cmd := range []string{"fork", "compact", "cd /"} {
 		a.st.Notices = nil
 		a.runCommand(cmd)
 		if a.st.Session.ID != id || a.quit || !strings.Contains(a.lastNotice(), ":stop") {

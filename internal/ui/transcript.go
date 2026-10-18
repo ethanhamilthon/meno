@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"html"
 	"strconv"
 	"strings"
 	"time"
@@ -40,6 +41,13 @@ type JSOpts struct {
 	Elapsed time.Duration
 	Limit   time.Duration
 	Spin    int
+	// Images configures inline pictures for attachments and view().
+	Images ImageOpts
+	// Streaming: the call's source is still arriving, so it is shown plain.
+	Streaming bool
+	// FoldStrings hides string-literal content beyond FoldLines lines.
+	FoldStrings bool
+	FoldLines   int
 }
 
 func BuildLines(turns []agent.Turn, w int, js JSOpts) []Line {
@@ -61,16 +69,24 @@ func BuildLines(turns []agent.Turn, w int, js JSOpts) []Line {
 			}
 		}
 		switch {
+		case t.Role == llm.RoleUser && t.Kind == agent.KindEvent:
+			out = append(out, WrapLines("⇢ "+eventSummary(t.Text), wrapW-2, func(s string) Line {
+				return Plain("  "+s, FgDim, BgTerm)
+			})...)
 		case t.Role == llm.RoleUser && t.Kind == agent.KindView:
 			out = append(out, WrapLines("◌ "+t.Text, wrapW-2, func(s string) Line {
 				return Plain("  "+s, FgDim, BgTerm)
 			})...)
+			for _, at := range t.Attachments {
+				out = append(out, imageBlock(at, "view()", w, js.Images)...)
+			}
 		case t.Role == llm.RoleUser:
 			out = append(out, Band(BgUser))
-			out = append(out, WrapLines(t.Text, wrapW-2, func(s string) Line {
-				return Plain("  "+s, FgWhite, BgUser)
-			})...)
+			out = append(out, WrapLines(withObjectLabels(t.Text), wrapW-2, userLineMaker())...)
 			out = append(out, Band(BgUser))
+			for _, at := range t.Attachments {
+				out = append(out, imageBlock(at, "attachment", w, js.Images)...)
+			}
 		case t.Code != "":
 			if t.Text != "" {
 				out = append(out, MarkdownLines(t.Text, wrapW-2, "◇")...)
@@ -107,7 +123,7 @@ func jsBlock(t agent.Turn, w int, js JSOpts) []Line {
 		case t.Err != "" || t.TimedOut:
 			bg = BgJSErr
 		}
-		lines := CodeLines(t.Code, bg, w-2, max)
+		lines := CodeLinesOpt(t.Code, bg, w-2, max, CodeOpts{Plain: js.Streaming, FoldStrings: js.FoldStrings, FoldLines: js.FoldLines})
 		for i := range lines {
 			lines[i].Segs = append([]Seg{{Text: "  ", FG: FgDim}}, lines[i].Segs...)
 		}
@@ -178,3 +194,24 @@ func limitRows(rows []Line, n int) []Line {
 }
 
 func itoa(n int) string { return strconv.Itoa(n) }
+
+// eventSummary is the one-line form of a rendered steering event: the source
+// and the first line of its text.
+func eventSummary(rendered string) string {
+	head, body, _ := strings.Cut(rendered, ">\n")
+	src, from := attr(head, "source"), attr(head, "from")
+	if from != "" {
+		src += " " + from
+	}
+	first, _, _ := strings.Cut(html.UnescapeString(strings.TrimSuffix(body, "\n</event>")), "\n")
+	return html.UnescapeString(src) + ": " + first
+}
+
+func attr(head, name string) string {
+	_, rest, ok := strings.Cut(head, " "+name+"=\"")
+	if !ok {
+		return ""
+	}
+	v, _, _ := strings.Cut(rest, "\"")
+	return v
+}

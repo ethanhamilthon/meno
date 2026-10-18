@@ -71,6 +71,9 @@ func hex(s string) tcell.Color {
 	return tcell.NewRGBColor(r, g, b)
 }
 
+// Mix blends a toward b; t=0 gives a, t=1 gives b.
+func Mix(a, b tcell.Color, t float64) tcell.Color { return mix(a, b, t) }
+
 // mix blends a toward b; t=0 gives a, t=1 gives b.
 func mix(a, b tcell.Color, t float64) tcell.Color {
 	ar, ag, ab := a.RGB()

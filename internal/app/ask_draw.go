@@ -1,0 +1,247 @@
+package app
+
+import (
+	"time"
+
+	"github.com/gdamore/tcell/v2"
+
+	"meno/internal/jsvm"
+	"meno/internal/ui"
+)
+
+// askHit is a clickable area of the form from the last draw.
+type askHit struct {
+	x, y, w int
+	kind    int // hitRow, hitQuestion, hitButton
+	idx     int
+}
+
+const (
+	hitRow = iota
+	hitQuestion
+	hitButton
+)
+
+// askButtonLabels picks the widest label set that fits inner columns; the
+// narrowest still names every action.
+func askButtonLabels(inner int) (labels [focusCount]string, gap int) {
+	sets := [][focusCount]string{
+		{"", "[ ‹ Prev ]", "[ Next › ]", "[ Submit ]", "[ Cancel ]"},
+		{"", "[‹ Prev]", "[Next ›]", "[Submit]", "[Cancel]"},
+		{"", "[‹]", "[›]", "[Submit]", "[Cancel]"},
+		{"", "[‹]", "[›]", "[OK]", "[✕]"},
+	}
+	for _, set := range sets {
+		for _, g := range []int{2, 1} {
+			total := g * (focusCount - 2)
+			for _, l := range set[focusPrev:] {
+				total += ui.TextWidth(l)
+			}
+			if total <= inner {
+				return set, g
+			}
+		}
+	}
+	return sets[len(sets)-1], 1
+}
+
+// askBoxFor sizes the dialog: wider than the other dialogs, never wider than
+// the terminal.
+func askBoxFor(sw, sh, contentH int) box {
+	bw := min(sw, max(20, min(100, sw-2)))
+	oh := max(0, min(contentH+2, sh))
+	oy := (sh - oh) / 2
+	return box{x: (sw - bw) / 2, y: oy + 1, w: bw, h: max(0, oh-2), oy: oy, oh: oh}
+}
+
+// askLines is the content of the form as drawn rows, built from the state alone
+// so a resize only reflows it.
+type askRow struct {
+	text string
+	fg   tcell.Color
+	bg   tcell.Color
+	hit  *askHit
+}
+
+func (a *App) drawAskForm(c ui.Canvas, w, h int) {
+	st := a.st.Ask
+	if st == nil || w < 12 || h < 6 {
+		return
+	}
+	bw := min(w, max(20, min(100, w-2)))
+	inner := max(1, bw-4)
+	bg := ui.BgPopup
+	var rows []askRow
+	add := func(text string, fg tcell.Color) { rows = append(rows, askRow{text: text, fg: fg, bg: bg}) }
+
+	n := len(st.F.Questions)
+	title := "agent asks · question " + itoa(st.Cur+1) + "/" + itoa(n) + " · " + itoa(st.answeredCount()) + " answered"
+	add(title, ui.Orange)
+	compact := w < 64 || h < 18 || n == 1
+	if n > 1 && !compact {
+		window := min(n, 5)
+		start := min(max(0, st.Cur-window/2), n-window)
+		for i := start; i < start+window; i++ {
+			mark, fg := "○", ui.FgDim
+			if st.answered(i) {
+				mark, fg = "●", ui.Green
+			}
+			if i == st.Cur {
+				fg = ui.FgWhite
+			}
+			rows = append(rows, askRow{text: " " + mark + " " + itoa(i+1) + ". " + ui.Truncate(st.F.Questions[i].Text, max(1, inner-8)), fg: fg, bg: bg, hit: &askHit{kind: hitQuestion, idx: i}})
+		}
+		if start+window < n || start > 0 {
+			add("   ("+itoa(n)+" questions)", ui.FgDim)
+		}
+	} else if n > 1 {
+		add("‹ "+itoa(st.Cur+1)+"/"+itoa(n)+" ›  "+ui.Truncate(st.q().Text, max(1, inner-12)), ui.FgSoft)
+	}
+	add("", ui.FgDim)
+	q := st.q()
+	for _, l := range wordWrap(q.Text, inner) {
+		add(l, ui.FgWhite)
+	}
+	if q.Recommendation != "" {
+		for _, l := range wordWrap("suggested: "+q.Recommendation, inner) {
+			add(l, ui.FgDim)
+		}
+	}
+	add("", ui.FgDim)
+	kind := map[string]string{jsvm.TypeSingle: "choose one", jsvm.TypeMulti: "choose any", jsvm.TypeText: "type an answer"}[q.Type]
+	add(kind, ui.FgDim)
+	ans := st.Ans[st.Cur]
+	for i, o := range q.Options {
+		mark := "( )"
+		if q.Type == jsvm.TypeMulti {
+			mark = "[ ]"
+		}
+		if ans.Picked[i] {
+			mark = map[bool]string{true: "[x]", false: "(•)"}[q.Type == jsvm.TypeMulti]
+		}
+		fg, rbg := ui.FgSoft, bg
+		if st.Focus == focusBody && st.Row == i && !st.Typing {
+			fg, rbg = ui.FgWhite, ui.BgPopupSel
+		}
+		rows = append(rows, askRow{text: "  " + mark + " " + ui.Truncate(o.Label, max(1, inner-8)), fg: fg, bg: rbg, hit: &askHit{kind: hitRow, idx: i}})
+	}
+	otherLabel := "Other: "
+	if q.Type == jsvm.TypeText {
+		otherLabel = ""
+	}
+	val := string(ans.Other)
+	if st.Typing {
+		val += "█"
+	} else if val == "" && q.Type != jsvm.TypeText {
+		val = "type your own answer…"
+	} else if val == "" {
+		val = "press enter to type…"
+	}
+	fg, rbg := ui.FgSoft, bg
+	if st.Focus == focusBody && st.onOther() {
+		fg, rbg = ui.FgWhite, ui.BgPopupSel
+	}
+	if string(ans.Other) == "" && !st.Typing {
+		fg = ui.FgDim
+	}
+	otherRow := len(q.Options)
+	if q.Type == jsvm.TypeText {
+		otherRow = 0
+	}
+	for i, l := range wordWrap(otherLabel+val, max(1, inner-2)) {
+		rows = append(rows, askRow{text: "  " + l, fg: fg, bg: rbg, hit: &askHit{kind: hitRow, idx: otherRow + i*0}})
+	}
+	add("", ui.FgDim)
+	if st.Notice != "" {
+		add(st.Notice, ui.Red)
+	}
+	// Buttons.
+	labels, gap := askButtonLabels(inner)
+	rows = append(rows, askRow{text: "", fg: ui.FgSoft, bg: bg})
+	hint := "tab move · ↑/↓ choose · space toggle · enter activate · esc stays here"
+	if st.Typing {
+		hint = "typing · enter/esc done · ctrl+u clear"
+	}
+	if ui.TextWidth(hint) > inner {
+		hint = "tab · ↑↓ · space · enter"
+	}
+	add(hint, ui.FgDim)
+	if !st.Until.IsZero() {
+		rows[0].text += "  ·  " + fmtWait(max(time.Until(st.Until), 0)) + " left"
+	}
+
+	// Keep the cursor row visible when the form is taller than the screen.
+	maxRows := max(3, h-4)
+	first := 0
+	if len(rows) > maxRows {
+		cursor := 0
+		for i, r := range rows {
+			if r.hit != nil && r.hit.kind == hitRow && r.hit.idx == st.Row && r.bg == ui.BgPopupSel {
+				cursor = i
+			}
+		}
+		first = min(max(0, cursor-maxRows/2), len(rows)-maxRows)
+		// The header, the buttons and the hint stay.
+		tail := rows[len(rows)-2:]
+		head := rows[:1]
+		mid := rows[1 : len(rows)-2]
+		room := maxRows - 3
+		s := min(max(0, first-1), max(0, len(mid)-room))
+		rows = append(append(head, mid[s:min(len(mid), s+room)]...), tail...)
+	}
+	b := askBoxFor(w, h, len(rows))
+	b.frame(c)
+	st.hits = st.hits[:0]
+	btnY := -1
+	for i, r := range rows {
+		b.fill(c, i, r.bg)
+		b.put(c, 2, i, ui.Truncate(r.text, inner), r.fg, r.bg)
+		if r.hit != nil {
+			hit := *r.hit
+			hit.x, hit.y, hit.w = b.x, b.y+i, b.w
+			st.hits = append(st.hits, hit)
+		}
+		if i == len(rows)-2 {
+			btnY = i
+		}
+	}
+	// Redraw the buttons with focus highlighting and record their areas.
+	if btnY >= 0 {
+		x := 2
+		for f := focusPrev; f < focusCount; f++ {
+			label := labels[f]
+			fg, rbg := ui.FgSoft, ui.BgPopup
+			if st.Focus == f {
+				fg, rbg = ui.FgBlack, ui.Blue
+			}
+			wd := b.put(c, x, btnY, label, fg, rbg)
+			st.hits = append(st.hits, askHit{x: b.x + x, y: b.y + btnY, w: max(1, wd), kind: hitButton, idx: f})
+			x += wd + gap
+		}
+	}
+}
+
+// askMouse handles a click on the form.
+func (a *App) askMouse(e *tcell.EventMouse) {
+	st := a.st.Ask
+	if st == nil || e.Buttons()&tcell.Button1 == 0 {
+		return
+	}
+	x, y := e.Position()
+	for _, hit := range st.hits {
+		if y != hit.y || x < hit.x || x >= hit.x+hit.w {
+			continue
+		}
+		switch hit.kind {
+		case hitQuestion:
+			st.enter(hit.idx)
+		case hitRow:
+			st.Focus, st.Typing, st.Row = focusBody, false, hit.idx
+			a.askPressRow()
+		case hitButton:
+			st.Focus, st.Typing = hit.idx, false
+			a.askActivate(hit.idx)
+		}
+		return
+	}
+}

@@ -65,7 +65,7 @@ func TestVimEditsInput(t *testing.T) {
 		{"undo insert", "abc<esc>Adef<esc>u", "abc"},
 		{"redo", "abc<esc>xu<c-r>", "ab"},
 		{"cc", "old line<esc>ccnew<esc>", "new"},
-		{"dG", "a<cr>b<cr>c<esc>gg jdG", "a"},
+		{"dG", "a<cr>b<cr>c<esc>ggjdG", "a"},
 		{"p count", "ab<esc>0yl3p", "aaaab"},
 		{"semicolon", "a.b.c.d<esc>0f.;x", "a.bc.d"},
 	}
@@ -79,6 +79,25 @@ func TestVimEditsInput(t *testing.T) {
 			t.Errorf("%s: got %q want %q", c.name, got, c.want)
 		}
 		s.Fini()
+	}
+}
+
+func TestSpaceOpensCommandLineInNormalMode(t *testing.T) {
+	a, scr := newTestApp(t)
+	defer scr.Fini()
+	typeRunes(a, "abc")
+	a.onKey(keyK(tcell.KeyEsc))
+	a.onKey(key(' '))
+	if a.st.Mode != ui.ModeCommand || a.st.Cmd != nil {
+		t.Fatalf("space in normal mode: mode %v cmd %q", a.st.Mode, string(a.st.Cmd))
+	}
+	a.onKey(keyK(tcell.KeyEsc))
+	// With a count pending, space still moves right (like l).
+	a.onKey(key('0'))
+	a.onKey(key('2'))
+	a.onKey(key(' '))
+	if a.st.Mode != ui.ModeNormal || a.st.Cursor != 2 {
+		t.Fatalf("2<space>: mode %v cursor %d", a.st.Mode, a.st.Cursor)
 	}
 }
 

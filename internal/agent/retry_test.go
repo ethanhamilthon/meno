@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -77,14 +79,16 @@ func TestRetriesTransientErrorsThenSucceeds(t *testing.T) {
 }
 
 func TestMidStreamDropRestartsAndRunsToolOnce(t *testing.T) {
+	counter := filepath.Join(t.TempDir(), "count")
+	bump := "sh('echo x >> " + counter + "')"
 	drop := func(emit func(llm.Event)) error {
 		emit(llm.Event{Kind: llm.EvText, Text: "par"})
-		emit(llm.Event{Kind: llm.EvTool, CallID: "c1", Code: "globalThis.n = (globalThis.n || 0) + 1"})
+		emit(llm.Event{Kind: llm.EvTool, CallID: "c1", Code: bump})
 		return io.ErrUnexpectedEOF
 	}
 	good := func(emit func(llm.Event)) error {
 		emit(llm.Event{Kind: llm.EvText, Text: "full"})
-		emit(llm.Event{Kind: llm.EvTool, CallID: "c2", Code: "globalThis.n = (globalThis.n || 0) + 1; n"})
+		emit(llm.Event{Kind: llm.EvTool, CallID: "c2", Code: bump})
 		emit(llm.Event{Kind: llm.EvDone})
 		return nil
 	}
@@ -95,9 +99,8 @@ func TestMidStreamDropRestartsAndRunsToolOnce(t *testing.T) {
 	if err := r.Turn(context.Background(), s, "go"); err != nil {
 		t.Fatal(err)
 	}
-	res := r.D.VM.Exec(context.Background(), "n")
-	if res.Value != "1" {
-		t.Fatalf("tool executed %s times", res.Value)
+	if b, _ := os.ReadFile(counter); string(b) != "x\n" {
+		t.Fatalf("tool executed %d times", len(b)/2)
 	}
 	for _, turn := range s.Snapshot() {
 		if strings.Contains(turn.Text, "par") && !strings.Contains(turn.Text, "full") {

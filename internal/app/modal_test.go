@@ -29,7 +29,7 @@ func TestWelcomeShownWhenEmpty(t *testing.T) {
 	defer scr.Fini()
 	a.draw()
 	out := screenText(scr)
-	for _, want := range []string{":model", "/skill", "███"} {
+	for _, want := range []string{"efficient and stable AI harness", "write", "skills", ":help", "v0.1", "no model selected"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("welcome missing %q:\n%s", want, out)
 		}
@@ -144,7 +144,7 @@ func TestSkillAutocompleteCompletesOnTab(t *testing.T) {
 		t.Fatalf("autocomplete not active for /rat: %v", a.acMatches())
 	}
 	a.onKey(keyK(tcell.KeyTab))
-	if got := string(a.st.Input); got != "/rate-limit " {
+	if got := labelText(a.st.Input); got != "/rate-limit " {
 		t.Fatalf("completed to %q", got)
 	}
 }

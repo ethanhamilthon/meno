@@ -41,6 +41,7 @@ func (f FS) Write(p, content string) error {
 	if err != nil {
 		return err
 	}
+	defer lockPath(full)()
 	if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
 		return err
 	}
@@ -55,19 +56,18 @@ func (f FS) Edit(p, oldS, newS string) (int, error) {
 	if oldS == "" {
 		return 0, fmt.Errorf("fs.edit: old string is empty")
 	}
+	defer lockPath(full)()
 	b, err := os.ReadFile(full)
 	if err != nil {
 		return 0, err
 	}
 	src := string(b)
 	n := strings.Count(src, oldS)
-	if n == 0 {
-		return 0, fmt.Errorf("fs.edit: old string not found in %s", p)
+	if n != 1 {
+		return n, fmt.Errorf("fs.edit: %s in %s", matchProblem(src, oldS, n), p)
 	}
-	if n > 1 {
-		return n, fmt.Errorf("fs.edit: old string matches %d times in %s", n, p)
-	}
-	return 1, os.WriteFile(full, []byte(strings.Replace(src, oldS, newS, 1)), 0o644)
+	_, _, err = writeAtomic(full, b, []byte(strings.Replace(src, oldS, newS, 1)), 1)
+	return 1, err
 }
 
 func (f FS) Exists(p string) bool {

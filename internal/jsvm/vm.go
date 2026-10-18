@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -35,6 +34,13 @@ type VM struct {
 	out          boundedBuffer
 	maxOut       int
 	ctx          context.Context
+	stringify    goja.Callable // the original JSON.stringify, for results
+	state        atomic.Pointer[StateStore]
+	sessionHost  atomic.Pointer[SessionHost]
+	todoHost     atomic.Pointer[TodoHost]
+	tasksHost    atomic.Pointer[TasksHost]
+	agentsHost   atomic.Pointer[AgentsHost]
+	agentsChild  atomic.Bool
 }
 
 type Options struct {
@@ -49,13 +55,13 @@ func New(o Options) *VM {
 	}
 	v := &VM{root: o.Root, maxOut: o.MaxOut, out: boundedBuffer{max: o.MaxOut}}
 	v.timeout.Store(int64(o.Timeout))
-	v.Reset()
 	return v
 }
 
-func (v *VM) Reset() {
-	v.mu.Lock()
-	defer v.mu.Unlock()
+// fresh gives the VM a clean runtime. Every Exec starts with one: nothing a
+// call declares or changes survives it. Durable data lives in Go services
+// (state, tasks, sessions), never in the interpreter.
+func (v *VM) fresh() {
 	v.rt = goja.New()
 	v.out.Reset()
 	v.bind()
@@ -100,14 +106,7 @@ func (v *VM) bind() {
 		return map[string]any{"status": r.Status, "statusText": r.StatusText, "url": r.URL, "redirected": r.Redirected, "headers": r.Headers, "body": r.Body}, nil
 	})
 	_ = rt.Set("env", environ())
-	fsh := func() FS { return FS{Root: v.Root()} }
-	obj := rt.NewObject()
-	_ = obj.Set("read", func(p string) (string, error) { return fsh().Read(p) })
-	_ = obj.Set("write", func(p, c string) error { return fsh().Write(p, c) })
-	_ = obj.Set("edit", func(p, o, n string) (int, error) { return fsh().Edit(p, o, n) })
-	_ = obj.Set("glob", func(p string) ([]string, error) { return fsh().Glob(p) })
-	_ = obj.Set("exists", func(p string) bool { return fsh().Exists(p) })
-	_ = rt.Set("fs", obj)
+	v.bindFS()
 	_ = rt.Set("sh", func(cmd string) (map[string]any, error) {
 		res, err := (Shell{Root: v.Root(), Timeout: v.active, MaxOut: v.maxOut, Env: v.shellEnv()}).Run(v.ctx, cmd)
 		if err != nil {
@@ -118,9 +117,22 @@ func (v *VM) bind() {
 	_ = rt.Set("view", func(p string) (string, error) { return v.view(p) })
 	v.bindMCPAdmin()
 	v.bindAsk()
-	if _, err := rt.RunString(preludeJS); err != nil {
+	v.bindState()
+	v.bindSession()
+	v.bindMCPResults()
+	v.bindTodo()
+	v.bindTasks()
+	v.bindAgents()
+	if _, err := rt.RunProgram(preludeProg); err != nil {
 		panic("jsvm prelude: " + err.Error())
 	}
+	if _, err := rt.RunProgram(stateProg); err != nil {
+		panic("jsvm state: " + err.Error())
+	}
+	if _, err := rt.RunProgram(askProg); err != nil {
+		panic("jsvm ask: " + err.Error())
+	}
+	v.stringify = captureStringify(rt)
 }
 
 // shellEnv is the environment for sh(): the JS object env, so that
@@ -149,112 +161,4 @@ func (v *VM) write(s string) {
 	}
 	// Slice before converting so a huge single write needs no huge byte copy.
 	_, _ = v.out.Write([]byte(s))
-}
-
-// Exec runs code with the VM's configured timeout.
-func (v *VM) Exec(ctx context.Context, code string) Result {
-	return v.exec(ctx, code, nil)
-}
-
-// ExecTimeout runs code with a timeout of its own (0 = no limit) instead of the
-// configured one. The timeout covers sh() and fetch() calls made by the code.
-func (v *VM) ExecTimeout(ctx context.Context, code string, timeout time.Duration) Result {
-	return v.exec(ctx, code, &timeout)
-}
-
-func (v *VM) exec(ctx context.Context, code string, override *time.Duration) Result {
-	start := time.Now()
-	v.mu.Lock()
-	defer v.mu.Unlock()
-	v.out.Reset()
-	timeout := time.Duration(v.timeout.Load())
-	if override != nil {
-		timeout = *override
-	}
-	v.active = timeout
-	v.syncMCP()
-	if err := ctx.Err(); err != nil {
-		return Result{Err: err.Error()}
-	}
-	v.ctx = ctx
-	var timedOut atomic.Bool
-	timerDone := make(chan struct{})
-	var timer *time.Timer
-	deadline := time.Now().Add(timeout)
-	v.pauseTimeout = func() func() {
-		if timer == nil || !timer.Stop() {
-			return func() {}
-		}
-		left := max(time.Until(deadline), time.Millisecond)
-		return func() {
-			deadline = time.Now().Add(left)
-			timer.Reset(left)
-		}
-	}
-	if timeout > 0 {
-		timer = time.AfterFunc(timeout, func() {
-			timedOut.Store(true)
-			v.rt.Interrupt("timeout")
-			close(timerDone)
-		})
-	}
-	abortDone := make(chan struct{})
-	stop := context.AfterFunc(ctx, func() { v.rt.Interrupt("aborted"); close(abortDone) })
-	defer func() {
-		if !stop() {
-			<-abortDone
-		}
-		if timer != nil && !timer.Stop() {
-			<-timerDone
-		}
-		v.rt.ClearInterrupt()
-	}()
-	val, err := v.run(code)
-	r := Result{Output: v.out.String(), Elapsed: time.Since(start), TimedOut: timedOut.Load()}
-	if err != nil {
-		r.Err = err.Error()
-		if timedOut.Load() {
-			r.Err = fmt.Sprintf("js timeout after %s", timeout)
-		}
-		return r
-	}
-	if val != nil && !goja.IsUndefined(val) && !v.out.cut {
-		var value string
-		if ex := v.rt.Try(func() { value = val.String() }); ex != nil {
-			r.Output = v.out.String()
-			r.Err = ex.Error()
-			return r
-		}
-		// Printed output and the returned value share one byte budget.
-		outputLen := len(v.out.String())
-		v.write(value)
-		combined := v.out.String()
-		if v.out.cut && outputLen > len(combined)-len(truncationMarker(v.maxOut)) {
-			r.Output = combined
-		} else {
-			r.Output, r.Value = combined[:outputLen], combined[outputLen:]
-		}
-	}
-	return r
-}
-
-func (v *VM) run(code string) (goja.Value, error) {
-	if !strings.Contains(code, "await") {
-		return v.rt.RunString(code)
-	}
-	wrapped := "(async () => {\n" + code + "\n})()"
-	val, err := v.rt.RunString(wrapped)
-	if err != nil {
-		return nil, err
-	}
-	if p, ok := val.Export().(*goja.Promise); ok {
-		switch p.State() {
-		case goja.PromiseStateRejected:
-			return nil, fmt.Errorf("%v", p.Result().Export())
-		case goja.PromiseStateFulfilled:
-			return p.Result(), nil
-		}
-		return nil, fmt.Errorf("await: promise still pending (no event loop for host I/O)")
-	}
-	return val, nil
 }

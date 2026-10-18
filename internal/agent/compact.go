@@ -3,20 +3,39 @@ package agent
 import (
 	"context"
 	"errors"
+	"strconv"
 	"strings"
+	"time"
 
 	"meno/internal/llm"
 )
 
 const keepTail = 4
 
+// CompactOptions tune a summary-generating compaction.
+type CompactOptions struct {
+	Keep          int // recent messages that stay in the active context (default 4)
+	SummaryTokens int // target size of the summary (0 = unbounded)
+}
+
+// Compact summarizes the old part of the active context with the model and
+// moves it to the history; nothing is deleted.
 func Compact(ctx context.Context, cl llm.Client, p llm.Provider, model string, s *Session, reportUsage ...func(llm.Usage)) (before, after int, err error) {
+	return CompactWith(ctx, cl, p, model, s, CompactOptions{}, reportUsage...)
+}
+
+// CompactWith is Compact with options.
+func CompactWith(ctx context.Context, cl llm.Client, p llm.Provider, model string, s *Session, o CompactOptions, reportUsage ...func(llm.Usage)) (before, after int, err error) {
+	keep := o.Keep
+	if keep <= 0 {
+		keep = keepTail
+	}
 	all := s.Snapshot()
 	before = EstimateTokens(s)
-	if len(all) <= keepTail {
+	if len(all) <= keep {
 		return before, before, nil
 	}
-	cut := len(all) - keepTail
+	cut := len(all) - keep
 	// Never split the assistant output from any of its tool results.
 	for cut > 0 && all[cut].ReplayGroup != "" && all[cut-1].ReplayGroup == all[cut].ReplayGroup {
 		cut--
@@ -40,7 +59,11 @@ func Compact(ctx context.Context, cl llm.Client, p llm.Provider, model string, s
 		}
 		b.WriteString("\n")
 	}
-	prompt := "Summarize this conversation for continuation. Keep decisions, file paths, results. Be concise.\n\n" + b.String()
+	prompt := "Summarize this conversation for continuation as Markdown with these sections: goal and acceptance criteria; current and superseded decisions; completed and remaining work; constraints and exclusions; changed files and observed Git state; validation done and what is unverified; artifact and result IDs; next action and blockers. Keep decisions, file paths and results. Be concise.\n"
+	if o.SummaryTokens > 0 {
+		prompt += "Keep the summary under about " + strconv.Itoa(o.SummaryTokens) + " tokens.\n"
+	}
+	prompt += "\n" + b.String()
 	var sum strings.Builder
 	var streamErr error
 	err = cl.Stream(ctx, llm.Request{Provider: p, Model: model, Msgs: []llm.Msg{{Role: llm.RoleUser, Text: prompt}}}, func(e llm.Event) {
@@ -71,7 +94,7 @@ func Compact(ctx context.Context, cl llm.Client, p llm.Provider, model string, s
 		return before, before, err
 	}
 	s.Summary = strings.TrimSpace(sum.String())
-	s.Replace(tail)
+	s.ensureLog().Compact(head, tail, SummaryRev{Rev: int(time.Now().UnixNano() / 1000), Summary: s.Summary, Time: time.Now()})
 	after = EstimateTokens(s)
 	return before, after, nil
 }

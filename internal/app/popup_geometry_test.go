@@ -104,8 +104,8 @@ func TestAutocompleteScrollsByPages(t *testing.T) {
 		t.Fatalf("selected completion not in viewport: %q", visualRow(s, 0))
 	}
 	a.acKey(keyK(tcell.KeyEnter))
-	if string(a.st.Input) != "/p30 " {
-		t.Fatalf("input %q", string(a.st.Input))
+	if labelText(a.st.Input) != "/p30 " {
+		t.Fatalf("input %q", labelText(a.st.Input))
 	}
 }
 

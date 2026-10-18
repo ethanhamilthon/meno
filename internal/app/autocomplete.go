@@ -1,6 +1,7 @@
 package app
 
 import (
+	"meno/internal/objtag"
 	"unicode"
 
 	"github.com/gdamore/tcell/v2"
@@ -87,6 +88,12 @@ func (a *App) acAccept() {
 	it := m[clampSel(a.st.Sel, len(m))]
 	in := a.st.Input
 	rep := []rune(it.label())
+	if it.kind == kindSkill {
+		// An explicit selection is one atomic object that pins this skill.
+		if r, ok := objectRune(inputObject{Kind: objtag.Skill, Ref: it.name}); ok {
+			rep = []rune{r}
+		}
+	}
 	tail := in[t.end:]
 	out := make([]rune, 0, len(in)+len(rep)+1)
 	out = append(out, in[:t.start]...)
@@ -105,6 +112,9 @@ func (a *App) acAccept() {
 
 // acKey handles keys while the completion popup is open. It returns true if consumed.
 func (a *App) acKey(k *tcell.EventKey) bool {
+	if a.pickOpen() {
+		return a.pickKey(k)
+	}
 	m := a.acMatches()
 	n := len(m)
 	switch k.Key() {
@@ -145,7 +155,6 @@ func (a *App) acHeight() int {
 	return acRowCount(len(a.acMatches()), w)
 }
 
-func (a *App) drawAutocomplete(c ui.Canvas, x, y, w int) { a.drawAutocompleteRows(c, x, y, w, acMax) }
 func (a *App) drawAutocompleteRows(c ui.Canvas, x, y, w, limit int) {
 	m := a.acMatches()
 	cells := make([]acCell, len(m))

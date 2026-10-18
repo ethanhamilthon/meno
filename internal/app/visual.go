@@ -27,7 +27,11 @@ func (a *App) transcriptWithSelection(w int) []ui.Line {
 		out = append(out, lines...)
 	}
 	notices := a.currentNotices()
+	planAt := a.planAnchor(turns)
 	for i := 0; i <= len(turns); i++ {
+		if i == planAt {
+			appendLines(ui.PlanLines(a.st.Todo, w, a.st.Settings.TodoCollapsed))
+		}
 		for _, n := range notices {
 			if n.After != i {
 				continue
@@ -41,7 +45,7 @@ func (a *App) transcriptWithSelection(w int) []ui.Line {
 			}))
 		}
 		if i < len(turns) {
-			appendLines(ui.BuildLines(turns[i:i+1], w, js))
+			appendLines(a.st.lines.turnLines(turns[i], w, js))
 		}
 	}
 
@@ -75,6 +79,7 @@ func (a *App) transcriptWithSelection(w int) []ui.Line {
 		live.Code = call.Code
 		liveJS := js
 		liveJS.Running = true
+		liveJS.Streaming = !call.Running // highlight only once the whole source has arrived
 		if call.Running && !call.Started.IsZero() {
 			liveJS.Exec = true
 			liveJS.Elapsed = time.Since(call.Started)

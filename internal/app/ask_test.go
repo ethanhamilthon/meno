@@ -2,222 +2,181 @@ package app
 
 import (
 	"context"
-	"errors"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
-
-	"meno/internal/jsvm"
-	"meno/internal/ui"
 )
 
-type askOutcome struct {
-	text string
-	err  error
-}
-
-// askAsync puts a question from another goroutine, as the VM does, and feeds
-// the resulting open event to the UI (this goroutine).
-func askAsync(t *testing.T, a *App, ctx context.Context, q jsvm.Question) <-chan askOutcome {
+// execJS runs code in the current session's VM while the UI loop is pumped, so
+// a form opened by the code can be answered by the test.
+func execJS(t *testing.T, a *App, code string, during func()) string {
 	t.Helper()
-	out := make(chan askOutcome, 1)
+	var res string
+	done := make(chan struct{})
+	vm := a.st.VM
 	go func() {
-		text, err := (appAsker{a, a.st.Session.ID}).Ask(ctx, q)
-		out <- askOutcome{text, err}
+		r := vm.Exec(context.Background(), code)
+		res = r.Output + r.Value + r.Err
+		close(done)
 	}()
-	select {
-	case e := <-a.events:
-		a.handle(e)
-	case <-time.After(5 * time.Second):
-		t.Fatal("no ask event")
-	}
-	if a.st.Ask == nil {
-		t.Fatal("question not open")
-	}
-	return out
-}
-
-func result(t *testing.T, out <-chan askOutcome) askOutcome {
-	t.Helper()
-	select {
-	case r := <-out:
-		return r
-	case <-time.After(5 * time.Second):
-		t.Fatal("no answer")
-	}
-	return askOutcome{}
-}
-
-func TestAskChoicePanelAndDraft(t *testing.T) {
-	a, scr := newTestApp(t)
-	defer scr.Fini()
-	typeText(a, "half typed message")
-	out := askAsync(t, a, context.Background(), jsvm.Question{Text: "Which database?", Choices: []string{"sqlite", "postgres"}, CustomAnswer: true})
-	a.draw()
-	text := screenText(scr)
-	for _, want := range []string{"agent asks", "Which database?", "1 sqlite", "2 postgres", "3 Your own answer", "waiting for your answer", "enter confirm"} {
-		if !strings.Contains(text, want) {
-			t.Fatalf("panel misses %q:\n%s", want, text)
+	acted := false
+	deadline := time.After(10 * time.Second)
+	for {
+		select {
+		case <-done:
+			return res
+		case e := <-a.events:
+			a.handle(e)
+			if !acted && a.st.Ask != nil && during != nil {
+				acted = true
+				during()
+			}
+		case <-deadline:
+			t.Fatal("timed out waiting for the code to finish")
 		}
 	}
-	if strings.Contains(text, "half typed message") {
-		t.Fatal("the draft must be put aside while the question is open")
+}
+
+const formJS = `askUser({questions: [
+  {id: "db", text: "Which database?", type: "single", options: [{id: "pg", label: "Postgres"}, {id: "sq", label: "SQLite"}], recommendation: "Postgres"},
+  {id: "feat", text: "Features?", type: "multi", options: [{id: "a", label: "Auth"}, {id: "b", label: "Billing"}, {id: "c", label: "Cache"}]},
+  {id: "name", text: "Project name?", type: "text"}
+]})`
+
+func formKeyPress(a *App, k tcell.Key) { a.onKey(keyK(k)) }
+
+func TestFormSubmitReturnsAllAnswersWithOtherSemantics(t *testing.T) {
+	a, scr, _ := e2eApp(t, &recClient{})
+	defer scr.Fini()
+	got := execJS(t, a, "JSON.stringify("+formJS+".answers)", func() {
+		// Q1 single: pick SQLite with the keyboard.
+		formKeyPress(a, tcell.KeyDown)
+		formKeyPress(a, tcell.KeyEnter)
+		// Q2 multi: Auth and Cache, plus custom text.
+		typeRunes(a, "]")
+		formKeyPress(a, tcell.KeyEnter) // row 0: Auth
+		formKeyPress(a, tcell.KeyDown)
+		formKeyPress(a, tcell.KeyDown)
+		formKeyPress(a, tcell.KeyEnter) // row 2: Cache
+		formKeyPress(a, tcell.KeyDown)
+		formKeyPress(a, tcell.KeyEnter) // custom row: start typing
+		typeRunes(a, "Search")
+		formKeyPress(a, tcell.KeyEnter) // done typing
+		// Q3 text: typing starts at once.
+		typeRunes(a, "]")
+		if a.st.Ask.Cur != 2 || !a.st.Ask.Typing {
+			t.Errorf("a text question starts in typing mode: cur=%d typing=%v", a.st.Ask.Cur, a.st.Ask.Typing)
+		}
+		typeRunes(a, "meno")
+		formKeyPress(a, tcell.KeyEsc) // leaves typing, the form stays
+		if a.st.Ask == nil {
+			t.Error("Esc must not close the form")
+		}
+		a.st.Ask.Focus = focusSubmit
+		formKeyPress(a, tcell.KeyEnter)
+	})
+	want := `[{"id":"db","selected":["sq"],"text":""},{"id":"feat","selected":["a","c"],"text":"Search"},{"id":"name","selected":[],"text":"meno"}]`
+	if got != want {
+		t.Fatalf("answers\n got %s\nwant %s", got, want)
 	}
-	a.onKey(key('j'))
-	a.onKey(keyK(tcell.KeyEnter))
-	if r := result(t, out); r.err != nil || r.text != "postgres" {
-		t.Fatalf("%+v", r)
-	}
-	if a.st.Ask != nil || string(a.st.Input) != "half typed message" {
-		t.Fatalf("draft not restored: %q ask=%v", string(a.st.Input), a.st.Ask)
-	}
-	a.draw()
-	if strings.Contains(screenText(scr), "agent asks") {
-		t.Fatal("panel still drawn")
+	if a.st.Ask != nil {
+		t.Fatal("the form must close after submit")
 	}
 }
 
-func TestAskDigitPicksAndCustomAnswerIsTyped(t *testing.T) {
-	a, scr := newTestApp(t)
+func TestFormSubmitFocusesFirstUnansweredAndSendsNothing(t *testing.T) {
+	a, scr, _ := e2eApp(t, &recClient{})
 	defer scr.Fini()
-	out := askAsync(t, a, context.Background(), jsvm.Question{Text: "pick", Choices: []string{"a", "b"}, CustomAnswer: true})
-	a.onKey(key('1'))
-	if r := result(t, out); r.text != "a" {
-		t.Fatalf("%+v", r)
-	}
-	out = askAsync(t, a, context.Background(), jsvm.Question{Text: "pick", Choices: []string{"a", "b"}, CustomAnswer: true})
-	a.onKey(key('3')) // "Your own answer…"
-	if !a.st.Ask.Typing {
-		t.Fatal("custom answer should move input to the composer")
-	}
-	typeText(a, "my own")
-	press(a, tcell.KeyEnter, 0)
-	if r := result(t, out); r.text != "my own" {
-		t.Fatalf("%+v", r)
-	}
-	// Without a custom answer there is no such row, and 2 beyond the list is ignored.
-	out = askAsync(t, a, context.Background(), jsvm.Question{Text: "pick", Choices: []string{"a"}, CustomAnswer: false})
-	a.draw()
-	if strings.Contains(screenText(scr), "own answer") {
-		t.Fatal("custom row shown although customAnswer=false")
-	}
-	a.onKey(key('2'))
-	if a.st.Ask == nil {
-		t.Fatal("a digit past the list must not answer")
-	}
-	a.onKey(key('1'))
-	result(t, out)
-}
-
-func TestAskFreeTextAndDecline(t *testing.T) {
-	a, scr := newTestApp(t)
-	defer scr.Fini()
-	out := askAsync(t, a, context.Background(), jsvm.Question{Text: "Port?", CustomAnswer: true})
-	a.draw()
-	if text := screenText(scr); !strings.Contains(text, "Port?") || !strings.Contains(text, "your answer") {
-		t.Fatal(text)
-	}
-	typeText(a, "8080")
-	// Esc only leaves insert mode here; it must not decline.
-	press(a, tcell.KeyEsc, 0)
-	if a.st.Ask == nil {
-		t.Fatal("esc declined a typed question")
-	}
-	a.onKey(key('i'))
-	press(a, tcell.KeyEnter, 0)
-	if r := result(t, out); r.text != "8080" {
-		t.Fatalf("%+v", r)
-	}
-	// Empty answers are not sent.
-	out = askAsync(t, a, context.Background(), jsvm.Question{Text: "again?"})
-	press(a, tcell.KeyEnter, 0)
-	if a.st.Ask == nil {
-		t.Fatal("empty answer accepted")
-	}
-	press(a, tcell.KeyCtrlX, 0)
-	if r := result(t, out); !errors.Is(r.err, jsvm.ErrDeclined) {
-		t.Fatalf("%+v", r)
-	}
-	// Esc declines a choice list.
-	out = askAsync(t, a, context.Background(), jsvm.Question{Text: "x", Choices: []string{"a"}, CustomAnswer: true})
-	press(a, tcell.KeyEsc, 0)
-	if r := result(t, out); !errors.Is(r.err, jsvm.ErrDeclined) {
-		t.Fatalf("%+v", r)
+	got := execJS(t, a, "try { "+formJS+"; 'sent' } catch (e) { e.name }", func() {
+		a.st.Ask.Focus = focusSubmit
+		formKeyPress(a, tcell.KeyEnter) // nothing answered
+		if a.st.Ask == nil || a.st.Ask.Cur != 0 || a.st.Ask.Notice == "" {
+			t.Errorf("must stay open on the first unanswered question: %+v", a.st.Ask)
+		}
+		formKeyPress(a, tcell.KeyEnter) // row 0 selected (focus returned to the body)
+		a.st.Ask.enter(2)
+		typeRunes(a, "   ") // blank text is not an answer
+		formKeyPress(a, tcell.KeyEsc)
+		a.st.Ask.Focus = focusSubmit
+		formKeyPress(a, tcell.KeyEnter)
+		if a.st.Ask == nil || a.st.Ask.Cur != 1 {
+			t.Errorf("question 2 is unanswered, and blank text does not count: %+v", a.st.Ask)
+		}
+		a.st.Ask.Focus = focusCancel
+		formKeyPress(a, tcell.KeyEnter)
+	})
+	if got != "AskCancelled" {
+		t.Fatalf("cancel must throw AskCancelled and leak no partial answers, got %q", got)
 	}
 }
 
-func TestAskClosesWhenTheTurnIsCanceled(t *testing.T) {
-	a, scr := newTestApp(t)
+func TestFormSingleOtherReplacesOptionAndStateSurvivesResize(t *testing.T) {
+	a, scr, _ := e2eApp(t, &recClient{})
 	defer scr.Fini()
-	typeText(a, "keep me")
-	ctx, cancel := context.WithCancel(context.Background())
-	out := askAsync(t, a, ctx, jsvm.Question{Text: "x?"})
-	cancel()
-	select {
-	case e := <-a.events:
-		a.handle(e)
-	case <-time.After(5 * time.Second):
-		t.Fatal("no close event")
-	}
-	if r := result(t, out); !errors.Is(r.err, context.Canceled) {
-		t.Fatalf("%+v", r)
-	}
-	if a.st.Ask != nil || string(a.st.Input) != "keep me" {
-		t.Fatalf("not closed cleanly: ask=%v input=%q", a.st.Ask, string(a.st.Input))
+	got := execJS(t, a, "JSON.stringify("+formJS+".answers[0])", func() {
+		formKeyPress(a, tcell.KeyEnter) // Postgres
+		formKeyPress(a, tcell.KeyDown)
+		formKeyPress(a, tcell.KeyDown)
+		formKeyPress(a, tcell.KeyEnter) // custom row
+		typeRunes(a, "MySQL")
+		formKeyPress(a, tcell.KeyEnter)
+		if a.st.Ask.Ans[0].Picked[0] {
+			t.Error("custom text must replace the chosen option in a single question")
+		}
+		scr.SetSize(40, 12) // narrow: the form collapses but keeps every action reachable
+		a.draw()
+		if !strings.Contains(screenText(scr), "Submit") || !strings.Contains(screenText(scr), "Cancel") {
+			t.Errorf("actions must stay reachable on a narrow terminal:\n%s", screenText(scr))
+		}
+		scr.SetSize(120, 40)
+		a.draw()
+		st := a.st.Ask
+		st.Ans[1].Picked[0] = true
+		st.Ans[2].Other = []rune("x")
+		st.Focus = focusSubmit
+		formKeyPress(a, tcell.KeyEnter)
+	})
+	if got != `{"id":"db","selected":[],"text":"MySQL"}` {
+		t.Fatalf("%s", got)
 	}
 }
 
-func TestAskPanelHiddenUnderDialogsAndLimited(t *testing.T) {
-	a, scr := newTestApp(t)
+func TestFormTimeoutThrowsAskTimeoutAndEventsQueue(t *testing.T) {
+	a, scr, _ := e2eApp(t, &recClient{})
 	defer scr.Fini()
-	var choices []string
-	for i := 0; i < 30; i++ {
-		choices = append(choices, "option number "+itoa(i))
-	}
-	out := askAsync(t, a, context.Background(), jsvm.Question{Text: strings.Repeat("a very long question ", 40), Choices: choices, CustomAnswer: true, Timeout: time.Minute})
-	_, h := a.scr.Size()
-	if got := a.askHeight(); got > h*askMaxShare/100 || got < 4 {
-		t.Fatalf("panel height %d of %d", got, h)
-	}
-	a.draw()
-	if text := screenText(scr); !strings.Contains(text, "answer within") || !strings.Contains(text, "more") || !strings.Contains(text, "INSERT") {
-		t.Fatalf("\n%s", text)
-	}
-	// Scrolling keeps the selection visible.
-	for i := 0; i < 25; i++ {
-		a.onKey(key('j'))
-	}
-	a.draw()
-	if !strings.Contains(screenText(scr), "option number 24") {
-		t.Fatalf("selection scrolled out:\n%s", screenText(scr))
-	}
-	// A dialog covers the panel; the question stays pending.
-	a.runCommand("settings")
-	a.draw()
-	if a.askHeight() != 0 || strings.Contains(screenText(scr), "agent asks") {
-		t.Fatal("panel must be hidden while a dialog is open")
-	}
-	press(a, tcell.KeyEsc, 0)
-	if a.st.Ask == nil || a.st.Over != OverNone {
-		t.Fatalf("dialog close lost the question: over=%v", a.st.Over)
-	}
-	a.draw()
-	if !strings.Contains(screenText(scr), "agent asks") {
-		t.Fatal("panel did not come back")
-	}
-	press(a, tcell.KeyCtrlX, 0)
-	result(t, out)
-	if a.st.Mode != ui.ModeInsert {
-		t.Fatalf("mode %v", a.st.Mode)
+	code := `try { askUser({timeout: 0.2, questions: [{id: "a", text: "t", type: "text"}]}) } catch (e) { e.name }`
+	got := execJS(t, a, code, nil)
+	if got != "AskTimeout" || a.st.Ask != nil {
+		t.Fatalf("%q ask=%v", got, a.st.Ask)
 	}
 }
 
-func TestAskBellFollowsTheSetting(t *testing.T) {
-	a, scr := newTestApp(t)
+func TestFormMouseClicksRowsAndButtons(t *testing.T) {
+	a, scr, _ := e2eApp(t, &recClient{})
 	defer scr.Fini()
-	if a.st.Settings.Notify != "off" {
-		t.Fatal("the bell must be off by default")
+	got := execJS(t, a, "JSON.stringify("+formJS+".answers[0].selected)", func() {
+		a.draw()
+		click := func(kind, idx int) {
+			for _, h := range a.st.Ask.hits {
+				if h.kind == kind && h.idx == idx {
+					a.askMouse(tcell.NewEventMouse(h.x+3, h.y, tcell.Button1, 0))
+					return
+				}
+			}
+			t.Errorf("no clickable area kind=%d idx=%d", kind, idx)
+		}
+		click(hitRow, 1) // SQLite
+		click(hitQuestion, 1)
+		if a.st.Ask.Cur != 1 {
+			t.Error("clicking a question in the list must open it")
+		}
+		a.st.Ask.Ans[1].Picked[1], a.st.Ask.Ans[2].Other = true, []rune("n")
+		a.draw()
+		click(hitButton, focusSubmit)
+	})
+	if got != `["sq"]` {
+		t.Fatalf("%s", got)
 	}
 }

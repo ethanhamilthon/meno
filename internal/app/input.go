@@ -17,6 +17,13 @@ func cellWidth(g string) int {
 	if g == "\t" {
 		return 4
 	}
+	if len(g) == 3 { // an object is one private-use rune (3 bytes in UTF-8)
+		if r := []rune(g); len(r) == 1 {
+			if o, ok := objectAt(r[0]); ok {
+				return uniseg.StringWidth(o.Label())
+			}
+		}
+	}
 	return uniseg.StringWidth(g)
 }
 

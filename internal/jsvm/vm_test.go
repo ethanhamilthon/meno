@@ -15,12 +15,20 @@ func newVM(t *testing.T) *VM {
 	return New(Options{Root: root, Timeout: 2 * time.Second})
 }
 
-func TestGlobalsPersistAcrossExec(t *testing.T) {
+func TestNothingPersistsAcrossExec(t *testing.T) {
 	v := newVM(t)
-	v.Exec(context.Background(), "var n = 2")
-	r := v.Exec(context.Background(), "n * 21")
-	if r.Err != "" || r.Value != "42" {
-		t.Fatalf("got %+v", r)
+	ctx := context.Background()
+	v.Exec(ctx, "var n = 2; const c = 3; globalThis.g = 4; env.X = 'y'; Array.prototype.sum = 1")
+	for _, probe := range []string{"typeof n", "typeof c", "typeof g", "typeof env.X", "typeof [].sum"} {
+		if r := v.Exec(ctx, probe); r.Value != "undefined" {
+			t.Fatalf("%s survived: %+v", probe, r)
+		}
+	}
+	// Redeclaring is fine because every call starts clean.
+	for i := 0; i < 2; i++ {
+		if r := v.Exec(ctx, "const again = 1; again"); r.Err != "" || r.Value != "1" {
+			t.Fatalf("%+v", r)
+		}
 	}
 }
 
@@ -99,15 +107,6 @@ func TestAbortViaContext(t *testing.T) {
 	r := v.Exec(ctx, `while(true){}`)
 	if r.Err == "" {
 		t.Fatal("abort did not stop loop")
-	}
-}
-
-func TestResetClearsGlobals(t *testing.T) {
-	v := newVM(t)
-	v.Exec(context.Background(), `var keep = 7`)
-	v.Reset()
-	if r := v.Exec(context.Background(), `typeof keep`); r.Value != "undefined" {
-		t.Fatalf("reset kept globals: %s", r.Value)
 	}
 }
 

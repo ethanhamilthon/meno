@@ -86,7 +86,7 @@ func (s *Session) TextWithImagePaths(t Turn, show func(path string) string) stri
 }
 
 // omitOldImages keeps the newest limit images in the request; older ones are
-// replaced by a note in the text.
+// replaced by a note in the text. It must stay a no-op below the limit.
 func omitOldImages(msgs []llm.Msg, limit int) {
 	left := limit
 	for i := len(msgs) - 1; i >= 0; i-- {
@@ -116,5 +116,8 @@ func omitOldImages(msgs []llm.Msg, limit int) {
 	}
 }
 
-// MaxRequestImages is how many images a request carries; older ones are omitted.
-const MaxRequestImages = 5
+// MaxRequestImages is a safety valve for provider limits on images per request,
+// not a sliding window: dropping an old image rewrites the history and breaks
+// the prompt cache from that point on, so images stay in the history until it is
+// compacted (Compact moves old turns, images included, out of the requests).
+const MaxRequestImages = 50

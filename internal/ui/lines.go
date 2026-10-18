@@ -22,6 +22,8 @@ type Seg struct {
 type Line struct {
 	Segs []Seg
 	BG   tcell.Color
+	// Image is set on the first of the rows reserved for an inline picture.
+	Image *ImageRef
 }
 
 // Text is the plain text of the line (what the user sees, without the left padding).
@@ -65,20 +67,5 @@ func WrapLines(text string, width int, mk func(string) Line) []Line {
 // CodeLines highlights code and soft-wraps rows longer than width (width <= 0
 // disables wrapping). max limits the number of rendered rows (0 = all).
 func CodeLines(code string, bg tcell.Color, width, max int) []Line {
-	var out []Line
-	for _, src := range strings.Split(code, "\n") {
-		segs := HighlightJS(src)
-		rows := []Line{{Segs: segs, BG: bg}}
-		if width > 0 {
-			rows = wrapSegments(segs, width)
-		}
-		for _, r := range rows {
-			if max > 0 && len(out) == max {
-				return append(out, Line{Segs: []Seg{{Text: "  …", FG: FgDim}}, BG: bg})
-			}
-			r.BG = bg
-			out = append(out, r)
-		}
-	}
-	return out
+	return CodeLinesOpt(code, bg, width, max, CodeOpts{})
 }

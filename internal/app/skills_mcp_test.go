@@ -114,7 +114,7 @@ func TestMCPServersStartAtLaunchAndReachJS(t *testing.T) {
 	if n := a.lastNotice(); !strings.Contains(n, "broken") {
 		t.Fatalf("a failing server must be reported, notice %q", n)
 	}
-	if r := a.st.VM.Exec(contextBackground(), "mcp.fake.echo({msg: 'hi'})"); r.Value != "echo:hi" || r.Err != "" {
+	if r := a.st.VM.Exec(contextBackground(), "mcp.fake.echo({msg: 'hi'}).text"); r.Value != "echo:hi" || r.Err != "" {
 		t.Fatalf("js call: %+v", r)
 	}
 	if got := a.systemPrompt(); !strings.Contains(got, "mcp.fake.echo({msg: string}) — echo back") {

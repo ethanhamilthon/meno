@@ -17,6 +17,10 @@ func (a *App) onKey(k *tcell.EventKey) {
 		a.onOverlayKey(k)
 		return
 	}
+	if a.st.Ask != nil {
+		a.askKey(k)
+		return
+	}
 	switch k.Key() {
 	case tcell.KeyPgUp:
 		_, h := a.scr.Size()
@@ -35,9 +39,6 @@ func (a *App) onKey(k *tcell.EventKey) {
 			return
 		}
 	}
-	if a.st.Ask != nil && a.st.Mode != ui.ModeCommand && a.askKey(k) {
-		return
-	}
 	switch a.st.Mode {
 	case ui.ModeInsert:
 		a.onInsertKey(k)
@@ -52,6 +53,7 @@ func (a *App) onKey(k *tcell.EventKey) {
 
 func (a *App) onInsertKey(k *tcell.EventKey) {
 	a.clampCursor()
+	defer a.pickSync()
 	if a.acActive() && a.acKey(k) {
 		return
 	}
@@ -100,11 +102,19 @@ func (a *App) onInsertKey(k *tcell.EventKey) {
 		a.moveLineEdge(1)
 	case tcell.KeyRune:
 		// Commands are not available while typing; leave insert mode first (esc, then ':').
-		a.insertAtCursor([]rune{k.Rune()})
+		if !isObjRune(k.Rune()) {
+			a.insertAtCursor([]rune{k.Rune()})
+		}
 	}
 }
 
 func (a *App) onNormalKey(k *tcell.EventKey) {
+	// Space opens the command line (like ":") unless a count or operator is pending.
+	if k.Key() == tcell.KeyRune && k.Rune() == ' ' && len(a.st.VimBuf) == 0 {
+		a.st.Mode = ui.ModeCommand
+		a.st.Cmd = nil
+		return
+	}
 	r := normalRune(k)
 	if r == 0 {
 		switch k.Key() {

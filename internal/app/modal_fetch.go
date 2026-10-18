@@ -37,23 +37,28 @@ func (a *App) onModelsLoaded(m modelsLoaded) {
 	delete(a.st.ModelErr, m.provider)
 }
 
-// allModels merges cached catalog entries with live discovery, in provider order.
+// modelsOf merges the cached catalog entries of a provider with live discovery.
+func (a *App) modelsOf(p llm.Provider) []llm.Model {
+	models := llm.CatalogModels(a.st.Pricing, p)
+	seen := make(map[string]bool, len(models))
+	for _, m := range models {
+		seen[m.ID] = true
+	}
+	for _, m := range a.st.Models[p.Name] {
+		if !seen[m.ID] {
+			models = append(models, m)
+			seen[m.ID] = true
+		}
+	}
+	sort.Slice(models, func(i, j int) bool { return models[i].ID < models[j].ID })
+	return models
+}
+
+// allModels is modelsOf for every provider, in provider order.
 func (a *App) allModels() []llm.Model {
 	var out []llm.Model
 	for _, p := range a.st.Providers {
-		models := llm.CatalogModels(a.st.Pricing, p)
-		seen := make(map[string]bool, len(models))
-		for _, m := range models {
-			seen[m.ID] = true
-		}
-		for _, m := range a.st.Models[p.Name] {
-			if !seen[m.ID] {
-				models = append(models, m)
-				seen[m.ID] = true
-			}
-		}
-		sort.Slice(models, func(i, j int) bool { return models[i].ID < models[j].ID })
-		out = append(out, models...)
+		out = append(out, a.modelsOf(p)...)
 	}
 	return out
 }

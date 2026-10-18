@@ -16,18 +16,22 @@ type fakeHost struct {
 }
 
 func (f *fakeHost) Tools() []MCPTool { return f.tools }
-func (f *fakeHost) Call(ctx context.Context, server, tool string, args map[string]any) (string, error) {
+func (f *fakeHost) Call(ctx context.Context, server, tool string, args map[string]any) (MCPResult, error) {
 	f.calls.Add(1)
 	f.last = args
 	if tool == "boom" {
-		return "", errors.New("it broke")
+		return MCPResult{}, errors.New("it broke")
 	}
 	if tool == "wait" {
 		<-ctx.Done()
-		return "", ctx.Err()
+		return MCPResult{}, ctx.Err()
 	}
 	b, _ := json.Marshal(map[string]any{"server": server, "tool": tool, "args": args})
-	return string(b), nil
+	return MCPResult{Text: string(b), ResultID: "r1"}, nil
+}
+func (f *fakeHost) ResultInfo(id string) (any, error) { return map[string]any{"id": id}, nil }
+func (f *fakeHost) ResultRead(id string, offset, limit int) (any, error) {
+	return map[string]any{"id": id, "offset": offset, "limit": limit}, nil
 }
 
 func TestMCPToolsAreCallableFromJS(t *testing.T) {
@@ -41,7 +45,7 @@ func TestMCPToolsAreCallableFromJS(t *testing.T) {
 		t.Fatalf("without a host: %q %q", r.Value, r.Err)
 	}
 	v.SetMCP(h)
-	r := run(t, v, "JSON.parse(mcp.github.search({q: 'x', n: 2})).args.q + ' ' + JSON.parse(mcp['my-db']['run-query']()).tool + ' ' + JSON.parse(mcp.my_db.run_query({})).server")
+	r := run(t, v, "JSON.parse(mcp.github.search({q: 'x', n: 2}).text).args.q + ' ' + JSON.parse(mcp['my-db']['run-query']().text).tool + ' ' + JSON.parse(mcp.my_db.run_query({}).text).server")
 	if r.Value != "x run-query my-db" {
 		t.Fatalf("calls: %q", r.Value)
 	}
@@ -80,5 +84,18 @@ func TestMCPCallsAreCancelable(t *testing.T) {
 	v.SetTimeout(200_000_000)
 	if r := v.Exec(context.Background(), "mcp.s.wait()"); r.Err == "" {
 		t.Fatal("timeout did not stop the call")
+	}
+}
+
+func TestMCPEnvelopeShape(t *testing.T) {
+	h := &fakeHost{tools: []MCPTool{{Server: "s", Name: "t"}}}
+	v := New(Options{Root: t.TempDir()})
+	v.SetMCP(h)
+	r := run(t, v, "const r = mcp.s.t({}); [typeof r.text, r.structuredContent, Array.isArray(r.content), Array.isArray(r.artifacts), r.isError, r.resultId, r.truncated].join('|')")
+	if r.Value != "string||true|true|false|r1|false" {
+		t.Fatalf("envelope: %q", r.Value)
+	}
+	if r := run(t, v, "mcpResults.read('r1', {offset: 3, limit: 9}).offset + ':' + mcpResults.info('r1').id"); r.Value != "3:r1" {
+		t.Fatalf("results api: %q", r.Value)
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"meno/internal/llm"
@@ -79,17 +80,37 @@ func TestVisualReferenceBottom(t *testing.T) {
 func TestVisualWelcomeAlignment(t *testing.T) {
 	a, s := visualFixture(t, 112, 36)
 	a.draw()
-	heroW := prismW + logoGap + ui.TextWidth(wordmarkLines()[1].text)
-	x := (112-heroW)/2 + prismW + logoGap
-	y := (32-16)/2 + 1
-	if !strings.HasPrefix(string([]rune(visualRow(s, y))[x:]), wordmarkLines()[0].text) {
-		t.Fatalf("wordmark origin (%d,%d) incorrect", x, y)
+	top := (32 - welcomeBlockH) / 2
+	x := (112 - logoW) / 2
+	for ri, want := range logoRows {
+		got := string([]rune(visualRow(s, top+3+ri))[x : x+logoW])
+		for i, r := range []rune(want) {
+			if r != ' ' && []rune(got)[i] != r {
+				t.Fatalf("logo row %d col %d: got %q want %q", ri, i, []rune(got)[i], r)
+			}
+		}
 	}
-	hintRow := visualRow(s, (32-16)/2+9)
-	if !strings.Contains(hintRow, ":model") || !strings.Contains(hintRow, "choose model") || !strings.Contains(hintRow, "/skill") {
-		t.Fatal(hintRow)
+	if row := visualRow(s, top); !strings.Contains(row, tagline) {
+		t.Fatal(row)
+	}
+	if row := visualRow(s, top+18); !strings.Contains(row, ":help") || !strings.Contains(row, "commands") {
+		t.Fatal(row)
 	}
 	exportVisual(t, s, "welcome")
+}
+
+func TestWelcomeWaveAnimates(t *testing.T) {
+	a, s := visualFixture(t, 112, 36)
+	a.draw()
+	if !a.waveOn.Load() {
+		t.Fatal("welcome screen does not request animation")
+	}
+	first := screenText(s)
+	time.Sleep(1200 * time.Millisecond)
+	a.draw()
+	if screenText(s) == first {
+		t.Fatal("background wave did not move")
+	}
 }
 
 func TestVisualModalGridAndSelection(t *testing.T) {
@@ -147,7 +168,7 @@ func TestVisualHelpRetainsDetailedMetrics(t *testing.T) {
 		}
 	}
 	text := strings.Join(strings.Fields(visible.String()), " ")
-	for _, want := range []string{"usage · last request", "last in", "cache hit", "session in", "spent"} {
+	for _, want := range []string{"usage · last request", "last in", "cache", "session in", "spent"} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("help metrics missing %q", want)
 		}

@@ -11,7 +11,7 @@ import (
 func TestSystemColumnAddedToExistingTurnsTable(t *testing.T) {
 	home := t.TempDir()
 	t.Cleanup(CloseSessionStores)
-	d, err := db.Open(home)
+	d, err := db.OpenOld(home, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -25,6 +25,7 @@ func TestSystemColumnAddedToExistingTurnsTable(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	d.Close()
 	s, err := LoadSession(home, "s1")
 	if err != nil {
 		t.Fatal(err)

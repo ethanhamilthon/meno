@@ -3,12 +3,14 @@ package app
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"meno/internal/agent"
 	"meno/internal/jsvm"
 	"meno/internal/llm"
+	"meno/internal/mcp"
 	"meno/internal/ui"
 )
 
@@ -28,6 +30,18 @@ type Runtime struct {
 	VM      *jsvm.VM
 	cancel  context.CancelFunc
 
+	// RequestID is the root request being worked on: a user message starts one,
+	// steering and continuations belong to it. Cancelled holds the stopped ones.
+	RequestID         string
+	lines             lineCache
+	Pick              *pickState          // the @ picker, nil when closed
+	Fps               []llm.Fingerprint   // fingerprints of the last two model requests
+	Kids              []agent.ChildRecord // subagents of this session, as last listed
+	Delegated         float64             // their spend, kept apart from this session's own
+	DelegatedUnpriced bool
+	Todo              *agent.Plan // the active plan as last changed; the UI draws this copy
+	Cancelled         map[string]bool
+
 	Running   bool
 	Queue     agent.Queue // messages written while the turn runs; the runner takes them between steps
 	Phase     string      // what the running agent is doing: thinking, writing, running, compacting
@@ -42,8 +56,12 @@ type Runtime struct {
 	RunTurns  int       // requests the model has answered
 	RunJS     int       // js calls finished
 	RunUsage0 llm.Usage // session usage when the run began
-	LogLines  int
-	Scroll    int
+	// PlanAt is the timeline position (turns before it) where the plan block
+	// sits: right after the message that started the latest run. It stays put
+	// while the run streams, so nothing below it jumps. 0 = unknown.
+	PlanAt   int
+	LogLines int
+	Scroll   int
 
 	LastUsage llm.Usage
 	Usage     llm.Usage
@@ -93,10 +111,24 @@ func (a *App) newRuntime(sess *agent.Session, cwd string) *Runtime {
 	sess.AttachDir = a.attachDir()
 	rt := &Runtime{Session: sess, Cwd: cwd, Mode: ui.ModeInsert}
 	rt.VM = jsvm.New(jsvm.Options{Root: cwd, Timeout: a.st.Settings.TimeoutDuration()})
-	rt.VM.SetMCP(mcpHost{a.mcp})
+	rt.VM.SetMCP(mcpHost{a.mcp, mcp.ResultStore{Dir: filepath.Join(a.paths.Home, "mcp-results")}, sess.ID})
 	rt.VM.SetMCPAdmin(mcpAdmin{a, sess.ID})
 	rt.VM.SetAsker(appAsker{a, sess.ID})
 	rt.VM.SetViewer(appViewer{a, sess.ID, &rt.Queue})
+	rt.VM.SetSessionHost(sessionHost{a: a, sid: sess.ID})
+	if a.tasks != nil && sess.Kind != agent.KindChild {
+		rt.VM.SetTasks(tasksHost{a, sess.ID})
+	}
+	if a.kids != nil && sess.Kind != agent.KindChild {
+		rt.VM.SetAgents(parentAgents{a, a.kids, sess.ID}, false)
+	}
+	if td, err := agent.NewTodo(a.paths.Home, sess.ID, sess.ExecBoundary); err == nil {
+		rt.VM.SetTodo(todoHost{a, sess.ID, td})
+		rt.Todo, _ = td.Active()
+	}
+	if kv, err := agent.OpenKV(a.paths.Home, sess.ID, agent.NSState); err == nil {
+		rt.VM.SetState(jsState{kv, sess})
+	}
 	a.rts[sess.ID] = rt
 	a.rtList = append(a.rtList, rt)
 	return rt

@@ -1,0 +1,143 @@
+package app
+
+import (
+	"context"
+	"fmt"
+	"strings"
+
+	"meno/internal/config"
+	"meno/internal/prompt"
+)
+
+func diffMCP(old, cur map[string]mcpSig) []string {
+	var out []string
+	line := func(s string) { out = append(out, "<mcp-updated>"+s+"</mcp-updated>") }
+	for _, name := range sortedKeys(cur) {
+		n := cur[name]
+		oldSig, had := old[name]
+		switch {
+		case n.State == "failed":
+			if !had || oldSig.State != "failed" || oldSig.Err != n.Err {
+				line(fmt.Sprintf("Server %q failed: %s", name, n.Err))
+			}
+		case !had || oldSig.State != "running":
+			s := fmt.Sprintf("Server %q connected.", name)
+			if len(n.Tools) > 0 {
+				s += " New tools: " + toolList(n.Tools) + "."
+			} else {
+				s += " It has no tools."
+			}
+			line(s)
+		default:
+			added, removed := setDiff(oldSig.Tools, n.Tools)
+			if len(added)+len(removed) == 0 {
+				continue
+			}
+			s := fmt.Sprintf("Server %q changed its tools.", name)
+			if len(added) > 0 {
+				s += " New tools: " + toolList(added) + "."
+			}
+			if len(removed) > 0 {
+				s += " Removed tools: " + toolList(removed) + "."
+			}
+			line(s)
+		}
+	}
+	for _, name := range sortedKeys(old) {
+		if _, ok := cur[name]; !ok {
+			if old[name].State == "running" {
+				line(fmt.Sprintf("Server %q is no longer running; its tools are gone.", name))
+			}
+		}
+	}
+	return out
+}
+
+func toolList(sigs []string) string {
+	if len(sigs) > maxEventTools {
+		return strings.Join(sigs[:maxEventTools], ", ") + fmt.Sprintf(", … and %d more: see mcpTools()", len(sigs)-maxEventTools)
+	}
+	return strings.Join(sigs, ", ")
+}
+
+// setDiff returns the elements only in b (added) and only in a (removed).
+func setDiff(a, b []string) (added, removed []string) {
+	in := func(list []string) map[string]bool {
+		m := map[string]bool{}
+		for _, s := range list {
+			m[s] = true
+		}
+		return m
+	}
+	ma, mb := in(a), in(b)
+	for _, s := range b {
+		if !ma[s] {
+			added = append(added, s)
+		}
+	}
+	for _, s := range a {
+		if !mb[s] {
+			removed = append(removed, s)
+		}
+	}
+	return added, removed
+}
+
+const forkedEvent = "<session-forked>This session is a fork of an earlier conversation and continues independently from the point it was forked at. Give it its own name now with session.rename(name), at most 6 words.</session-forked>"
+
+// eventBlock wraps event lines into the block that precedes a user message;
+// "" when there are none.
+func eventBlock(lines []string) string {
+	if len(lines) == 0 {
+		return ""
+	}
+	return "<system-event>This is a message from the system itself, not a user instruction.\n" + strings.Join(lines, "\n") + "\n</system-event>"
+}
+
+// promptState is the per-session part of the frozen prompt: the text sent as
+// the system prompt since the last reset point and what the model has been told.
+type promptState struct {
+	Frozen string    // "" until built
+	Base   *baseline // nil at a reset point
+	// ForkEvent queues the session-forked event for the next message: set for
+	// a session created by :fork until the user has written in it.
+	ForkEvent bool
+	// CwdFrom is the directory the session was in when the model last heard of
+	// one, set when the directory changed while there was no baseline (a stored
+	// session just opened). The next message tells the model.
+	CwdFrom string
+}
+
+// prepared is the result of preparing a user message.
+type prepared struct {
+	State    promptState
+	Event    string // the <system-event> block, "" when nothing changed
+	Skills   []config.Skill
+	SkillsOK bool
+	Warnings []string
+}
+
+// prepare looks at the world and decides what the next request carries. At a
+// reset point (no baseline) it builds a new prompt and emits no events;
+// otherwise the prompt stays and the changes since the baseline become one
+// event. hasHistory says whether the session already has turns.
+func prepare(ctx context.Context, ps promptState, src worldSrc, hasHistory bool) prepared {
+	w, warnings := src.gather(ctx)
+	res := prepared{Skills: w.Skills, SkillsOK: w.SkillsOK, Warnings: warnings}
+	var lines []string
+	if ps.Base == nil {
+		ps.Frozen = prompt.Build(w.Input)
+		if hasHistory && ps.CwdFrom != "" && ps.CwdFrom != src.Paths.Cwd {
+			lines = append(lines, "<cwd-changed>The working directory changed from "+ps.CwdFrom+" to "+src.Paths.Cwd+". Relative paths and sh() now use "+src.Paths.Cwd+". Project skills and AGENTS.md of "+src.Paths.Cwd+" are already in your system prompt.</cwd-changed>")
+		}
+	} else {
+		lines = diffBaseline(ps.Base, w.Base)
+	}
+	ps.Base, ps.CwdFrom = w.Base, ""
+	if ps.ForkEvent {
+		lines = append(lines, forkedEvent)
+	}
+	ps.ForkEvent = false
+	res.State, res.Event = ps, eventBlock(lines)
+	return res
+}

@@ -28,6 +28,18 @@ func (a *App) backOverlay() {
 	case OverTheme:
 		a.cancelTheme()
 		a.closeOverlay()
+	case OverAgents:
+		if a.st.AgentsUI.OpenID != "" {
+			a.st.AgentsUI.OpenID = ""
+		} else {
+			a.closeOverlay()
+		}
+	case OverTasks:
+		if a.st.TasksUI.LogID != "" {
+			a.st.TasksUI.LogID = ""
+		} else {
+			a.closeOverlay()
+		}
 	default:
 		a.closeOverlay()
 	}
@@ -61,6 +73,12 @@ func (a *App) onOverlayKey(k *tcell.EventKey) {
 		a.themeKey(k)
 	case OverHelp:
 		a.helpKey(k)
+	case OverFork:
+		a.forkKey(k)
+	case OverTasks:
+		a.tasksKey(k)
+	case OverAgents:
+		a.agentsKey(k)
 	}
 }
 
@@ -86,6 +104,12 @@ func (a *App) drawOverlay(c ui.Canvas, w, h int) {
 		a.drawTheme(c, w, h)
 	case OverHelp:
 		a.drawHelp(c, w, h)
+	case OverFork:
+		a.drawFork(c, w, h)
+	case OverTasks:
+		a.drawTasks(c, w, h)
+	case OverAgents:
+		a.drawAgents(c, w, h)
 	}
 }
 

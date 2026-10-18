@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"meno/internal/llm"
 	"meno/internal/ui"
 )
 
@@ -21,7 +22,6 @@ func (a *App) modelLabel() string {
 
 func (a *App) statsText() string {
 	u := a.st.LastUsage
-	cache := a.sessionCacheHit()
 	cost := "n/a"
 	info, ok := a.modelInfo()
 	if a.st.Unpriced {
@@ -33,7 +33,16 @@ func (a *App) statsText() string {
 	if ok && info.Context > 0 {
 		ctx += fmt.Sprintf("/%d %.0f%%", info.Context, 100*float64(a.st.Context)/float64(info.Context))
 	}
-	return fmt.Sprintf("last in %d · out %d · cache hit %.0f%% · write %d · session in %d · out %d · spent %s · ctx %s", u.In, u.Out, cache, u.CacheWrite, a.st.Usage.In, a.st.Usage.Out, cost, ctx)
+	out := fmt.Sprintf("last in %d · out %d · cache %s · session in %d · out %d · cache %s · spent %s · ctx %s",
+		u.In, u.Out, cacheText(u), a.st.Usage.In, a.st.Usage.Out, cacheText(a.st.Usage), cost, ctx)
+	if a.st.Delegated > 0 || a.st.DelegatedUnpriced {
+		d := fmt.Sprintf("~$%.4f", a.st.Delegated)
+		if a.st.DelegatedUnpriced {
+			d += "+?" // some delegated requests have no known price
+		}
+		out += " · delegated " + d
+	}
+	return out
 }
 
 func (a *App) jsOpts() ui.JSOpts {
@@ -49,6 +58,9 @@ func (a *App) jsOpts() ui.JSOpts {
 		js.Timing = ui.TimingOff
 	}
 	js.Summary = a.st.Settings.TurnSummary != "off"
+	js.Images = a.imageOpts()
+	js.FoldStrings = a.st.Settings.JSStrings == "lines"
+	js.FoldLines = a.st.Settings.JSStringLines
 	return js
 }
 
@@ -105,9 +117,6 @@ func (a *App) drawComposer(c ui.Canvas, x, y, w, h int) {
 	}
 }
 
-func (a *App) drawCommandList(c ui.Canvas, x, y, w int) {
-	a.drawCommandRows(c, x, y, w, commandMaxRows)
-}
 func (a *App) drawCommandRows(c ui.Canvas, x, y, w, rows int) {
 	all := commandRows(a)
 	_, cd := a.cdRows()
@@ -164,6 +173,11 @@ type cmdDef struct {
 
 var commandList = []cmdDef{
 	{":new", "new session"},
+	{":fork", "fork at a message"},
+	{":todo", "fold or unfold the plan"},
+	{":tasks", "background processes"},
+	{":agents", "working subagents"},
+	{":cache", "prompt-cache diagnostics"},
 	{":sessions", "switch session"},
 	{":cd", "change directory"},
 	{":model", "model & effort"},
@@ -172,7 +186,6 @@ var commandList = []cmdDef{
 	{":providers", "api keys & urls"},
 	{":settings", "display & repl"},
 	{":theme", "color theme"},
-	{":reset", "reset js vm"},
 	{":compact", "compact context"},
 	{":attach", "attach an image"},
 	{":notify", "sound when done"},
@@ -191,4 +204,18 @@ func jsMode(v string) ui.JSMode {
 		return ui.JSOff
 	}
 	return ui.JSFull
+}
+
+// cacheText says what the cache did for one request or for a whole session:
+// tokens read from it, written to it, and the read share of the input. A
+// provider that reports nothing about its cache is "unknown", never 0%.
+func cacheText(u llm.Usage) string {
+	if !u.CacheReported {
+		return "unknown"
+	}
+	share := 0.0
+	if u.In > 0 {
+		share = 100 * float64(min(max(0, u.Cached), u.In)) / float64(u.In)
+	}
+	return fmt.Sprintf("read %d (%.0f%% of input) · write %d", u.Cached, share, u.CacheWrite)
 }

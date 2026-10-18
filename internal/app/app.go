@@ -2,15 +2,19 @@ package app
 
 import (
 	"context"
+	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
 
 	"meno/internal/agent"
 	"meno/internal/config"
+	"meno/internal/db"
 	"meno/internal/llm"
 	"meno/internal/mcp"
+	"meno/internal/proc"
 	"meno/internal/ui"
 )
 
@@ -28,8 +32,16 @@ type App struct {
 	quit      bool
 	done      chan struct{}
 	closeOnce sync.Once
-	idleTick  bool      // the batch held only ticks: skip drawing when nothing runs
-	cur       cursorPos // real terminal cursor, set while drawing
+	waveOn    atomic.Bool // the welcome screen was drawn last: keep it animating
+	agentsAt  time.Time   // when agentsOK was last checked
+	agentsOK  bool        // an AGENTS.md exists (cached for the welcome screen)
+	idleTick  bool        // the batch held only ticks: skip drawing when nothing runs
+	cur       cursorPos   // real terminal cursor, set while drawing
+
+	imgs    imageMgr          // inline terminal graphics
+	evStore *agent.EventStore // the durable steering queue
+	tasks   *proc.Supervisor  // background processes of the main agents
+	kids    *childMgr         // subagents of the main sessions
 
 	rts    map[string]*Runtime // every session loaded in this run, by id
 	rtList []*Runtime          // the same, in creation order
@@ -52,40 +64,6 @@ type App struct {
 	notifier func(cmd string, env []string)
 }
 
-type agentEv struct {
-	sid string
-	ev  agent.Ev
-}
-type turnDone struct {
-	sid string
-	err error
-}
-
-// preparedEv carries the prompt state and system event of a message that is
-// about to be sent.
-type preparedEv struct {
-	sid string
-	p   prepared
-}
-
-// tick drives animations (the blinking activity dot) while the agent works.
-type tick struct{}
-
-type compactDone struct {
-	sid           string
-	before, after int
-	err           error
-}
-type sessionsLoaded struct {
-	list []agent.SessionInfo
-	err  error
-}
-type modelsLoaded struct {
-	provider string
-	models   []llm.Model
-	err      error
-}
-
 func New(scr tcell.Screen, paths config.Paths, client func(llm.Provider) llm.Client) (*App, error) {
 	st := config.NewStore(paths)
 	s, err := st.LoadSettings()
@@ -97,6 +75,11 @@ func New(scr tcell.Screen, paths config.Paths, client func(llm.Provider) llm.Cli
 		mcp: mcp.NewManager(), client: client, events: make(chan any, 512),
 		rts: map[string]*Runtime{},
 	}
+	a.evStore, _ = agent.OpenEvents(paths.Home)
+	if d, err := db.Open(paths.Home); err == nil {
+		a.tasks, _ = proc.New(d, filepath.Join(paths.Home, "tasks"), proc.Hooks{Finished: a.onTaskFinished})
+	}
+	a.kids = newChildMgr(a)
 	a.mcpCtx, a.mcpStop = context.WithCancel(context.Background())
 	a.st = NewState()
 	a.st.Settings = s
@@ -128,10 +111,17 @@ func (a *App) loadAll() error {
 }
 
 func (a *App) Close() {
+	a.clearImages()
 	a.closeOnce.Do(func() { close(a.done) })
 	a.mcpStop()
 	a.cancelAll()
 	a.running.Wait()
+	if a.kids != nil {
+		a.kids.Shutdown()
+	}
+	if a.tasks != nil {
+		a.tasks.Shutdown() // cancels every managed process group before the database closes
+	}
 	a.closing = true
 	for _, rt := range a.rtList {
 		a.saveRT(rt)
@@ -154,6 +144,7 @@ func (a *App) Run(ctx context.Context) error {
 		}
 	}()
 	go a.ticker()
+	go a.waveTicker()
 	a.draw()
 	for !a.quit {
 		select {
@@ -204,7 +195,9 @@ func (a *App) handle(msg any) {
 			a.st.Pricing = m.pricing
 		}
 	case *tcell.EventMouse:
-		if a.st.Over == OverNone {
+		if a.st.Over == OverNone && a.st.Ask != nil {
+			a.askMouse(m)
+		} else if a.st.Over == OverNone {
 			b := m.Buttons()
 			if b&tcell.WheelUp != 0 {
 				a.scrollBy(3)
@@ -218,6 +211,22 @@ func (a *App) handle(msg any) {
 		// the terminal and causes visible flicker.
 	case agentEv:
 		a.inRT(m.sid, func() { a.onAgent(m.ev) })
+	case imageDecoded:
+		a.imgs.placed = ""
+	case pickResults:
+		a.onPickResults(m)
+	case errNotice:
+		a.notifyErr(m.text)
+	case tasksLoaded:
+		a.onTasksLoaded(m)
+	case childChanged:
+		a.onChildChanged(m.parent)
+	case todoChanged:
+		if rt := a.rts[m.sid]; rt != nil {
+			rt.Todo = m.plan
+		}
+	case eventQueued:
+		a.onEventQueued(m.sid)
 	case sessionsLoaded:
 		a.onSessionsLoaded(m)
 	case modelsLoaded:
@@ -248,7 +257,9 @@ func (a *App) handle(msg any) {
 		if m.err != nil {
 			a.notifyErr("mcp " + m.name + ": " + m.err.Error())
 		}
+	case waveTick:
 	case tick:
+		a.refreshTasks()
 		if a.pruneNotices() {
 			a.idleTick = false
 		}

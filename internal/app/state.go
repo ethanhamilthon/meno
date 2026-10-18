@@ -23,6 +23,9 @@ const (
 	OverSessions
 	OverTheme
 	OverHelp
+	OverFork
+	OverTasks
+	OverAgents
 )
 
 // liveCall is a tool call that is not in the session yet: its code is still
@@ -50,13 +53,15 @@ type retryState struct {
 type State struct {
 	*Runtime
 
-	Over    Overlay
-	CmdSel  int
-	Pricing map[string]llm.ModelInfo
-	Cmd     []rune
-	Sel     int
-	Query   []rune
-	Status  string
+	Over     Overlay
+	TasksUI  tasksView
+	AgentsUI agentsView
+	CmdSel   int
+	Pricing  map[string]llm.ModelInfo
+	Cmd      []rune
+	Sel      int
+	Query    []rune
+	Status   string
 
 	Settings  config.Settings
 	Providers []llm.Provider

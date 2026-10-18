@@ -56,7 +56,7 @@ func TestURL(t *testing.T) {
 	if r.Value != want {
 		t.Fatalf("got %q\nwant %q", r.Value, want)
 	}
-	r = run(t, v, `u.searchParams.append('z', 'a b&c'); u.searchParams.set('x', '9'); u.searchParams.delete('y'); u.href`)
+	r = run(t, v, `const u = new URL('https://user:pw@Example.com:8080/a/b?x=1&y=two%20words#frag'); u.searchParams.append('z', 'a b&c'); u.searchParams.set('x', '9'); u.searchParams.delete('y'); u.href`)
 	if r.Value != "https://user:pw@example.com:8080/a/b?x=9&z=a+b%26c#frag" {
 		t.Fatalf("href: %q", r.Value)
 	}
@@ -85,18 +85,18 @@ func TestFetch(t *testing.T) {
 	}))
 	defer srv.Close()
 	v := New(Options{Root: t.TempDir()})
-	v.Exec(context.Background(), "globalThis.base = "+string(mustQuote(srv.URL)))
-	r := run(t, v, `const res = fetch(base + '/echo', {method: 'POST', headers: {'X-Test': 'yes'}, body: new URLSearchParams({a: '1'})});
+	pre := "const base = " + string(mustQuote(srv.URL)) + ";\n"
+	r := run(t, v, pre+`const res = fetch(base + '/echo', {method: 'POST', headers: {'X-Test': 'yes'}, body: new URLSearchParams({a: '1'})});
 [res.ok, res.status, res.headers.get('x-seen'), res.json().body].join('|')`)
 	if r.Value != "true|200|POST yes application/x-www-form-urlencoded;charset=UTF-8|a=1" {
 		t.Fatalf("post: %q", r.Value)
 	}
-	r = run(t, v, "const m = fetch(base + '/missing'); [m.ok, m.status, m.statusText, m.text().trim()].join('|')")
+	r = run(t, v, pre+"const m = fetch(base + '/missing'); [m.ok, m.status, m.statusText, m.text().trim()].join('|')")
 	if r.Value != "false|404|Not Found|404 page not found" {
 		t.Fatalf("404: %q", r.Value)
 	}
 	// await is optional: awaiting plain values works too.
-	r = run(t, v, "const rr = await fetch(base + '/go'); const j = await rr.json(); return [rr.redirected, new URL(rr.url).pathname, typeof j.body].join('|')")
+	r = run(t, v, pre+"const rr = await fetch(base + '/go'); const j = await rr.json(); return [rr.redirected, new URL(rr.url).pathname, typeof j.body].join('|')")
 	if r.Value != "true|/echo|string" {
 		t.Fatalf("redirect: %q", r.Value)
 	}

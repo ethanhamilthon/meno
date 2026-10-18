@@ -1,17 +1,12 @@
 package app
 
 import (
-	"errors"
-	"os"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"sort"
 	"strconv"
 	"strings"
 	"unicode"
-
-	"github.com/gdamore/tcell/v2"
 
 	"meno/internal/agent"
 	"meno/internal/attach"
@@ -164,7 +159,7 @@ func (a *App) imagesAllowed() bool {
 
 // setDraft replaces the composer text and its images.
 func (a *App) setDraft(m agent.Message, data map[string][]byte) {
-	a.setInput([]rune(m.Text))
+	a.setInput(a.runesFromText(m.Text))
 	a.st.Images = nil
 	for _, at := range m.Attachments {
 		a.st.Images = append(a.st.Images, draftImage{Attachment: at, Data: data[at.SHA]})
@@ -189,7 +184,7 @@ func (a *App) restoreDraft(all []agent.Message) {
 		data[im.SHA] = im.Data
 	}
 	var msgs []agent.Message
-	if cur := string(a.st.Input); strings.TrimSpace(cur) != "" {
+	if cur := a.messageText(); strings.TrimSpace(cur) != "" {
 		msgs = append(msgs, a.draftMessage(cur))
 	}
 	a.setDraft(agent.Combine(append(msgs, rest...)), data)
@@ -238,119 +233,4 @@ func (a *App) insertImage(img attach.Image, after bool) {
 		return
 	}
 	a.insertAtCursor(append(tok, ' '))
-}
-
-// attachAsync prepares an image in the background and inserts it when ready.
-func (a *App) attachAsync(after bool, load func() (attach.Image, error)) {
-	sid := a.st.ID()
-	go func() {
-		img, err := load()
-		a.postEvent(imageReady{sid: sid, img: img, err: err, after: after})
-	}()
-}
-
-func (a *App) attachFromClipboard(after bool) {
-	read := a.clipboard
-	if read == nil {
-		read = func() ([]byte, error) { return attach.Clipboard(runtime.GOOS) }
-	}
-	a.attachAsync(after, func() (attach.Image, error) {
-		data, err := read()
-		if err != nil {
-			return attach.Image{}, err
-		}
-		return attach.Prepare(data)
-	})
-}
-
-func (a *App) attachFile(path string, after bool) {
-	a.attachAsync(after, func() (attach.Image, error) {
-		st, err := os.Stat(path)
-		if err != nil {
-			return attach.Image{}, err
-		}
-		if !st.Mode().IsRegular() {
-			return attach.Image{}, errors.New(path + " is not a file")
-		}
-		if st.Size() > attach.MaxBytes {
-			return attach.Image{}, errors.New("image is larger than " + itoa(attach.MaxBytes>>20) + " MB")
-		}
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return attach.Image{}, err
-		}
-		return attach.Prepare(data)
-	})
-}
-
-func (a *App) onImageReady(m imageReady) {
-	a.inRT(m.sid, func() {
-		if m.err != nil {
-			a.notifyErr(m.err.Error())
-			return
-		}
-		a.insertImage(m.img, m.after)
-	})
-}
-
-// attachCommand implements :attach [path]: a file, or the clipboard without an argument.
-func (a *App) attachCommand(arg string) {
-	arg = strings.TrimSpace(arg)
-	if arg == "" {
-		a.attachFromClipboard(false)
-		return
-	}
-	if p, ok := attach.PathFromText(arg, userHome()); ok {
-		arg = p
-	} else if strings.HasPrefix(arg, "~/") {
-		arg = filepath.Join(userHome(), arg[2:])
-	}
-	if !filepath.IsAbs(arg) {
-		arg = filepath.Join(a.st.Cwd, arg)
-	}
-	a.attachFile(arg, false)
-}
-
-func userHome() string {
-	h, _ := os.UserHomeDir()
-	return h
-}
-
-// onPaste handles the start and end of a bracketed paste. The text between
-// them arrives as key events and is collected, not typed.
-func (a *App) onPaste(e *tcell.EventPaste) {
-	if e.Start() {
-		a.pasting = a.st.Over == OverNone && a.st.Mode == ui.ModeInsert && !a.askChoosing()
-		a.pasteBuf = a.pasteBuf[:0]
-		return
-	}
-	if !a.pasting {
-		return
-	}
-	a.pasting = false
-	text := strings.ReplaceAll(strings.ReplaceAll(string(a.pasteBuf), "\r\n", "\n"), "\r", "\n")
-	a.pasteBuf = a.pasteBuf[:0]
-	switch {
-	case text == "":
-		// Terminals send an empty paste when the clipboard holds no text.
-		a.attachFromClipboard(false)
-	default:
-		if p, ok := attach.PathFromText(text, userHome()); ok && a.st.Ask == nil {
-			a.attachFile(p, false)
-			return
-		}
-		a.clampCursor()
-		a.insertAtCursor([]rune(text))
-	}
-}
-
-func (a *App) collectPaste(k *tcell.EventKey) {
-	switch k.Key() {
-	case tcell.KeyRune:
-		a.pasteBuf = append(a.pasteBuf, k.Rune())
-	case tcell.KeyEnter, tcell.KeyCtrlJ:
-		a.pasteBuf = append(a.pasteBuf, '\n')
-	case tcell.KeyTab:
-		a.pasteBuf = append(a.pasteBuf, '\t')
-	}
 }

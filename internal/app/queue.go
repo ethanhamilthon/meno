@@ -39,7 +39,7 @@ func (a *App) drawQueue(c ui.Canvas, x, y, w, limit int) {
 		c.Text(x+w-2-ui.TextWidth(hint), y, ui.TextWidth(hint), hint, style(ui.FgDim))
 	}
 	for i := 0; i < shown; i++ {
-		line := oneLine(items[i].Text)
+		line := oneLine(a.labelsFromText(items[i].Text))
 		if i == shown-1 && len(items) > shown {
 			line += "  (+" + itoa(len(items)-shown) + " more)"
 		}

@@ -38,8 +38,6 @@ func (a *App) logGap() int {
 	return 1
 }
 
-const commandMaxRows = 25
-
 func (a *App) bottomHeight() int {
 	if a.st.Mode == ui.ModeCommand {
 		w, _ := a.scr.Size()
@@ -59,6 +57,7 @@ func (a *App) drawLog(c ui.Canvas, x, y, w, h int, lines []ui.Line) {
 		ui.DrawLine(c, x, y+i, w, lines[start+i])
 	}
 	a.paintLog(c, x, y, w, h, lines, start)
+	a.noteVisible(lines, start, x, y, h)
 }
 func (a *App) drawBottom(c ui.Canvas, x, y, w, h int) {
 	if h <= 0 {
@@ -75,9 +74,7 @@ func (a *App) drawBottom(c ui.Canvas, x, y, w, h int) {
 	bodyH := max(0, h-1)
 	if bodyH > 0 {
 		ac := min(a.acHeight(), max(0, bodyH-a.composerHeight()))
-		if ac > 0 && a.st.Ask != nil {
-			a.drawAsk(c, x, y, w, ac)
-		} else if ac > 0 && !a.acActive() {
+		if ac > 0 && !a.acActive() {
 			a.drawQueue(c, x, y, w, ac)
 		} else if ac > 0 {
 			a.drawAutocompleteRows(c, x, y, w, ac)
@@ -92,7 +89,7 @@ func (a *App) drawBottom(c ui.Canvas, x, y, w, h int) {
 func (a *App) drawStatus(c ui.Canvas, x, y, w int) {
 	label := a.st.Mode.Label()
 	if a.st.Over != OverNone {
-		labels := map[Overlay]string{OverModel: "MODEL", OverSettings: "SETTINGS", OverProviders: "PROVIDERS", OverProviderEdit: "PROVIDER", OverSkills: "SKILLS", OverMCP: "MCP", OverMCPEdit: "MCP", OverSessions: "SESSIONS", OverTheme: "THEME", OverHelp: "HELP"}
+		labels := map[Overlay]string{OverModel: "MODEL", OverSettings: "SETTINGS", OverProviders: "PROVIDERS", OverProviderEdit: "PROVIDER", OverSkills: "SKILLS", OverMCP: "MCP", OverMCPEdit: "MCP", OverSessions: "SESSIONS", OverTheme: "THEME", OverHelp: "HELP", OverFork: "FORK", OverTasks: "TASKS", OverAgents: "AGENTS"}
 		if name := labels[a.st.Over]; name != "" {
 			label = name
 		}
@@ -146,14 +143,6 @@ func compactTokens(n int) string {
 		return fmt.Sprintf("%.1fk", float64(n)/1000)
 	}
 	return fmt.Sprint(n)
-}
-
-func (a *App) contextLabel() string {
-	text := compactTokens(a.st.Context)
-	if info, ok := a.modelInfo(); ok && info.Context > 0 {
-		text += " / " + compactTokens(info.Context)
-	}
-	return text
 }
 
 func joinSegText(segs []ui.Seg) string {

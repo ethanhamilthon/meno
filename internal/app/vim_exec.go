@@ -8,7 +8,7 @@ import (
 func (a *App) setReg(text string, line bool) {
 	a.st.Reg, a.st.RegLine = text, line
 	if text != "" {
-		a.scr.SetClipboard([]byte(text))
+		a.scr.SetClipboard([]byte(externalText([]rune(text))))
 	}
 }
 

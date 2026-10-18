@@ -78,13 +78,13 @@ func TestThemeEnterAppliesAndPersists(t *testing.T) {
 	if _, bg, _ := st.Decompose(); bg != dracula.BgTerm {
 		t.Fatalf("background %v, want %v", bg, dracula.BgTerm)
 	}
-	// The welcome screen's wordmark uses the theme accent, not the startup one.
+	// The welcome screen's wordmark (first letter) uses the theme accent, not the startup one.
 	found := false
 	w, h := s.Size()
 	for y := 0; y < h && !found; y++ {
 		for x := 0; x < w; x++ {
 			r, _, st, _ := s.GetContent(x, y)
-			if fg, _, _ := st.Decompose(); r == '█' && fg == dracula.Blue {
+			if fg, _, _ := st.Decompose(); r != ' ' && fg == dracula.Blue {
 				found = true
 				break
 			}

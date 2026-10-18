@@ -14,10 +14,14 @@ func (a *App) draw() {
 	a.scr.Fill(' ', tcell.StyleDefault.Background(ui.BgTerm))
 	c := ui.Canvas{S: a.scr}
 	a.cur = cursorPos{}
+	a.waveOn.Store(false)
 	a.drawMain(c, w, h)
 	if a.st.Over != OverNone {
 		a.drawOverlay(c, w, h)
+	} else if a.st.Ask != nil {
+		a.drawAskForm(c, w, h)
 	}
 	a.applyCursor()
 	a.scr.Show()
+	a.placeImages()
 }

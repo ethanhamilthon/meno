@@ -8,107 +8,138 @@ import (
 )
 
 type fakeAsker struct {
-	got   Question
-	reply func(ctx context.Context, q Question) (string, error)
+	form    Form
+	answers []FormAnswer
+	err     error
+	wait    bool
 }
 
-func (f *fakeAsker) Ask(ctx context.Context, q Question) (string, error) {
-	f.got = q
-	return f.reply(ctx, q)
+func (f *fakeAsker) Ask(ctx context.Context, form Form) ([]FormAnswer, error) {
+	f.form = form
+	if f.wait {
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
+	return f.answers, f.err
 }
 
-func TestAskUserReturnsAnswerAndPassesOptions(t *testing.T) {
+const oneForm = `{questions: [
+	{id: "db", text: "Which database?", type: "single", options: [{id: "pg", label: "Postgres"}, {id: "sq", label: "SQLite"}], recommendation: "Postgres"},
+	{id: "feat", text: "Features?", type: "multi", options: [{id: "a", label: "A"}, {id: "b", label: "B"}]},
+	{id: "name", text: "Name?", type: "text"},
+], timeout: 5}`
+
+func TestAskUserFormRoundTrip(t *testing.T) {
 	v := New(Options{Root: t.TempDir()})
-	f := &fakeAsker{reply: func(context.Context, Question) (string, error) { return "sqlite", nil }}
-	v.SetAsker(f)
-	r := run(t, v, "askUser('Which db?', {choices: ['sqlite', 'postgres'], customAnswer: false, timeout: 90})")
-	if r.Value != "sqlite" {
+	fa := &fakeAsker{answers: []FormAnswer{{ID: "db", Selected: []string{"pg"}}, {ID: "feat", Selected: []string{"a", "b"}, Text: "C too"}, {ID: "name", Text: "meno"}}}
+	v.SetAsker(fa)
+	r := ex(t, v, "const r = askUser("+oneForm+"); JSON.stringify(r)")
+	if r.Err != "" {
+		t.Fatal(r.Err)
+	}
+	if !strings.Contains(r.Value, `"id":"db"`) && !strings.Contains(r.Value, `"id": "db"`) {
+		t.Fatalf("%s", r.Value)
+	}
+	if len(fa.form.Questions) != 3 || fa.form.Timeout != 5*time.Second || fa.form.Questions[0].Recommendation != "Postgres" || fa.form.Questions[1].Options[1].Label != "B" {
+		t.Fatalf("form: %+v", fa.form)
+	}
+	r = ex(t, v, "const r = askUser("+oneForm+"); r.answers[1].selected.join('+') + '|' + r.answers[1].text + '|' + r.answers[2].text")
+	if r.Value != "a+b|C too|meno" {
 		t.Fatalf("%+v", r)
 	}
-	if f.got.Text != "Which db?" || len(f.got.Choices) != 2 || f.got.CustomAnswer || f.got.Timeout != 90*time.Second {
-		t.Fatalf("%+v", f.got)
-	}
-	run(t, v, "askUser('free text?')")
-	if len(f.got.Choices) != 0 || !f.got.CustomAnswer || f.got.Timeout != 0 {
-		t.Fatalf("defaults: %+v", f.got)
-	}
-	run(t, v, "askUser('pick', {choices: ['a']})")
-	if !f.got.CustomAnswer {
-		t.Fatal("customAnswer defaults to true")
-	}
 }
 
-func TestAskUserErrors(t *testing.T) {
+func TestAskUserValidatesBeforeShowingAnything(t *testing.T) {
 	v := New(Options{Root: t.TempDir()})
-	r := v.Exec(context.Background(), "askUser('x')")
-	if !strings.Contains(r.Err, "interactive input is not available") {
-		t.Fatalf("without an asker: %+v", r)
+	fa := &fakeAsker{}
+	v.SetAsker(fa)
+	opts := `options: [{id: "a", label: "A"}]`
+	cases := map[string]string{
+		"askUser('plain string')":  "pass {questions",
+		"askUser({})":              "at least one question",
+		"askUser({questions: []})": "at least one question",
+		"askUser({questions: [{id: 'a', text: 't', type: 'text'}, {id: 'a', text: 't', type: 'text'}]})":                                         "duplicate question id",
+		"askUser({questions: [{id: '', text: 't', type: 'text'}]})":                                                                              "non-empty string id",
+		"askUser({questions: [{id: 'a', text: 't', type: 'radio'}]})":                                                                            "single, multi or text",
+		"askUser({questions: [{id: 'a', text: 't', type: 'single'}]})":                                                                           "needs options",
+		"askUser({questions: [{id: 'a', text: 't', type: 'text', " + opts + "}]})":                                                               "takes no options",
+		"askUser({questions: [{id: 'a', text: 't', type: 'single', options: [{id: 'x', label: 'X'}, {id: 'x', label: 'Y'}]}]})":                  "two options with id",
+		"askUser({questions: [{id: 'a', text: 't', type: 'single', options: [{id: 'x'}]}]})":                                                     "non-empty label",
+		"askUser({questions: [{id: 'a', text: 't', type: 'text', extra: 1}]})":                                                                   "unknown field",
+		"askUser({questions: [{id: 'a', text: 't', type: 'text'}], timeout: -1})":                                                                "finite number",
+		"askUser({questions: [{id: 'a', text: 't', type: 'text'}], timeout: NaN})":                                                               "finite number",
+		"askUser({questions: [{id: 'a', text: 't', type: 'text'}], mode: 1})":                                                                    "unknown option",
+		"askUser({questions: Array.from({length: 21}, (_, i) => ({id: 'q' + i, text: 't', type: 'text'}))})":                                     "at most 20",
+		"askUser({questions: [{id: 'a', text: 't', type: 'single', options: Array.from({length: 21}, (_, i) => ({id: 'o' + i, label: 'L'}))}]})": "more than 20 options",
 	}
-	v.SetAsker(&fakeAsker{reply: func(context.Context, Question) (string, error) { return "", ErrDeclined }})
-	for code, want := range map[string]string{
-		"askUser('x')":                               "user declined to answer",
-		"askUser()":                                  "question is required",
-		"askUser('')":                                "non-empty",
-		"askUser('x', {customAnswer: false})":        "requires choices",
-		"askUser('x', {chioces: ['a']})":             "unknown option",
-		"askUser('x', {choices: 'a'})":               "array of strings",
-		"askUser('x', {choices: [1]})":               "non-empty strings",
-		"askUser('x', {timeout: -1})":                "negative",
-		"askUser('x', {timeout: 'soon'})":            "number of seconds",
-		"try { askUser('x') } catch (e) { throw e }": "user declined",
-	} {
-		if r := v.Exec(context.Background(), code); !strings.Contains(r.Err, want) {
-			t.Errorf("%s: got %q, want %q", code, r.Err, want)
+	for code, frag := range cases {
+		r := ex(t, v, code)
+		if !strings.Contains(r.Err, frag) {
+			t.Errorf("%s => %+v, want %q", code, r, frag)
 		}
 	}
-	// The model can handle a refusal itself.
-	if r := run(t, v, "try { askUser('x'); 'no' } catch (e) { 'caught: ' + e.message }"); !strings.Contains(r.Value, "caught: ") || !strings.Contains(r.Value, "declined") {
+	if len(fa.form.Questions) != 0 {
+		t.Fatal("an invalid form must not reach the UI")
+	}
+}
+
+func TestAskUserCancelAndTimeoutAreCatchableTypedErrors(t *testing.T) {
+	v := New(Options{Root: t.TempDir()})
+	one := `{questions: [{id: "a", text: "t", type: "text"}]}`
+	v.SetAsker(&fakeAsker{err: ErrCancelled})
+	r := ex(t, v, "try { askUser("+one+"); 'answered' } catch (e) { (e instanceof AskCancelled) + ':' + e.name + ':' + (e instanceof Error) }")
+	if r.Value != "true:AskCancelled:true" {
 		t.Fatalf("%+v", r)
 	}
+	// Uncaught, it ends the call with an error naming the cancellation.
+	if r := ex(t, v, "askUser("+one+"); console.log('not reached')"); !strings.Contains(r.Err, "cancelled") || strings.Contains(r.Output, "not reached") {
+		t.Fatalf("%+v", r)
+	}
+	v.SetAsker(&fakeAsker{err: ErrTimeout})
+	r = ex(t, v, "try { askUser("+one+") } catch (e) { e.name }")
+	if r.Value != "AskTimeout" {
+		t.Fatalf("%+v", r)
+	}
+	// The real deadline: the asker waits for ctx and the timeout turns into AskTimeout.
+	v.SetAsker(&fakeAsker{wait: true})
+	r = ex(t, v, "try { askUser({questions: [{id: 'a', text: 't', type: 'text'}], timeout: 0.05}) } catch (e) { e.name }")
+	if r.Value != "AskTimeout" {
+		t.Fatalf("deadline: %+v", r)
+	}
 }
 
-func TestAskUserTimeoutIsItsOwnError(t *testing.T) {
+func TestAskUserWaitDoesNotCountAgainstJSTimeout(t *testing.T) {
+	v := New(Options{Root: t.TempDir(), Timeout: 150 * time.Millisecond})
+	v.SetAsker(&slowAsker{d: 400 * time.Millisecond})
+	r := ex(t, v, "askUser({questions: [{id: 'a', text: 't', type: 'text'}]}).answers[0].text")
+	if r.Err != "" || r.Value != "late" {
+		t.Fatalf("human time must not hit the js timeout: %+v", r)
+	}
+}
+
+type slowAsker struct{ d time.Duration }
+
+func (s *slowAsker) Ask(ctx context.Context, f Form) ([]FormAnswer, error) {
+	select {
+	case <-time.After(s.d):
+		return []FormAnswer{{ID: "a", Text: "late"}}, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
+
+func TestAskUserParentCancellationPropagates(t *testing.T) {
 	v := New(Options{Root: t.TempDir()})
-	v.SetAsker(&fakeAsker{reply: func(ctx context.Context, q Question) (string, error) {
-		<-ctx.Done()
-		return "", ctx.Err()
-	}})
-	start := time.Now()
-	r := v.Exec(context.Background(), "askUser('quick?', {timeout: 0.1})")
-	if !strings.Contains(r.Err, "user did not answer within 0.1s") || time.Since(start) > 3*time.Second {
-		t.Fatalf("%+v after %v", r, time.Since(start))
-	}
-}
-
-func TestAskUserWaitsDoNotCountAgainstTheJSTimeout(t *testing.T) {
-	v := New(Options{Root: t.TempDir(), Timeout: 300 * time.Millisecond})
-	v.SetAsker(&fakeAsker{reply: func(context.Context, Question) (string, error) {
-		time.Sleep(700 * time.Millisecond) // longer than the js timeout
-		return "late but fine", nil
-	}})
-	r := v.Exec(context.Background(), "askUser('slow human')")
-	if r.Err != "" || r.Value != "late but fine" {
-		t.Fatalf("the question's wait burned the js timeout: %+v", r)
-	}
-	// The remaining time still applies afterwards.
-	r = v.Exec(context.Background(), "askUser('again'); while (true) {}")
-	if !r.TimedOut {
-		t.Fatalf("js timeout must resume after the answer: %+v", r)
-	}
-}
-
-func TestAskUserCanceledWithTheTurn(t *testing.T) {
-	v := New(Options{Root: t.TempDir()})
-	started := make(chan struct{})
-	v.SetAsker(&fakeAsker{reply: func(ctx context.Context, q Question) (string, error) {
-		close(started)
-		<-ctx.Done()
-		return "", ctx.Err()
-	}})
+	v.SetAsker(&fakeAsker{wait: true})
 	ctx, cancel := context.WithCancel(context.Background())
-	go func() { <-started; cancel() }()
-	r := v.Exec(ctx, "askUser('x')")
-	if r.Err == "" || strings.Contains(r.Err, "did not answer") {
-		t.Fatalf("%+v", r)
+	done := make(chan Result, 1)
+	go func() {
+		done <- v.Exec(ctx, "try { askUser({questions: [{id: 'a', text: 't', type: 'text'}]}); } catch (e) { console.log('caught ' + e.name) }")
+	}()
+	time.Sleep(50 * time.Millisecond)
+	cancel()
+	r := <-done
+	if strings.Contains(r.Output, "AskCancelled") || strings.Contains(r.Output, "AskTimeout") {
+		t.Fatalf("parent cancellation must not look like a user cancel: %+v", r)
 	}
 }

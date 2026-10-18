@@ -17,11 +17,13 @@ type settingRow struct {
 var settingRows = []settingRow{
 	{"js code", "js_code"},
 	{"js output", "js_output"},
+	{"js strings", "js_strings"},
 	{"thinking", "thinking"},
 	{"js timeout", "js_timeout"},
 	{"js timing", "js_timing"},
 	{"turn summary", "turn_summary"},
 	{"notify", "notify"},
+	{"notify sound", "notify_sound"},
 }
 
 func (a *App) settingsKey(k *tcell.EventKey) {
@@ -34,11 +36,9 @@ func (a *App) settingsKey(k *tcell.EventKey) {
 		if k.Key() == tcell.KeyLeft {
 			step = -1
 		}
-		a.st.Settings.Cycle(settingRows[a.st.Sel].key, step)
-		a.persistSettings()
+		a.cycleSetting(step)
 	case k.Key() == tcell.KeyRight:
-		a.st.Settings.Cycle(settingRows[a.st.Sel].key, 1)
-		a.persistSettings()
+		a.cycleSetting(1)
 	case k.Rune() == '+' || k.Rune() == '=' || k.Rune() == '-':
 		key := settingRows[a.st.Sel].key
 		if config.NumOption(key) == "" {
@@ -51,6 +51,16 @@ func (a *App) settingsKey(k *tcell.EventKey) {
 		a.st.Settings.AdjustNum(key, delta)
 		a.persistSettings()
 	}
+}
+
+func (a *App) cycleSetting(step int) {
+	key := settingRows[a.st.Sel].key
+	a.st.Settings.Cycle(key, step)
+	if key == "notify_sound" {
+		a.st.Settings.NotifyCommand = ""
+		a.previewNotifySound()
+	}
+	a.persistSettings()
 }
 
 // optLabel is how a choice of a setting is written: the numeric choices carry
@@ -74,7 +84,10 @@ func (a *App) drawSettings(c ui.Canvas, w, h int) {
 	b.frame(c)
 	b.put(c, 2, 0, "settings", ui.Blue, ui.BgPopup)
 	y := 2
-	for i, r := range settingRows {
+	visible := max(1, b.h-5)
+	start := max(0, a.st.Sel-visible+1)
+	for i := start; i < min(len(settingRows), start+visible); i++ {
+		r := settingRows[i]
 		sel := i == a.st.Sel
 		bg := ui.BgPopup
 		b.fill(c, y, bg)
@@ -126,6 +139,9 @@ func (a *App) drawSettings(c ui.Canvas, w, h int) {
 	hint := "j/k move · ←/→ change · +/- number · esc close"
 	if ui.TextWidth(hint) > b.w-4 {
 		hint = "j/k move · ←/→ set · esc close"
+	}
+	if settingRows[a.st.Sel].key == "notify_sound" {
+		hint = "←/→ choose and preview · esc close"
 	}
 	b.hint(c, hint)
 }

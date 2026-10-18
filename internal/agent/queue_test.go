@@ -2,6 +2,8 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"testing"
 
 	"meno/internal/llm"
@@ -90,9 +92,34 @@ func TestCombineRenumbersImages(t *testing.T) {
 	}
 }
 
+func TestImagesStayInHistoryBelowLimitKeepingCachePrefix(t *testing.T) {
+	s := NewSession(".", "m")
+	var prev []string
+	for i := 0; i < MaxRequestImages; i++ {
+		s.Append(Turn{Role: llm.RoleUser, Text: "look [Image #1]", Attachments: []Attachment{{N: 1, Mime: "image/png", SHA: fmt.Sprint("h", i)}}})
+		s.Append(Turn{Role: llm.RoleAssistant, Text: "ok"})
+		var cur []string
+		total := 0
+		for _, m := range s.ToMsgs() {
+			b, _ := json.Marshal(m)
+			cur = append(cur, string(b))
+			total += len(m.Images)
+		}
+		if total != i+1 {
+			t.Fatalf("after %d images the request carries %d", i+1, total)
+		}
+		for j := range prev {
+			if prev[j] != cur[j] {
+				t.Fatalf("image %d rewrote message %d: the cache prefix broke", i+1, j)
+			}
+		}
+		prev = cur
+	}
+}
+
 func TestOnlyNewestImagesAreSent(t *testing.T) {
 	s := NewSession(".", "m")
-	for i := 0; i < 4; i++ {
+	for i := 0; i < MaxRequestImages/2+2; i++ {
 		s.Append(Turn{Role: llm.RoleUser, Text: "a [Image #1] b [Image #2]", Attachments: []Attachment{{N: 1, Mime: "image/png", SHA: "x"}, {N: 2, Mime: "image/png", SHA: "y"}}})
 	}
 	msgs := s.ToMsgs()
@@ -103,8 +130,9 @@ func TestOnlyNewestImagesAreSent(t *testing.T) {
 	if total != MaxRequestImages {
 		t.Fatalf("images sent: %d", total)
 	}
-	if msgs[0].Text != "a [image omitted] b [image omitted]" || msgs[1].Text != "a [image omitted] b [Image #2]" || len(msgs[1].Images) != 1 || msgs[1].Images[0].N != 2 {
-		t.Fatalf("omitted: %+v %+v", msgs[0], msgs[1])
+	// The total is even and so is the limit: the oldest turns lose both images.
+	if msgs[0].Text != "a [image omitted] b [image omitted]" || len(msgs[0].Images) != 0 || len(msgs[2].Images) != 2 {
+		t.Fatalf("omitted: %+v %+v", msgs[0], msgs[2])
 	}
 }
 

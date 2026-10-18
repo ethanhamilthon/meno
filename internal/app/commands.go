@@ -14,7 +14,7 @@ import (
 // out from under a running agent of the current session. Everything else
 // (dialogs, export...) is safe, and so is working with other sessions.
 var interruptsAgent = map[string]bool{
-	"reset": true, "compact": true, "cd": true,
+	"fork": true, "compact": true, "cd": true,
 }
 
 func (a *App) runCommand(raw string) {
@@ -42,12 +42,16 @@ func (a *App) runCommand(raw string) {
 		a.newSession()
 	case "cd":
 		a.changeDir(strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(raw), name)))
-	case "reset":
-		a.st.VM.Reset()
-		if a.hasHistory() {
-			a.st.Prompt.VMReset = true
-		}
-		a.notify("js vm restarted")
+	case "fork":
+		a.openFork()
+	case "cache":
+		a.cacheReport()
+	case "agents":
+		a.openAgents()
+	case "tasks":
+		a.openTasks()
+	case "todo":
+		a.toggleTodo()
 	case "compact":
 		a.compact()
 	case "notify":
@@ -258,7 +262,12 @@ func (a *App) exportSession(args []string) {
 	a.notify("session saved to " + shown)
 }
 
-// hasHistory reports whether the model has already seen anything of this session.
-func (a *App) hasHistory() bool {
-	return !a.st.Empty()
+// toggleTodo folds or unfolds the plan block; the choice is kept.
+func (a *App) toggleTodo() {
+	if a.st.Todo == nil {
+		a.notify("no plan yet · the agent keeps one while it works")
+		return
+	}
+	a.st.Settings.TodoCollapsed = !a.st.Settings.TodoCollapsed
+	a.persistSettings()
 }

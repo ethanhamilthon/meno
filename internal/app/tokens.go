@@ -70,6 +70,11 @@ type acToken struct {
 }
 
 func (a *App) acToken() (acToken, bool) {
+	if a.pickOpen() {
+		if s, e, q, ok := a.pickToken(); ok {
+			return acToken{start: s, end: e, kind: '@', prefix: q}, true
+		}
+	}
 	in := a.st.Input
 	c := min(max(0, a.st.Cursor), len(in))
 	s := c
@@ -94,6 +99,9 @@ type acItem struct {
 func (it acItem) label() string { return string(it.kind) + it.name }
 
 func (a *App) acMatches() []acItem {
+	if a.pickOpen() {
+		return a.pickItems()
+	}
 	t, ok := a.acToken()
 	if !ok {
 		return nil

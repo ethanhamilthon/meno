@@ -81,5 +81,9 @@ func (a *App) statusUsageText() string {
 	if a.st.Unpriced {
 		cost += "+?"
 	}
-	return fmt.Sprintf("↓ %s · ↑ %s · ↺ %.0f%% · ◫ %s · %s", compactTokens(a.st.Usage.In), compactTokens(a.st.Usage.Out), cache, context, cost)
+	hit := fmt.Sprintf("%.0f%%", cache)
+	if !a.st.Usage.CacheReported {
+		hit = "?"
+	}
+	return fmt.Sprintf("↓ %s · ↑ %s · ↺ %s · ◫ %s · %s", compactTokens(a.st.Usage.In), compactTokens(a.st.Usage.Out), hit, context, cost)
 }

@@ -33,7 +33,7 @@ func (c *scriptedClient) Stream(ctx context.Context, req llm.Request, emit func(
 	return nil
 }
 
-func e2eApp(t *testing.T, cl llm.Client) (*App, tcell.SimulationScreen, config.Paths) {
+func e2eApp(t testing.TB, cl llm.Client) (*App, tcell.SimulationScreen, config.Paths) {
 	t.Helper()
 	scr := tcell.NewSimulationScreen("UTF-8")
 	if err := scr.Init(); err != nil {

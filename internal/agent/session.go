@@ -10,7 +10,21 @@ import (
 	"meno/internal/llm"
 )
 
+// Session kinds.
+const (
+	KindMain  = "main"
+	KindChild = "child"
+)
+
+// Coverage values: "" means the stored history is complete from the first turn;
+// CoveragePartial marks a session compacted by an older version that discarded
+// the originals, so history before the summary is unavailable.
+const CoveragePartial = "partial"
+
 type Turn struct {
+	// HID is the stable history ID: monotonic per session, never reused, and
+	// unchanged when compaction moves the turn out of the active context.
+	HID int64 `json:"hid,omitempty"`
 	// Replay is the complete assistant output; subsequent tool turns share its group.
 	Replay      *llm.Msg  `json:"replay,omitempty"`
 	ReplayGroup string    `json:"replay_group,omitempty"`
@@ -30,6 +44,8 @@ type Turn struct {
 	// Kind is empty for what the user wrote; KindView for an image the agent
 	// asked to see with view().
 	Kind string `json:"kind,omitempty"`
+	// EventID is the steering event a KindEvent turn delivered.
+	EventID string `json:"event_id,omitempty"`
 	// ElapsedMs is how long a js call ran (at least 1 once measured; 0 for turns
 	// that were not timed, such as sessions saved before timing existed). LimitMs
 	// is the timeout it ran under (0 = none) and TimedOut says it hit it.
@@ -93,7 +109,18 @@ type Session struct {
 	Effort    string    `json:"effort,omitempty"`
 	UpdatedAt time.Time `json:"updated_at"`
 	Summary   string    `json:"summary,omitempty"`
-	Log       *SafeLog  `json:"-"`
+	// Kind is KindMain or KindChild (empty = main). ParentID owns a child.
+	Kind     string `json:"kind,omitempty"`
+	ParentID string `json:"parent_id,omitempty"`
+	// ForkSource/ForkBoundary say which session and history ID this one was
+	// forked from (empty/0 when it was not).
+	ForkSource   string `json:"fork_source,omitempty"`
+	ForkBoundary int64  `json:"fork_boundary,omitempty"`
+	// Legacy sessions predate the state/TODO journal. Coverage: see CoveragePartial.
+	Legacy   bool     `json:"legacy,omitempty"`
+	Coverage string   `json:"coverage,omitempty"`
+	NextHID  int64    `json:"next_hid,omitempty"`
+	Log      *SafeLog `json:"-"`
 	// AttachDir is the directory with the bytes of attachments (set by the app).
 	AttachDir string `json:"-"`
 	Turns     []Turn `json:"turns"`
@@ -101,17 +128,23 @@ type Session struct {
 
 func (s *Session) ensureLog() *SafeLog {
 	if s.Log == nil {
-		s.Log = &SafeLog{turns: s.Turns}
+		s.Log = newSafeLog(s.Turns, s.NextHID)
 	}
 	return s.Log
 }
+
+// ExecBoundary is the history ID of the turn that will record the step being
+// executed now. Journal entries made during the step carry it, so a fork at the
+// previous turn does not see them and a fork at the step does.
+func (s *Session) ExecBoundary() int64 { return s.ensureLog().NextHID() + 1 }
 
 func (s *Session) Append(t Turn) { s.ensureLog().Append(t) }
 
 // SetRun attaches the stats of a run to the last turn.
 func (s *Session) SetRun(r RunStats) { s.ensureLog().SetRunOnLast(r) }
 
-func (s *Session) Len() int         { return s.ensureLog().Len() }
+func (s *Session) Len() int { return s.ensureLog().Len() }
+
 func (s *Session) Snapshot() []Turn { return s.ensureLog().Snapshot() }
 
 func (s *Session) Replace(turns []Turn) { s.ensureLog().Replace(turns) }
@@ -211,64 +244,4 @@ func deriveTitle(s *Session) string {
 		}
 	}
 	return "untitled"
-}
-
-func toolResult(t Turn) llm.Msg {
-	res := t.Output
-	if t.Err != "" {
-		res += "\nERROR: " + t.Err
-	}
-	return llm.Msg{Role: llm.RoleTool, CallID: t.CallID, Text: res}
-}
-
-func (s *Session) userMsg(t Turn) llm.Msg {
-	m := llm.Msg{Role: llm.RoleUser, Text: withSystem(t)}
-	for _, a := range t.Attachments {
-		m.Images = append(m.Images, llm.Image{N: a.N, Mime: a.Mime, Path: s.AttachmentPath(a)})
-	}
-	return m
-}
-
-func (s *Session) ToMsgs() []llm.Msg {
-	var out []llm.Msg
-	if s.Summary != "" {
-		out = append(out, llm.Msg{Role: llm.RoleUser, Text: "Summary of earlier conversation:\n" + s.Summary})
-	}
-	turns := s.Snapshot()
-	for i := 0; i < len(turns); i++ {
-		t := turns[i]
-		if t.Replay != nil {
-			out = append(out, *t.Replay)
-			if t.CallID != "" {
-				out = append(out, toolResult(t))
-			}
-			for i+1 < len(turns) && t.ReplayGroup != "" && turns[i+1].ReplayGroup == t.ReplayGroup {
-				i++
-				if turns[i].CallID != "" {
-					out = append(out, toolResult(turns[i]))
-				}
-			}
-			continue
-		}
-		switch {
-		case t.Role == llm.RoleUser:
-			out = append(out, s.userMsg(t))
-		case t.Code != "" || t.CallID != "":
-			out = append(out, llm.Msg{Role: llm.RoleAssistant, Text: t.Text, CallID: t.CallID, Code: t.Code})
-			out = append(out, toolResult(t))
-		case t.Role == llm.RoleAssistant:
-			out = append(out, llm.Msg{Role: llm.RoleAssistant, Text: t.Text})
-		}
-	}
-	omitOldImages(out, MaxRequestImages)
-	return out
-}
-
-// withSystem is the text of a user turn as the model sees it: the system-event
-// block, when there is one, then the user's words.
-func withSystem(t Turn) string {
-	if t.System == "" {
-		return t.Text
-	}
-	return t.System + "\n\n" + t.Text
 }

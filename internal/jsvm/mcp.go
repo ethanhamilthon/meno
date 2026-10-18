@@ -14,10 +14,27 @@ type MCPTool struct {
 	Schema                    json.RawMessage
 }
 
-// MCPHost connects the VM to MCP servers.
+// MCPResult is a tool result as the VM shows it. Text is only the text blocks,
+// Structured only explicit server data (nil otherwise). Large parts are cut and
+// Truncated is set; the complete result stays readable under ResultID.
+type MCPResult struct {
+	Text       string
+	Structured json.RawMessage
+	Content    []json.RawMessage
+	Artifacts  []map[string]any
+	IsError    bool
+	ResultID   string
+	Truncated  bool
+	Notes      []string
+}
+
+// MCPHost connects the VM to MCP servers. Call fails for transport and
+// protocol errors; a tool's own isError comes back in the result.
 type MCPHost interface {
 	Tools() []MCPTool
-	Call(ctx context.Context, server, tool string, args map[string]any) (string, error)
+	Call(ctx context.Context, server, tool string, args map[string]any) (MCPResult, error)
+	ResultInfo(id string) (any, error)
+	ResultRead(id string, offset, limit int) (any, error)
 }
 
 // SetMCP makes the tools of host callable as mcp.<server>.<tool>({...}).
@@ -87,11 +104,11 @@ func (v *VM) syncMCP() {
 				ctx, cancel = context.WithTimeout(ctx, v.active)
 				defer cancel()
 			}
-			text, err := v.host().Call(ctx, t.Server, t.Name, args)
+			res, err := v.host().Call(ctx, t.Server, t.Name, args)
 			if err != nil {
 				panic(rt.NewGoError(fmt.Errorf("mcp.%s.%s: %w", t.Server, t.Name, err)))
 			}
-			return rt.ToValue(text)
+			return rt.ToValue(envelope(res))
 		}
 		_ = srv.Set(t.Name, fn)
 		if id := ident(t.Name); id != t.Name {
@@ -115,4 +132,65 @@ func (v *VM) syncMCP() {
 		}
 		return rt.ToValue(out)
 	})
+}
+
+// jsonValue decodes raw JSON into plain values; nil raw is null.
+func jsonValue(raw json.RawMessage) any {
+	if len(raw) == 0 {
+		return nil
+	}
+	var v any
+	if json.Unmarshal(raw, &v) != nil {
+		return string(raw)
+	}
+	return v
+}
+
+// envelope is the object mcp.<server>.<tool>() returns.
+func envelope(r MCPResult) map[string]any {
+	content := make([]any, len(r.Content))
+	for i, c := range r.Content {
+		content[i] = jsonValue(c)
+	}
+	arts := make([]any, len(r.Artifacts))
+	for i, a := range r.Artifacts {
+		arts[i] = a
+	}
+	out := map[string]any{
+		"text": r.Text, "structuredContent": jsonValue(r.Structured), "content": content,
+		"artifacts": arts, "isError": r.IsError, "resultId": r.ResultID, "truncated": r.Truncated,
+	}
+	if len(r.Notes) > 0 {
+		out["notes"] = r.Notes
+	}
+	return out
+}
+
+// bindMCPResults installs mcpResults.info and mcpResults.read.
+func (v *VM) bindMCPResults() {
+	rt := v.rt
+	obj := rt.NewObject()
+	host := func() MCPHost {
+		h := v.host()
+		if h == nil {
+			panic(rt.NewGoError(fmt.Errorf("mcp results are not available here")))
+		}
+		return h
+	}
+	check := func(res any, err error) goja.Value {
+		if err != nil {
+			panic(rt.NewGoError(err))
+		}
+		return rt.ToValue(res)
+	}
+	_ = obj.Set("info", func(c goja.FunctionCall) goja.Value {
+		return check(host().ResultInfo(strArg(rt, c.Arguments, 0, "id")))
+	})
+	_ = obj.Set("read", func(c goja.FunctionCall) goja.Value {
+		id := strArg(rt, c.Arguments, 0, "id")
+		o := optsArg(rt, c.Arguments, 1)
+		checkKeys(rt, "mcpResults.read", o, "offset", "limit")
+		return check(host().ResultRead(id, intOpt(rt, o, "offset"), intOpt(rt, o, "limit")))
+	})
+	_ = rt.Set("mcpResults", obj)
 }
