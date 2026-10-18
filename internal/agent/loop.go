@@ -16,6 +16,7 @@ type Runner struct {
 	// calibration scales estimates by what the provider reported last time.
 	calibration    float64
 	lastCompactLen int
+	sent           []llm.Msg // messages of the request being answered
 }
 
 // runCount is what a run has done so far.
@@ -108,7 +109,6 @@ func (r *Runner) loop(ctx context.Context, s *Session) error {
 			}
 			text = ""
 		}
-		r.applyScheduled(s)
 		if r.D.Halt != nil && r.D.Halt(batchFailed(s, len(calls))) {
 			return ErrHalted
 		}

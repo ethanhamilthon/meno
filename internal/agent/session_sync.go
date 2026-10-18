@@ -12,7 +12,6 @@ type SafeLog struct {
 	// Compaction output not yet saved: see Pending.
 	archive []Turn
 	sums    []SummaryRev
-	sched   *Scheduled
 }
 
 // SummaryRev is one revision of the continuation summary. CoversThrough is the

@@ -17,7 +17,7 @@ func TestCacheReportShowsPrefixSharingWithoutText(t *testing.T) {
 		t.Fatalf("report: %q", n)
 	}
 	// A changed system prompt shares nothing.
-	a.st.Fps[len(a.st.Fps)-1].SystemHash = "deadbeef"
+	a.st.Reqs[len(a.st.Reqs)-1].System += " changed"
 	a.runCommand("cache")
 	if n := a.lastNotice(); !strings.Contains(n, "nothing can be served") {
 		t.Fatalf("report: %q", n)

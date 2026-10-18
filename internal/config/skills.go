@@ -155,12 +155,6 @@ func DiscoverSkills(globalDir, projectDir string) []Skill {
 	return out
 }
 
-// skillState is the format of the legacy skills.json: skills are on unless
-// listed here.
-type skillState struct {
-	Disabled []string `json:"disabled"`
-}
-
 // LoadSkills discovers the skills on disk and applies the saved on/off state.
 func (s *Store) LoadSkills() ([]Skill, error) {
 	d, err := s.DB()

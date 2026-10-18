@@ -11,6 +11,7 @@ import (
 	"meno/internal/config"
 	"meno/internal/jsvm"
 	"meno/internal/mcp"
+	"meno/internal/safe"
 )
 
 // mcpHost lets the js VM call the tools of the running MCP servers. Complete
@@ -182,6 +183,7 @@ func (a *App) startMCPAsync(s mcp.Server) {
 	a.mcp.BeginStart(s.Name)
 	a.running.Add(1)
 	go func() {
+		defer safe.Recover(a.reportPanic)
 		defer a.running.Done()
 		err := a.mcp.Start(a.mcpCtx, s)
 		a.mcp.EndStart(s.Name)

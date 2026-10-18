@@ -18,7 +18,16 @@ type Server struct {
 	// (for example Authorization).
 	Headers map[string]string `json:"headers,omitempty"`
 	Enabled bool              `json:"enabled"`
+	// Source is SourceFile for a server read from mcp.json: it is read only and
+	// never saved to the database.
+	Source string `json:"-"`
 }
+
+// SourceFile marks a server defined in mcp.json.
+const SourceFile = "file"
+
+// FromFile reports whether the server is defined in mcp.json.
+func (s Server) FromFile() bool { return s.Source == SourceFile }
 
 func ValidateServer(s Server) error {
 	if s.Name == "" || len(s.Name) > 40 {

@@ -6,8 +6,6 @@ package prompt
 import (
 	"fmt"
 	"os"
-	"os/exec"
-	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -16,23 +14,9 @@ import (
 // identityPrompt is the first section: who the agent is, nothing else.
 const identityPrompt = "You are meno, a coding agent."
 
-// mcpAdminPrompt documents mcpServers.
-const mcpAdminPrompt = `## Managing MCP servers
-mcpServers manages the MCP server configuration; changes are saved, applied at once and shown to the user. Every method is synchronous.
-- mcpServers.list() — every configured server: {name, transport, command|url, enabled, status: "running"|"stopped"|"starting"|"failed", error?, tools: <count>, env?, headers?}. Secret values of env and headers are always shown as "***".
-- mcpServers.add({name, transport?: "stdio"|"sse"|"streamable-http", command?, url?, env?: {K: "v"}, headers?: {K: "v"}, enabled?: true}) — add and start a server. command is a shell-style command line for stdio; url is for sse and streamable-http.
-- mcpServers.update(name, patch) — change any of those fields (env and headers are replaced as a whole; enabled: false stops the server) and restart it.
-- mcpServers.remove(name) and mcpServers.restart(name).
-add, update and restart wait until the server is up and return {ok, error?, tools: [{name, description}]}; they do not throw. After success the tools are callable at once as mcp.<server>.<tool>() (re-read the mcp global rather than keeping a reference to it). mcpTools("name") lists the tools of one server with their schemas. Do not add, change or remove servers unless the user asked for it.`
-
 // skillsPrompt lists the enabled skills (one line each).
 func skillsPrompt(lines []string) string {
-	return "## Skills\nSkills are instruction files for particular kinds of work. When the task matches one, read its file with fs.read before you start and follow it. When the user writes /name, that skill is requested explicitly: read it first.\n\n" + strings.Join(lines, "\n")
-}
-
-// mcpToolsPrompt lists the tools of the running MCP servers (one line each).
-func mcpToolsPrompt(lines []string) string {
-	return "## MCP tools\nCall them from js as mcp.<server>.<tool>({...}). A call is synchronous and returns {text, structuredContent, content, artifacts, isError, resultId, truncated}: text is only the server's text blocks (JSON.parse it yourself if you expect JSON), structuredContent is the server's own structured data or null, artifacts are files saved locally for images and other binary parts. A tool's own failure has isError true; transport failures throw. Big results are cut and truncated is true: read the rest with mcpResults.read(resultId, {offset, limit}) -> {text, offset, end, size, nextOffset}; mcpResults.info(resultId) lists the artifacts. mcpTools() returns every tool with its full input schema.\n\n" + strings.Join(lines, "\n")
+	return "## Skills\nA skill is an instruction file for one type of work. When the task matches a skill, read its file with fs.read before you start. Obey the file. If the user writes /name, read that skill first.\n" + strings.Join(lines, "\n")
 }
 
 // Skill is one enabled skill as the model sees it.
@@ -84,20 +68,14 @@ func Build(in Input) string {
 		}
 	}
 	add(identityPrompt)
-	add(jsToolPrompt)
-	add(statePrompt)
+	add(guidelines(in.Subagent))
+	add(jsTool(in.Subagent))
 	if in.Subagent {
-		add(subagentSessionPrompt)
-		add(todoPrompt)
 		add(subagentPrompt)
 	} else {
-		add(sessionPrompt)
-		add(todoPrompt)
-		add(askPrompt)
-		add(tasksPrompt)
-		add(agentsPrompt)
+		add(workPrompt)
 	}
-	add(mcpAdminPrompt)
+	add(mcpPrompt)
 	add(skillsSection(in.Skills))
 	add(instructionsSection("Global instructions", in.GlobalAgents))
 	add(instructionsSection("Project instructions", in.ProjectAgents))
@@ -130,6 +108,8 @@ func instructionsSection(title string, in Instructions) string {
 	return "## " + title + "\nFrom " + in.Path + ". Follow these unless the user's message says otherwise.\n\n" + strings.TrimRight(in.Text, "\n")
 }
 
+// mcpToolsSection lists the running servers with the names of their tools, up
+// to maxListedTools names in all; mcpTools() gives the rest and the schemas.
 func mcpToolsSection(tools []Tool) string {
 	if len(tools) == 0 {
 		return ""
@@ -141,47 +121,60 @@ func mcpToolsSection(tools []Tool) string {
 		}
 		return tools[i].Name < tools[j].Name
 	})
-	var l []string
-	for i, t := range tools {
-		if i == maxListedTools {
-			l = append(l, fmt.Sprintf("- … and %d more: see mcpTools()", len(tools)-i))
-			break
+	var servers []string
+	byServer := map[string][]string{}
+	for _, t := range tools {
+		if _, ok := byServer[t.Server]; !ok {
+			servers = append(servers, t.Server)
 		}
-		l = append(l, ToolLine(t))
+		byServer[t.Server] = append(byServer[t.Server], ident(t.Name))
 	}
-	return mcpToolsPrompt(l)
+	listed := 0
+	var l []string
+	for _, s := range servers {
+		names := byServer[s]
+		noun := "tools"
+		if len(names) == 1 {
+			noun = "tool"
+		}
+		line := fmt.Sprintf("- %s (%d %s)", ident(s), len(names), noun)
+		if listed >= maxListedTools {
+			l = append(l, line)
+			continue
+		}
+		room := min(len(names), maxListedTools-listed)
+		listed += room
+		line += ": " + strings.Join(names[:room], ", ")
+		if room < len(names) {
+			line += fmt.Sprintf(", … and %d more", len(names)-room)
+		}
+		l = append(l, line)
+	}
+	return "## MCP servers\n" + strings.Join(l, "\n")
 }
 
-// ToolLine renders one MCP tool the way the prompt (and system events) list it.
-func ToolLine(t Tool) string {
-	line := "- mcp." + ident(t.Server) + "." + ident(t.Name) + "(" + t.Params + ")"
-	if d := short(t.Desc, 160); d != "" {
-		line += " — " + d
-	}
-	return line
-}
-
-// ToolSignature is ToolLine without the bullet and the description.
+// ToolSignature renders one MCP tool as a call with its parameters.
 func ToolSignature(t Tool) string {
 	return "mcp." + ident(t.Server) + "." + ident(t.Name) + "(" + t.Params + ")"
 }
 
 func environmentSection(in Input) string {
-	var b strings.Builder
-	b.WriteString("## Environment\nWorking directory: " + in.Cwd)
-	if in.OS != "" {
-		b.WriteString("\nOS: " + in.OS)
-	}
-	if in.Shell != "" {
-		b.WriteString("\nShell: " + in.Shell)
+	lines := []string{"## Environment", "- Working directory: " + in.Cwd}
+	switch {
+	case in.OS != "" && in.Shell != "":
+		lines = append(lines, "- OS: "+in.OS+". Shell: "+in.Shell+".")
+	case in.OS != "":
+		lines = append(lines, "- OS: "+in.OS+".")
+	case in.Shell != "":
+		lines = append(lines, "- Shell: "+in.Shell+".")
 	}
 	if !in.Now.IsZero() {
-		b.WriteString("\nDate: " + FormatDate(in.Now))
+		lines = append(lines, "- Date: "+FormatDate(in.Now)+".")
 	}
 	if in.Model != "" {
-		b.WriteString("\nModel: " + DescribeModel(in.Provider, in.Model, in.Effort))
+		lines = append(lines, "- Model: "+DescribeModel(in.Provider, in.Model, in.Effort)+".")
 	}
-	return b.String()
+	return strings.Join(lines, "\n")
 }
 
 // DescribeModel renders a model selection as "gpt-5.5 (openai, effort high)".
@@ -203,33 +196,6 @@ func DescribeModel(provider, model, effort string) string {
 // it would change the prompt on every build.
 func FormatDate(t time.Time) string {
 	return t.Format("2006-01-02, Monday (MST)")
-}
-
-// DescribeOS returns e.g. "macOS 15.1 (darwin/arm64)"; when the version
-// cannot be found, just "darwin/arm64".
-func DescribeOS() string {
-	plat := runtime.GOOS + "/" + runtime.GOARCH
-	name := ""
-	switch runtime.GOOS {
-	case "darwin":
-		if out, err := exec.Command("sw_vers", "-productVersion").Output(); err == nil {
-			if v := strings.TrimSpace(string(out)); v != "" {
-				name = "macOS " + v
-			}
-		}
-	case "linux":
-		if b, err := os.ReadFile("/etc/os-release"); err == nil {
-			for _, l := range strings.Split(string(b), "\n") {
-				if v, ok := strings.CutPrefix(l, "PRETTY_NAME="); ok {
-					name = strings.Trim(strings.TrimSpace(v), "\"'")
-				}
-			}
-		}
-	}
-	if name == "" {
-		return plat
-	}
-	return name + " (" + plat + ")"
 }
 
 // LoadInstructions reads an AGENTS.md, cutting it at MaxInstructions. A missing
@@ -287,4 +253,23 @@ func ident(name string) string {
 		return "_"
 	}
 	return b.String()
+}
+
+// guidelines is the Guidelines section. A subagent does not get the ask rule:
+// it cannot ask the user.
+func guidelines(subagent bool) string {
+	l := []string{"## Guidelines"}
+	l = append(l, baseGuidelines)
+	if !subagent {
+		l = append(l, askGuideline)
+	}
+	return strings.Join(l, "\n")
+}
+
+func jsTool(subagent bool) string {
+	globals := jsGlobalsMain
+	if subagent {
+		globals = jsGlobalsChild
+	}
+	return jsToolPrompt + globals + jsHelpLine
 }

@@ -5,6 +5,7 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 
+	"meno/internal/config"
 	"meno/internal/mcp"
 	"meno/internal/ui"
 )
@@ -46,6 +47,9 @@ func (a *App) mcpItems() []item {
 			right = "error"
 			detail = a.mcp.Err(s.Name)
 		}
+		if s.FromFile() {
+			right += " · " + config.MCPFileName
+		}
 		out = append(out, item{glyph: g, glyphFG: gfg, label: s.Name, right: right, detail: detail})
 	}
 	return append(out, item{glyph: "+", glyphFG: ui.Blue, label: "new mcp server", accent: true})
@@ -57,14 +61,16 @@ func (a *App) mcpKey(k *tcell.EventKey) {
 	case a.navKey(k, n+1, true):
 	case k.Key() == tcell.KeyEnter:
 		a.openMCPEdit(a.st.Sel)
-	case k.Rune() == 'n':
+	case isKey(k, 'n'):
 		a.openMCPEdit(-1)
+	case k.Rune() == ' ' && a.st.Sel < n && a.st.Servers[a.st.Sel].FromFile():
+		a.fileEntryNotice(config.MCPFileName)
 	case k.Rune() == ' ' && a.st.Sel < n:
 		s := &a.st.Servers[a.st.Sel]
 		s.Enabled = !s.Enabled
 		a.persistServers()
 		a.startMCP(a.st.Sel)
-	case k.Rune() == 'r' && a.st.Sel < n:
+	case isKey(k, 'r') && a.st.Sel < n:
 		a.startMCP(a.st.Sel)
 	}
 }
@@ -83,6 +89,10 @@ func (a *App) startMCP(i int) {
 }
 
 func (a *App) openMCPEdit(i int) {
+	if i >= 0 && i < len(a.st.Servers) && a.st.Servers[i].FromFile() {
+		a.fileEntryNotice(config.MCPFileName)
+		return
+	}
 	if i < 0 || i >= len(a.st.Servers) {
 		a.st.EditMCP = mcp.Server{Transport: "stdio", Enabled: true}
 		a.st.EditIdx = -1
@@ -139,9 +149,9 @@ func (a *App) mcpEditKey(k *tcell.EventKey) {
 	switch {
 	case k.Key() == tcell.KeyCtrlS:
 		a.saveMCPEdit()
-	case k.Rune() == 'r' && !a.st.Editing && a.st.EditIdx >= 0:
+	case isKey(k, 'r') && !a.st.Editing && a.st.EditIdx >= 0:
 		a.startMCP(a.st.EditIdx)
-	case k.Rune() == 'd' && !a.st.Editing && a.st.EditIdx >= 0:
+	case isKey(k, 'd') && !a.st.Editing && a.st.EditIdx >= 0:
 		name := a.st.Servers[a.st.EditIdx].Name
 		a.mcp.Stop(name)
 		a.st.Servers = append(a.st.Servers[:a.st.EditIdx], a.st.Servers[a.st.EditIdx+1:]...)

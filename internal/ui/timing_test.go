@@ -42,77 +42,44 @@ func TestFmtTokensAndCost(t *testing.T) {
 	}
 }
 
-func barText(segs []Seg) (full, empty int) {
-	for _, s := range segs {
-		full += strings.Count(s.Text, "█")
-		empty += strings.Count(s.Text, "░")
-	}
-	return
-}
-
-func TestBar(t *testing.T) {
-	nan := 0.0
-	nan = nan / nan
-	cases := []struct {
-		frac float64
-		full int
-	}{{0, 0}, {-1, 0}, {nan, 0}, {0.001, 1}, {0.02, 1}, {0.49, 10}, {0.5, 10}, {0.97, 19}, {0.999, 19}, {1, 20}, {1.5, 20}, {100, 20}}
-	for _, c := range cases {
-		full, empty := barText(bar(c.frac, 20, Yellow))
-		if full != c.full || full+empty != 20 {
-			t.Errorf("bar(%v): %d full %d empty, want %d full of 20", c.frac, full, empty, c.full)
-		}
-	}
-}
-
 func turnOf(ms, limit int64, err string, timedOut bool) agent.Turn {
 	return agent.Turn{Role: llm.RoleAssistant, CallID: "c", Code: "x", Err: err, ElapsedMs: ms, LimitMs: limit, TimedOut: timedOut}
 }
 
 func footerText(t agent.Turn, js JSOpts) (string, []Seg, bool) {
-	segs, ok := timingFooter(t, js)
+	segs, ok := timingBadge(t, js)
 	return joinText(segs), segs, ok
 }
 
-func TestTimingFooterOfFinishedCalls(t *testing.T) {
+func TestTimingBadgeOfFinishedCalls(t *testing.T) {
 	all := JSOpts{}
 	if got, segs, ok := footerText(turnOf(3200, 30000, "", false), all); !ok || got != "✓ 3.2s" || segs[0].FG != Green || segs[1].FG != FgDim {
 		t.Fatalf("fast call: %q %v", got, ok)
 	}
-	got, segs, _ := footerText(turnOf(17200, 30000, "", false), all)
-	if !strings.HasPrefix(got, "✓ 17s   ") || !strings.HasSuffix(got, "  57% of 30s limit") || segs[0].FG != Yellow || strings.Count(got, "█") != 11 {
+	if got, segs, _ := footerText(turnOf(17200, 30000, "", false), all); got != "✓ 17s" || segs[0].FG != Yellow {
 		t.Fatalf("slow call: %q", got)
 	}
-	got, _, _ = footerText(turnOf(15000, 30000, "", false), all)
-	if !strings.Contains(got, "50% of 30s limit") {
-		t.Fatalf("half the limit is slow: %q", got)
-	}
-	got, segs, _ = footerText(turnOf(29990, 30000, "", false), all)
-	if strings.Count(got, "█") != 19 || !strings.Contains(got, "100% of") || segs[0].FG != Yellow {
-		t.Fatalf("nearly the limit: %q", got)
-	}
-	// No limit: slow only by the clock, and no bar.
-	if got, _, _ = footerText(turnOf(12000, 0, "", false), all); got != "✓ 12s" {
+	if got, _, _ := footerText(turnOf(12000, 0, "", false), all); got != "✓ 12s" {
 		t.Fatalf("no limit: %q", got)
 	}
-	if got, segs, _ = footerText(turnOf(4000, 0, "", false), all); got != "✓ 4.0s" || segs[0].FG != Green {
-		t.Fatalf("no limit, quick: %q", got)
-	}
-	got, segs, _ = footerText(turnOf(1200, 30000, "boom", false), all)
-	if got != "✕ 1.2s" || segs[0].FG != Red {
+	if got, segs, _ := footerText(turnOf(1200, 30000, "boom", false), all); got != "✕ 1.2s" || segs[0].FG != Red {
 		t.Fatalf("failed call: %q", got)
 	}
-	got, segs, _ = footerText(turnOf(30012, 30000, "js timeout after 30s", true), all)
-	if !strings.HasPrefix(got, "◷ timed out after 30s   ") || strings.Count(got, "█") != 20 || segs[0].FG != Red || !segs[1].Bold {
+	if got, segs, _ := footerText(turnOf(30012, 30000, "js timeout after 30s", true), all); got != "✕ 30s" || segs[0].FG != Red {
 		t.Fatalf("timeout: %q", got)
 	}
-	// Elapsed beyond the limit does not overflow the bar.
-	if got, _, _ = footerText(turnOf(90000, 30000, "", false), all); strings.Count(got, "█")+strings.Count(got, "░") != 20 || !strings.Contains(got, "100% of 30s") {
-		t.Fatalf("over the limit: %q", got)
-	}
-	// A timeout whose limit was not recorded still names a duration.
-	if got, _, _ = footerText(turnOf(5000, 0, "x", true), all); !strings.Contains(got, "timed out after 5.0s") {
+	// A timeout whose duration was not recorded shows the limit.
+	if got, _, _ := footerText(turnOf(0, 5000, "x", true), all); got != "✕ 5.0s" {
 		t.Fatalf("%q", got)
+	}
+}
+
+func TestBadgeDur(t *testing.T) {
+	for d, want := range map[time.Duration]string{-time.Second: "0.0s", 0: "0.0s", 412 * time.Millisecond: "0.4s", 2340 * time.Millisecond: "2.3s",
+		9940 * time.Millisecond: "9.9s", 9960 * time.Millisecond: "10s", 17400 * time.Millisecond: "17s", 120 * time.Second: "120s", 1000 * time.Second: "16m 40s"} {
+		if got := badgeDur(d); got != want {
+			t.Errorf("badgeDur(%v) = %q, want %q", d, got, want)
+		}
 	}
 }
 
@@ -151,24 +118,21 @@ func TestTimingModes(t *testing.T) {
 	}
 }
 
-func TestTimingFooterOfRunningCall(t *testing.T) {
-	js := JSOpts{Exec: true, Elapsed: 12400 * time.Millisecond, Limit: 30 * time.Second, Spin: 2}
+func TestTimingBadgeOfRunningCall(t *testing.T) {
+	js := JSOpts{Exec: true, Elapsed: 2300 * time.Millisecond, Limit: 120 * time.Second, Spin: 2}
 	got, segs, ok := footerText(agent.Turn{}, js)
-	if !ok || !strings.HasPrefix(got, "⠹ running 12s   ") || !strings.HasSuffix(got, "  of 30s limit") || strings.Count(got, "█") != 8 || segs[0].FG != Yellow {
+	if !ok || got != "⠹ 2.3s/120s" || segs[0].FG != Yellow {
 		t.Fatalf("%q", got)
 	}
-	if got, _, _ := footerText(agent.Turn{}, JSOpts{Exec: true, Elapsed: 2 * time.Second}); got != "⠋ running 2.0s" {
+	if got, _, _ := footerText(agent.Turn{}, JSOpts{Exec: true, Elapsed: 2 * time.Second}); got != "⠋ 2.0s" {
 		t.Fatalf("no limit: %q", got)
 	}
-	if got, _, _ := footerText(agent.Turn{}, JSOpts{Exec: true, Elapsed: 50 * time.Second, Limit: 30 * time.Second}); strings.Count(got, "█") != 20 {
-		t.Fatalf("past the limit: %q", got)
-	}
 	if _, _, ok := footerText(agent.Turn{}, JSOpts{Exec: true, Timing: TimingOff}); ok {
-		t.Fatal("running footer shown with timing off")
+		t.Fatal("running badge shown with timing off")
 	}
-	// Streaming code is not executing yet: no footer.
+	// Streaming code is not executing yet: no badge.
 	if _, _, ok := footerText(agent.Turn{}, JSOpts{Running: true}); ok {
-		t.Fatal("footer while the code is still streaming")
+		t.Fatal("badge while the code is still streaming")
 	}
 	frames := map[string]bool{}
 	for i := -3; i < 25; i++ {
@@ -187,8 +151,19 @@ func jsTurn(code string, mods func(*agent.Turn)) agent.Turn {
 	return t
 }
 
-func TestBuildLinesPlacesFooterBetweenCodeAndOutput(t *testing.T) {
-	lines := BuildLines([]agent.Turn{jsTurn("run()", nil)}, 80, JSOpts{})
+// asideTexts lists the badge text of every row that has one.
+func asideTexts(lines []Line) []string {
+	var out []string
+	for _, l := range lines {
+		if len(l.Aside) > 0 {
+			out = append(out, joinText(l.Aside))
+		}
+	}
+	return out
+}
+
+func TestBuildLinesPutsBadgeInTopRightOfCode(t *testing.T) {
+	lines := BuildLines([]agent.Turn{jsTurn("run()\nnext()", nil)}, 80, JSOpts{})
 	texts := lineTexts(lines)
 	i := -1
 	for k, s := range texts {
@@ -196,34 +171,51 @@ func TestBuildLinesPlacesFooterBetweenCodeAndOutput(t *testing.T) {
 			i = k
 		}
 	}
-	if i < 0 || !strings.Contains(texts[i+1], "✓ 3.2s") || !strings.Contains(texts[i+2], "out") {
-		t.Fatalf("%q", texts)
+	if i < 0 || len(lines[i].Aside) == 0 || joinText(lines[i].Aside) != "✓ 3.2s" || len(lines[i+1].Aside) != 0 || !strings.Contains(texts[i+2], "out") {
+		t.Fatalf("%q %v", texts, asideTexts(lines))
 	}
-	if lines[i+1].BG != BgJSDone || lines[i].BG != BgJSDone {
-		t.Fatal("footer is part of the code block")
+	if got := asideTexts(lines); len(got) != 1 {
+		t.Fatalf("one badge per call: %v", got)
 	}
-	// Failed and timed out calls sit on the error background, code and footer alike.
+	// Failed and timed out calls sit on the error background, code and badge alike.
 	for _, mod := range []func(*agent.Turn){
 		func(t *agent.Turn) { t.Err = "boom" },
 		func(t *agent.Turn) { t.Err, t.TimedOut = "js timeout after 30s", true },
 	} {
 		ls := BuildLines([]agent.Turn{jsTurn("run()", mod)}, 80, JSOpts{})
 		for k, l := range ls {
-			if strings.Contains(l.Text(), "run()") || strings.Contains(l.Text(), "✕") || strings.Contains(l.Text(), "timed out") {
+			if strings.Contains(l.Text(), "run()") || len(l.Aside) > 0 {
 				if l.BG != BgJSErr {
 					t.Fatalf("line %d %q on %v", k, l.Text(), l.BG)
 				}
 			}
 		}
-	}
-	// A running call keeps the running background.
-	live := BuildLines([]agent.Turn{{Role: llm.RoleAssistant, Code: "run()"}}, 80, JSOpts{Running: true, Exec: true, Elapsed: time.Second, Limit: time.Minute})
-	for _, l := range live {
-		if strings.Contains(l.Text(), "running") && l.BG != BgJSRun {
-			t.Fatalf("live footer on %v", l.BG)
+		if got := asideTexts(ls); len(got) != 1 || !strings.HasPrefix(got[0], "✕") {
+			t.Fatalf("%v", got)
 		}
 	}
-	if !strings.Contains(strings.Join(lineTexts(live), "\n"), "running 1.0s") {
-		t.Fatal("no live footer")
+	// A running call keeps the running background and counts up.
+	live := BuildLines([]agent.Turn{{Role: llm.RoleAssistant, Code: "run()"}}, 80, JSOpts{Running: true, Exec: true, Elapsed: time.Second, Limit: time.Minute})
+	if got := asideTexts(live); len(got) != 1 || got[0] != "⠋ 1.0s/60s" {
+		t.Fatalf("live badge: %v", got)
+	}
+	for _, l := range live {
+		if len(l.Aside) > 0 && l.BG != BgJSRun {
+			t.Fatalf("live badge on %v", l.BG)
+		}
+	}
+}
+
+func TestBadgeGetsOwnRowWhenCodeIsLong(t *testing.T) {
+	code := strings.Repeat("x", 60)
+	lines := BuildLines([]agent.Turn{jsTurn(code, nil)}, 40, JSOpts{})
+	texts := lineTexts(lines)
+	for k, l := range lines {
+		if len(l.Aside) > 0 && (l.Text() != "" || k+1 >= len(texts) || !strings.Contains(texts[k+1], "xxxx")) {
+			t.Fatalf("badge row %q is not an empty row above the code: %q", l.Text(), texts)
+		}
+	}
+	if len(asideTexts(lines)) != 1 {
+		t.Fatalf("%q", texts)
 	}
 }

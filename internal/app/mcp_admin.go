@@ -7,7 +7,9 @@ import (
 	"sort"
 	"time"
 
+	"meno/internal/config"
 	"meno/internal/mcp"
+	"meno/internal/safe"
 )
 
 // startWait is how long add/update/restart wait for a server to come up.
@@ -175,11 +177,14 @@ func (m mcpAdmin) change(fn func(sv []mcp.Server) ([]mcp.Server, string, error))
 		var note string
 		var next []mcp.Server
 		next, note, err = fn(old)
+		if err == nil {
+			err = guardFileServers(old, next)
+		}
 		if err != nil {
 			return
 		}
 		a.st.Servers = next
-		if perr := a.store.SaveServers(next); perr != nil {
+		if perr := a.store.SaveServers(config.OwnServers(next)); perr != nil {
 			a.notifyErr(perr.Error())
 		}
 		a.reconcileMCP(old)
@@ -197,6 +202,7 @@ func (m mcpAdmin) launch(ctx context.Context, s mcp.Server) map[string]any {
 	done := make(chan error, 1)
 	a.running.Add(1)
 	go func() {
+		defer safe.Recover(a.reportPanic)
 		defer a.running.Done()
 		err := a.mcp.Start(a.mcpCtx, s)
 		done <- err

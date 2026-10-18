@@ -7,6 +7,7 @@ import (
 
 	"meno/internal/agent"
 	"meno/internal/llm"
+	"meno/internal/safe"
 )
 
 func (a *App) submit() {
@@ -71,13 +72,13 @@ func (a *App) startTurn(msg agent.Message) {
 	}
 	sess, sid := a.st.Session, a.st.Session.ID
 	prov, model, effort := a.selection()
+	effort = llm.ClampEffort(a.effortsFor(prov, model), effort) // the model may not take the stored level
 	// Stamp the session: from now on it keeps this model, whatever the default becomes.
 	sess.Provider, sess.Model, sess.Effort = prov, model, effort
 	idx := sess.Len()
 	hasHistory := idx > 0 || sess.Summary != ""
 	if !cont {
 		sess.Append(agent.Turn{Role: llm.RoleUser, Text: msg.Text, Attachments: msg.Attachments})
-		a.st.PlanAt = sess.Len()
 	}
 	// Everything the goroutine needs is captured here; it must not touch a.st.
 	src, ps := a.worldSrc(), a.st.Prompt
@@ -87,23 +88,33 @@ func (a *App) startTurn(msg agent.Message) {
 		Events: a.eventSource(sid), AutoCompact: a.autoCompact(p, model), DebugPayload: a.debugPayload(),
 		VM: a.st.VM, Thinking: a.st.Settings.Thinking != "off", ModelTimeout: a.st.Settings.ModelTimeout(),
 		Emit:  func(e agent.Ev) { a.postEvent(agentEv{sid: sid, ev: e}) },
-		Retry: a.retry,
+		Retry: a.providerRetry(p),
 	}
 	hook := a.prepareHook
 	a.running.Add(1)
 	go func() {
+		defer safe.Recover(a.reportPanic)
 		defer a.running.Done()
 		defer cancel()
 		if hook != nil {
 			hook()
 		}
 		prep := prepare(ctx, ps, src, hasHistory)
-		if !cont {
+		switch {
+		case !cont:
 			sess.SetSystem(idx, prep.Event)
+		case prep.Event != "":
+			// A wake-up has no user message to carry the changes of the world, and
+			// the baseline moves on now: they go in as an event of their own.
+			sess.Append(agent.Turn{Role: llm.RoleUser, Kind: agent.KindEvent, Text: prep.Event, Time: time.Now().UTC()})
 		}
 		a.postEvent(preparedEv{sid, prep})
 		d.System = prep.State.Frozen
-		err := (&agent.Runner{D: d}).Continue(ctx, sess)
+		// A panic in the agent loop ends this turn with an error; the app keeps running.
+		var err error
+		if perr := safe.Call(func() { err = (&agent.Runner{D: d}).Continue(ctx, sess) }); perr != nil {
+			err = perr
+		}
 		a.postEvent(turnDone{sid: sid, err: err})
 	}()
 }

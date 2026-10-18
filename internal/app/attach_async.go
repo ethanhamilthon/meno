@@ -10,6 +10,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 
 	"meno/internal/attach"
+	"meno/internal/safe"
 	"meno/internal/ui"
 )
 
@@ -17,6 +18,7 @@ import (
 func (a *App) attachAsync(after bool, load func() (attach.Image, error)) {
 	sid := a.st.ID()
 	go func() {
+		defer safe.Recover(a.reportPanic)
 		img, err := load()
 		a.postEvent(imageReady{sid: sid, img: img, err: err, after: after})
 	}()

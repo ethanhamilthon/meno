@@ -7,6 +7,7 @@ import (
 
 	"fmt"
 	"meno/internal/agent"
+	"meno/internal/safe"
 	"meno/internal/ui"
 )
 
@@ -83,6 +84,7 @@ func (a *App) sendToChild(id, text string) {
 	a.running.Add(1)
 	owner, parent := a.st.RequestID, a.st.Session.ID
 	go func() {
+		defer safe.Recover(a.reportPanic)
 		defer a.running.Done()
 		recs, err := a.kids.store.Get(parent, id)
 		if err != nil {

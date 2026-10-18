@@ -35,11 +35,10 @@ type Runtime struct {
 	RequestID         string
 	lines             lineCache
 	Pick              *pickState          // the @ picker, nil when closed
-	Fps               []llm.Fingerprint   // fingerprints of the last two model requests
+	Reqs              []llm.Request       // the last two model requests
 	Kids              []agent.ChildRecord // subagents of this session, as last listed
 	Delegated         float64             // their spend, kept apart from this session's own
 	DelegatedUnpriced bool
-	Todo              *agent.Plan // the active plan as last changed; the UI draws this copy
 	Cancelled         map[string]bool
 
 	Running   bool
@@ -56,12 +55,8 @@ type Runtime struct {
 	RunTurns  int       // requests the model has answered
 	RunJS     int       // js calls finished
 	RunUsage0 llm.Usage // session usage when the run began
-	// PlanAt is the timeline position (turns before it) where the plan block
-	// sits: right after the message that started the latest run. It stays put
-	// while the run streams, so nothing below it jumps. 0 = unknown.
-	PlanAt   int
-	LogLines int
-	Scroll   int
+	LogLines  int
+	Scroll    int
 
 	LastUsage llm.Usage
 	Usage     llm.Usage
@@ -121,13 +116,6 @@ func (a *App) newRuntime(sess *agent.Session, cwd string) *Runtime {
 	}
 	if a.kids != nil && sess.Kind != agent.KindChild {
 		rt.VM.SetAgents(parentAgents{a, a.kids, sess.ID}, false)
-	}
-	if td, err := agent.NewTodo(a.paths.Home, sess.ID, sess.ExecBoundary); err == nil {
-		rt.VM.SetTodo(todoHost{a, sess.ID, td})
-		rt.Todo, _ = td.Active()
-	}
-	if kv, err := agent.OpenKV(a.paths.Home, sess.ID, agent.NSState); err == nil {
-		rt.VM.SetState(jsState{kv, sess})
 	}
 	a.rts[sess.ID] = rt
 	a.rtList = append(a.rtList, rt)
@@ -193,6 +181,17 @@ func (a *App) selection() (provider, model, effort string) {
 	}
 	st := a.st.Settings
 	return st.Provider, st.Model, st.Effort
+}
+
+// stampSelection freezes the default model into a stored session that has no
+// complete one, so a later :model in another session cannot move it.
+func (a *App) stampSelection(s *agent.Session) {
+	if s.Provider != "" && s.Model != "" {
+		return
+	}
+	if st := a.st.Settings; st.Provider != "" && st.Model != "" {
+		s.Provider, s.Model, s.Effort = st.Provider, st.Model, st.Effort
+	}
 }
 
 // setSelection gives the current session a model. It also becomes the default

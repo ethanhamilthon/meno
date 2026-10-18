@@ -11,6 +11,7 @@ import (
 	"meno/internal/agent"
 	"meno/internal/jsvm"
 	"meno/internal/llm"
+	"meno/internal/safe"
 )
 
 // childRun is a subagent that exists in this run of meno: its session, its
@@ -132,6 +133,7 @@ func (m *childMgr) start(c *childRun) {
 	_ = m.store.Save(rec)
 	m.wg.Add(1)
 	go func() {
+		defer safe.Recover(nil) // contains a panic; m.finish is then not called, so the child stays running
 		defer m.wg.Done()
 		defer cancel()
 		err := (&agent.Runner{D: deps}).Continue(ctx, c.sess)

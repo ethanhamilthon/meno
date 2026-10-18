@@ -5,8 +5,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gdamore/tcell/v2"
-
 	"meno/internal/agent"
 )
 
@@ -67,26 +65,6 @@ func FmtCost(c float64) string {
 	return fmt.Sprintf("$%.2f", c)
 }
 
-// barCells is the width of the progress bar.
-const barCells = 20
-
-// bar draws a progress bar of n cells for frac (0..1). It is full only at 100%
-// and never empty above 0, so a tiny or nearly complete share still shows.
-func bar(frac float64, n int, fill tcell.Color) []Seg {
-	if frac != frac || frac < 0 {
-		frac = 0
-	}
-	frac = min(frac, 1)
-	f := int(frac*float64(n) + 0.5)
-	if frac > 0 && f == 0 {
-		f = 1
-	}
-	if frac < 1 && f == n {
-		f = n - 1
-	}
-	return []Seg{{Text: strings.Repeat("█", f), FG: fill}, {Text: strings.Repeat("░", n-f), FG: FgDim}}
-}
-
 var spinner = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 
 func spinFrame(i int) string {
@@ -97,69 +75,6 @@ func spinFrame(i int) string {
 // slowCall is a call that took at least half of its limit, or ten seconds.
 func slowCall(t agent.Turn) bool {
 	return t.TimedOut || t.ElapsedMs >= 10000 || t.LimitMs > 0 && t.ElapsedMs*2 >= t.LimitMs
-}
-
-// timingFooter is the line under a js call: how long it ran, and how close it
-// came to its limit. ok is false when nothing should be shown.
-func timingFooter(t agent.Turn, js JSOpts) (segs []Seg, ok bool) {
-	if js.Exec {
-		d := js.Elapsed
-		segs = []Seg{{Text: spinFrame(js.Spin), FG: Yellow}, {Text: " running ", FG: FgSoft}, {Text: FmtDur(d), FG: Yellow}}
-		if js.Limit > 0 {
-			segs = append(segs, Seg{Text: "   "})
-			segs = append(segs, bar(float64(d)/float64(js.Limit), barCells, Yellow)...)
-			segs = append(segs, Seg{Text: "  of " + FmtDur(js.Limit) + " limit", FG: FgDim})
-		}
-		return segs, js.Timing != TimingOff
-	}
-	if js.Timing == TimingOff || t.ElapsedMs <= 0 && !t.TimedOut {
-		return nil, false
-	}
-	if js.Timing == TimingSlow && !slowCall(t) {
-		return nil, false
-	}
-	took := time.Duration(t.ElapsedMs) * time.Millisecond
-	limit := time.Duration(t.LimitMs) * time.Millisecond
-	switch {
-	case t.TimedOut:
-		if limit <= 0 {
-			limit = took
-		}
-		segs = []Seg{{Text: "◷", FG: Red}, {Text: " timed out after " + FmtDur(limit), FG: Red, Bold: true}, {Text: "   "}}
-		segs = append(segs, bar(1, barCells, Red)...)
-	case t.Err != "":
-		segs = []Seg{{Text: "✕", FG: Red}, {Text: " " + FmtDur(took), FG: Red}}
-	case slowCall(t):
-		segs = []Seg{{Text: "✓", FG: Yellow}, {Text: " " + FmtDur(took), FG: Yellow}}
-		if limit > 0 {
-			frac := float64(took) / float64(limit)
-			segs = append(segs, Seg{Text: "   "})
-			segs = append(segs, bar(frac, barCells, Yellow)...)
-			segs = append(segs, Seg{Text: fmt.Sprintf("  %d%% of %s limit", min(100, int(frac*100+0.5)), FmtDur(limit)), FG: FgDim})
-		}
-	default:
-		segs = []Seg{{Text: "✓", FG: Green}, {Text: " " + FmtDur(took), FG: FgDim}}
-	}
-	return segs, true
-}
-
-// fitFooter drops what does not fit, last first: the limit text, then the whole
-// bar. The duration itself always stays.
-func fitFooter(segs []Seg, w int) []Seg {
-	isBar := func(s Seg) bool { return strings.ContainsAny(s.Text, "█░") }
-	for segsWidth(segs) > w && len(segs) > 2 {
-		if !isBar(segs[len(segs)-1]) {
-			segs = segs[:len(segs)-1]
-			continue
-		}
-		for len(segs) > 2 && isBar(segs[len(segs)-1]) {
-			segs = segs[:len(segs)-1]
-		}
-		if n := len(segs); n > 2 && strings.TrimSpace(segs[n-1].Text) == "" {
-			segs = segs[:n-1]
-		}
-	}
-	return segs
 }
 
 func plural(n int, one string) string {

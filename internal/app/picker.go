@@ -10,6 +10,7 @@ import (
 
 	"meno/internal/objtag"
 	"meno/internal/pathsearch"
+	"meno/internal/safe"
 	"meno/internal/ui"
 )
 
@@ -93,6 +94,7 @@ func (a *App) pickSync() {
 	home, _ := os.UserHomeDir()
 	a.running.Add(1)
 	go func() {
+		defer safe.Recover(a.reportPanic)
 		defer a.running.Done()
 		base, fuzzy, dir := pathsearch.Resolve(cwd, home, query)
 		items := pathsearch.Search(ctx, base, fuzzy, 50)

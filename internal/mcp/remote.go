@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"meno/internal/safe"
 	"net/http"
 	"net/url"
 	"strings"
@@ -83,6 +84,7 @@ func (r *remote) Write(b []byte) (int, error) {
 	}
 	_ = json.Unmarshal(body, &head)
 	go func() {
+		defer safe.Recover(nil)
 		err := r.post(body)
 		if err != nil && head.ID != nil && head.Method != "" {
 			r.conn.fail(*head.ID, err)
@@ -197,6 +199,7 @@ func startSSE(ctx context.Context, s Server) (*Client, error) {
 	}
 	ready := make(chan error, 1)
 	go func() {
+		defer safe.Recover(nil)
 		defer resp.Body.Close()
 		announced := false
 		err := readSSE(resp.Body, func(event, data string) {

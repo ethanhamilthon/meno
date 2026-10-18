@@ -3,14 +3,15 @@ package agent
 import (
 	"errors"
 	"strings"
+	"time"
 	"unicode"
 )
 
-// MaxTitleWords is the longest session name; agents are told to aim for four.
-const MaxTitleWords = 6
+// MaxTitleRunes is the longest session name.
+const MaxTitleRunes = 80
 
-// NormalizeTitle validates a session name given by the agent: trimmed, one
-// line, no control characters, one to six words.
+// NormalizeTitle validates a session name typed by the user: trimmed, one
+// line, no control characters, at most MaxTitleRunes characters.
 func NormalizeTitle(name string) (string, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
@@ -24,8 +25,8 @@ func NormalizeTitle(name string) (string, error) {
 			return "", errors.New("session name must not contain control characters")
 		}
 	}
-	if n := len(strings.Fields(name)); n > MaxTitleWords {
-		return "", errors.New("session name is too long: use at most 6 words, ideally 4")
+	if len([]rune(name)) > MaxTitleRunes {
+		return "", errors.New("session name is too long: use at most 80 characters")
 	}
 	return name, nil
 }
@@ -51,6 +52,6 @@ func RenameSession(dir, id, title string) error {
 		return err
 	}
 	_, err = d.Exec(`INSERT INTO sessions(id,title,updated_at) VALUES(?,?,?)
-		ON CONFLICT(id) DO UPDATE SET title = excluded.title`, id, title, ts(timeNow()))
+		ON CONFLICT(id) DO UPDATE SET title = excluded.title`, id, title, ts(time.Now()))
 	return err
 }

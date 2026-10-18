@@ -27,11 +27,7 @@ func (a *App) transcriptWithSelection(w int) []ui.Line {
 		out = append(out, lines...)
 	}
 	notices := a.currentNotices()
-	planAt := a.planAnchor(turns)
 	for i := 0; i <= len(turns); i++ {
-		if i == planAt {
-			appendLines(ui.PlanLines(a.st.Todo, w, a.st.Settings.TodoCollapsed))
-		}
 		for _, n := range notices {
 			if n.After != i {
 				continue

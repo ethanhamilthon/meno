@@ -10,12 +10,26 @@ const (
 	ProtoChat      = "chat completions"
 )
 
+// SourceFile marks a provider read from provider.json: it is read only and
+// never saved to the database.
+const SourceFile = "file"
+
 type Provider struct {
 	Name     string `json:"name"`
 	BaseURL  string `json:"base_url"`
 	APIKey   string `json:"api_key"`
 	Protocol string `json:"protocol"`
+	Source   string `json:"-"`
+	// Run is a shell command meno starts at launch (for a local proxy) and stops
+	// at exit. It is not waited for: a request that fails while the proxy is
+	// starting is retried.
+	Run string `json:"run,omitempty"`
+	// Models holds the user's own settings for single models, by model id.
+	Models map[string]ModelSettings `json:"models,omitempty"`
 }
+
+// FromFile reports whether the provider is defined in provider.json.
+func (p Provider) FromFile() bool { return p.Source == SourceFile }
 
 func Validate(p Provider) error {
 	if strings.TrimSpace(p.Name) == "" {
@@ -31,7 +45,7 @@ func Validate(p Provider) error {
 	if p.Protocol != ProtoResponses && p.Protocol != ProtoChat {
 		return errors.New("protocol must be responses or chat completions")
 	}
-	return nil
+	return ValidateModels(p.Models)
 }
 
 func Mask(key string) string {

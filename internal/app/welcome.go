@@ -10,6 +10,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 
 	"meno/internal/ui"
+	"meno/internal/version"
 )
 
 // logoRows is the MENO wordmark: four 5x7 pixel letters, each pixel three
@@ -34,8 +35,10 @@ const (
 	compactBlockH = 5
 	waveRamp      = " .:-=+*#"
 	tagline       = "efficient and stable AI harness"
-	versionLabel  = "v0.1"
 )
+
+// versionLabel is shown on the welcome screen and in the help title.
+var versionLabel = version.Label()
 
 // waveTick wakes the render loop while the welcome screen animates.
 type waveTick struct{}

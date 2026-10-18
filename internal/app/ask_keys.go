@@ -36,23 +36,23 @@ func (a *App) askKey(k *tcell.EventKey) {
 	if st.Focus != focusBody {
 		if k.Key() == tcell.KeyEnter || k.Rune() == ' ' {
 			a.askActivate(st.Focus)
-		} else if k.Key() == tcell.KeyLeft || k.Rune() == 'h' {
+		} else if k.Key() == tcell.KeyLeft || isKey(k, 'h') {
 			st.Focus = max(focusBody, st.Focus-1)
-		} else if k.Key() == tcell.KeyRight || k.Rune() == 'l' {
+		} else if k.Key() == tcell.KeyRight || isKey(k, 'l') {
 			st.Focus = min(focusCancel, st.Focus+1)
-		} else if k.Key() == tcell.KeyUp || k.Rune() == 'k' {
+		} else if k.Key() == tcell.KeyUp || isKey(k, 'k') {
 			st.Focus = focusBody
 		}
 		return
 	}
 	switch {
-	case k.Key() == tcell.KeyUp || k.Rune() == 'k':
+	case k.Key() == tcell.KeyUp || isKey(k, 'k'):
 		st.Row = max(0, st.Row-1)
-	case k.Key() == tcell.KeyDown || k.Rune() == 'j':
+	case k.Key() == tcell.KeyDown || isKey(k, 'j'):
 		st.Row = min(st.rows()-1, st.Row+1)
-	case k.Key() == tcell.KeyLeft || k.Rune() == 'h' || k.Rune() == '[':
+	case k.Key() == tcell.KeyLeft || isKey(k, 'h') || isKey(k, '['):
 		a.askMove(-1)
-	case k.Key() == tcell.KeyRight || k.Rune() == 'l' || k.Rune() == ']':
+	case k.Key() == tcell.KeyRight || isKey(k, 'l') || isKey(k, ']'):
 		a.askMove(1)
 	case k.Key() == tcell.KeyEnter || k.Rune() == ' ':
 		a.askPressRow()

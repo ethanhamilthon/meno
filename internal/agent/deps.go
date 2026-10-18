@@ -26,8 +26,9 @@ type Ev struct {
 	Elapsed  time.Duration
 	TimedOut bool
 	Usage    llm.Usage
-	// Fp describes the request an EvRequest announces (lengths and hashes only).
-	Fp       *llm.Fingerprint
+	// Req is the request an EvRequest announces. Fingerprinting it costs a pass
+	// over the whole history, so the consumer does that only when it needs to.
+	Req      *llm.Request
 	Provider llm.Provider
 	Model    string
 	// Turns is the session length when the event was emitted, so the UI can tell
@@ -47,7 +48,7 @@ const (
 	EvAborted = "aborted"
 	// EvInjected: queued user messages or steering events were added to the session.
 	EvInjected = "injected"
-	// EvRequest: a model request is about to be sent; Fp is its fingerprint.
+	// EvRequest: a model request is about to be sent; Req is that request.
 	EvRequest = "request"
 	// EvRetry: the request failed and will be sent again; whatever it streamed
 	// so far is void.

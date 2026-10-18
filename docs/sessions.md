@@ -1,7 +1,7 @@
 # Sessions, history and events
 
 Several sessions run at once. Each has its own conversation, working directory,
-model, effort, counters, state, plan, pending question and half-typed message;
+model, effort, counters, pending question and half-typed message;
 providers, MCP servers and settings are shared.
 
 - `:sessions` lists the last 200 main sessions of all projects (children are never
@@ -11,12 +11,13 @@ providers, MCP servers and settings are shared.
 - `:fork` makes a new independent session from an earlier message (default: the
   latest). The boundary is widened to a whole tool-call group; the fork gets the
   history up to it, the summary that was valid *then* (never one that mentions later
-  facts), model, effort, directory, state and plan as they were. No model call is
-  made; the next message tells the agent it is a fork and asks it to name the session.
+  facts), model, effort, and directory as they were. No model call is
+  made.
   Files and Git are not rewound; running tasks and children are not cloned; inherited
   history is not charged as new spending. A missing directory must be chosen with
   `:cd` first. Sessions created before the version journal existed can be forked as
-  conversation only (state and plan start empty, and meno says so).
+  conversation only (meno says so).
+- `:rename <name>` renames the session. Until then its name is the start of your first message; the agent cannot rename it.
 - `:cd <path>` changes this session's directory (refused while it runs).
 - `:compact` and the safety net summarize the old part of the context. The full
   original history stays in the database with stable message IDs; the active context
@@ -41,13 +42,3 @@ started because of it belongs to the new request. The model sees events in
 `<event source=… from=… kind=…>` wrappers with escaped content; your words to a subagent
 arrive as `<user-message>`. After a crash nothing is restarted: unfinished tasks and
 children are marked interrupted.
-
-## Looking through history
-
-`sessions.list({workdir?, after?, before?, limit?, cursor?})`, `sessions.search(query, …)`
-(literal, case-insensitive text search over titles and messages) and
-`sessions.read(id, {from?, limit?, includeToolOutput?, includeThinking?})` work over all
-local sessions with opaque cursors (default page 20, max 100; reads default to 50
-records within 64 KiB). Tool output and thinking are omitted unless asked and the
-omission is reported with its size. A session can read its own children by ID; children
-can read only themselves.

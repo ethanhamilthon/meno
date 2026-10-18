@@ -27,7 +27,7 @@ func TestForkReconstructsStateAtBoundary(t *testing.T) {
 	home := t.TempDir()
 	t.Cleanup(CloseSessionStores)
 	s := NewSession(t.TempDir(), "m")
-	kv, err := OpenKV(home, s.ID, NSState)
+	kv, err := OpenKV(home, s.ID, NSData)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,7 +57,7 @@ func TestForkReconstructsStateAtBoundary(t *testing.T) {
 		if err != nil || warn != "" {
 			t.Fatalf("fork at %d: %v %q", hid, err, warn)
 		}
-		fkv, _ := OpenKV(home, f.ID, NSState)
+		fkv, _ := OpenKV(home, f.ID, NSData)
 		got := ""
 		es, _ := fkv.Entries()
 		for i, e := range es {
@@ -75,7 +75,7 @@ func TestForkReconstructsStateAtBoundary(t *testing.T) {
 	}
 	// Independence: writing to a fork leaves the source alone.
 	f, _, _ := ForkSession(home, s.ID, 4, "")
-	fkv, _ := OpenKV(home, f.ID, NSState)
+	fkv, _ := OpenKV(home, f.ID, NSData)
 	_ = fkv.Set("only", "1", 5)
 	if m := entriesMap(t, kv, 99); len(m) != 1 || m["a"] != "2" {
 		t.Fatalf("source changed: %v", m)
@@ -142,7 +142,7 @@ func TestForkMissingCwdAndLegacyWarning(t *testing.T) {
 func TestStateLimitsAndAtomicFailure(t *testing.T) {
 	home := t.TempDir()
 	t.Cleanup(CloseSessionStores)
-	kv, _ := OpenKV(home, "s", NSState)
+	kv, _ := OpenKV(home, "s", NSData)
 	kv.MaxValue, kv.MaxTotal = 10, 15
 	if err := kv.Set("a", "123456789", 1); err != nil {
 		t.Fatal(err)

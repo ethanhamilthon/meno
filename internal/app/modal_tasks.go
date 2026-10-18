@@ -7,6 +7,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 
 	"meno/internal/proc"
+	"meno/internal/safe"
 	"meno/internal/ui"
 )
 
@@ -46,6 +47,7 @@ func (a *App) refreshTasks() {
 	sid, logID := a.st.Session.ID, a.st.TasksUI.LogID
 	a.running.Add(1)
 	go func() {
+		defer safe.Recover(a.reportPanic)
 		defer a.running.Done()
 		rows, _ := a.tasks.List(sid, true)
 		var logs proc.LogSlice
@@ -85,13 +87,13 @@ func (a *App) tasksKey(k *tcell.EventKey) {
 		v.LogID = rows[clampSel(a.st.Sel, len(rows))].ID
 		v.Logs = proc.LogSlice{}
 		a.refreshTasks()
-	case k.Rune() == 'c' && len(rows) > 0:
+	case isKey(k, 'c') && len(rows) > 0:
 		t := rows[clampSel(a.st.Sel, len(rows))]
 		if !t.Terminal() {
 			_, _ = a.tasks.Cancel(t.Session, t.ID)
 			a.notify("cancelling task " + t.ID)
 		}
-	case k.Rune() == 'f':
+	case isKey(k, 'f'):
 		v.HideDone = !v.HideDone
 		a.st.Sel = 0
 	}

@@ -117,7 +117,7 @@ func TestMCPServersStartAtLaunchAndReachJS(t *testing.T) {
 	if r := a.st.VM.Exec(contextBackground(), "mcp.fake.echo({msg: 'hi'}).text"); r.Value != "echo:hi" || r.Err != "" {
 		t.Fatalf("js call: %+v", r)
 	}
-	if got := a.systemPrompt(); !strings.Contains(got, "mcp.fake.echo({msg: string}) — echo back") {
+	if got := a.systemPrompt(); !strings.Contains(got, "## MCP servers\n- fake (1 tool): echo") {
 		t.Fatalf("tool missing from the prompt:\n%s", got)
 	}
 	a.openOverlay(OverMCP)

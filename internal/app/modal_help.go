@@ -6,6 +6,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 
 	"meno/internal/ui"
+	"meno/internal/version"
 )
 
 type helpRow struct{ key, desc string }
@@ -39,7 +40,7 @@ var helpRows = []helpRow{
 	{":sessions", "switch sessions"},
 	{":new", "start a clean session (others keep running)"},
 	{":fork", "fork from a message"},
-	{":todo", "fold / unfold the agent plan"},
+	{":rename <name>", "rename this session (default: your first message)"},
 	{":tasks", "background processes: logs, cancel"},
 	{":agents", "working subagents: watch, message"},
 	{":cache", "how much of the last request repeated the one before"},
@@ -54,11 +55,11 @@ var helpRows = []helpRow{
 
 func (a *App) helpKey(k *tcell.EventKey) {
 	switch {
-	case k.Rune() == 'q' || k.Key() == tcell.KeyEnter:
+	case isKey(k, 'q') || k.Key() == tcell.KeyEnter:
 		a.closeOverlay()
-	case k.Key() == tcell.KeyDown || k.Rune() == 'j':
+	case k.Key() == tcell.KeyDown || isKey(k, 'j'):
 		a.st.Sel++
-	case k.Key() == tcell.KeyUp || k.Rune() == 'k':
+	case k.Key() == tcell.KeyUp || isKey(k, 'k'):
 		a.st.Sel = max(a.st.Sel-1, 0)
 	}
 }
@@ -76,7 +77,7 @@ func (a *App) drawHelp(c ui.Canvas, w, h int) {
 	if b.w < ui.TextWidth(title)+10 {
 		title = "help · meno"
 	}
-	titleRow(title, "v0.1")(c, b)
+	titleRow(title, version.Label())(c, b)
 	keyWidth := 16
 	if b.w < 60 {
 		keyWidth = 10

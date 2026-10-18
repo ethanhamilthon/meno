@@ -1,23 +1,6 @@
 package agent
 
-import (
-	"strconv"
-
-	"meno/internal/llm"
-)
-
-// applyScheduled applies a compaction the agent scheduled during the batch and
-// tells the model how much context stayed, as a note the application writes
-// onto the batch's last result.
-func (r *Runner) applyScheduled(s *Session) {
-	kept, ok := s.ApplyScheduled()
-	if !ok {
-		return
-	}
-	note := "\n<system-event>context compacted: " + strconv.Itoa(kept) + " recent messages kept; older ones are summarized and remain retrievable with sessions.read</system-event>"
-	s.ensureLog().AppendToLastOutput(note)
-	r.emit(s, Ev{Kind: EvInjected})
-}
+import "meno/internal/llm"
 
 // inject adds the queued user messages to the session as one turn.
 func (r *Runner) inject(s *Session) {

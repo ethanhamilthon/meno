@@ -10,6 +10,7 @@ import (
 
 	"meno/internal/agent"
 	"meno/internal/prompt"
+	"meno/internal/safe"
 	"meno/internal/ui"
 )
 
@@ -87,6 +88,7 @@ func (a *App) openSessions() {
 	a.openOverlay(OverSessions)
 	a.running.Add(1)
 	go func() {
+		defer safe.Recover(a.reportPanic)
 		defer a.running.Done()
 		list, err := agent.ListRecentSessions(a.paths.Home, maxSessionRows)
 		a.postEvent(sessionsLoaded{list, err})
@@ -130,6 +132,7 @@ func (a *App) openSession(id string) {
 		a.notifyErr("open failed: " + err.Error())
 		return
 	}
+	a.stampSelection(s)
 	cwd, storedCwd := s.Cwd, s.Cwd
 	missing := cwd == "" || !dirExists(cwd)
 	if missing {
@@ -141,9 +144,6 @@ func (a *App) openSession(id string) {
 	rt.LastUsage, rt.Usage, rt.Spent, rt.Context, rt.Unpriced = s.Metrics.LastUsage, s.Metrics.Usage, s.Metrics.Spent, s.Metrics.Context, s.Metrics.Unpriced
 	if !rt.Empty() && missing && storedCwd != "" {
 		rt.Prompt.CwdFrom = storedCwd // the prompt is built at the first message
-	}
-	if s.ForkSource != "" && !hasTurnAfter(s, s.ForkBoundary) {
-		rt.Prompt.ForkEvent = true
 	}
 	a.switchTo(rt)
 	a.notify("session opened")

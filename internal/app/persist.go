@@ -1,15 +1,19 @@
 package app
 
-import "time"
+import (
+	"time"
+
+	"meno/internal/config"
+)
 
 func (a *App) persistProviders() {
-	if err := a.store.SaveProviders(a.st.Providers); err != nil {
+	if err := a.store.SaveProviders(config.OwnProviders(a.st.Providers)); err != nil {
 		a.notifyErr(err.Error())
 	}
 }
 
 func (a *App) persistServers() {
-	if err := a.store.SaveServers(a.st.Servers); err != nil {
+	if err := a.store.SaveServers(config.OwnServers(a.st.Servers)); err != nil {
 		a.notifyErr(err.Error())
 	}
 }

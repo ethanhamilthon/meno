@@ -1,10 +1,14 @@
 GO ?= go
 BIN ?= meno
 
-.PHONY: build install run test race vet fmt size check term bench clean
+.PHONY: version build install run test race vet fmt size check term bench clean
 
 build:
 	$(GO) build -o $(BIN) ./cmd/meno
+
+# Prints the current version (edit internal/version/VERSION to change it).
+version:
+	@cat internal/version/VERSION
 
 install:
 	$(GO) install ./cmd/meno

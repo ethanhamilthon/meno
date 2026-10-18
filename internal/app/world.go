@@ -59,6 +59,10 @@ type worldSrc struct {
 	Servers []mcp.Server // configured servers (copy)
 	Now     time.Time
 	Model   modelSig // the session's model
+	// NoMCPWait takes the servers as they are instead of waiting for those still
+	// starting. A prompt is built from them, so only that waits; the next look
+	// reports a server that came up in the meantime as an event.
+	NoMCPWait bool
 }
 
 // maxMCPWait is how long a prompt build waits for MCP servers that are still
@@ -70,7 +74,9 @@ const maxMCPWait = 3 * time.Second
 func (w worldSrc) gather(ctx context.Context) (world, []string) {
 	var out world
 	var warnings []string
-	w.MCP.WaitReady(ctx, maxMCPWait)
+	if !w.NoMCPWait {
+		w.MCP.WaitReady(ctx, maxMCPWait)
+	}
 	in := prompt.Input{Cwd: w.Paths.Cwd, Now: w.Now, OS: prompt.DescribeOS(), Shell: "/bin/sh",
 		Provider: w.Model.Provider, Model: w.Model.Model, Effort: w.Model.Effort}
 	b := &baseline{
@@ -172,13 +178,13 @@ func diffBaseline(old, cur *baseline) []string {
 	}
 	out = append(out, diffMCP(old.MCP, cur.MCP)...)
 	if old.Date != cur.Date {
-		out = append(out, "<date-changed>The date is now "+formatDay(cur.Date)+".</date-changed>")
+		out = append(out, evLine("date-changed", "The date is now "+formatDay(cur.Date)+"."))
 	}
 	if old.Model != cur.Model && cur.Model.Model != "" {
-		out = append(out, "<model-changed>Your model changed from "+describeSig(old.Model)+" to "+describeSig(cur.Model)+". Earlier assistant messages in this conversation were written by the previous model; the Environment section of your system prompt still names it.</model-changed>")
+		out = append(out, evLine("model-changed", "Your model changed from "+describeSig(old.Model)+" to "+describeSig(cur.Model)+". Earlier assistant messages in this conversation were written by the previous model; the Environment section of your system prompt still names it."))
 	}
 	if old.Cwd != cur.Cwd {
-		out = append(out, "<cwd-changed>The working directory changed from "+old.Cwd+" to "+cur.Cwd+". Relative paths and sh() now use "+cur.Cwd+". Project skills and AGENTS.md of "+cur.Cwd+" are not in your system prompt; see the other events and reread them.</cwd-changed>")
+		out = append(out, evLine("cwd-changed", "The working directory changed from "+old.Cwd+" to "+cur.Cwd+". Relative paths and sh() now use "+cur.Cwd+". Project skills and AGENTS.md of "+cur.Cwd+" are not in your system prompt; see the other events and reread them."))
 	}
 	return out
 }
@@ -213,14 +219,14 @@ func diffSkills(old, cur map[string]skillSig) []string {
 		o, had := old[name]
 		switch n := cur[name]; {
 		case !had:
-			out = append(out, fmt.Sprintf("<skills-added>Skill %q is now available: %s</skills-added>", name, n.Path))
+			out = append(out, evLine("skills-added", fmt.Sprintf("Skill %q is now available: %s", name, n.Path)))
 		case o != n:
-			out = append(out, fmt.Sprintf("<skills-updated>Skill %q was updated: reread %s before you use it.</skills-updated>", name, n.Path))
+			out = append(out, evLine("skills-updated", fmt.Sprintf("Skill %q was updated: reread %s before you use it.", name, n.Path)))
 		}
 	}
 	for _, name := range sortedKeys(old) {
 		if _, ok := cur[name]; !ok {
-			out = append(out, fmt.Sprintf("<skills-removed>Skill %q is no longer available.</skills-removed>", name))
+			out = append(out, evLine("skills-removed", fmt.Sprintf("Skill %q is no longer available.", name)))
 		}
 	}
 	return out
@@ -232,11 +238,11 @@ func diffAgents(key string, old, cur fileSig) string {
 	case !old.Exists && !cur.Exists:
 		return ""
 	case !old.Exists:
-		return "<agents-md-updated>" + title + " were added: read " + cur.Path + ".</agents-md-updated>"
+		return evLine("agents-md-updated", title+" were added: read "+cur.Path+".")
 	case !cur.Exists:
-		return "<agents-md-updated>" + title + " were removed: " + old.Path + " is gone.</agents-md-updated>"
+		return evLine("agents-md-updated", title+" were removed: "+old.Path+" is gone.")
 	case old != cur:
-		return "<agents-md-updated>" + title + " changed: reread " + cur.Path + ".</agents-md-updated>"
+		return evLine("agents-md-updated", title+" changed: reread "+cur.Path+".")
 	}
 	return ""
 }

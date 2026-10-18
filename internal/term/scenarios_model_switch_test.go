@@ -17,14 +17,14 @@ func TestModelSwitchProducesSystemEvent(t *testing.T) {
 	f.Handler = func(q *llmReq) { q.Text("noted") }
 	s := start(t, options{fake: f})
 	s.Say("first message")
-	s.WaitFor("↓ 100")
+	s.WaitFor("100/20")
 	s.Cmd("model")
 	s.WaitFor("other-model")
 	s.Send(Down + Enter)
 	s.WaitGone("search models")
 	s.WaitFor("other-model (")
 	s.Say("second message")
-	s.WaitFor("↓ 200")
+	s.WaitFor("200/40")
 	bodies := f.Bodies()
 	if len(bodies) != 2 {
 		t.Fatalf("requests: %d", len(bodies))
@@ -104,11 +104,11 @@ func TestCdProducesSystemEvent(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.Say("first")
-	s.WaitFor("↓ 100")
+	s.WaitFor("100/20")
 	s.Cmd("cd sub")
 	s.WaitFor("working directory")
 	s.Say("second")
-	s.WaitFor("↓ 200")
+	s.WaitFor("200/40")
 	bodies := f.Bodies()
 	if strings.Contains(bodies[0], "cwd-changed") {
 		t.Fatal("no event before the change")

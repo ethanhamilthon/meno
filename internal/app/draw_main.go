@@ -38,7 +38,11 @@ func (a *App) logGap() int {
 	return 1
 }
 
-func (a *App) bottomHeight() int {
+func (a *App) bottomHeight() int { return a.bottomBase() }
+
+// bottomBase is the bottom area: input, completions,
+// status bar and the gap above them.
+func (a *App) bottomBase() int {
 	if a.st.Mode == ui.ModeCommand {
 		w, _ := a.scr.Size()
 		return acRowCount(len(commandRows(a)), w) + 1 + a.logGap()
@@ -95,11 +99,10 @@ func (a *App) drawStatus(c ui.Canvas, x, y, w int) {
 		}
 	}
 	left := []ui.Seg{{Text: " " + label + " ", FG: ui.FgBlack}}
-	center := a.statusUsageText()
+	// The room between the mode badge and the model, which stay in view.
+	room := w - ui.TextWidth(label) - 2 - ui.TextWidth(a.modelLabel()) - 3 - ui.TextWidth(bgBadge(a.bgCount(a.st.Session.ID))) - 6
+	center := a.statusUsage(room)
 	midColor := ui.FgDim
-	if rt := a.runningText(); rt != "" {
-		center, midColor = rt, ui.FgSoft
-	}
 	if hint := a.visualHint(); hint != "" {
 		center, midColor = hint, ui.FgDim
 	}
@@ -128,6 +131,10 @@ func (a *App) drawStatus(c ui.Canvas, x, y, w int) {
 		}
 	}
 	right := []ui.Seg{{Text: dot, FG: color}, {Text: a.modelLabel(), FG: ui.FgDim}, {Text: " ", FG: ui.FgDim}}
+	if b := bgBadge(a.bgCount(a.st.Session.ID)); b != "" {
+		// Background tasks or subagents of this session: a purple blinking marker by the model.
+		right = append([]ui.Seg{{Text: b + "  ", FG: bgColor()}}, right...)
+	}
 	ui.DrawBar(c, x, y, w, ui.BgTerm, left, mid, right)
 	ui.Badge(c, x, y, label, a.st.Mode.Color())
 }

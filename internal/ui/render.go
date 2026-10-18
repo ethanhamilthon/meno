@@ -10,6 +10,14 @@ func DrawLine(c Canvas, x, y, w int, l Line) {
 	for _, s := range l.Segs {
 		cx += c.Text(cx, y, x+w-cx, s.Text, s.style(l.BG))
 	}
+	if aw := segsWidth(l.Aside); aw > 0 {
+		ax := x + w - padX - aw
+		if ax > cx {
+			for _, s := range l.Aside {
+				ax += c.Text(ax, y, x+w-ax, s.Text, s.style(l.BG))
+			}
+		}
+	}
 }
 
 // style is the cell style of the segment on a line with background bg.

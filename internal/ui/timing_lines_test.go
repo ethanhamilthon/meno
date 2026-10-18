@@ -11,40 +11,29 @@ import (
 func TestBuildLinesTimingWithHiddenOrLimitedCode(t *testing.T) {
 	long := "a()\nb()\nc()\nd()\ne()\nf()"
 	lines := BuildLines([]agent.Turn{jsTurn(long, nil)}, 80, JSOpts{Mode: JSLines, Lines: 2})
-	texts := strings.Join(lineTexts(lines), "\n")
-	if !strings.Contains(texts, "…") || !strings.Contains(texts, "✓ 3.2s") || strings.Index(texts, "…") > strings.Index(texts, "✓") {
-		t.Fatalf("%s", texts)
+	if got := asideTexts(lines); len(got) != 1 || got[0] != "✓ 3.2s" || len(lines[2].Aside) == 0 || !strings.Contains(lines[2].Text(), "a()") {
+		t.Fatalf("%v %q", got, lineTexts(lines))
 	}
 	// With the code hidden a fine call shows no timing, a failure still does.
 	hidden := JSOpts{Mode: JSOff}
-	if got := strings.Join(lineTexts(BuildLines([]agent.Turn{jsTurn("run()", nil)}, 80, hidden)), "\n"); strings.Contains(got, "✓") || strings.Contains(got, "run()") {
-		t.Fatalf("%s", got)
+	if got := BuildLines([]agent.Turn{jsTurn("run()", nil)}, 80, hidden); len(asideTexts(got)) != 0 || strings.Contains(strings.Join(lineTexts(got), "\n"), "run()") {
+		t.Fatalf("%q", lineTexts(got))
 	}
 	failed := BuildLines([]agent.Turn{jsTurn("run()", func(t *agent.Turn) { t.Err = "boom" })}, 80, hidden)
-	if got := strings.Join(lineTexts(failed), "\n"); !strings.Contains(got, "✕ 3.2s") || !strings.Contains(got, "error: boom") {
-		t.Fatalf("%s", got)
+	if got := asideTexts(failed); len(got) != 1 || got[0] != "✕ 3.2s" || !strings.Contains(strings.Join(lineTexts(failed), "\n"), "error: boom") {
+		t.Fatalf("%v %q", got, lineTexts(failed))
 	}
-	// Timing off removes the footers altogether.
-	if got := strings.Join(lineTexts(BuildLines([]agent.Turn{jsTurn("run()", nil)}, 80, JSOpts{Timing: TimingOff})), "\n"); strings.Contains(got, "✓") {
-		t.Fatalf("%s", got)
+	// Timing off removes the badges altogether.
+	if got := asideTexts(BuildLines([]agent.Turn{jsTurn("run()", nil)}, 80, JSOpts{Timing: TimingOff})); len(got) != 0 {
+		t.Fatalf("%v", got)
 	}
-	// Narrow terminals lose the bar and the limit text, never the duration.
-	for _, mod := range []func(*agent.Turn){
-		func(t *agent.Turn) { t.ElapsedMs = 20000 },
-		func(t *agent.Turn) { t.Err, t.TimedOut, t.ElapsedMs = "x", true, 30000 },
-	} {
-		for w := 28; w < 70; w++ { // the words "timed out after 30s" are never dropped
-			for _, l := range BuildLines([]agent.Turn{jsTurn("r()", mod)}, w, JSOpts{}) {
-				if strings.ContainsAny(l.Text(), "✓◷") && l.Width() > w-PadX*2 {
-					t.Fatalf("width %d: footer %q is %d cells", w, l.Text(), l.Width())
-				}
+	// The badge never makes a row wider than the screen.
+	for w := 12; w < 70; w++ {
+		for _, l := range BuildLines([]agent.Turn{jsTurn("r()", func(t *agent.Turn) { t.ElapsedMs = 20000 })}, w, JSOpts{}) {
+			if len(l.Aside) > 0 && l.Width()+segsWidth(l.Aside) > w-PadX*2 {
+				t.Fatalf("width %d: %q + %q do not fit", w, l.Text(), joinText(l.Aside))
 			}
 		}
-	}
-	wide := strings.Join(lineTexts(BuildLines([]agent.Turn{jsTurn("r()", func(t *agent.Turn) { t.ElapsedMs = 20000 })}, 100, JSOpts{})), "\n")
-	narrow := strings.Join(lineTexts(BuildLines([]agent.Turn{jsTurn("r()", func(t *agent.Turn) { t.ElapsedMs = 20000 })}, 30, JSOpts{})), "\n")
-	if !strings.Contains(wide, "67% of 30s limit") || strings.Contains(narrow, "limit") || !strings.Contains(narrow, "✓ 20s") || strings.Contains(narrow, "█") {
-		t.Fatalf("wide:\n%s\nnarrow:\n%s", wide, narrow)
 	}
 }
 

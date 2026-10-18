@@ -41,15 +41,17 @@ VM, provider APIs, MCP integrations, and SQLite persistence.
 | `cmd/meno/main.go` | CLI entry point; terminal setup and application lifecycle. |
 | `internal/app/` | TUI controller, state, input, commands, modals, session/runtime wiring. Start with `app.go`, `state.go`, `runtime.go`, `turn.go`. |
 | `internal/ui/` | Rendering primitives, themes, Markdown, transcript layout, widgets. Start with `render.go`, `transcript.go`, `theme.go`. |
-| `internal/agent/` | Agent loop, events, retries, queues, compaction, sessions. Start with `loop.go`, `session.go`, `sessiondb.go`; history/fork/state in `history.go`, `fork.go`, `kv.go`; TODO in `todo.go`; steering queue in `events.go`; subagent records in `agents_store.go`; retrieval in `retrieval.go`. |
+| `internal/agent/` | Agent loop, events, retries, queues, compaction, sessions. Start with `loop.go`, `session.go`, `sessiondb.go`; history/fork/versioned store in `history.go`, `fork.go`, `kv.go`; steering queue in `events.go`; subagent records in `agents_store.go`; retrieval in `retrieval.go`. |
 | `internal/llm/` | Provider API clients, streaming, model catalog, usage and protocol types. Start with `types.go`, `http.go`, `chat.go`, `responses.go`. |
-| `internal/jsvm/` | Fresh-per-call JS runtime and its bindings: filesystem (`fs_*.go`), shell, HTTP, state, session, todo, tasks, agents, askUser forms, MCP. Start with `vm.go`, `exec.go`, `compile.go` and `prelude.js`. |
+| `internal/jsvm/` | Fresh-per-call JS runtime and its bindings: filesystem (`fs_*.go`), shell, HTTP, session, tasks, agents, askUser forms, MCP, and `help` (topic texts in `help/*.md`). Start with `vm.go`, `exec.go`, `compile.go` and `prelude.js`. |
 | `internal/mcp/` | MCP server lifecycle, transports, JSON-RPC, tool schemas, typed results and the local result/artifact store. Start with `manager.go`, `client.go`, `result.go`, `store.go`. |
 | `internal/prompt/` | System prompt assembly and built-in tool instructions; `prompt.go`. |
-| `internal/config/` | Paths, settings, providers, skills, MCP configuration, legacy imports. Start with `paths.go`, `settings.go`, `store.go`. |
+| `internal/config/` | Paths, settings, providers, skills, MCP configuration, and the read-only `provider.json`/`mcp.json` overlays (`overlay.go`). Start with `paths.go`, `settings.go`, `store.go`. |
 | `internal/db/` | Shared SQLite database; additive versioned migrations live in `migrations.go`, opening in `db.go`. |
-| `internal/proc/` | Background process supervisor: process groups, bounded rotating disk logs, durable task results. |
+| `internal/proc/` | Background process supervisor: process groups, bounded rotating disk logs, durable task results; `daemon.go` runs the provider `run` commands. |
+| `internal/version/` | Single version source: `VERSION` file (embedded); `Label()` feeds the welcome screen and help title, `Number()` feeds `--version`. Bump it for every release. |
 | `internal/store/` | Reusable JSON loading and atomic saving; `json.go`. |
+| `internal/safe/` | Panic containment for goroutines and UI handlers: `Call`, `Recover`, `Go`; `safe.go`. |
 | `internal/attach/` | Attachment parsing and source loading. |
 | `internal/objtag/` | Text form of input objects (file, folder, skill references): tags, parsing and escaping. |
 | `internal/pathsearch/` | Fuzzy, bounded file and folder search behind the `@` picker. |

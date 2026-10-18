@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"meno/internal/agent"
-	"meno/internal/llm"
 )
 
 func (a *App) onAgent(e agent.Ev) {
@@ -67,7 +66,7 @@ func (a *App) onAgent(e agent.Ev) {
 			_, model, _ = a.selection()
 		}
 		record := agent.RequestUsage{Provider: p.Name, Model: model, Usage: u, Time: time.Now().UTC()}
-		if info, ok := llm.LookupMetadata(a.st.Pricing, p, model); ok && info.CanPrice(u) {
+		if info, ok := p.Lookup(a.st.Pricing, model); ok && info.CanPrice(u) {
 			cost := info.Cost(u)
 			record.Cost = &cost
 			a.st.Spent += cost
@@ -78,10 +77,11 @@ func (a *App) onAgent(e agent.Ev) {
 			a.st.Session.Requests = append(a.st.Session.Requests, record)
 		}
 	case agent.EvRequest:
-		if e.Fp != nil {
-			a.st.Fps = append(a.st.Fps, *e.Fp)
-			if len(a.st.Fps) > 2 {
-				a.st.Fps = a.st.Fps[1:]
+		if e.Req != nil {
+			// Only the last two are kept; :cache fingerprints them when asked.
+			a.st.Reqs = append(a.st.Reqs, *e.Req)
+			if len(a.st.Reqs) > 2 {
+				a.st.Reqs = a.st.Reqs[1:]
 			}
 		}
 	case agent.EvError:

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"meno/internal/llm"
+	"meno/internal/safe"
 )
 
 // fetchModels loads /models for every configured provider in the background.
@@ -18,6 +19,7 @@ func (a *App) fetchModels() {
 		a.st.Loading[p.Name] = true
 		delete(a.st.ModelErr, p.Name)
 		go func(p llm.Provider) {
+			defer safe.Recover(a.reportPanic)
 			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 			defer cancel()
 			ms, err := llm.FetchModels(ctx, p)

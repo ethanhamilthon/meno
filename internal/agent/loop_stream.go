@@ -17,8 +17,8 @@ func (r *Runner) streamAttempt(ctx context.Context, s *Session) ([]call, llm.Msg
 		Provider: r.D.Provider, Model: r.D.Model, Effort: r.D.Effort,
 		System: r.D.System, Msgs: s.ToMsgs(), Tools: true, ModelTimeout: r.D.ModelTimeout,
 	}
-	fp := llm.FingerprintOf(req)
-	r.emit(s, Ev{Kind: EvRequest, Fp: &fp})
+	r.sent = req.Msgs
+	r.emit(s, Ev{Kind: EvRequest, Req: &req})
 	if r.D.DebugPayload != nil {
 		r.D.DebugPayload(req)
 	}
@@ -134,7 +134,13 @@ func (r *Runner) calibrate(s *Session, u llm.Usage) {
 	if u.In <= 0 || r.D.AutoCompact.Window <= 0 {
 		return
 	}
-	raw := estimateRequest(r.D.System, s.ToMsgs(), 0)
+	// The request just answered is the one built for it; building the messages
+	// again would copy the whole history a second time.
+	msgs := r.sent
+	if msgs == nil {
+		msgs = s.ToMsgs()
+	}
+	raw := estimateRequest(r.D.System, msgs, 0)
 	if raw <= 0 {
 		return
 	}

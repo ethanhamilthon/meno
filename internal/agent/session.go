@@ -116,7 +116,7 @@ type Session struct {
 	// forked from (empty/0 when it was not).
 	ForkSource   string `json:"fork_source,omitempty"`
 	ForkBoundary int64  `json:"fork_boundary,omitempty"`
-	// Legacy sessions predate the state/TODO journal. Coverage: see CoveragePartial.
+	// Legacy sessions predate the state journal. Coverage: see CoveragePartial.
 	Legacy   bool     `json:"legacy,omitempty"`
 	Coverage string   `json:"coverage,omitempty"`
 	NextHID  int64    `json:"next_hid,omitempty"`

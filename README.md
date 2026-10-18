@@ -2,7 +2,7 @@
 
 A terminal coding agent for individual developers. It has one tool, `js`: a
 fresh JavaScript runtime ([goja](https://github.com/dop251/goja)) per call with
-the file system, a shell, HTTP, durable state, a plan, background tasks,
+the file system, a shell, HTTP, background tasks,
 subagents and your MCP servers inside it. The UI is a vim-style TUI built on
 [tcell](https://github.com/gdamore/tcell). Pure Go, no CGO. macOS and Linux
 (arm64, amd64). MIT licensed.
@@ -57,8 +57,8 @@ every push and pull request on Linux and macOS and installs a snapshot build wit
 
 | | |
 | --- | --- |
-| [The agent's tool](docs/tools.md) | every global the model can use: fs, sh, state, session, todo, tasks, agents, askUser, mcp |
-| [Sessions, history and events](docs/sessions.md) | :new, :fork, :cd, compaction, retrieval, steering, :stop |
+| [The agent's tool](docs/tools.md) | every global the model can use: fs, sh, session, tasks, agents, askUser, mcp, help |
+| [Sessions, history and events](docs/sessions.md) | :new, :fork, :cd, compaction, steering, :stop |
 | [Interface](docs/ui.md) | keys, commands, timeline, Markdown, images, JS display |
 | [Settings](docs/settings.md), [notifications](docs/notifications.md) | |
 | [Upgrading, data and privacy](docs/upgrading.md) | migrations, where data lives, what is logged |
@@ -77,11 +77,12 @@ Everything lives in `$MENO_HOME` (default `~/.meno`):
 
 | | |
 | --- | --- |
-| `meno.db` | SQLite (mode 0600): settings, providers (**API keys in plain text**), MCP servers, skill state, model catalog cache, sessions, history, state, plans, tasks, agents |
+| `meno.db` | SQLite (mode 0600): settings, providers (**API keys in plain text**), MCP servers, skill state, model catalog cache, sessions, history, tasks, agents |
 | `attachments/` | image bytes, named by hash |
 | `tasks/` | bounded logs of background tasks |
 | `mcp-results/` | complete MCP tool results and their binary artifacts, per session |
 | `skills/`, `AGENTS.md` | global skills and instructions |
+| `provider.json`, `mcp.json`, `theme.json` | optional: add providers, MCP servers and themes, see [settings](docs/settings.md) |
 
 ## Development
 

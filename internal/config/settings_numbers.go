@@ -6,6 +6,10 @@ import "time"
 const (
 	MaxLines      = 50
 	MaxTimeoutSec = 3600
+	// The auto-compact threshold, in percent of the context window.
+	MinCompactPercent = 10
+	MaxCompactPercent = 95
+	compactStep       = 5
 )
 
 // NumOption is the choice of a setting that carries a number: "lines" for
@@ -16,6 +20,8 @@ func NumOption(key string) string {
 		return "lines"
 	case "js_timeout":
 		return "sec"
+	case "compact_percent":
+		return "percent"
 	}
 	return ""
 }
@@ -31,6 +37,8 @@ func (s *Settings) NumFor(key string) int {
 		return s.ThinkLines
 	case "js_timeout":
 		return s.JSTimeoutSec
+	case "compact_percent":
+		return s.CompactPercent
 	}
 	return s.JSLines
 }
@@ -62,6 +70,10 @@ func (s *Settings) AdjustNum(key string, delta int) int {
 		}
 		s.JSTimeoutSec = min(MaxTimeoutSec, max(1, n))
 		return s.JSTimeoutSec
+	}
+	if key == "compact_percent" {
+		s.CompactPercent = min(MaxCompactPercent, max(MinCompactPercent, s.CompactPercent+delta*compactStep))
+		return s.CompactPercent
 	}
 	if key == "js_strings" {
 		s.JSStringLines = min(MaxLines, max(0, s.JSStringLines+delta))

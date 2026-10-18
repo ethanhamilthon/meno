@@ -1,10 +1,8 @@
 package config
 
 import (
-	"os"
 	"path/filepath"
 	"reflect"
-	"strings"
 	"testing"
 	"time"
 
@@ -154,27 +152,6 @@ func TestTimeoutDuration(t *testing.T) {
 	s.JSTimeout = "model"
 	if s.TimeoutDuration() != DefaultTimeout {
 		t.Fatal("model default")
-	}
-}
-
-func TestLegacyPlaceholderServersAreDropped(t *testing.T) {
-	st := NewStore(Paths{Home: t.TempDir()})
-	old := `[{"name":"postgres","transport":"stdio","command":"npx -y @mcp/postgres","env":{"PG_URL":"x"},"enabled":true},{"name":"github","transport":"stdio","command":"gh-mcp-server","enabled":true},{"name":"sentry","transport":"sse","command":"","url":"http://localhost:9100","enabled":true},{"name":"playwright","transport":"stdio","command":"npx -y @mcp/playwright","enabled":false}]`
-	if err := os.WriteFile(st.P.File("mcp.json"), []byte(old), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	sv, err := st.LoadServers()
-	if err != nil || len(sv) != 0 {
-		t.Fatalf("placeholders survived: %v %v", sv, err)
-	}
-	// One real change keeps the whole file.
-	mine := strings.Replace(old, "gh-mcp-server", "my-github-server", 1)
-	st = NewStore(Paths{Home: t.TempDir()})
-	if err := os.WriteFile(st.P.File("mcp.json"), []byte(mine), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if sv, _ := st.LoadServers(); len(sv) != 4 {
-		t.Fatalf("user servers dropped: %d", len(sv))
 	}
 }
 

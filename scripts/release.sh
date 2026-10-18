@@ -1,9 +1,10 @@
 #!/bin/sh
 # Builds the release archives for macOS and Linux (arm64, amd64) and SHA256SUMS.
 # Each archive meno_<version>_<os>_<arch>.tar.gz contains one file: meno.
-# Usage: scripts/release.sh <version> [outdir]
+# Usage: scripts/release.sh [version] [outdir]  (version defaults to internal/version/VERSION)
 set -eu
-version=${1:?usage: scripts/release.sh <version> [outdir]}
+root=$(cd "$(dirname "$0")/.." && pwd)
+version=${1:-$(tr -d ' \n' < "$root/internal/version/VERSION")}
 out=${2:-dist}
 rm -rf "$out"
 mkdir -p "$out"

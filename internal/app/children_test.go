@@ -135,15 +135,15 @@ func TestSubagentSpawnCompleteWakesParent(t *testing.T) {
 	if len(list) != 1 || list[0].Status != agent.ChildCompleted || list[0].Result == nil || *list[0].Result != "There are 7 files." {
 		t.Fatalf("%+v", list)
 	}
-	// Not in Sessions, not searchable, readable by the parent through its ID.
+	// Not in Sessions; the parent gets the result through its ID.
 	infos, _ := agent.ListSessions(a.paths.Home)
 	for _, s := range infos {
 		if s.ID == list[0].ID {
 			t.Fatal("a child must not appear in Sessions")
 		}
 	}
-	got := execJS(t, a, "sessions.read('"+list[0].ID+"').records.length + ':' + agents.result('"+list[0].ID+"').result", nil)
-	if got != "2:There are 7 files." {
+	got := execJS(t, a, "agents.result('"+list[0].ID+"').result", nil)
+	if got != "There are 7 files." {
 		t.Fatalf("parent access: %q", got)
 	}
 }

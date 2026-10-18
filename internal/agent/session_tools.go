@@ -21,22 +21,32 @@ func (s *Session) userMsg(t Turn) llm.Msg {
 }
 
 func (s *Session) ToMsgs() []llm.Msg {
+	all := s.Snapshot()
+	return s.msgsOf(all, len(all))
+}
+
+// msgsOf renders the first n of all turns the way ToMsgs does: the summary
+// first, then the turns. What a turn becomes depends on the turns after it only
+// through spent (a big output is cut once the model has answered it), and that
+// is read from all, so the messages of a head are the messages of the full
+// request and a request built from a head shares the cache of the full one.
+func (s *Session) msgsOf(all []Turn, n int) []llm.Msg {
+	turns := all[:n]
 	var out []llm.Msg
 	if s.Summary != "" {
 		out = append(out, llm.Msg{Role: llm.RoleUser, Text: "Summary of earlier conversation:\n" + s.Summary})
 	}
-	turns := s.Snapshot()
 	for i := 0; i < len(turns); i++ {
 		t := turns[i]
 		if t.Replay != nil {
 			out = append(out, *t.Replay)
 			if t.CallID != "" {
-				out = append(out, toolResult(t))
+				out = append(out, resultMsg(all, i))
 			}
 			for i+1 < len(turns) && t.ReplayGroup != "" && turns[i+1].ReplayGroup == t.ReplayGroup {
 				i++
 				if turns[i].CallID != "" {
-					out = append(out, toolResult(turns[i]))
+					out = append(out, resultMsg(all, i))
 				}
 			}
 			continue
@@ -46,7 +56,7 @@ func (s *Session) ToMsgs() []llm.Msg {
 			out = append(out, s.userMsg(t))
 		case t.Code != "" || t.CallID != "":
 			out = append(out, llm.Msg{Role: llm.RoleAssistant, Text: t.Text, CallID: t.CallID, Code: t.Code})
-			out = append(out, toolResult(t))
+			out = append(out, resultMsg(all, i))
 		case t.Role == llm.RoleAssistant:
 			out = append(out, llm.Msg{Role: llm.RoleAssistant, Text: t.Text})
 		}

@@ -12,10 +12,12 @@ import (
 	"meno/internal/app"
 	"meno/internal/config"
 	"meno/internal/llm"
+	ver "meno/internal/version"
 )
 
-// version is set at release time with -ldflags "-X main.version=…".
-var version = "dev"
+// version defaults to internal/version/VERSION; a release may override it with
+// -ldflags "-X main.version=…".
+var version = ver.Number()
 
 func main() {
 	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "version") {
@@ -41,7 +43,7 @@ func run() error {
 		return err
 	}
 	defer scr.Fini()
-	scr.EnableMouse(tcell.MouseButtonEvents)
+	scr.EnableMouse(tcell.MouseDragEvents) // buttons, wheel and drags: selecting text with the mouse
 	a, err := app.New(scr, paths, llm.NewClient)
 	if err != nil {
 		return err

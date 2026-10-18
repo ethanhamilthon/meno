@@ -90,7 +90,7 @@ func (a *App) drawSessions(c ui.Canvas, w, h int) {
 		if s.Model != "" {
 			detail = s.Model + " · " + path // the model first: a long path gets cut, not the model
 		}
-		items = append(items, item{glyph: g, glyphFG: gfg, label: title, right: right, accent: current, detail: detail})
+		items = append(items, item{glyph: g, glyphFG: gfg, label: title, right: right, badge: bgBadge(a.bgCount(s.ID)), accent: current, detail: detail})
 	}
 	bh := 6 + itemsHeight(items, a.st.Sel)
 	if len(items) == 0 {

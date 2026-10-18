@@ -95,47 +95,6 @@ func TestJSOptsFollowSettings(t *testing.T) {
 	}
 }
 
-func TestRunningText(t *testing.T) {
-	a, s := newTestApp(t)
-	defer s.Fini()
-	if a.runningText() != "" {
-		t.Fatal("text while idle")
-	}
-	a.st.Running = true
-	if a.runningText() != "" {
-		t.Fatal("text without a start time (a run that began before the clock existed)")
-	}
-	a.st.RunStart = time.Now().Add(-42 * time.Second)
-	a.st.Phase = "thinking"
-	if got := a.runningText(); got != "turn 1 · 0:42" {
-		t.Fatalf("%q", got)
-	}
-	a.st.RunTurns, a.st.RunJS = 2, 1
-	a.st.Usage.In, a.st.Usage.Out = 1500, 20
-	a.st.RunUsage0 = llm.Usage{In: 300, Out: 10}
-	if got := a.runningText(); got != "turn 3 · 0:42 · 1 js call · ↓ 1.2k ↑ 10" {
-		t.Fatalf("%q", got)
-	}
-	a.st.RunJS = 4
-	a.st.Phase = "running"
-	if got := a.runningText(); !strings.HasPrefix(got, "turn 2 · 0:42 · 4 js calls") {
-		t.Fatalf("the executing call belongs to the request just answered: %q", got)
-	}
-	a.st.RunTurns, a.st.Phase = 0, "running"
-	if got := a.runningText(); !strings.HasPrefix(got, "turn 1 ") {
-		t.Fatalf("%q", got)
-	}
-	// Tokens are counted for this run only, never negative.
-	a.st.RunUsage0 = llm.Usage{In: 9000, Out: 9000}
-	if got := a.runningText(); strings.Contains(got, "↓") {
-		t.Fatalf("%q", got)
-	}
-	a.st.Running = false
-	if a.runningText() != "" {
-		t.Fatal("text after the run")
-	}
-}
-
 func TestStatusBarAndPlaceholderShowTheClock(t *testing.T) {
 	a, s := visualFixture(t, 112, 36)
 	a.st.Running, a.st.Phase = true, "running"
@@ -143,16 +102,16 @@ func TestStatusBarAndPlaceholderShowTheClock(t *testing.T) {
 	a.st.RunTurns, a.st.RunJS = 2, 2
 	a.draw()
 	text := screenText(s)
-	if !strings.Contains(text, "turn 2 · 1:05 · 2 js calls") || !strings.Contains(text, "running... 1:05") {
+	if !strings.Contains(text, "running... 1:05") {
 		t.Fatalf("%s", text)
 	}
-	if strings.Contains(visualRow(s, 35), "◫") {
-		t.Fatal("the session totals replace the run in the status bar only when idle")
+	if row := visualRow(s, 35); !strings.Contains(row, "◫") || strings.Contains(row, "turn 2") {
+		t.Fatalf("the status bar shows the session, not the run: %q", row)
 	}
 	// A pending retry, a question and visual mode take the middle of the bar over.
 	a.st.Retry = &retryState{Attempt: 1, Max: 3, Until: time.Now().Add(3 * time.Second), Reason: "http 503"}
 	a.draw()
-	if row := visualRow(s, 35); !strings.Contains(row, "retry 1/3") || strings.Contains(row, "turn 2") {
+	if row := visualRow(s, 35); !strings.Contains(row, "retry 1/3") {
 		t.Fatalf("%q", row)
 	}
 	a.st.Retry = nil
@@ -198,9 +157,6 @@ func TestRunCountersFollowAgentEvents(t *testing.T) {
 	if !a.st.RunStart.IsZero() {
 		t.Fatal("run clock still ticking")
 	}
-	if a.runningText() != "" {
-		t.Fatal(a.runningText())
-	}
 }
 
 func TestLiveCallShowsItsTimer(t *testing.T) {
@@ -210,23 +166,23 @@ func TestLiveCallShowsItsTimer(t *testing.T) {
 	a.st.LiveCalls = []liveCall{{ID: "c1", Code: "sh('sleep 9')", Running: true, Started: time.Now().Add(-12 * time.Second), Limit: 30 * time.Second}}
 	a.draw()
 	text := screenText(s)
-	if !strings.Contains(text, "running 12s") || !strings.Contains(text, "of 30s limit") {
+	if !strings.Contains(text, "12s/30s") {
 		t.Fatalf("%s", text)
 	}
-	// A call still being written has no timer; one with no limit has no bar.
+	// A call still being written has no timer; one with no limit has no limit.
 	a.st.LiveCalls = []liveCall{{ID: "c1", Code: "sh('sleep 9')"}}
 	a.draw()
-	if strings.Contains(screenText(s), "running 0") || strings.Contains(screenText(s), "limit") {
+	if strings.Contains(screenText(s), "0.0s") {
 		t.Fatalf("%s", screenText(s))
 	}
 	a.st.LiveCalls = []liveCall{{ID: "c1", Code: "x", Running: true, Started: time.Now().Add(-3 * time.Second)}}
 	a.draw()
-	if text := screenText(s); !strings.Contains(text, "running 3.0s") || strings.Contains(text, "█") || strings.Contains(text, "limit") {
+	if text := screenText(s); !strings.Contains(text, "3.0s") || strings.Contains(text, "3.0s/") {
 		t.Fatalf("%s", text)
 	}
 	a.st.Settings.JSTiming = "off"
 	a.draw()
-	if strings.Contains(screenText(s), "running 3") {
+	if strings.Contains(screenText(s), "3.0s") {
 		t.Fatal("timer shown with timing off")
 	}
 }

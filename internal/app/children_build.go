@@ -14,25 +14,19 @@ import (
 )
 
 // build gives a child its runtime: a VM with the ordinary tools but without
-// askUser, tasks, nested agents and renaming, state and plan of its own, and the
+// askUser, tasks, nested agents, and the
 // agent loop dependencies.
 func (m *childMgr) build(c *childRun, pr llm.Provider, model, effort, system string, st config.Settings) error {
 	a := m.a
 	vm := jsvm.New(jsvm.Options{Root: c.sess.Cwd, Timeout: st.TimeoutDuration()})
 	vm.SetMCP(mcpHost{a.mcp, mcp.ResultStore{Dir: filepath.Join(a.paths.Home, "mcp-results")}, c.sess.ID})
-	if kv, err := agent.OpenKV(a.paths.Home, c.sess.ID, agent.NSState); err == nil {
-		vm.SetState(jsState{kv, c.sess})
-	}
-	if td, err := agent.NewTodo(a.paths.Home, c.sess.ID, c.sess.ExecBoundary); err == nil {
-		vm.SetTodo(todoHost{a, c.sess.ID, td})
-	}
 	vm.SetSessionHost(sessionHost{a: a, sid: c.sess.ID, sess: c.sess, child: true})
 	vm.SetAgents(childAgents{m, c}, true)
 	c.vm = vm
 	c.deps = agent.Deps{
 		Client: a.client(pr), Provider: pr, Model: model, Effort: effort, System: system, VM: vm,
 		ModelTimeout: st.ModelTimeout(), Queue: &c.queue, Events: agent.StoreSource{Store: a.evStore, Session: c.sess.ID},
-		Cost: c.price, Emit: c.onEmit, Halt: c.halt, Retry: a.retry,
+		Cost: c.price, Emit: c.onEmit, Halt: c.halt, Retry: a.providerRetry(pr),
 	}
 	return nil
 }

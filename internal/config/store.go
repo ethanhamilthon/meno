@@ -11,25 +11,15 @@ import (
 )
 
 // Store keeps settings, providers, MCP servers, skill state and the model
-// catalog in meno.db. Older JSON files are imported once, see importLegacy.
+// catalog in meno.db. Files such as provider.json only add to it, see overlay.go.
 type Store struct {
 	P Paths
 }
 
 func NewStore(p Paths) *Store { return &Store{P: p} }
 
-// DB returns the shared database handle; the first call per database imports
-// the legacy JSON files.
-func (s *Store) DB() (*sql.DB, error) {
-	d, err := db.Open(s.P.Home)
-	if err != nil {
-		return nil, err
-	}
-	if err := s.importLegacy(d); err != nil {
-		return nil, err
-	}
-	return d, nil
-}
+// DB returns the shared database handle.
+func (s *Store) DB() (*sql.DB, error) { return db.Open(s.P.Home) }
 
 // tx runs fn in a transaction.
 func (s *Store) tx(fn func(*sql.Tx) error) error {
@@ -111,7 +101,7 @@ func (s *Store) LoadProviders() ([]llm.Provider, error) {
 	if err != nil {
 		return nil, err
 	}
-	rows, err := d.Query("SELECT name, base_url, api_key, protocol FROM providers ORDER BY pos")
+	rows, err := d.Query("SELECT name, base_url, api_key, protocol, run, models_json FROM providers ORDER BY pos")
 	if err != nil {
 		return nil, err
 	}
@@ -119,8 +109,13 @@ func (s *Store) LoadProviders() ([]llm.Provider, error) {
 	var ps []llm.Provider
 	for rows.Next() {
 		var p llm.Provider
-		if err := rows.Scan(&p.Name, &p.BaseURL, &p.APIKey, &p.Protocol); err != nil {
+		var models string
+		if err := rows.Scan(&p.Name, &p.BaseURL, &p.APIKey, &p.Protocol, &p.Run, &models); err != nil {
 			return nil, err
+		}
+		// A damaged value costs the model settings of this provider, not the provider.
+		if err := json.Unmarshal([]byte(models), &p.Models); err != nil || len(p.Models) == 0 {
+			p.Models = nil
 		}
 		ps = append(ps, p)
 	}
@@ -136,8 +131,12 @@ func putProviders(t *sql.Tx, ps []llm.Provider) error {
 		return err
 	}
 	for i, p := range ps {
-		if _, err := t.Exec("INSERT INTO providers(pos,name,base_url,api_key,protocol) VALUES(?,?,?,?,?)",
-			i, p.Name, p.BaseURL, p.APIKey, p.Protocol); err != nil {
+		models := []byte("{}")
+		if len(p.Models) > 0 {
+			models, _ = json.Marshal(p.Models)
+		}
+		if _, err := t.Exec("INSERT INTO providers(pos,name,base_url,api_key,protocol,run,models_json) VALUES(?,?,?,?,?,?,?)",
+			i, p.Name, p.BaseURL, p.APIKey, p.Protocol, p.Run, string(models)); err != nil {
 			return err
 		}
 	}

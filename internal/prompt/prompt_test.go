@@ -27,8 +27,8 @@ func TestSectionOrder(t *testing.T) {
 	out := Build(full())
 	last := -1
 	for _, h := range []string{
-		"You are meno, a coding agent.", "## The js tool", "## Asking the user", "## Managing MCP servers", "## Skills",
-		"## Global instructions", "## Project instructions", "## MCP tools", "## Environment",
+		"You are meno, a coding agent.", "## Guidelines", "## The js tool", "## Background tasks and subagents", "## MCP\n", "## Skills",
+		"## Global instructions", "## Project instructions", "## MCP servers", "## Environment",
 	} {
 		i := strings.Index(out, h)
 		if i <= last {
@@ -36,13 +36,13 @@ func TestSectionOrder(t *testing.T) {
 		}
 		last = i
 	}
-	if !strings.HasPrefix(out, "You are meno, a coding agent.\n\n## The js tool") {
+	if !strings.HasPrefix(out, "You are meno, a coding agent.\n\n## Guidelines") {
 		t.Fatal("identity must be a bare first line")
 	}
-	if !strings.HasSuffix(out, "Working directory: /w\nOS: macOS 15.1 (darwin/arm64)\nShell: /bin/sh\nDate: 2026-10-17, Saturday (UTC)") {
+	if !strings.HasSuffix(out, "- Working directory: /w\n- OS: macOS 15.1 (darwin/arm64). Shell: /bin/sh.\n- Date: 2026-10-17, Saturday (UTC).") {
 		t.Fatalf("environment must be last:\n%s", out)
 	}
-	if strings.Index(out, "- a —") > strings.Index(out, "- b —") || strings.Index(out, "mcp.s1.a(") > strings.Index(out, "mcp.s1.y(") || strings.Index(out, "mcp.s1.y(") > strings.Index(out, "mcp.s2.x(") {
+	if strings.Index(out, "- a —") > strings.Index(out, "- b —") || !strings.Contains(out, "- s1 (2 tools): a, y") || strings.Index(out, "- s1 (") > strings.Index(out, "- s2 (") {
 		t.Fatalf("lists must be sorted:\n%s", out)
 	}
 }
@@ -51,7 +51,7 @@ func TestEnvironmentNamesTheModel(t *testing.T) {
 	in := full()
 	in.Provider, in.Model, in.Effort = "openai", "gpt-5.5", "high"
 	out := Build(in)
-	if !strings.HasSuffix(out, "Date: 2026-10-17, Saturday (UTC)\nModel: gpt-5.5 (openai, effort high)") {
+	if !strings.HasSuffix(out, "- Date: 2026-10-17, Saturday (UTC).\n- Model: gpt-5.5 (openai, effort high).") {
 		t.Fatalf("model line must close the environment:\n%s", out)
 	}
 	if got := DescribeModel("", "m", ""); got != "m" {
@@ -64,12 +64,12 @@ func TestEnvironmentNamesTheModel(t *testing.T) {
 
 func TestOptionalSectionsAbsentWhenEmpty(t *testing.T) {
 	out := Build(Input{Cwd: "/w", Now: now})
-	for _, h := range []string{"## Skills", "## Global instructions", "## Project instructions", "## MCP tools"} {
+	for _, h := range []string{"## Skills", "## Global instructions", "## Project instructions", "## MCP servers"} {
 		if strings.Contains(out, h) {
 			t.Fatalf("%s must be absent:\n%s", h, out)
 		}
 	}
-	if !strings.Contains(out, "## Environment") || !strings.Contains(out, "mcpServers.add(") {
+	if !strings.Contains(out, "## Environment") || !strings.Contains(out, "help(\"mcpServers\")") {
 		t.Fatal("bare prompt lost a fixed section")
 	}
 }
@@ -93,7 +93,7 @@ func TestPrefixIsByteStable(t *testing.T) {
 		{"skills", func(i *Input) { i.Skills = append(i.Skills, Skill{"c", "", "/c.md"}) }, "## Skills"},
 		{"global agents", func(i *Input) { i.GlobalAgents.Text = "other" }, "## Global instructions"},
 		{"project agents", func(i *Input) { i.ProjectAgents = Instructions{} }, "## Project instructions"},
-		{"tools", func(i *Input) { i.Tools = i.Tools[:1] }, "## MCP tools"},
+		{"tools", func(i *Input) { i.Tools = i.Tools[:1] }, "## MCP servers"},
 		{"cwd and date", func(i *Input) { i.Cwd = "/other"; i.Now = now.AddDate(0, 0, 1) }, "## Environment"},
 	}
 	for _, c := range cases {
@@ -116,7 +116,7 @@ func TestBuildSkillsAndTools(t *testing.T) {
 		Tools:  []Tool{{"github", "search-repos", "Search repositories", "{query: string, page?: number}"}}})
 	for _, want := range []string{
 		"## Skills", "- api-security — check auth and rate limits (/p/.meno/skills/api-security.md)", "- bare (/p/bare.md)",
-		"## MCP tools", "- mcp.github.search_repos({query: string, page?: number}) — Search repositories", "mcpTools()",
+		"## MCP servers", "- github (1 tool): search_repos", "mcpTools(",
 	} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("missing %q in:\n%s", want, out)
@@ -130,8 +130,14 @@ func TestBuildCapsLongToolLists(t *testing.T) {
 		tools = append(tools, Tool{Server: "s", Name: "t" + string(rune('a'+i%26)) + string(rune('a'+i/26)), Params: "{}"})
 	}
 	out := Build(Input{Cwd: "/w", Tools: tools})
-	if strings.Count(out, "- mcp.s.") != maxListedTools || !strings.Contains(out, "and 7 more") {
-		t.Fatalf("not capped:\n%s", out)
+	line := ""
+	for _, l := range strings.Split(out, "\n") {
+		if strings.HasPrefix(l, "- s (") {
+			line = l
+		}
+	}
+	if strings.Count(line, ", ") != maxListedTools || !strings.Contains(line, "and 7 more") || !strings.Contains(line, "(67 tools)") {
+		t.Fatalf("not capped: %q", line)
 	}
 }
 

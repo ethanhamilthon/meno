@@ -35,9 +35,7 @@ type VM struct {
 	maxOut       int
 	ctx          context.Context
 	stringify    goja.Callable // the original JSON.stringify, for results
-	state        atomic.Pointer[StateStore]
 	sessionHost  atomic.Pointer[SessionHost]
-	todoHost     atomic.Pointer[TodoHost]
 	tasksHost    atomic.Pointer[TasksHost]
 	agentsHost   atomic.Pointer[AgentsHost]
 	agentsChild  atomic.Bool
@@ -60,7 +58,7 @@ func New(o Options) *VM {
 
 // fresh gives the VM a clean runtime. Every Exec starts with one: nothing a
 // call declares or changes survives it. Durable data lives in Go services
-// (state, tasks, sessions), never in the interpreter.
+// (tasks, agents), never in the interpreter.
 func (v *VM) fresh() {
 	v.rt = goja.New()
 	v.out.Reset()
@@ -117,17 +115,13 @@ func (v *VM) bind() {
 	_ = rt.Set("view", func(p string) (string, error) { return v.view(p) })
 	v.bindMCPAdmin()
 	v.bindAsk()
-	v.bindState()
 	v.bindSession()
 	v.bindMCPResults()
-	v.bindTodo()
 	v.bindTasks()
 	v.bindAgents()
+	v.bindHelp()
 	if _, err := rt.RunProgram(preludeProg); err != nil {
 		panic("jsvm prelude: " + err.Error())
-	}
-	if _, err := rt.RunProgram(stateProg); err != nil {
-		panic("jsvm state: " + err.Error())
 	}
 	if _, err := rt.RunProgram(askProg); err != nil {
 		panic("jsvm ask: " + err.Error())

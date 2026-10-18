@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -15,32 +16,40 @@ import (
 	"meno/internal/llm"
 	"meno/internal/mcp"
 	"meno/internal/proc"
+	"meno/internal/safe"
 	"meno/internal/ui"
 )
 
 type App struct {
-	scr       tcell.Screen
-	st        *State
-	store     *config.Store
-	paths     config.Paths
-	mcp       *mcp.Manager
-	mcpCtx    context.Context // lives as long as the app; ends every server process
-	mcpStop   context.CancelFunc
-	retry     agent.RetryPolicy // how failed model requests are repeated; the zero value is the default
-	client    func(llm.Provider) llm.Client
-	events    chan any
-	quit      bool
-	done      chan struct{}
-	closeOnce sync.Once
-	waveOn    atomic.Bool // the welcome screen was drawn last: keep it animating
-	agentsAt  time.Time   // when agentsOK was last checked
-	agentsOK  bool        // an AGENTS.md exists (cached for the welcome screen)
-	idleTick  bool        // the batch held only ticks: skip drawing when nothing runs
-	cur       cursorPos   // real terminal cursor, set while drawing
+	scr        tcell.Screen
+	drawErr    string   // last rendering panic, reported once until it changes
+	warnings   []string // problems found in provider.json, mcp.json, theme.json at start
+	mouse      mouseState
+	st         *State
+	store      *config.Store
+	paths      config.Paths
+	mcp        *mcp.Manager
+	mcpCtx     context.Context // lives as long as the app; ends every server process
+	mcpStop    context.CancelFunc
+	retry      agent.RetryPolicy // how failed model requests are repeated; the zero value is the default
+	client     func(llm.Provider) llm.Client
+	events     chan any
+	quit       bool
+	done       chan struct{}
+	closeOnce  sync.Once
+	waveOn     atomic.Bool    // the welcome screen was drawn last: keep it animating
+	agentsAt   time.Time      // when agentsOK was last checked
+	agentsOK   bool           // an AGENTS.md exists (cached for the welcome screen)
+	idleTick   bool           // the batch held only ticks: skip drawing when nothing runs
+	bg         map[string]int // running tasks and working subagents per session id
+	bgAt       time.Time      // when the background work was last counted
+	bgInflight bool           // a count is running
+	cur        cursorPos      // real terminal cursor, set while drawing
 
 	imgs    imageMgr          // inline terminal graphics
 	evStore *agent.EventStore // the durable steering queue
 	tasks   *proc.Supervisor  // background processes of the main agents
+	daemons *proc.Daemons     // the run commands of providers (local proxies)
 	kids    *childMgr         // subagents of the main sessions
 
 	rts    map[string]*Runtime // every session loaded in this run, by id
@@ -80,9 +89,14 @@ func New(scr tcell.Screen, paths config.Paths, client func(llm.Provider) llm.Cli
 		a.tasks, _ = proc.New(d, filepath.Join(paths.Home, "tasks"), proc.Hooks{Finished: a.onTaskFinished})
 	}
 	a.kids = newChildMgr(a)
+	a.daemons = proc.NewDaemons(filepath.Join(paths.Home, "providers"))
+	a.daemons.OnExit = func(name string, err error, log string) {
+		a.postEvent(errNotice{text: "provider " + name + ": the run command ended (" + err.Error() + "), see " + log})
+	}
 	a.mcpCtx, a.mcpStop = context.WithCancel(context.Background())
 	a.st = NewState()
 	a.st.Settings = s
+	a.loadThemeFile()
 	if !ui.SetTheme(s.Theme) {
 		ui.SetTheme(ui.DefaultTheme)
 	}
@@ -93,6 +107,7 @@ func New(scr tcell.Screen, paths config.Paths, client func(llm.Provider) llm.Cli
 	// One empty session in the launch directory; sessions of earlier runs are
 	// only opened on request (:sessions).
 	a.st.Runtime = a.newRuntime(a.newAgentSession(paths.Cwd), paths.Cwd)
+	a.reportWarnings()
 	return a, nil
 }
 
@@ -107,6 +122,7 @@ func (a *App) loadAll() error {
 	if a.st.Servers, err = a.store.LoadServers(); err != nil {
 		return err
 	}
+	a.mergeOverlays()
 	return nil
 }
 
@@ -118,6 +134,9 @@ func (a *App) Close() {
 	a.running.Wait()
 	if a.kids != nil {
 		a.kids.Shutdown()
+	}
+	if a.daemons != nil {
+		a.daemons.StopAll() // the proxies of the providers go with meno
 	}
 	if a.tasks != nil {
 		a.tasks.Shutdown() // cancels every managed process group before the database closes
@@ -133,8 +152,9 @@ func (a *App) Close() {
 func (a *App) Run(ctx context.Context) error {
 	a.scr.EnablePaste()
 	a.fetchMetadata()
+	a.startProviderRuns()
 	a.startServers()
-	go func() {
+	safe.Go(func() {
 		for {
 			ev := a.scr.PollEvent()
 			if ev == nil {
@@ -142,30 +162,30 @@ func (a *App) Run(ctx context.Context) error {
 			}
 			a.postEvent(ev)
 		}
-	}()
-	go a.ticker()
-	go a.waveTicker()
-	a.draw()
+	}, a.reportPanic)
+	safe.Go(a.ticker, a.reportPanic)
+	safe.Go(a.waveTicker, a.reportPanic)
+	a.drawSafe()
 	for !a.quit {
 		select {
 		case <-ctx.Done():
 			return nil
 		case msg := <-a.events:
 			a.idleTick = true
-			a.handle(msg)
+			a.dispatch(msg)
 			// Coalesce bursts (wheel scroll, streaming tokens, paste) into one frame.
 		drain:
 			for n := 0; n < 256 && !a.quit; n++ {
 				select {
 				case msg = <-a.events:
-					a.handle(msg)
+					a.dispatch(msg)
 				default:
 					break drain
 				}
 			}
 		}
 		if !a.idleTick || a.animating() {
-			a.draw()
+			a.drawSafe()
 		}
 	}
 	return nil
@@ -184,6 +204,8 @@ func (a *App) handle(msg any) {
 		a.onKey(m)
 	case *tcell.EventPaste:
 		a.onPaste(m)
+	case internalPanic:
+		a.notifyErr("internal error, meno keeps running: " + strings.SplitN(m.err.Error(), "\n", 2)[0])
 	case imageReady:
 		a.onImageReady(m)
 	case metadataLoaded:
@@ -195,17 +217,7 @@ func (a *App) handle(msg any) {
 			a.st.Pricing = m.pricing
 		}
 	case *tcell.EventMouse:
-		if a.st.Over == OverNone && a.st.Ask != nil {
-			a.askMouse(m)
-		} else if a.st.Over == OverNone {
-			b := m.Buttons()
-			if b&tcell.WheelUp != 0 {
-				a.scrollBy(3)
-			}
-			if b&tcell.WheelDown != 0 {
-				a.scrollBy(-3)
-			}
-		}
+		a.onMouse(m)
 	case *tcell.EventResize:
 		// tcell already resized and invalidated its buffer; a full Sync() clears
 		// the terminal and causes visible flicker.
@@ -219,12 +231,10 @@ func (a *App) handle(msg any) {
 		a.notifyErr(m.text)
 	case tasksLoaded:
 		a.onTasksLoaded(m)
+	case bgLoaded:
+		a.onBgLoaded(m)
 	case childChanged:
 		a.onChildChanged(m.parent)
-	case todoChanged:
-		if rt := a.rts[m.sid]; rt != nil {
-			rt.Todo = m.plan
-		}
 	case eventQueued:
 		a.onEventQueued(m.sid)
 	case sessionsLoaded:
@@ -260,6 +270,7 @@ func (a *App) handle(msg any) {
 	case waveTick:
 	case tick:
 		a.refreshTasks()
+		a.refreshBackground()
 		if a.pruneNotices() {
 			a.idleTick = false
 		}

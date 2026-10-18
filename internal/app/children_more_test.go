@@ -61,7 +61,7 @@ func TestSubagentBlockAndResume(t *testing.T) {
 	}
 }
 
-// A child has no way to ask the user, start tasks, spawn agents, rename or
+// A child has no way to ask the user, start tasks, spawn agents or
 // list sessions; cancelling one agent leaves the others alone.
 func TestSubagentProhibitedBindingsAndCancel(t *testing.T) {
 	cl := &routeClient{
@@ -72,7 +72,7 @@ func TestSubagentProhibitedBindingsAndCancel(t *testing.T) {
 		child: []func(llm.Request) []llm.Event{
 			tool(`
 				const r = [typeof tasks, typeof agents.spawn, typeof agents.report];
-				for (const f of [() => askUser({questions: [{id: 'a', text: 't', type: 'text'}]}), () => session.rename('x y'), () => sessions.list(), () => sessions.search('x')]) {
+				for (const f of [() => askUser({questions: [{id: 'a', text: 't', type: 'text'}]}), () => sessions.list(), () => sessions.search('x')]) {
 					try { f(); r.push('allowed') } catch (e) { r.push('denied') }
 				}
 				r.join(',')
@@ -94,7 +94,7 @@ func TestSubagentProhibitedBindingsAndCancel(t *testing.T) {
 			probe = lastToolResult(q)
 		}
 	}
-	if probe != "undefined,undefined,function,denied,denied,denied,denied" {
+	if probe != "undefined,undefined,function,denied,denied,denied" {
 		t.Fatalf("child bindings: %q", probe)
 	}
 	if got := execJS(t, a, "agents.send('nope', 'x')", nil); !strings.Contains(got, "not found") {

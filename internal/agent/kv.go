@@ -9,8 +9,7 @@ import (
 
 // Namespaces of the versioned per-session stores.
 const (
-	NSState = "state"
-	NSTodo  = "todo"
+	NSData = "data"
 )
 
 // ErrLimit is returned when a write would exceed a size limit.

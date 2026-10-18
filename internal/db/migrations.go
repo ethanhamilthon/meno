@@ -194,4 +194,16 @@ CREATE TABLE agents (
 );
 CREATE INDEX agents_parent ON agents(parent_id, created_at);
 `,
+	`
+-- The state global is gone: its values and their journal are dropped. The
+-- plan (ns todo) keeps using the same tables.
+DELETE FROM kv WHERE ns = 'state';
+DELETE FROM journal WHERE ns = 'state';
+`,
+	`
+-- Providers: a command meno runs for a local proxy, and the user's own settings
+-- for single models (JSON object by model id).
+ALTER TABLE providers ADD COLUMN run TEXT NOT NULL DEFAULT '';
+ALTER TABLE providers ADD COLUMN models_json TEXT NOT NULL DEFAULT '{}';
+`,
 }

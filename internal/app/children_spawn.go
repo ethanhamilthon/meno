@@ -60,10 +60,6 @@ func (p parentAgents) Spawn(tc jsvm.TaskCall, spec map[string]any) (any, error) 
 				effort = s
 			}
 		}
-		if effort != "" && !contains(config.Choices("effort"), effort) {
-			err = fmt.Errorf("agents.spawn: effort %q is not one of %v", effort, config.Choices("effort"))
-			return
-		}
 		found := false
 		for _, cand := range p.a.st.Providers {
 			if cand.Name == prov {
@@ -72,6 +68,10 @@ func (p parentAgents) Spawn(tc jsvm.TaskCall, spec map[string]any) (any, error) 
 		}
 		if !found || model == "" {
 			err = fmt.Errorf("agents.spawn: provider %q is not configured or has no model; see session.models()", prov)
+			return
+		}
+		if levels := p.a.effortsFor(prov, model); effort != "" && !contains(levels, effort) {
+			err = fmt.Errorf("agents.spawn: effort %q is not one of %v", effort, levels)
 			return
 		}
 		settings = p.a.st.Settings

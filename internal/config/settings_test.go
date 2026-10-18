@@ -2,7 +2,6 @@ package config
 
 import (
 	"encoding/json"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -15,11 +14,8 @@ func TestLoadSettingsNormalizesInvalidValues(t *testing.T) {
 		`{}`, `null`, `{"js_lines":0}`,
 	} {
 		t.Run(data, func(t *testing.T) {
-			st := NewStore(Paths{Home: t.TempDir()})
-			if err := os.WriteFile(st.P.File("settings.json"), []byte(data), 0o600); err != nil {
-				t.Fatal(err)
-			}
-			got, err := st.LoadSettings()
+			var got Settings
+			err := json.Unmarshal([]byte(data), &got)
 			if err != nil || got != DefaultSettings() {
 				t.Fatalf("load: %+v %v", got, err)
 			}
@@ -63,11 +59,8 @@ func TestSettingsDecodeValidAndLegacy(t *testing.T) {
 
 func TestMalformedSettingsDoNotPartiallyApply(t *testing.T) {
 	for _, data := range []string{`{"model":"changed","js_lines":"bad"}`, `{"js_timeout":3}`, `{"js_lines":999999999999999999999999}`, `{"model":`} {
-		st := NewStore(Paths{Home: t.TempDir()})
-		if err := os.WriteFile(st.P.File("settings.json"), []byte(data), 0o600); err != nil {
-			t.Fatal(err)
-		}
-		got, err := st.LoadSettings()
+		got := DefaultSettings()
+		err := json.Unmarshal([]byte(data), &got)
 		if err == nil || got != DefaultSettings() {
 			t.Fatalf("malformed settings applied: %+v %v", got, err)
 		}

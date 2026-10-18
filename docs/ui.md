@@ -11,20 +11,31 @@ supports every motion and yank (`y` copies through OSC 52). `:` opens commands.
 | `Enter` while the agent works | steering: queued above the input, delivered before the next model request; `↑` on an empty input takes it back |
 | `Ctrl+C` | abort this session's active request |
 | `Ctrl+V`, `:attach [path]` | attach a PNG/JPEG from the clipboard or a file |
-| `:new :fork :sessions :cd :compact :export` | sessions, see [sessions](sessions.md) |
-| `:tasks :agents :todo` | background processes, working subagents, fold the plan |
+| `:new :fork :rename :sessions :cd :compact :export` | sessions, see [sessions](sessions.md) |
+| `:tasks :agents` | background processes, working subagents |
 | `:model :settings :theme :skills :mcp :providers` | dialogs |
 | `:stop :q :q!` | stop the active request, quit, quit and cancel everything |
 
 `:reset` no longer exists: every JS call starts fresh.
 
+**Keyboard layouts.** Commands are matched by the key's position, so on a Russian or
+Ukrainian layout `о` is `j`, `ж` (Shift) is `:`, and the command name after `:` is
+typed in either layout (`:ьщвуд` is `:model`). Text you type (the input, search
+boxes, form fields, command arguments, the target of `f t r`) is never translated.
+`Ctrl`+letter of another layout works where the terminal reports the letter (kitty
+keyboard protocol); other terminals send a control code or nothing for it.
+
+**Mouse.** The wheel scrolls the timeline. Drag over the timeline to select text (it
+is a visual selection and is copied through OSC 52 when you let go), double-click
+selects a word, triple-click a line; `Esc` or the next click clears it. The input,
+the status bar and dialogs are not selectable with the mouse.
+
 ## Timeline
 
 Answers are drawn as Markdown (headings, lists, quotes, alerts, tables, fenced code
-with language colours). Every js call shows its duration, long calls turn yellow, and
-a line sums up each run (time, requests, js calls, tokens, cache hit rate, cost).
-The plan appears as a read-only block; steps and acceptance criteria are separate and
-unverified criteria are called out. `:todo` folds it and the choice is kept.
+with language colours). Every js call shows a small badge in the top right corner of its block: `⠹ 2.3s/120s` while it
+runs (time so far / limit), then `✓ 2.3s` or `✕ 2.3s`; long calls turn yellow. A line sums up
+each run (time, requests, js calls, tokens, cache hit rate, cost).
 
 ## JS display
 

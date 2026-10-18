@@ -122,3 +122,31 @@ func TestOpenSharesHandleAndSecuresFile(t *testing.T) {
 		t.Fatalf("second Open must return the shared handle: %v", err)
 	}
 }
+
+// The state global is gone: its rows are dropped, the plan's rows stay.
+func TestMigrationDropsStateRowsOnly(t *testing.T) {
+	d := rawDB(t)
+	if err := migrateTo(d, 6); err != nil {
+		t.Fatal(err)
+	}
+	for _, q := range []string{
+		"INSERT INTO sessions(id, title, cwd, updated_at) VALUES ('s', 't', '/w', '2025-01-01T00:00:00Z')",
+		"INSERT INTO kv(session_id, ns, key, value_json) VALUES ('s','state','a','1'), ('s','todo','plan','{}')",
+		"INSERT INTO journal(session_id, ver, ns, key, value_json, time) VALUES ('s',1,'state','a','1','t'), ('s',2,'todo','plan','{}','t')",
+	} {
+		if _, err := d.Exec(q); err != nil {
+			t.Fatalf("%s: %v", q, err)
+		}
+	}
+	if err := migrate(d); err != nil {
+		t.Fatal(err)
+	}
+	var kvState, kvTodo, jState, jTodo int
+	d.QueryRow("SELECT COUNT(1) FROM kv WHERE ns='state'").Scan(&kvState)
+	d.QueryRow("SELECT COUNT(1) FROM kv WHERE ns='todo'").Scan(&kvTodo)
+	d.QueryRow("SELECT COUNT(1) FROM journal WHERE ns='state'").Scan(&jState)
+	d.QueryRow("SELECT COUNT(1) FROM journal WHERE ns='todo'").Scan(&jTodo)
+	if kvState != 0 || jState != 0 || kvTodo != 1 || jTodo != 1 {
+		t.Fatalf("kv state/todo %d/%d, journal state/todo %d/%d", kvState, kvTodo, jState, jTodo)
+	}
+}

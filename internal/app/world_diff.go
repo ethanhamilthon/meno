@@ -11,7 +11,7 @@ import (
 
 func diffMCP(old, cur map[string]mcpSig) []string {
 	var out []string
-	line := func(s string) { out = append(out, "<mcp-updated>"+s+"</mcp-updated>") }
+	line := func(s string) { out = append(out, evLine("mcp-updated", s)) }
 	for _, name := range sortedKeys(cur) {
 		n := cur[name]
 		oldSig, had := old[name]
@@ -83,7 +83,14 @@ func setDiff(a, b []string) (added, removed []string) {
 	return added, removed
 }
 
-const forkedEvent = "<session-forked>This session is a fork of an earlier conversation and continues independently from the point it was forked at. Give it its own name now with session.rename(name), at most 6 words.</session-forked>"
+// evLine is one tagged event line. The text carries names, paths and server
+// errors that someone else controls, so markup characters are escaped: none of
+// them can close the block or open another one.
+func evLine(tag, text string) string {
+	return "<" + tag + ">" + eventEscaper.Replace(text) + "</" + tag + ">"
+}
+
+var eventEscaper = strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;")
 
 // eventBlock wraps event lines into the block that precedes a user message;
 // "" when there are none.
@@ -99,9 +106,6 @@ func eventBlock(lines []string) string {
 type promptState struct {
 	Frozen string    // "" until built
 	Base   *baseline // nil at a reset point
-	// ForkEvent queues the session-forked event for the next message: set for
-	// a session created by :fork until the user has written in it.
-	ForkEvent bool
 	// CwdFrom is the directory the session was in when the model last heard of
 	// one, set when the directory changed while there was no baseline (a stored
 	// session just opened). The next message tells the model.
@@ -122,22 +126,19 @@ type prepared struct {
 // otherwise the prompt stays and the changes since the baseline become one
 // event. hasHistory says whether the session already has turns.
 func prepare(ctx context.Context, ps promptState, src worldSrc, hasHistory bool) prepared {
+	src.NoMCPWait = ps.Base != nil // not a reset point: no prompt is built from this look
 	w, warnings := src.gather(ctx)
 	res := prepared{Skills: w.Skills, SkillsOK: w.SkillsOK, Warnings: warnings}
 	var lines []string
 	if ps.Base == nil {
 		ps.Frozen = prompt.Build(w.Input)
 		if hasHistory && ps.CwdFrom != "" && ps.CwdFrom != src.Paths.Cwd {
-			lines = append(lines, "<cwd-changed>The working directory changed from "+ps.CwdFrom+" to "+src.Paths.Cwd+". Relative paths and sh() now use "+src.Paths.Cwd+". Project skills and AGENTS.md of "+src.Paths.Cwd+" are already in your system prompt.</cwd-changed>")
+			lines = append(lines, evLine("cwd-changed", "The working directory changed from "+ps.CwdFrom+" to "+src.Paths.Cwd+". Relative paths and sh() now use "+src.Paths.Cwd+". Project skills and AGENTS.md of "+src.Paths.Cwd+" are already in your system prompt."))
 		}
 	} else {
 		lines = diffBaseline(ps.Base, w.Base)
 	}
 	ps.Base, ps.CwdFrom = w.Base, ""
-	if ps.ForkEvent {
-		lines = append(lines, forkedEvent)
-	}
-	ps.ForkEvent = false
 	res.State, res.Event = ps, eventBlock(lines)
 	return res
 }

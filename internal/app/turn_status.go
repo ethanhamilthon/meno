@@ -39,7 +39,7 @@ func (a *App) retryText() string {
 
 // pricer prices one request of the model, for the cost in the run summary.
 func (a *App) pricer(p llm.Provider, model string) func(llm.Usage) (float64, bool) {
-	info, ok := llm.LookupMetadata(a.st.Pricing, p, model)
+	info, ok := p.Lookup(a.st.Pricing, model)
 	if !ok {
 		return nil
 	}
@@ -67,37 +67,12 @@ func pad2(n int) string {
 	return itoa(n)
 }
 
-// runningText is the status-bar text while the agent works: which request of
-// the run it is on, for how long, how many js calls and the tokens spent.
-func (a *App) runningText() string {
-	if !a.st.Running || a.st.RunStart.IsZero() {
-		return ""
-	}
-	turn := a.st.RunTurns + 1 // the request being answered
-	if a.st.Phase == "running" {
-		turn = max(1, a.st.RunTurns) // the call belongs to the request just answered
-	}
-	parts := []string{"turn " + itoa(turn), clock(time.Since(a.st.RunStart))}
-	if n := a.st.RunJS; n > 0 {
-		if n == 1 {
-			parts = append(parts, "1 js call")
-		} else {
-			parts = append(parts, itoa(n)+" js calls")
-		}
-	}
-	in, out := a.st.Usage.In-a.st.RunUsage0.In, a.st.Usage.Out-a.st.RunUsage0.Out
-	if in > 0 || out > 0 {
-		parts = append(parts, "↓ "+compactTokens(max(0, in))+" ↑ "+compactTokens(max(0, out)))
-	}
-	return strings.Join(parts, " · ")
-}
-
 // autoCompact is the safety net settings for the model of this turn. An unknown
 // context window turns it off: a window is never guessed.
 func (a *App) autoCompact(p llm.Provider, model string) agent.AutoCompact {
 	s := a.st.Settings
 	ac := agent.AutoCompact{Percent: s.CompactPercent, Keep: s.CompactKeep, SummaryTokens: s.CompactSummaryTokens}
-	if info, ok := llm.LookupMetadata(a.st.Pricing, p, model); ok {
+	if info, ok := p.Lookup(a.st.Pricing, model); ok {
 		ac.Window = info.Context
 	}
 	return ac

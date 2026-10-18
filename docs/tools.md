@@ -2,7 +2,7 @@
 
 The model has one tool, `js`. **Every call runs in a fresh runtime**: declarations,
 `globalThis` changes, patched builtins and `env` edits do not survive the call.
-Durable data lives in `state`, files, tasks and the plan. Host functions are
+Durable data lives in files and tasks. `help()` lists the topics; `help("name")` returns the full API of one global (the text is embedded in `internal/jsvm/help/`). Host functions are
 synchronous; `await` works on values that are already settled and a promise that
 stays pending is an error. The last expression, or an explicit top-level
 `return`, is the result: strings as they are, objects and arrays as JSON;
@@ -16,12 +16,7 @@ result share one 64 KB budget; there is a timeout (a setting).
 | `fs.patch(path, [{oldText, newText}], {expectedHash})` | all-or-nothing exact edits against what `inspect` showed; each `oldText` must match once; atomic replace keeping permissions |
 | `fs.edit`, `fs.write`, `fs.glob`, `fs.exists` | `edit` needs a unique match and says where the near misses are |
 | `sh(cmd)`, `fetch`, `env`, `URL`, `console` | as before |
-| `state.set/get/has/delete/listKeys/listValues/listEntries` | durable per-session JSON map, strict JSON (errors name the path), 1 MiB per value, 10 MiB per session; committed before `set` returns |
-| `session.rename(name)` | at most 6 words |
 | `session.models({provider?, refresh?})` | models of enabled providers with known capabilities; `null` means unknown |
-| `session.compact(summary, saveLastNMessages)` | applied after the current tool batch; originals stay retrievable |
-| `sessions.list/search/read` | all local sessions, paged; see [sessions](sessions.md) |
-| `todo.*`, `todo.criteria.*` | the agent's plan and acceptance criteria, visible in the timeline (`:todo` folds it) |
 | `tasks.start/list/status/logs/wait/cancel` | background processes, see below |
 | `agents.spawn/list/status/send/wait/result/cancel` | subagents, see below |
 | `askUser({questions, timeout})` | one form with all questions, see below |
@@ -52,7 +47,7 @@ Tasks live only while meno is open; a task found running after a crash is marked
 
 `agents.spawn({task, cwd?, provider?, model?, effort?})` starts a child session that
 sees only the task text, `AGENTS.md` of its directory and the ordinary tools: no
-`askUser`, no tasks, no further agents, no renaming. It has its own state and plan.
+`askUser`, no tasks, no further agents.
 Children report with `agents.report`, ask for help with `agents.block` and finish by
 answering. `:agents` lists only working children of the session; open one to watch
 and message it. Their spend is shown apart (`delegated`), unknown prices stay

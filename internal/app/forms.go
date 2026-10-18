@@ -28,9 +28,9 @@ func (a *App) formKey(k *tcell.EventKey, fs []field) {
 		return
 	}
 	switch {
-	case k.Key() == tcell.KeyDown || k.Rune() == 'j':
+	case k.Key() == tcell.KeyDown || isKey(k, 'j'):
 		a.st.Field = min(a.st.Field+1, len(fs)-1)
-	case k.Key() == tcell.KeyUp || k.Rune() == 'k':
+	case k.Key() == tcell.KeyUp || isKey(k, 'k'):
 		a.st.Field = max(a.st.Field-1, 0)
 	case len(f.opts) > 0 && (k.Key() == tcell.KeyRight || k.Key() == tcell.KeyLeft || k.Key() == tcell.KeyEnter || k.Rune() == ' '):
 		step := 1

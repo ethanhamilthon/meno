@@ -22,7 +22,7 @@ func TestModelChangeProducesEventAndKeepsPrompt(t *testing.T) {
 	if reqs[0].Model != "gpt-5.5" || reqs[1].Model != "gpt-6" || reqs[1].Effort != "low" {
 		t.Fatalf("models %q %q effort %q", reqs[0].Model, reqs[1].Model, reqs[1].Effort)
 	}
-	if !strings.Contains(reqs[0].System, "\nModel: gpt-5.5 (openai, effort high)") {
+	if !strings.Contains(reqs[0].System, "\n- Model: gpt-5.5 (openai, effort high).") {
 		t.Fatalf("the prompt must name the model:\n%s", reqs[0].System)
 	}
 	if reqs[0].System != reqs[1].System {

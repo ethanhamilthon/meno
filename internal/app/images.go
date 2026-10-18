@@ -14,6 +14,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"meno/internal/attach"
+	"meno/internal/safe"
 	"meno/internal/termimg"
 	"meno/internal/ui"
 )
@@ -136,6 +137,7 @@ func (a *App) imageGet(ref *ui.ImageRef, cw, ch int) (image.Image, bool) {
 	cols, rows := ref.Cols, ref.Rows
 	a.running.Add(1)
 	go func() {
+		defer safe.Recover(a.reportPanic)
 		defer a.running.Done()
 		img, err := loadScaled(path, cols*cw, rows*ch)
 		m.mu.Lock()

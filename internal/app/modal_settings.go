@@ -24,6 +24,7 @@ var settingRows = []settingRow{
 	{"turn summary", "turn_summary"},
 	{"notify", "notify"},
 	{"notify sound", "notify_sound"},
+	{"auto compact", "compact_percent"},
 }
 
 func (a *App) settingsKey(k *tcell.EventKey) {
@@ -68,6 +69,9 @@ func (a *App) cycleSetting(step int) {
 func optLabel(s *config.Settings, key, opt string) string {
 	if key == "js_timing" && opt == "slow" {
 		return "slow only"
+	}
+	if key == "compact_percent" {
+		return "at " + strconv.Itoa(s.CompactPercent) + "%"
 	}
 	if opt != config.NumOption(key) {
 		return opt

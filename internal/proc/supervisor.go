@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"meno/internal/safe"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -142,7 +143,8 @@ func (s *Supervisor) Start(o StartOptions) (Task, error) {
 	} else {
 		cmd.Env = os.Environ()
 	}
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	// Setsid: no controlling terminal, so background tasks cannot stop meno via tty signals.
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 	stdout, err1 := cmd.StdoutPipe()
 	stderr, err2 := cmd.StderrPipe()
 	if err := errors.Join(err1, err2); err != nil {
@@ -228,6 +230,7 @@ func (s *Supervisor) terminate(r *running) {
 	pgid := r.cmd.Process.Pid
 	_ = syscall.Kill(-pgid, syscall.SIGTERM)
 	go func() {
+		defer safe.Recover(nil)
 		select {
 		case <-r.done:
 		case <-time.After(time.Duration(graceTime.Load())):

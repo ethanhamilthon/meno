@@ -105,9 +105,9 @@ func TestStatusUsageIcons(t *testing.T) {
 	a.st.Settings.Provider, a.st.Settings.Model = "openai", "test"
 	a.st.Pricing = map[string]llm.ModelInfo{"openai/test": {Context: 128000}}
 	a.st.Usage = llm.Usage{In: 12000, Out: 2000, Cached: 10000, CacheReported: true}
-	a.st.LastUsage = llm.Usage{In: 200, Cached: 50}
+	a.st.LastUsage = llm.Usage{In: 200, Cached: 50, CacheReported: true}
 	a.st.Context, a.st.Spent = 4000, 1.25
-	want := "↓ 12k · ↑ 2k · ↺ 83% · ◫ 4k/128k · $1.2500"
+	want := "12k/2k ↺25%/83% ◫ 4k/128k $1.25"
 	if got := a.statusUsageText(); got != want {
 		t.Fatalf("%q, want %q", got, want)
 	}
@@ -119,12 +119,12 @@ func TestStatusUsageIcons(t *testing.T) {
 	a.st.Pricing = nil
 	a.st.Unpriced = true
 	a.st.Usage = llm.Usage{In: 100, Cached: 200, CacheReported: true}
-	if got := a.statusUsageText(); !strings.Contains(got, "↺ 100%") || !strings.Contains(got, "4k/?") || !strings.Contains(got, "$1.2500+?") {
+	if got := a.statusUsageText(); !strings.Contains(got, "↺25%/100%") || !strings.Contains(got, "4k/?") || !strings.Contains(got, "$1.25+?") {
 		t.Fatal(got)
 	}
 	a.st.Usage = llm.Usage{Cached: 100, CacheReported: true}
-	a.st.LastUsage = llm.Usage{In: 100, Cached: 100} // the last request alone must not matter
-	if got := a.statusUsageText(); !strings.Contains(got, "↺ 0%") {
+	a.st.LastUsage = llm.Usage{In: 100, Cached: 100, CacheReported: true}
+	if got := a.statusUsageText(); !strings.Contains(got, "↺100%/0%") {
 		t.Fatal(got)
 	}
 }

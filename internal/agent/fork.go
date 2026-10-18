@@ -8,8 +8,8 @@ import (
 )
 
 // LegacyForkWarning is returned with a fork of a session that predates the
-// state/TODO journal: only the conversation could be carried over.
-const LegacyForkWarning = "this session predates versioned state and TODO; the fork keeps the conversation only, with empty state and TODO"
+// versioned state journal: only the conversation could be carried over.
+const LegacyForkWarning = "this session predates versioned state; the fork keeps the conversation only, with empty state"
 
 // SafeBoundary expands the history ID hid to the end of its replay group, so a
 // fork never splits an assistant message from its tool results. It returns 0
@@ -44,8 +44,8 @@ func allTurns(d *sql.DB, id string) ([]Turn, error) {
 // ForkSession creates a new independent main session from the history of
 // srcID up to and including the turn hid (expanded to a whole replay group).
 // It copies the history with its IDs, the summary that was valid at that point
-// (never one that contains later facts), the model settings, and the state and
-// TODO as they were at the boundary. cwd overrides the working directory when
+// (never one that contains later facts), the model settings, and the versioned
+// state as it was at the boundary. cwd overrides the working directory when
 // not empty. The returned warning is non-empty when the source is a legacy
 // session. No model is called; nothing of the source is modified.
 func ForkSession(dir, srcID string, hid int64, cwd string) (*Session, string, error) {
@@ -143,7 +143,7 @@ func summaryRevs(d *sql.DB, id string, boundary int64) ([]SummaryRev, error) {
 	return out, rows.Err()
 }
 
-// copyVersioned writes the state and TODO of src at boundary into dst, with a
+// copyVersioned writes the versioned state of src at boundary into dst, with a
 // journal baseline at the same boundary. A legacy source has no journal worth
 // reconstructing, so nothing is copied.
 func copyVersioned(tx *sql.Tx, src, dst string, boundary int64, legacy bool) error {
@@ -151,7 +151,7 @@ func copyVersioned(tx *sql.Tx, src, dst string, boundary int64, legacy bool) err
 		return nil
 	}
 	var ver int64
-	for _, ns := range []string{NSState, NSTodo} {
+	for _, ns := range []string{NSData} {
 		entries, err := entriesAt(tx, src, ns, boundary)
 		if err != nil {
 			return err

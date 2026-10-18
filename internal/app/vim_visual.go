@@ -104,7 +104,7 @@ func (a *App) selSpan(top, l, n int) (lo, hi int, ok bool) {
 }
 
 func (a *App) onVisualKey(k *tcell.EventKey) {
-	r := normalRune(k)
+	r := a.vimRune(k, true)
 	if r == 0 {
 		switch k.Key() {
 		case tcell.KeyEsc:

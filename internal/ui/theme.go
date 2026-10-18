@@ -137,15 +137,15 @@ var themes = []Theme{
 
 var currentTheme = DefaultTheme
 
-// Themes lists the built-in themes in display order.
-func Themes() []Theme { return append([]Theme(nil), themes...) }
+// Themes lists the built-in themes in display order, then those of theme.json.
+func Themes() []Theme { return append(append([]Theme(nil), themes...), extraThemes...) }
 
 // CurrentTheme is the name of the active theme.
 func CurrentTheme() string { return currentTheme }
 
 // FindTheme looks a theme up by name.
 func FindTheme(name string) (Theme, bool) {
-	for _, t := range themes {
+	for _, t := range Themes() {
 		if t.Name == name {
 			return t, true
 		}

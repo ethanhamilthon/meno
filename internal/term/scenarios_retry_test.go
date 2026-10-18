@@ -201,12 +201,12 @@ func TestSkillEditProducesSystemEvent(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.Say("first message")
-	s.WaitFor("↓ 100")
+	s.WaitFor("100/20")
 	if err := os.WriteFile(skill, []byte("---\ndescription: code style\n---\nv2\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	s.Say("second message")
-	s.WaitFor("↓ 200")
+	s.WaitFor("200/40")
 	bodies := f.Bodies()
 	if len(bodies) != 2 {
 		t.Fatalf("requests: %d", len(bodies))

@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"context"
+	"meno/internal/safe"
 	"sort"
 	"sync"
 	"time"
@@ -71,6 +72,7 @@ func (m *Manager) WaitReady(ctx context.Context, timeout time.Duration) bool {
 	stop := make(chan struct{})
 	defer close(stop)
 	go func() {
+		defer safe.Recover(nil)
 		t := time.NewTimer(timeout)
 		defer t.Stop()
 		select {

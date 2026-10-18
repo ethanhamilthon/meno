@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"meno/internal/safe"
 	"net/http"
 	"net/url"
 	"os"
@@ -56,6 +57,7 @@ func FetchMetadata(ctx context.Context) (map[string]ModelInfo, error) {
 	results := make(chan result, 2)
 	for _, router := range []bool{false, true} {
 		go func(router bool) {
+			defer safe.Recover(nil)
 			endpoint := "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json"
 			decode := decodeLiteLLM
 			if router {

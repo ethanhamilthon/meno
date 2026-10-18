@@ -4,10 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"meno/internal/agent"
 	"meno/internal/config"
-	"meno/internal/jsvm"
 	"meno/internal/llm"
+	"meno/internal/safe"
 	"sort"
 	"sync"
 	"time"
@@ -86,6 +85,7 @@ func (h sessionHost) Models(opts map[string]any) (any, error) {
 		}
 		wg.Add(1)
 		go func(p llm.Provider, r *result) {
+			defer safe.Recover(nil)
 			defer wg.Done()
 			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 			defer cancel()
@@ -112,9 +112,9 @@ func (h sessionHost) Models(opts map[string]any) (any, error) {
 			errs[p.Name] = r.err
 		}
 		for _, m := range r.models {
-			info, ok := llm.LookupMetadata(src.pricing, p, m.ID)
+			info, ok := p.Lookup(src.pricing, m.ID)
 			entry := map[string]any{
-				"provider": p.Name, "id": m.ID, "efforts": src.efforts,
+				"provider": p.Name, "id": m.ID, "efforts": p.EffortsFor(m.ID, src.efforts),
 				"contextWindow": nil, "images": nil, "prices": nil,
 				"stale": r.stale, "source": "catalog",
 			}
@@ -144,23 +144,4 @@ func nilIf0(n int) any {
 		return nil
 	}
 	return n
-}
-
-// jsState adapts the versioned store of a session to the state global. Every
-// write records the history boundary of the step that is executing.
-type jsState struct {
-	kv   *agent.KV
-	sess *agent.Session
-}
-
-func (s jsState) Set(k, j string) error              { return s.kv.Set(k, j, s.sess.ExecBoundary()) }
-func (s jsState) Get(k string) (string, bool, error) { return s.kv.Get(k) }
-func (s jsState) Delete(k string) (bool, error)      { return s.kv.Delete(k, s.sess.ExecBoundary()) }
-func (s jsState) Entries() ([]jsvm.StateEntry, error) {
-	es, err := s.kv.Entries()
-	out := make([]jsvm.StateEntry, len(es))
-	for i, e := range es {
-		out[i] = jsvm.StateEntry{Key: e.Key, JSON: e.JSON}
-	}
-	return out, err
 }

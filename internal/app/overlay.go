@@ -121,8 +121,8 @@ func clampSel(sel, n int) int {
 }
 
 func (a *App) navKey(k *tcell.EventKey, n int, jk bool) bool {
-	up := k.Key() == tcell.KeyUp || (jk && k.Rune() == 'k')
-	down := k.Key() == tcell.KeyDown || (jk && k.Rune() == 'j')
+	up := k.Key() == tcell.KeyUp || (jk && isKey(k, 'k'))
+	down := k.Key() == tcell.KeyDown || (jk && isKey(k, 'j'))
 	switch {
 	case down:
 		a.st.Sel = clampSel(a.st.Sel+1, n)

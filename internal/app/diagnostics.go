@@ -14,7 +14,10 @@ import (
 // cacheReport explains, from fingerprints and usage only, how the last request
 // related to the one before it. It contains no message text.
 func (a *App) cacheReport() {
-	fps := a.st.Fps
+	fps := make([]llm.Fingerprint, len(a.st.Reqs))
+	for i, r := range a.st.Reqs {
+		fps[i] = llm.FingerprintOf(r)
+	}
 	if len(fps) == 0 {
 		a.notify("cache: no request sent in this session yet")
 		return

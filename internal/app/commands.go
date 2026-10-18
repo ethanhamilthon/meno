@@ -8,6 +8,7 @@ import (
 
 	"meno/internal/agent"
 	"meno/internal/llm"
+	"meno/internal/safe"
 )
 
 // interruptsAgent lists commands that would pull the session, VM or directory
@@ -44,14 +45,14 @@ func (a *App) runCommand(raw string) {
 		a.changeDir(strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(raw), name)))
 	case "fork":
 		a.openFork()
+	case "rename":
+		a.renameSession(strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(raw), name)))
 	case "cache":
 		a.cacheReport()
 	case "agents":
 		a.openAgents()
 	case "tasks":
 		a.openTasks()
-	case "todo":
-		a.toggleTodo()
 	case "compact":
 		a.compact()
 	case "notify":
@@ -162,7 +163,7 @@ func (a *App) markUnseen(sid string) {
 // animating reports whether something on screen changes without input: a
 // running turn in any session, or the :sessions list with live statuses.
 func (a *App) animating() bool {
-	if a.st.Over == OverSessions {
+	if a.st.Over == OverSessions || a.bgAny() {
 		return true
 	}
 	for _, rt := range a.rtList {
@@ -206,13 +207,17 @@ func (a *App) compact() {
 	a.st.Running = true
 	a.st.LastErr = false
 	a.st.Phase = "compacting"
-	_, model, _ := a.selection()
+	_, model, effort := a.selection()
 	sess, sid, client := a.st.Session, a.st.Session.ID, a.client(p)
+	// The same system prompt and tools as the session's requests: the summary is
+	// served from their cache. Before the first request there is no prompt.
+	opts := agent.CompactOptions{System: a.st.Prompt.Frozen, Effort: effort, ModelTimeout: a.st.Settings.ModelTimeout()}
 	a.running.Add(1)
 	go func() {
+		defer safe.Recover(a.reportPanic)
 		defer a.running.Done()
 		defer cancel()
-		before, after, err := agent.Compact(ctx, client, p, model, sess, func(u llm.Usage) {
+		before, after, err := agent.CompactWith(ctx, client, p, model, sess, opts, func(u llm.Usage) {
 			a.postEvent(agentEv{sid: sid, ev: agent.Ev{Kind: agent.EvUsage, Usage: u, Provider: p, Model: model}})
 		})
 		a.postEvent(compactDone{sid: sid, before: before, after: after, err: err})
@@ -260,14 +265,4 @@ func (a *App) exportSession(args []string) {
 		shown = "./" + name
 	}
 	a.notify("session saved to " + shown)
-}
-
-// toggleTodo folds or unfolds the plan block; the choice is kept.
-func (a *App) toggleTodo() {
-	if a.st.Todo == nil {
-		a.notify("no plan yet · the agent keeps one while it works")
-		return
-	}
-	a.st.Settings.TodoCollapsed = !a.st.Settings.TodoCollapsed
-	a.persistSettings()
 }

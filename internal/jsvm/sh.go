@@ -3,6 +3,7 @@ package jsvm
 import (
 	"bytes"
 	"context"
+	"meno/internal/safe"
 	"os/exec"
 	"strings"
 	"syscall"
@@ -35,6 +36,7 @@ func (s Shell) Run(ctx context.Context, cmd string) (ShResult, error) {
 	c, stop := context.WithCancel(c)
 	defer stop()
 	go func() {
+		defer safe.Recover(nil)
 		select {
 		case <-ctx.Done():
 			stop()
@@ -46,7 +48,11 @@ func (s Shell) Run(ctx context.Context, cmd string) (ShResult, error) {
 	if s.Env != nil {
 		e.Env = s.Env
 	}
-	e.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	// Setsid gives the command its own session without a controlling terminal.
+	// Setpgid alone left it in a background group of meno's terminal, so an
+	// interactive shell (zsh -ic) could get SIGTTIN/SIGTTOU and stop meno.
+	// Setsid also makes the pid the process group id, so kill(-pid) still works.
+	e.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 	e.Cancel = func() error {
 		if e.Process == nil {
 			return nil

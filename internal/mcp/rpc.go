@@ -7,6 +7,8 @@ import (
 	"io"
 	"sync"
 	"sync/atomic"
+
+	"meno/internal/safe"
 )
 
 type rpcMsg struct {
@@ -90,7 +92,8 @@ func (c *conn) dispatch(r io.Reader) error {
 	sc := bufio.NewScanner(r)
 	sc.Buffer(make([]byte, 64*1024), 32*1024*1024)
 	for sc.Scan() {
-		c.handle(sc.Bytes())
+		// One malformed or unexpected message from a server must not kill the process.
+		_ = safe.Call(func() { c.handle(sc.Bytes()) })
 	}
 	return sc.Err()
 }

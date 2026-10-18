@@ -127,14 +127,15 @@ func jsBlock(t agent.Turn, w int, js JSOpts) []Line {
 		for i := range lines {
 			lines[i].Segs = append([]Seg{{Text: "  ", FG: FgDim}}, lines[i].Segs...)
 		}
-		out = append(out, lines...)
-		// The timing belongs under its code; with the code hidden only the
-		// news that matter (a failure, a timeout) are worth a line of their own.
-		if foot, ok := timingFooter(t, js); ok {
-			out = append(out, Line{Segs: append([]Seg{{Text: "  "}}, fitFooter(foot, w-2)...), BG: bg})
+		// The timing sits in the top right corner of the block.
+		if badge, ok := timingBadge(t, js); ok {
+			lines = withBadge(lines, badge, w, Band(bg))
 		}
-	} else if foot, ok := timingFooter(t, js); ok && (t.Err != "" || t.TimedOut) {
-		out = append(out, Line{Segs: append([]Seg{{Text: "  "}}, fitFooter(foot, w-2)...), BG: BgJSErr})
+		out = append(out, lines...)
+	} else if badge, ok := timingBadge(t, js); ok && (t.Err != "" || t.TimedOut) {
+		// With the code hidden only the news that matter (a failure, a timeout)
+		// are worth a row of their own.
+		out = append(out, withBadge(nil, badge, w, Band(BgJSErr))...)
 	}
 	if js.OutMode != JSOff {
 		limit := 0
@@ -198,6 +199,20 @@ func itoa(n int) string { return strconv.Itoa(n) }
 // eventSummary is the one-line form of a rendered steering event: the source
 // and the first line of its text.
 func eventSummary(rendered string) string {
+	if body, ok := strings.CutPrefix(rendered, "<system-event>"); ok {
+		// What the event is about: the tag of its first line ("<date-changed>…")
+		// or, for a plain note, the word before its colon ("date-changed: …").
+		body = strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(body), "</system-event>"))
+		if _, rest, ok := strings.Cut(body, "\n<"); ok {
+			body = "<" + rest
+		}
+		if rest, ok := strings.CutPrefix(body, "<"); ok {
+			name, _, _ := strings.Cut(rest, ">")
+			return "system: " + name
+		}
+		name, _, _ := strings.Cut(body, ":")
+		return "system: " + strings.Join(strings.Fields(name), " ")
+	}
 	head, body, _ := strings.Cut(rendered, ">\n")
 	src, from := attr(head, "source"), attr(head, "from")
 	if from != "" {

@@ -6,7 +6,6 @@ laptop (arm64, Go 1.27) and exist to compare runs on the same machine, not as pr
 | Benchmark | Result |
 | --- | --- |
 | fresh JS runtime for a trivial call (every tool call pays it) | ~0.19 ms, 2.0k allocations |
-| `state.set` + `state.get` round trip in one call | ~0.22 ms |
 | lay out a 300-turn timeline from scratch | ~7 ms |
 | the same 600-turn timeline per frame with the per-turn layout cache | ~1 ms |
 | build the provider history of a 600-message session | ~0.19 ms |

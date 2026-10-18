@@ -17,15 +17,3 @@ func BenchmarkFreshRuntimeCall(b *testing.B) {
 		}
 	}
 }
-
-func BenchmarkStateRoundTrip(b *testing.B) {
-	v := New(Options{Root: b.TempDir()})
-	v.SetState(&memState{m: map[string]string{}})
-	ctx := context.Background()
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		if r := v.Exec(ctx, "state.set('k', {a: [1,2,3], b: 'x'}); state.get('k').a.length"); r.Err != "" {
-			b.Fatal(r.Err)
-		}
-	}
-}

@@ -22,7 +22,7 @@ func TestSavedTimingsAndSummaryAreDrawn(t *testing.T) {
 	a.st.Session.Append(agent.Turn{Role: llm.RoleAssistant, Text: "ready", Run: &agent.RunStats{Status: agent.RunOK, ElapsedMs: 21500, Turns: 2, JSCalls: 1, JSMs: 15000, Usage: llm.Usage{In: 2000, Out: 100, Cached: 1000}, Cost: &cost}})
 	a.draw()
 	text := screenText(s)
-	for _, want := range []string{"✓ 15s", "50% of 30s limit", "✓ 22s · 2 turns · 1 js call · 15s in js", "↓2k ↑100 ↺50% $0.012"} {
+	for _, want := range []string{"✓ 15s", "✓ 22s · 2 turns · 1 js call · 15s in js", "↓2k ↑100 ↺50% $0.012"} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("missing %q:\n%s", want, text)
 		}
@@ -200,7 +200,7 @@ func TestTimedOutCallIsMarkedOnScreen(t *testing.T) {
 	sendAndWait(t, a, "loop")
 	a.draw()
 	text := screenText(scr)
-	if !strings.Contains(text, "timed out after 300ms") || !strings.Contains(text, "it hung") {
+	if !strings.Contains(text, "✕ 0.3s") || !strings.Contains(text, "it hung") {
 		t.Fatalf("%s", text)
 	}
 }

@@ -174,7 +174,7 @@ type cmdDef struct {
 var commandList = []cmdDef{
 	{":new", "new session"},
 	{":fork", "fork at a message"},
-	{":todo", "fold or unfold the plan"},
+	{":rename", "rename this session"},
 	{":tasks", "background processes"},
 	{":agents", "working subagents"},
 	{":cache", "prompt-cache diagnostics"},

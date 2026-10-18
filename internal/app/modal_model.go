@@ -19,13 +19,15 @@ func (a *App) modelKey(k *tcell.EventKey) {
 	switch {
 	case a.navKey(k, len(list), false):
 	case k.Key() == tcell.KeyLeft:
-		a.cycleEffort(-1)
+		a.cycleEffort(-1, list)
 	case k.Key() == tcell.KeyRight:
-		a.cycleEffort(1)
+		a.cycleEffort(1, list)
 	case k.Key() == tcell.KeyEnter:
 		if len(list) > 0 {
 			pick := list[clampSel(a.st.Sel, len(list))]
 			_, _, effort := a.selection()
+			// The new model may not accept the effort of the old one.
+			effort = llm.ClampEffort(a.effortsFor(pick.Provider, pick.ID), effort)
 			a.setSelection(pick.Provider, pick.ID, effort)
 			a.persistSettings()
 			a.closeOverlay()
@@ -46,12 +48,44 @@ func effortOf(a *App) string {
 	return e
 }
 
-// cycleEffort steps the effort of the current session through the choices.
-func (a *App) cycleEffort(step int) {
-	p, m, e := a.selection()
-	s := config.Settings{Effort: e}
-	s.Cycle("effort", step)
-	a.setSelection(p, m, s.Effort)
+// effortsFor lists the effort levels of a model: its own from the settings of
+// the provider, or the standard ones.
+func (a *App) effortsFor(provider, model string) []string {
+	standard := config.Choices("effort")
+	for _, p := range a.st.Providers {
+		if p.Name == provider {
+			return p.EffortsFor(model, standard)
+		}
+	}
+	return standard
+}
+
+// highlighted is the model under the cursor of the model list, or the model of
+// the session when the list is empty.
+func (a *App) highlighted(list []llm.Model) (provider, model string) {
+	if len(list) > 0 {
+		m := list[clampSel(a.st.Sel, len(list))]
+		return m.Provider, m.ID
+	}
+	p, m, _ := a.selection()
+	return p, m
+}
+
+// cycleEffort steps the effort of the current session through the levels of
+// the model under the cursor.
+func (a *App) cycleEffort(step int, list []llm.Model) {
+	hp, hm := a.highlighted(list)
+	levels := a.effortsFor(hp, hm)
+	_, _, cur := a.selection()
+	idx := 0
+	for i, l := range levels {
+		if l == cur {
+			idx = i
+		}
+	}
+	n := len(levels)
+	p, m, _ := a.selection()
+	a.setSelection(p, m, levels[((idx+step)%n+n)%n])
 }
 
 func (a *App) drawModel(c ui.Canvas, w, h int) {
@@ -93,7 +127,7 @@ func (a *App) drawModel(c ui.Canvas, w, h int) {
 			detail := "metadata unavailable"
 			for _, provider := range a.st.Providers {
 				if provider.Name == m.Provider {
-					if info, ok := llm.LookupMetadata(a.st.Pricing, provider, m.ID); ok {
+					if info, ok := provider.Lookup(a.st.Pricing, m.ID); ok {
 						context := "?"
 						if info.Context > 0 {
 							context = compactTokens(info.Context)
@@ -116,6 +150,7 @@ func (a *App) drawModel(c ui.Canvas, w, h int) {
 	}
 	b.fill(c, y+1, ui.BgPopup)
 	b.put(c, 2, y+1, "effort", ui.FgDim, ui.BgPopup)
-	chips(c, b, y+1, 12, config.Choices("effort"), effortOf(a))
+	hp, hm := a.highlighted(list)
+	chips(c, b, y+1, 12, a.effortsFor(hp, hm), effortOf(a))
 	b.hint(c, "↑/↓ model · ←/→ effort · enter apply · esc close")
 }

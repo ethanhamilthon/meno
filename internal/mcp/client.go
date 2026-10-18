@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"meno/internal/safe"
 	"os"
 	"os/exec"
 	"strings"
@@ -130,6 +131,7 @@ func Start(ctx context.Context, s Server) (*Client, error) {
 	}
 	c := &Client{Server: s, cmd: cmd, conn: newConn(stdin), done: make(chan struct{})}
 	go func() {
+		defer safe.Recover(nil)
 		_ = c.conn.dispatch(stdout)
 		close(c.done)
 	}()

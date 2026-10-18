@@ -6,19 +6,18 @@ done** say exactly what is missing; nothing here claims behavior that was not ru
 
 | Area | Status | Evidence |
 | --- | --- | --- |
-| Additive migrations v2–v6, upgrade fixtures (run twice) | done | agent/history_test.go |
+| Migrations v2–v7 (v7 drops saved state values), upgrade fixtures (run twice) | done | agent/history_test.go |
 | Full history survives compaction, stable message IDs | done | agent/history_test.go |
-| State store with version journal; state limits | done | agent/fork_test.go, jsvm/contract_test.go |
+| Version journal; limits | done | agent/fork_test.go |
 | :fork (safe boundary, no future summary, independent, legacy warning, missing cwd) | done | agent/fork_test.go |
 | :new kept, :reset removed | done | term scenario 24 |
 | Fresh JS runtime per call, return / last expression, strict results | done | jsvm/contract_test.go |
 | `await`: settled values only, pending fails explicitly | done | jsvm/contract_test.go (no new event loop, as planned) |
-| session.rename / models / compact; sessions.list / search / read | done | app/js_host_test.go, agent/retrieval_test.go, schedule_test.go |
+| session.models; help(topic) | done | app/js_host_test.go, jsvm/help_test.go |
 | fs.read ranges, inspect, search, hash-guarded patch, edit diagnostics | done | jsvm/fs_tools_test.go |
 | MCP typed results, artifact store, bounded read-back | done | mcp/store_test.go, jsvm/mcp_test.go |
 | Steering queue, request ownership, request-scoped :stop, no auto-resume of cancelled work | done | agent/events_test.go, app/steer_test.go |
 | askUser multi-question forms (navigation, Other, Cancel/timeout exceptions, mouse) | done | app/ask_test.go, term scenarios |
-| TODO / criteria with evidence rules, archives, read-only collapsible view, fork versions | done | agent/todo_test.go |
 | Background tasks: process groups, rotating logs, notify dedup, :tasks | done | proc/proc_test.go, app/tasks_test.go |
 | Subagents: spawn, report/block/resume, prohibited bindings, :agents, usage accounting | done | app/children_test.go, children_more_test.go |
 | Automatic compaction safety net | done | agent/autocompact_test.go |

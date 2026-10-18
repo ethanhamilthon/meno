@@ -54,8 +54,6 @@ type Settings struct {
 	// ImagesProtocol is auto, off, kitty, sixel or iterm: which terminal
 	// graphics protocol draws images in the timeline.
 	ImagesProtocol string `json:"images_protocol"`
-	// TodoCollapsed keeps the plan block folded; the user toggles it with :todo.
-	TodoCollapsed bool `json:"todo_collapsed"`
 }
 
 // UnmarshalJSON restores safe defaults for obsolete enum values and invalid
@@ -113,7 +111,7 @@ func (s *Settings) UnmarshalJSON(data []byte) error {
 	if st.ThinkLines < 1 || st.ThinkLines > MaxLines {
 		st.ThinkLines = defaults.ThinkLines
 	}
-	if st.CompactPercent < 10 || st.CompactPercent > 95 {
+	if st.CompactPercent < MinCompactPercent || st.CompactPercent > MaxCompactPercent {
 		st.CompactPercent = defaults.CompactPercent
 	}
 	if st.CompactKeep < 2 || st.CompactKeep > 200 {
@@ -162,11 +160,13 @@ var choices = map[string][]string{
 	"turn_summary": {"on", "off"},
 	"effort":       {"low", "medium", "high", "max"},
 	"notify":       {"off", "question", "done"},
-	"notify_sound": append([]string{"default", "bell"}, notify.Names()...),
+	// One choice: the row only carries the number (the threshold in percent).
+	"compact_percent": {"percent"},
+	"notify_sound":    append([]string{"default", "bell"}, notify.Names()...),
 }
 
 func SettingKeys() []string {
-	return []string{"js_code", "js_strings", "images", "js_output", "thinking", "js_timeout", "js_timing", "turn_summary", "notify", "notify_sound"}
+	return []string{"js_code", "js_strings", "images", "js_output", "thinking", "js_timeout", "js_timing", "turn_summary", "notify", "notify_sound", "compact_percent"}
 }
 
 func Choices(key string) []string { return choices[key] }
@@ -195,6 +195,8 @@ func (s *Settings) Get(key string) string {
 		return s.NotifySound
 	case "notify":
 		return s.Notify
+	case "compact_percent":
+		return "percent"
 	}
 	return ""
 }

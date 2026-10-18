@@ -9,6 +9,7 @@ import (
 )
 
 func (a *App) onKey(k *tcell.EventKey) {
+	k = normalizeCtrl(k)
 	if k.Key() == tcell.KeyCtrlC {
 		a.abortTurn()
 		return
@@ -115,7 +116,7 @@ func (a *App) onNormalKey(k *tcell.EventKey) {
 		a.st.Cmd = nil
 		return
 	}
-	r := normalRune(k)
+	r := a.vimRune(k, false)
 	if r == 0 {
 		switch k.Key() {
 		case tcell.KeyEsc:
@@ -236,7 +237,7 @@ func (a *App) onCommandKey(k *tcell.EventKey) {
 			a.st.CmdSel = 0
 		}
 	case tcell.KeyRune:
-		a.st.Cmd = append(a.st.Cmd, k.Rune())
+		a.st.Cmd = append(a.st.Cmd, cmdNameRune(a.st.Cmd, k.Rune()))
 		a.st.CmdSel = 0
 	}
 }

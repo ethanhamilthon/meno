@@ -2,7 +2,6 @@ package agent
 
 import (
 	"context"
-	"errors"
 	"strconv"
 	"strings"
 	"time"
@@ -16,6 +15,13 @@ const keepTail = 4
 type CompactOptions struct {
 	Keep          int // recent messages that stay in the active context (default 4)
 	SummaryTokens int // target size of the summary (0 = unbounded)
+	// The request the session is sent with. When System is set, the summary is
+	// asked for with that system prompt, the tool schema and the messages of
+	// the part being summarized, so the provider's prefix cache serves almost
+	// all of it. If that fails, the transcript is sent as a single message.
+	System       string
+	Effort       string
+	ModelTimeout bool
 }
 
 // Compact summarizes the old part of the active context with the model and
@@ -59,41 +65,24 @@ func CompactWith(ctx context.Context, cl llm.Client, p llm.Provider, model strin
 		}
 		b.WriteString("\n")
 	}
-	prompt := "Summarize this conversation for continuation as Markdown with these sections: goal and acceptance criteria; current and superseded decisions; completed and remaining work; constraints and exclusions; changed files and observed Git state; validation done and what is unverified; artifact and result IDs; next action and blockers. Keep decisions, file paths and results. Be concise.\n"
-	if o.SummaryTokens > 0 {
-		prompt += "Keep the summary under about " + strconv.Itoa(o.SummaryTokens) + " tokens.\n"
-	}
-	prompt += "\n" + b.String()
-	var sum strings.Builder
-	var streamErr error
-	err = cl.Stream(ctx, llm.Request{Provider: p, Model: model, Msgs: []llm.Msg{{Role: llm.RoleUser, Text: prompt}}}, func(e llm.Event) {
-		if e.Kind == llm.EvError {
-			streamErr = errors.New(e.Text)
+	instruction := summaryInstruction(o.SummaryTokens)
+	var summary string
+	if o.System != "" {
+		req := llm.Request{Provider: p, Model: model, Effort: o.Effort, System: o.System, Tools: true, ModelTimeout: o.ModelTimeout,
+			Msgs: append(s.msgsOf(all, cut), llm.Msg{Role: llm.RoleUser, Text: instruction + "\nThe last " + strconv.Itoa(len(tail)) + " messages stay as they are and are not part of this summary. Answer with the summary as text; do not call any tool."})}
+		summary, err = askSummary(ctx, cl, req, reportUsage)
+		if err != nil && ctx.Err() != nil {
+			return before, before, ctx.Err()
 		}
-		if e.Kind == llm.EvDone {
-			for _, report := range reportUsage {
-				if report != nil {
-					report(e.Usage)
-				}
-			}
-		}
-		if e.Kind == llm.EvText {
-			sum.WriteString(e.Text)
-		}
-	})
-	if err == nil {
-		err = streamErr
 	}
-	if err == nil {
-		err = ctx.Err()
-	}
-	if err == nil && strings.TrimSpace(sum.String()) == "" {
-		err = errors.New("empty summary; context unchanged")
+	if o.System == "" || err != nil {
+		req := llm.Request{Provider: p, Model: model, Msgs: []llm.Msg{{Role: llm.RoleUser, Text: instruction + "\n" + b.String()}}}
+		summary, err = askSummary(ctx, cl, req, reportUsage)
 	}
 	if err != nil {
 		return before, before, err
 	}
-	s.Summary = strings.TrimSpace(sum.String())
+	s.Summary = summary
 	s.ensureLog().Compact(head, tail, SummaryRev{Rev: int(time.Now().UnixNano() / 1000), Summary: s.Summary, Time: time.Now()})
 	after = EstimateTokens(s)
 	return before, after, nil

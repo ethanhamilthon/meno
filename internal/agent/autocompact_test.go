@@ -17,7 +17,7 @@ type sizedClient struct {
 }
 
 func (c *sizedClient) Stream(ctx context.Context, req llm.Request, emit func(llm.Event)) error {
-	if len(req.Msgs) == 1 && strings.HasPrefix(req.Msgs[0].Text, "Summarize this conversation") {
+	if last := req.Msgs[len(req.Msgs)-1].Text; strings.Contains(last, "Summarize this conversation") {
 		c.summaries++
 		if c.failSummary {
 			return errors.New("summary model down")

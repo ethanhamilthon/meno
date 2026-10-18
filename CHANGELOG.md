@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.1
+
+- Single version source: `internal/version/VERSION`; the CLI, welcome screen and help title all read it.
+- The agent plan (`todo.*`, `:todo`, the plan block and its reminders) is removed.
+- `session.rename` is removed. A session is named after your first message; rename it with `:rename <name>`.
+- The timing of a js call is a small badge in the top right corner of its block: `⠹ 2.3s/120s` while running, `✓ 2.3s` when done, `✕ 2.3s` on error. The footer line with the progress bar is gone.
+
 ## 0.1.0 — first release
 
 Everything below is new relative to the pre-release builds.

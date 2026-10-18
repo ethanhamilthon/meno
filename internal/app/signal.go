@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"meno/internal/notify"
+	"meno/internal/safe"
 )
 
 // notifyTimeout bounds how long a notify command may run.
@@ -67,6 +68,7 @@ func (a *App) notifyNow(cmd string, env []string) {
 		return
 	}
 	go func() {
+		defer safe.Recover(a.reportPanic)
 		ctx, cancel := context.WithTimeout(context.Background(), notifyTimeout)
 		defer cancel()
 		if name, ok := strings.CutPrefix(cmd, "sound:"); ok {

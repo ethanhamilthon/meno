@@ -66,6 +66,7 @@ type item struct {
 	label   string
 	accent  bool
 	right   string
+	badge   string // blinking purple marker left of right, e.g. "◆ 2"
 	detail  string
 }
 
@@ -115,6 +116,14 @@ func drawItems(c ui.Canvas, b box, y int, items []item, sel int) {
 		labelW := max(0, b.w-x-2)
 		if it.right != "" {
 			labelW = max(0, labelW-ui.TextWidth(it.right)-2)
+		}
+		if it.badge != "" {
+			labelW = max(0, labelW-ui.TextWidth(it.badge)-2)
+			bx := b.w - 2 - ui.TextWidth(it.badge)
+			if it.right != "" {
+				bx -= ui.TextWidth(it.right) + 2
+			}
+			b.put(c, max(x, bx), y, it.badge, bgColor(), bg)
 		}
 		b.put(c, x, y, ui.Truncate(it.label, labelW), lfg, bg)
 		if it.right != "" {

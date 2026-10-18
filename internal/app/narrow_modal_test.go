@@ -6,6 +6,7 @@ import (
 
 	"meno/internal/config"
 	"meno/internal/ui"
+	"meno/internal/version"
 )
 
 func TestNarrowSettingsChoices(t *testing.T) {
@@ -57,7 +58,7 @@ func TestNarrowHelpHeaderAndCommands(t *testing.T) {
 	a.openOverlay(OverHelp)
 	a.draw()
 	row := visualRow(s, centered(80, 12, 0, 12).y)
-	if !strings.Contains(row, "help · meno") || !strings.Contains(row, "v0.1") {
+	if !strings.Contains(row, "help · meno") || !strings.Contains(row, version.Label()) {
 		t.Fatalf("help header collides: %q", row)
 	}
 	for _, want := range []string{"fork from a message", "switch sessions"} {
