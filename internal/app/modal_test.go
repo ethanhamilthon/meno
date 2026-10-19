@@ -93,7 +93,7 @@ func TestSessionsOverlayListsTheCurrentSession(t *testing.T) {
 	if text := screenText(scr); !strings.Contains(text, "new session") || !strings.Contains(text, "current") {
 		t.Fatalf("sessions overlay not rendered:\n%s", text)
 	}
-	a.st.Query = []rune("nothing like this")
+	a.st.Query.Set("nothing like this")
 	a.draw()
 	if !strings.Contains(screenText(scr), "no matching sessions") {
 		t.Fatal("filter")
@@ -117,7 +117,7 @@ func TestMCPEditRejectsInvalidServer(t *testing.T) {
 	a.openMCPEdit(-1)
 	a.st.EditMCP.Name = ""
 	a.saveMCPEdit()
-	if len(a.st.Servers) != before || a.lastNotice() == "" {
+	if len(a.st.Servers) != before || a.st.FormNote == "" {
 		t.Fatalf("invalid server saved: %+v", a.st.Servers)
 	}
 }

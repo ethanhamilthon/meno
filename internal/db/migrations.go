@@ -220,4 +220,8 @@ CREATE TABLE snippets (
 	updated_at TEXT NOT NULL DEFAULT ''
 );
 `,
+	`
+-- A provider can be switched off without losing its settings.
+ALTER TABLE providers ADD COLUMN disabled INTEGER NOT NULL DEFAULT 0;
+`,
 }

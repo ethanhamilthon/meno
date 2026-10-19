@@ -161,6 +161,7 @@ func (a *App) reloadSkills() {
 	if sk, err := config.NewStore(p).LoadSkills(); err == nil {
 		a.st.Skills = sk
 	}
+	a.reloadModes() // modes live next to the skills: the project ones follow the directory
 }
 
 // startServers starts every enabled MCP server in the background; failures are

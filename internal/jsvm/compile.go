@@ -23,12 +23,20 @@ type compiled struct {
 	kind codeKind
 }
 
-// compile turns tool code into a program. Plain scripts run as they are, which
-// gives the completion value of the last expression. Code that is not a valid
-// script because it uses a top-level return or await is parsed inside a
-// function instead, and its last expression statement becomes an explicit
-// return. The decision comes from the parser, never from searching the text.
-func compileSource(src string) (*goja.Program, error) {
+// compileSource compiles one source text. relax makes the top-level let, const
+// and class declarations of a script plain var declarations: the runtime now
+// outlives a call, and a lexical global could never be declared a second time.
+// Without relax a script that redeclares one still gets that treatment, but
+// only after the parser rejected it.
+func compileSource(src string, relax bool) (*goja.Program, error) {
+	if relax {
+		tree, err := goja.Parse("tool.js", src)
+		if err != nil {
+			return nil, err
+		}
+		relaxLexical(tree)
+		return goja.CompileAST(tree, false)
+	}
 	prog, err := goja.Compile("tool.js", src, false)
 	if err == nil || !strings.Contains(err.Error(), "has already been declared") {
 		return prog, err
@@ -43,8 +51,15 @@ func compileSource(src string) (*goja.Program, error) {
 	return nil, err
 }
 
+// compile turns tool code into a program. Plain scripts run as they are, which
+// gives the completion value of the last expression, and their top-level
+// declarations stay in the runtime for the next call. Code that is not a valid
+// script because it uses a top-level return or await is parsed inside a
+// function instead, and its last expression statement becomes an explicit
+// return; what it declares is local to that function. The decision comes from
+// the parser, never from searching the text.
 func compile(code string) (compiled, error) {
-	prog, scriptErr := compileSource(code)
+	prog, scriptErr := compileSource(code, true)
 	if scriptErr == nil {
 		return compiled{prog, kindScript}, nil
 	}
@@ -55,7 +70,7 @@ func compile(code string) (compiled, error) {
 			asyncErr = err
 			continue
 		}
-		prog, err := compileSource(src)
+		prog, err := compileSource(src, false)
 		if err != nil {
 			asyncErr = err
 			continue
@@ -128,24 +143,39 @@ func relaxLexical(p *ast.Program) bool {
 func relaxList(list []ast.Statement) bool {
 	changed := false
 	for i, st := range list {
-		lex, ok := st.(*ast.LexicalDeclaration)
-		if !ok {
-			continue
-		}
-		if lex.Token == token.CONST {
-			allInit := true
-			for _, b := range lex.List {
-				if b.Initializer == nil {
-					allInit = false
-					break
-				}
-			}
-			if !allInit {
+		switch d := st.(type) {
+		case *ast.ClassDeclaration:
+			if d.Class == nil || d.Class.Name == nil {
 				continue
 			}
+			list[i] = &ast.VariableStatement{Var: d.Class.Class, List: []*ast.Binding{{Target: d.Class.Name, Initializer: d.Class}}}
+			changed = true
+		case *ast.LexicalDeclaration:
+			if !relaxable(d) {
+				continue
+			}
+			for _, b := range d.List {
+				if b.Initializer == nil { // let x; starts as undefined, also when x already exists
+					b.Initializer = &ast.Identifier{Name: "undefined", Idx: d.Idx}
+				}
+			}
+			list[i] = &ast.VariableStatement{Var: d.Idx, List: d.List}
+			changed = true
 		}
-		list[i] = &ast.VariableStatement{Var: lex.Idx, List: lex.List}
-		changed = true
 	}
 	return changed
+}
+
+// relaxable reports whether a lexical declaration can become a var one: a const
+// without a value stays, so that the parser still reports it.
+func relaxable(d *ast.LexicalDeclaration) bool {
+	if d.Token != token.CONST {
+		return true
+	}
+	for _, b := range d.List {
+		if b.Initializer == nil {
+			return false
+		}
+	}
+	return true
 }

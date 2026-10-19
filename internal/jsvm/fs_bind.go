@@ -83,6 +83,7 @@ func (v *VM) bindFS() {
 		return rt.ToValue(map[string]any{"matches": ms, "nextCursor": next, "truncated": r.Truncated})
 	})
 	_ = obj.Set("patch", func(c goja.FunctionCall) goja.Value {
+		throw(v.writable("fs.patch"))
 		p := strArg(rt, c.Arguments, 0, "path")
 		if len(c.Arguments) < 2 {
 			panic(rt.NewTypeError("edits are required"))
@@ -109,6 +110,7 @@ func (v *VM) bindFS() {
 		return rt.ToValue(map[string]any{"sha256": sum, "replacements": n})
 	})
 	_ = obj.Set("write", func(c goja.FunctionCall) goja.Value {
+		throw(v.writable("fs.write"))
 		p := strArg(rt, c.Arguments, 0, "path")
 		content := strArg(rt, c.Arguments, 1, "content")
 		overwrite := false
@@ -124,7 +126,12 @@ func (v *VM) bindFS() {
 		throw(fsh().Write(p, content, overwrite))
 		return goja.Undefined()
 	})
-	_ = obj.Set("edit", func(p, o, n string) (int, error) { return fsh().Edit(p, o, n) })
+	_ = obj.Set("edit", func(p, o, n string) (int, error) {
+		if err := v.writable("fs.edit"); err != nil {
+			return 0, err
+		}
+		return fsh().Edit(p, o, n)
+	})
 	_ = obj.Set("glob", func(p string) ([]string, error) { return fsh().Glob(p) })
 	_ = obj.Set("exists", func(p string) bool { return fsh().Exists(p) })
 	_ = rt.Set("fs", obj)

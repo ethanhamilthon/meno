@@ -56,22 +56,16 @@ func (a *App) agentsKey(k *tcell.EventKey) {
 		case a.navKey(k, len(kids), true):
 		case k.Key() == tcell.KeyEnter && len(kids) > 0:
 			v.OpenID = kids[clampSel(a.st.Sel, len(kids))].ID
-			a.st.Query = nil
+			a.st.Query.Reset()
 		}
 		return
 	}
 	switch k.Key() {
 	case tcell.KeyEnter:
-		a.sendToChild(v.OpenID, string(a.st.Query))
-		a.st.Query = nil
-	case tcell.KeyBackspace, tcell.KeyBackspace2:
-		if n := len(a.st.Query); n > 0 {
-			a.st.Query = a.st.Query[:n-1]
-		}
-	case tcell.KeyCtrlU:
-		a.st.Query = nil
-	case tcell.KeyRune:
-		a.st.Query = append(a.st.Query, k.Rune())
+		a.sendToChild(v.OpenID, a.st.Query.String())
+		a.st.Query.Reset()
+	default:
+		a.st.Query.Handle(k)
 	}
 }
 
@@ -165,7 +159,9 @@ func (a *App) drawAgentChat(c ui.Canvas, w, h int) {
 		}
 	}
 	b.fill(c, b.h-3, ui.BgPopupIn)
-	b.put(c, 2, b.h-3, "› "+string(a.st.Query)+"█", ui.FgWhite, ui.BgPopupIn)
+	b.put(c, 2, b.h-3, "›", ui.FgWhite, ui.BgPopupIn)
+	a.st.Query.Placeholder = ""
+	a.st.Query.Draw(c, b.x+4, b.y+b.h-3, max(1, b.w-8), 1, ui.Style{FG: ui.FgWhite, BG: ui.BgPopupIn}.TCell(), true)
 	b.hint(c, "enter send to this agent · esc back")
 }
 

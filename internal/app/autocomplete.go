@@ -165,8 +165,11 @@ func (a *App) drawAutocompleteRows(c ui.Canvas, x, y, w, limit int) {
 }
 
 func tokenColor(kind rune) tcell.Color {
-	if kind == kindSkill {
+	switch kind {
+	case kindSkill:
 		return ui.Blue
+	case kindMode:
+		return ui.Orange
 	}
 	return ui.Purple
 }

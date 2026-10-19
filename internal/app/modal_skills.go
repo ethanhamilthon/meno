@@ -7,7 +7,7 @@ import (
 )
 
 func (a *App) skillIdx() []int {
-	q := string(a.st.Query)
+	q := a.st.Query.String()
 	return filterIdx(len(a.st.Skills), func(i int) bool {
 		s := a.st.Skills[i]
 		return containsFold(s.Name+" "+s.Desc, q)

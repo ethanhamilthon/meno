@@ -126,7 +126,7 @@ func (a *App) settingsKey(k *tcell.EventKey) {
 		return
 	case config.TextSetting(settingRows[clampSel(a.st.Sel, len(settingRows))].key) && (k.Key() == tcell.KeyEnter || k.Rune() == ' '):
 		key := settingRows[clampSel(a.st.Sel, len(settingRows))].key
-		a.st.Editing, a.st.Buffer = true, []rune(a.st.Settings.Get(key))
+		a.beginEdit(a.st.Settings.Get(key), false, false)
 	case k.Key() == tcell.KeyLeft || k.Rune() == ' ' || k.Key() == tcell.KeyEnter:
 		step := 1
 		if k.Key() == tcell.KeyLeft {
@@ -152,27 +152,21 @@ func (a *App) settingsKey(k *tcell.EventKey) {
 // settingTextKey edits a free-text setting such as the search key.
 func (a *App) settingTextKey(k *tcell.EventKey) {
 	key := settingRows[clampSel(a.st.Sel, len(settingRows))].key
-	switch k.Key() {
-	case tcell.KeyEsc:
-		a.st.Editing, a.st.Buffer = false, nil
-	case tcell.KeyEnter:
-		if err := a.st.Settings.Set(key, strings.TrimSpace(string(a.st.Buffer))); err != nil {
+	switch {
+	case k.Key() == tcell.KeyEsc:
+		a.endEdit()
+	case k.Key() == tcell.KeyEnter:
+		if err := a.st.Settings.Set(key, strings.TrimSpace(a.st.Edit.String())); err != nil {
 			a.notifyErr(err.Error())
 			return
 		}
-		a.st.Editing, a.st.Buffer = false, nil
+		a.endEdit()
 		if key == "notify_command" {
 			a.previewNotifySound()
 		}
 		a.persistSettings()
-	case tcell.KeyBackspace, tcell.KeyBackspace2:
-		if n := len(a.st.Buffer); n > 0 {
-			a.st.Buffer = a.st.Buffer[:n-1]
-		}
-	case tcell.KeyRune:
-		if k.Modifiers()&(tcell.ModCtrl|tcell.ModAlt) == 0 {
-			a.st.Buffer = append(a.st.Buffer, k.Rune())
-		}
+	default:
+		a.st.Edit.Handle(k)
 	}
 }
 

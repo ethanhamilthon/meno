@@ -21,6 +21,22 @@ func (a *App) loadThemeFile() {
 	a.warnings = append(a.warnings, append(warns, more...)...)
 }
 
+func (a *App) loadAll() error {
+	var err error
+	if a.st.Providers, err = a.store.LoadProviders(); err != nil {
+		return err
+	}
+	if a.st.Skills, err = a.store.LoadSkills(); err != nil {
+		return err
+	}
+	if a.st.Servers, err = a.store.LoadServers(); err != nil {
+		return err
+	}
+	a.mergeOverlays()
+	a.initOAuth()
+	return nil
+}
+
 // mergeOverlays adds provider.json and mcp.json to the saved providers and
 // servers. Their entries are read only and never saved.
 func (a *App) mergeOverlays() {
@@ -88,6 +104,16 @@ func (a *App) startProviderRuns() {
 func (a *App) syncProviderRun(p llm.Provider) {
 	if a.daemons == nil {
 		return
+	}
+	if p.Disabled {
+		a.daemons.Stop(p.Name)
+		return
+	}
+	if p.Managed() && a.daemons.RunningCommand(p.Name) != p.Run {
+		if err := a.oauth.WriteConfig(); err != nil { // a fresh config before every start
+			a.notifyErr("cliproxyapi: " + err.Error())
+			return
+		}
 	}
 	if err := a.daemons.Start(p.Name, p.Run, a.paths.Cwd, os.Environ()); err != nil {
 		a.notifyErr("provider " + p.Name + ": " + err.Error())

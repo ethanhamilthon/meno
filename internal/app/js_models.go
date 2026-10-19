@@ -25,9 +25,12 @@ func (h sessionHost) snapshot() modelsSource {
 	var src modelsSource
 	h.a.onUI(func() {
 		a := h.a
-		src.providers = append(src.providers, a.st.Providers...)
 		src.known = map[string][]llm.Model{}
 		for _, p := range a.st.Providers {
+			if !p.Active() {
+				continue
+			}
+			src.providers = append(src.providers, p)
 			src.known[p.Name] = a.modelsOf(p)
 		}
 		src.errs = map[string]string{}

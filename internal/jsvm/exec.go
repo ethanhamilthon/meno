@@ -24,7 +24,10 @@ func (v *VM) exec(ctx context.Context, code string, override *time.Duration) Res
 	start := time.Now()
 	v.mu.Lock()
 	defer v.mu.Unlock()
-	v.fresh()
+	if v.rt == nil {
+		v.fresh()
+	}
+	v.out.Reset()
 	timeout := time.Duration(v.timeout.Load())
 	if override != nil {
 		timeout = *override

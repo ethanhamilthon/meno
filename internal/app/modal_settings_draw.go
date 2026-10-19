@@ -70,7 +70,10 @@ func (a *App) drawSettings(c ui.Canvas, w, h int) {
 			b.put(c, 4, y, ui.Truncate(r.label, max(1, b.w-10)), fg, bg)
 			text := "(not set)"
 			if a.st.Editing && sel {
-				text = string(a.st.Buffer) + "▏"
+				lw := ui.TextWidth(ui.Truncate(r.label, max(1, b.w-10)))
+				a.st.Edit.Draw(c, b.x+4+lw+2, b.y+y, max(1, b.w-lw-8), 1, ui.Style{FG: ui.FgWhite, BG: bg}.TCell(), true)
+				y++
+				continue
 			} else if cur != "" {
 				text = llm.Mask(cur)
 			}

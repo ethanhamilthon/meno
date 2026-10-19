@@ -84,7 +84,7 @@ func TestTimeoutArgumentIgnoredUnlessModelDecides(t *testing.T) {
 
 func TestToolSchemaTimeoutOnlyWhenModelDecides(t *testing.T) {
 	props := func(m bool) map[string]any {
-		return llm.ToolSchema(m)["parameters"].(map[string]any)["properties"].(map[string]any)
+		return llm.ToolSchema("", m)["parameters"].(map[string]any)["properties"].(map[string]any)
 	}
 	if _, ok := props(false)["timeout"]; ok {
 		t.Fatal("timeout offered although the user sets it")

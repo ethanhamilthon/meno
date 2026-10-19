@@ -79,7 +79,7 @@ func (responsesClient) Stream(ctx context.Context, req Request, emit func(Event)
 		body["reasoning"] = map[string]any{"effort": req.Effort, "summary": "auto"}
 	}
 	if req.Tools {
-		body["tools"] = []any{ToolSchema(req.ModelTimeout)}
+		body["tools"] = []any{ToolSchema(req.ToolDescription, req.ModelTimeout)}
 	}
 	applyCache(body, req)
 	resp, err := post(ctx, req.Provider, "/responses", body, nil)

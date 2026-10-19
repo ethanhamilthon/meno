@@ -3,9 +3,11 @@ package app
 import (
 	"time"
 
+	"meno/internal/cliproxy"
 	"meno/internal/config"
 	"meno/internal/llm"
 	"meno/internal/mcp"
+	"meno/internal/modes"
 	"meno/internal/ui"
 )
 
@@ -15,7 +17,8 @@ const (
 	OverNone Overlay = iota
 	OverModel
 	OverSettings
-	OverProviders
+	OverLogin
+	OverLoginFlow
 	OverProviderEdit
 	OverSkills
 	OverMCP
@@ -63,7 +66,7 @@ type State struct {
 	Pricing   map[string]llm.ModelInfo
 	Cmd       []rune
 	Sel       int
-	Query     []rune
+	Query     textEdit
 	Status    string
 
 	Settings   config.Settings
@@ -88,7 +91,19 @@ type State struct {
 
 	Field   int
 	Editing bool
-	Buffer  []rune
+	Edit    textEdit // the field being edited while Editing
+	// FormNote says why the open form is not saved yet (empty = saved).
+	FormNote string
+
+	// Login (:login): the OAuth accounts of the local helper, the running
+	// login, and the entry waiting for a second press of d to be removed.
+	Modes       []modes.Mode // #plan, #build, #goal and the user's own
+	Accounts    []cliproxy.Account
+	AccountsErr string
+	LoginDel    string
+	Flow        loginFlow
+	// Locked keeps the login list open until a working provider exists.
+	Locked bool
 
 	Notices []notice
 

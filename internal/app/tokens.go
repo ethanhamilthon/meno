@@ -6,9 +6,10 @@ import (
 )
 
 // Skill (/name) references can appear anywhere in the input,
-// as long as the sigil starts a word.
+// as long as the sigil starts a word. A mode (#name) is only the first word.
 const (
 	kindSkill = '/'
+	kindMode  = '#'
 )
 
 type tokSpan struct {
@@ -21,7 +22,17 @@ func isNameRune(r rune) bool {
 	return unicode.IsLetter(r) || unicode.IsDigit(r) || r == '-' || r == '_'
 }
 
-func isSigil(r rune) bool { return r == kindSkill }
+func isSigil(r rune) bool { return r == kindSkill || r == kindMode }
+
+// firstWord reports that only blanks come before position i.
+func firstWord(in []rune, i int) bool {
+	for _, r := range in[:i] {
+		if !unicode.IsSpace(r) {
+			return false
+		}
+	}
+	return true
+}
 
 func wordStart(in []rune, i int) bool { return i == 0 || unicode.IsSpace(in[i-1]) }
 
@@ -52,7 +63,8 @@ func (a *App) inputTokens() []tokSpan {
 			continue
 		}
 		name := string(in[i+1 : e])
-		ok := name != "" && (in[i] == kindSkill && a.skillEnabled(name))
+		ok := name != "" && (in[i] == kindSkill && a.skillEnabled(name) ||
+			in[i] == kindMode && firstWord(in, i) && a.modeKnown(strings.ToLower(name)))
 		if ok {
 			out = append(out, tokSpan{i, e, in[i], name})
 		}
@@ -112,6 +124,15 @@ func (a *App) acMatches() []acItem {
 		for _, s := range a.st.Skills {
 			if s.Enabled && strings.HasPrefix(strings.ToLower(s.Name), t.prefix) {
 				out = append(out, acItem{kindSkill, s.Name, s.Desc})
+			}
+		}
+	case kindMode:
+		if !firstWord(a.st.Input, t.start) {
+			break
+		}
+		for _, m := range a.st.Modes {
+			if strings.HasPrefix(m.Name, t.prefix) {
+				out = append(out, acItem{kindMode, m.Name, m.Description})
 			}
 		}
 	}

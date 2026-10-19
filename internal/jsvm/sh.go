@@ -17,6 +17,8 @@ type Shell struct {
 	MaxOut  int
 	// Env replaces the process environment when non-nil.
 	Env []string
+	// ReadOnly runs the command in a sandbox that cannot change files.
+	ReadOnly bool
 }
 
 type ShResult struct {
@@ -43,7 +45,14 @@ func (s Shell) Run(ctx context.Context, cmd string) (ShResult, error) {
 		case <-c.Done():
 		}
 	}()
-	e := exec.CommandContext(c, "/bin/sh", "-c", cmd)
+	name, args := "/bin/sh", []string{"-c", cmd}
+	if s.ReadOnly {
+		var ok bool
+		if name, args, ok = readOnlyCommand(cmd); !ok {
+			return ShResult{}, errNoSandbox
+		}
+	}
+	e := exec.CommandContext(c, name, args...)
 	e.Dir = s.Root
 	if s.Env != nil {
 		e.Env = s.Env

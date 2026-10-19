@@ -39,6 +39,8 @@ type VM struct {
 	agentsHost   atomic.Pointer[AgentsHost]
 	agentsChild  atomic.Bool
 	webHost      atomic.Pointer[WebSearcher]
+	policy       atomic.Pointer[Policy]
+	goalHost     atomic.Pointer[GoalHost]
 }
 
 type Options struct {
@@ -56,13 +58,24 @@ func New(o Options) *VM {
 	return v
 }
 
-// fresh gives the VM a clean runtime. Every Exec starts with one: nothing a
-// call declares or changes survives it. Durable data lives in Go services
-// (tasks, agents), never in the interpreter.
+// fresh gives the VM a clean runtime. The runtime then lives until Reset: what
+// one call declares, the next call sees. The caller resets it when a new user
+// request starts, so the state lasts for one answer of the agent and no longer.
+// Durable data still belongs in files and Go services (tasks, agents).
 func (v *VM) fresh() {
 	v.rt = goja.New()
-	v.out.Reset()
 	v.bind()
+}
+
+// Reset drops the runtime and with it every variable and function the calls
+// declared. The next Exec starts with a clean one. It waits for a running Exec.
+func (v *VM) Reset() {
+	if v == nil {
+		return
+	}
+	v.mu.Lock()
+	v.rt = nil
+	v.mu.Unlock()
 }
 
 // SetRoot changes the working directory of fs and sh. The next call sees the
@@ -93,7 +106,7 @@ func (v *VM) bind() {
 	v.bindFS()
 	v.bindStdlib()
 	_ = rt.Set("sh", func(cmd string) (map[string]any, error) {
-		res, err := (Shell{Root: v.Root(), Timeout: v.active, MaxOut: v.maxOut, Env: v.shellEnv()}).Run(v.ctx, cmd)
+		res, err := (Shell{Root: v.Root(), Timeout: v.active, MaxOut: v.maxOut, Env: v.shellEnv(), ReadOnly: v.currentPolicy().ReadOnly}).Run(v.ctx, cmd)
 		if err != nil {
 			return nil, err
 		}
@@ -107,6 +120,7 @@ func (v *VM) bind() {
 	v.bindTasks()
 	v.bindAgents()
 	v.bindWebSearch()
+	v.bindGoal()
 	v.bindHelp()
 	if _, err := rt.RunProgram(preludeProg); err != nil {
 		panic("jsvm prelude: " + err.Error())

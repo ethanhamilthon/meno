@@ -140,13 +140,13 @@ func TestSessionSearchTitleDatePathAndClear(t *testing.T) {
 	a, s := visualFixture(t, 120, 36)
 	a.dbRows = []agent.SessionInfo{{ID: "test", Title: "Fix compiler", Cwd: "/work/compiler", UpdatedAt: time.Date(2026, 10, 16, 12, 0, 0, 0, time.UTC), Turns: 5}}
 	for _, q := range []string{"COMPILER", "/work", "2026-10-16"} {
-		a.st.Query = []rune(q)
+		a.st.Query.Set(q)
 		if len(sessionIdx(a)) != 1 {
 			t.Fatalf("query %q not matched", q)
 		}
 	}
 	a.sessionsKey(keyK(tcell.KeyCtrlU))
-	if len(a.st.Query) != 0 {
+	if !a.st.Query.Empty() {
 		t.Fatal("query not cleared")
 	}
 	a.drawSessions(ui.Canvas{S: s}, 120, 36)

@@ -20,6 +20,13 @@ type scriptedClient struct {
 	turns [][]llm.Event
 }
 
+// left is how many scripted rounds have not been used.
+func (c *scriptedClient) left() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return len(c.turns)
+}
+
 func (c *scriptedClient) Stream(ctx context.Context, req llm.Request, emit func(llm.Event)) error {
 	c.mu.Lock()
 	var evs []llm.Event

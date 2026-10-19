@@ -15,6 +15,7 @@ type Fingerprint struct {
 	SystemLen  int
 	SystemHash string
 	Tools      bool
+	ToolHash   string // hash of the tool description
 	Messages   int
 	// Lens is the serialized size of each message; Prefix[i] is a hash of the
 	// system prompt and messages 0..i, so equal Prefix[i] means an identical prefix.
@@ -27,6 +28,7 @@ func short(sum [32]byte) string { return hex.EncodeToString(sum[:4]) }
 // FingerprintOf computes the fingerprint of a request.
 func FingerprintOf(req Request) Fingerprint {
 	f := Fingerprint{Model: req.Model, Effort: req.Effort, SystemLen: len(req.System), Tools: req.Tools, Messages: len(req.Msgs)}
+	f.ToolHash = short(sha256.Sum256([]byte(req.ToolDescription)))
 	sys := sha256.Sum256([]byte(req.System))
 	f.SystemHash = short(sys)
 	h := sha256.New()
@@ -46,7 +48,7 @@ func FingerprintOf(req Request) Fingerprint {
 // or -1 when the system prompt, model or tool setting differs (then nothing is
 // shared).
 func (f Fingerprint) SharedPrefix(prev Fingerprint) int {
-	if f.SystemHash != prev.SystemHash || f.Model != prev.Model || f.Tools != prev.Tools {
+	if f.SystemHash != prev.SystemHash || f.Model != prev.Model || f.Tools != prev.Tools || f.ToolHash != prev.ToolHash {
 		return -1
 	}
 	n := 0

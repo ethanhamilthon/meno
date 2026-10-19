@@ -8,6 +8,7 @@ import (
 
 	"meno/internal/agent"
 	"meno/internal/llm"
+	"meno/internal/prompt"
 	"meno/internal/safe"
 )
 
@@ -71,8 +72,8 @@ func (a *App) runCommand(raw string) {
 	case "settings":
 		a.fetchModels()
 		a.openOverlay(OverSettings)
-	case "providers":
-		a.openOverlay(OverProviders)
+	case "login":
+		a.openLogin()
 	case "skills":
 		a.reloadSkills()
 		a.openOverlay(OverSkills)
@@ -210,7 +211,7 @@ func (a *App) compact() {
 	sess, sid, client := a.st.Session, a.st.Session.ID, a.client(p)
 	// The same system prompt and tools as the session's requests: the summary is
 	// served from their cache. Before the first request there is no prompt.
-	opts := agent.CompactOptions{System: a.st.Prompt.Frozen, Effort: effort, ModelTimeout: a.st.Settings.ModelTimeout()}
+	opts := agent.CompactOptions{System: a.st.Prompt.Frozen, Effort: effort, ModelTimeout: a.st.Settings.ModelTimeout(), ToolDesc: prompt.ToolDescription(false)}
 	a.running.Add(1)
 	go func() {
 		defer safe.Recover(a.reportPanic)

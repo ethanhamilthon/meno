@@ -1,6 +1,7 @@
 package app
 
 import (
+	"reflect"
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
@@ -145,10 +146,8 @@ func (a *App) mcpFields() []field {
 }
 
 func (a *App) mcpEditKey(k *tcell.EventKey) {
-	a.formKey(k, a.mcpFields())
+	a.formKey(k, a.mcpFields(), a.saveMCPEdit)
 	switch {
-	case k.Key() == tcell.KeyCtrlS:
-		a.saveMCPEdit()
 	case isKey(k, 'r') && !a.st.Editing && a.st.EditIdx >= 0:
 		a.startMCP(a.st.EditIdx)
 	case isKey(k, 'd') && !a.st.Editing && a.st.EditIdx >= 0:
@@ -163,16 +162,20 @@ func (a *App) mcpEditKey(k *tcell.EventKey) {
 func (a *App) saveMCPEdit() {
 	s := a.st.EditMCP
 	if err := mcp.ValidateServer(s); err != nil {
-		a.notifyErr(err.Error())
+		a.st.FormNote = err.Error()
 		return
 	}
 	for j, o := range a.st.Servers {
 		if j != a.st.EditIdx && o.Name == s.Name {
-			a.notifyErr("mcp server " + s.Name + " already exists")
+			a.st.FormNote = "mcp server " + s.Name + " already exists"
 			return
 		}
 	}
+	a.st.FormNote = ""
 	if a.st.EditIdx >= 0 && a.st.EditIdx < len(a.st.Servers) {
+		if reflect.DeepEqual(a.st.Servers[a.st.EditIdx], s) {
+			return // nothing changed: do not restart the server
+		}
 		if old := a.st.Servers[a.st.EditIdx].Name; old != s.Name {
 			a.mcp.Stop(old)
 		}
@@ -201,6 +204,7 @@ func (a *App) drawMCPEdit(c ui.Canvas, w, h int) {
 	} else {
 		b.putRight(c, 0, "○ stopped", ui.FgDim, ui.BgPopup)
 	}
-	drawForm(c, b, 2, fs, a.st.Field, a.st.Editing, string(a.st.Buffer))
-	b.hint(c, "j/k move · enter edit · ctrl+s save · r restart · d delete · esc back")
+	drawForm(c, b, 2, fs, a.st.Field, a.st.Editing, &a.st.Edit)
+	drawFormNote(c, b, a.st.FormNote)
+	b.hint(c, "j/k move · enter edit · r restart · d delete · esc back")
 }

@@ -11,11 +11,14 @@ type field struct {
 	label  string
 	opts   []string
 	secret bool
+	multi  bool // Alt+Enter or Ctrl+J starts a new line
 	get    func() string
 	set    func(string) error
 }
 
-func (a *App) formKey(k *tcell.EventKey, fs []field) {
+// formKey drives a list of fields. commit runs after every change that sticks,
+// so a form needs no save key: what is entered is saved at once.
+func (a *App) formKey(k *tcell.EventKey, fs []field, commit func()) {
 	if len(fs) == 0 {
 		return
 	}
@@ -24,7 +27,7 @@ func (a *App) formKey(k *tcell.EventKey, fs []field) {
 	}
 	f := fs[a.st.Field]
 	if a.st.Editing {
-		a.editKey(k, f)
+		a.editKey(k, f, commit)
 		return
 	}
 	switch {
@@ -38,9 +41,9 @@ func (a *App) formKey(k *tcell.EventKey, fs []field) {
 			step = -1
 		}
 		a.cycleField(f, step)
+		commit()
 	case k.Key() == tcell.KeyEnter:
-		a.st.Editing = true
-		a.st.Buffer = []rune(f.get())
+		a.beginEdit(f.get(), f.secret, f.multi)
 	}
 }
 
@@ -59,27 +62,36 @@ func (a *App) cycleField(f field, step int) {
 	}
 }
 
-func (a *App) editKey(k *tcell.EventKey, f field) {
-	switch k.Key() {
-	case tcell.KeyEsc:
-		a.st.Editing = false
-		a.st.Buffer = nil
-	case tcell.KeyEnter:
-		if err := f.set(string(a.st.Buffer)); err != nil {
+// beginEdit starts editing a text with the cursor at its end.
+func (a *App) beginEdit(text string, secret, multi bool) {
+	a.st.Editing = true
+	a.st.Edit = textEdit{Secret: secret, Multi: multi}
+	a.st.Edit.Set(text)
+}
+
+func (a *App) endEdit() {
+	a.st.Editing = false
+	a.st.Edit.Reset()
+}
+
+// editKey edits one field: Enter keeps the text, Esc drops it.
+func (a *App) editKey(k *tcell.EventKey, f field, commit func()) {
+	switch {
+	case k.Key() == tcell.KeyEsc:
+		a.endEdit()
+	case k.Key() == tcell.KeyEnter && !a.st.Edit.Handle(k):
+		if err := f.set(a.st.Edit.String()); err != nil {
 			a.notifyErr(err.Error())
+			return
 		}
-		a.st.Editing = false
-		a.st.Buffer = nil
-	case tcell.KeyBackspace, tcell.KeyBackspace2:
-		if n := len(a.st.Buffer); n > 0 {
-			a.st.Buffer = a.st.Buffer[:n-1]
-		}
-	case tcell.KeyRune:
-		a.st.Buffer = append(a.st.Buffer, k.Rune())
+		a.endEdit()
+		commit()
+	default:
+		a.st.Edit.Handle(k)
 	}
 }
 
-func drawForm(c ui.Canvas, b box, y int, fs []field, selField int, editing bool, buf string) {
+func drawForm(c ui.Canvas, b box, y int, fs []field, selField int, editing bool, ed *textEdit) {
 	for i, f := range fs {
 		isSel := i == selField
 		bg := b.bg(isSel)
@@ -90,17 +102,26 @@ func drawForm(c ui.Canvas, b box, y int, fs []field, selField int, editing bool,
 		}
 		b.put(c, 2, y+i, mark, ui.Blue, bg)
 		b.put(c, 4, y+i, padTo(f.label, 12), ui.FgDim, bg)
-		val := f.get()
-		if isSel && editing {
-			val = buf + "█"
-		} else if f.secret {
-			val = llm.Mask(val)
-		}
 		if len(f.opts) > 0 {
 			chips(c, b, y+i, 16, f.opts, f.get())
 			continue
 		}
+		if isSel && editing {
+			ed.Draw(c, b.x+16, b.y+y+i, max(1, b.w-18), 1, ui.Style{FG: ui.FgWhite, BG: bg}.TCell(), true)
+			continue
+		}
+		val := f.get()
+		if f.secret {
+			val = llm.Mask(val)
+		}
 		b.put(c, 16, y+i, val, ui.FgWhite, bg)
+	}
+}
+
+// drawFormNote shows why a form is not saved yet, on the row above the hint.
+func drawFormNote(c ui.Canvas, b box, note string) {
+	if note != "" {
+		b.put(c, 2, b.h-2, ui.Truncate("not saved: "+note, max(1, b.w-6)), ui.Yellow, ui.BgPopup)
 	}
 }
 

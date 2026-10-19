@@ -13,7 +13,7 @@ import (
 // Results arrive as modelsLoaded events so the UI never blocks on the network.
 func (a *App) fetchModels() {
 	for _, p := range a.st.Providers {
-		if a.st.Loading[p.Name] {
+		if !p.Active() || a.st.Loading[p.Name] {
 			continue
 		}
 		a.st.Loading[p.Name] = true
@@ -60,6 +60,9 @@ func (a *App) modelsOf(p llm.Provider) []llm.Model {
 func (a *App) allModels() []llm.Model {
 	var out []llm.Model
 	for _, p := range a.st.Providers {
+		if !p.Active() {
+			continue
+		}
 		out = append(out, a.modelsOf(p)...)
 	}
 	return out

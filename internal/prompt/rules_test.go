@@ -5,16 +5,47 @@ import (
 	"testing"
 )
 
-func TestPromptForbidsAsyncJS(t *testing.T) {
+// both is the text the model sees: the system prompt and the tool description.
+func both(in Input) string { return Build(in) + "\n" + ToolDescription(in.Subagent) }
+
+func TestToolDescriptionForbidsAsyncJS(t *testing.T) {
+	for _, sub := range []bool{false, true} {
+		out := ToolDescription(sub)
+		if !strings.Contains(out, "Do not use async, await, Promise, or then") {
+			t.Errorf("subagent=%v: description must forbid async/await", sub)
+		}
+		if strings.Contains(out, "await works on") {
+			t.Errorf("subagent=%v: description still allows await", sub)
+		}
+	}
+}
+
+func TestToolDescriptionExplainsTheRuntimeState(t *testing.T) {
+	for _, sub := range []bool{false, true} {
+		out := ToolDescription(sub)
+		for _, want := range []string{"lives for your current answer", "A new message from the user starts a clean runtime"} {
+			if !strings.Contains(out, want) {
+				t.Errorf("subagent=%v: missing %q", sub, want)
+			}
+		}
+		if strings.Contains(out, "Nothing survives") || strings.Contains(out, "clean runtime. ") {
+			t.Errorf("subagent=%v: the old one-call-runtime wording is still there", sub)
+		}
+	}
+}
+
+func TestSystemPromptHoldsNoJSReference(t *testing.T) {
 	for _, sub := range []bool{false, true} {
 		in := full()
 		in.Subagent = sub
 		out := Build(in)
-		if !strings.Contains(out, "Do not use async, await, Promise, or then") {
-			t.Errorf("subagent=%v: prompt must forbid async/await", sub)
+		for _, moved := range []string{"## The js tool", "fs: read, inspect", "sh(cmd) returns", "websearch(query", "mcp.<server>.<tool>", "tasks.start(", "agents.spawn(", "help() lists"} {
+			if strings.Contains(out, moved) {
+				t.Errorf("subagent=%v: %q belongs to the tool description", sub, moved)
+			}
 		}
-		if strings.Contains(out, "await works on") {
-			t.Errorf("subagent=%v: prompt still allows await", sub)
+		if !strings.Contains(out, "Your only tool is js") {
+			t.Errorf("subagent=%v: the prompt must say that js is the only tool", sub)
 		}
 	}
 }
@@ -23,7 +54,7 @@ func TestNoRenameRule(t *testing.T) {
 	for _, sub := range []bool{false, true} {
 		in := full()
 		in.Subagent = sub
-		out := Build(in)
+		out := both(in)
 		for _, bad := range []string{"session.rename", "todo", "- Plan:"} {
 			if strings.Contains(out, bad) {
 				t.Errorf("subagent=%v: prompt still mentions %q", sub, bad)
@@ -41,7 +72,7 @@ func TestGuidelinesHoldAskRule(t *testing.T) {
 	}
 	in := full()
 	in.Subagent = true
-	child := Build(in)
+	child := both(in)
 	if strings.Contains(child, "- Ask:") || strings.Contains(child, "askUser") {
 		t.Error("a subagent has no ask rule and no askUser")
 	}
@@ -54,7 +85,7 @@ func TestPromptDoesNotMentionRemovedThings(t *testing.T) {
 	for _, sub := range []bool{false, true} {
 		in := full()
 		in.Subagent = sub
-		out := Build(in)
+		out := both(in)
 		for _, bad := range []string{"state.", "sessions.", "session.compact", "retrievable", "## State", "## Session"} {
 			if strings.Contains(out, bad) {
 				t.Errorf("subagent=%v: prompt mentions %q", sub, bad)
@@ -62,6 +93,32 @@ func TestPromptDoesNotMentionRemovedThings(t *testing.T) {
 		}
 		if !strings.Contains(out, "help() lists the topics") {
 			t.Errorf("subagent=%v: prompt must explain help", sub)
+		}
+	}
+}
+
+func TestToolDescriptionHoldsTheJSReference(t *testing.T) {
+	main := ToolDescription(false)
+	for _, want := range []string{"fs: read, inspect", "sh(cmd) returns", "websearch(query", "mcp.<server>.<tool>", "mcpTools(\"server\")", "tasks.start(", "agents.spawn(", "askUser", "help() lists the topics"} {
+		if !strings.Contains(main, want) {
+			t.Errorf("main: missing %q", want)
+		}
+	}
+	child := ToolDescription(true)
+	for _, bad := range []string{"tasks.start", "agents.spawn", "askUser", "Background tasks"} {
+		if strings.Contains(child, bad) {
+			t.Errorf("child: must not mention %q", bad)
+		}
+	}
+	if !strings.Contains(child, "mcp.<server>.<tool>") || !strings.Contains(child, "agents") {
+		t.Error("child: lost MCP or agents.report access")
+	}
+}
+
+func TestToolDescriptionIsStable(t *testing.T) {
+	for _, sub := range []bool{false, true} {
+		if ToolDescription(sub) != ToolDescription(sub) {
+			t.Fatal("the description feeds the prompt cache and must not vary")
 		}
 	}
 }

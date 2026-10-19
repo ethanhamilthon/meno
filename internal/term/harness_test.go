@@ -60,6 +60,7 @@ type options struct {
 	fake       *fakeLLM // preconfigure provider "fake" and model "fake-model" (protocol below)
 	proto      string
 	home       string // reuse a home directory (for :resume across runs)
+	firstRun   bool   // no provider yet: meno opens the login list that cannot be closed
 }
 
 // start launches meno. With opts.fake set, the provider and model are already
@@ -138,7 +139,11 @@ func start(t *testing.T, o options) *session {
 	})
 	// Keys sent before the program has put the terminal in raw mode would be
 	// echoed by the tty and lost, so wait for the first frame.
-	s.WaitFor("INSERT")
+	if o.firstRun {
+		s.WaitFor("LOGIN")
+	} else {
+		s.WaitFor("INSERT")
+	}
 	return s
 }
 

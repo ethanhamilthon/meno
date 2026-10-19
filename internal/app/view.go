@@ -185,7 +185,7 @@ var commandList = []cmdDef{
 	{":model", "model & effort"},
 	{":skills", "load skills"},
 	{":mcp", "mcp servers"},
-	{":providers", "api keys & urls"},
+	{":login", "accounts & api keys"},
 	{":settings", "settings"},
 	{":compact", "compact context"},
 	{":snippets", "saved snippets"},

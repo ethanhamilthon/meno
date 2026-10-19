@@ -2,7 +2,7 @@ GO ?= go
 BIN ?= meno
 DEV_HOME ?= $(HOME)/.meno-dev
 
-.PHONY: version build install run test race vet fmt size check term bench clean
+.PHONY: version build install run clean-home test race vet fmt size check term bench clean
 
 build:
 	$(GO) build -o $(BIN) ./cmd/meno
@@ -18,6 +18,11 @@ install:
 # installed meno. Override with: make run DEV_HOME=/some/dir
 run: build
 	MENO_HOME=$(DEV_HOME) ./$(BIN)
+
+# Deletes the dev MENO_HOME (settings, providers, sessions). Refuses unsafe paths.
+clean-home:
+	@case "$(DEV_HOME)" in ""|"/"|"$(HOME)"|"$(HOME)/") echo "refusing to remove '$(DEV_HOME)'"; exit 1;; esac
+	rm -rf "$(DEV_HOME)"
 
 test:
 	$(GO) test ./...

@@ -1,8 +1,6 @@
 package app
 
 import (
-	"unicode"
-
 	"github.com/rivo/uniseg"
 )
 
@@ -193,39 +191,13 @@ func (a *App) moveRight() {
 // moveWord jumps to the previous (dir<0) or next (dir>0) word boundary.
 func (a *App) moveWord(dir int) {
 	a.clampCursor()
-	in, c := a.st.Input, a.st.Cursor
-	if dir < 0 {
-		for c > 0 && unicode.IsSpace(in[c-1]) {
-			c--
-		}
-		for c > 0 && !unicode.IsSpace(in[c-1]) {
-			c--
-		}
-	} else {
-		for c < len(in) && unicode.IsSpace(in[c]) {
-			c++
-		}
-		for c < len(in) && !unicode.IsSpace(in[c]) {
-			c++
-		}
-	}
-	a.st.Cursor, a.st.WantSet, a.st.Sel = c, false, 0
+	a.st.Cursor, a.st.WantSet, a.st.Sel = wordBoundary(a.st.Input, a.st.Cursor, dir), false, 0
 }
 
 // moveLineEdge moves to the start (dir<0) or end (dir>0) of the logical line.
 func (a *App) moveLineEdge(dir int) {
 	a.clampCursor()
-	in, c := a.st.Input, a.st.Cursor
-	if dir < 0 {
-		for c > 0 && in[c-1] != '\n' {
-			c--
-		}
-	} else {
-		for c < len(in) && in[c] != '\n' {
-			c++
-		}
-	}
-	a.st.Cursor, a.st.WantSet, a.st.Sel = c, false, 0
+	a.st.Cursor, a.st.WantSet, a.st.Sel = lineEdge(a.st.Input, a.st.Cursor, dir), false, 0
 }
 
 // moveVert moves the cursor one visual row up (d<0) or down (d>0), keeping the
@@ -235,34 +207,10 @@ func (a *App) moveVert(d int) {
 	w, _ := a.scr.Size()
 	in := a.st.Input
 	rows := layoutInput(in, a.composerInnerWidth(w))
-	r := cursorRow(rows, a.st.Cursor)
 	if !a.st.WantSet {
+		r := cursorRow(rows, a.st.Cursor)
 		a.st.WantCol, a.st.WantSet = widthBetween(in, rows[r].start, a.st.Cursor), true
 	}
 	a.st.Sel = 0
-	nr := r + d
-	if nr < 0 {
-		a.st.Cursor = 0
-		return
-	}
-	if nr >= len(rows) {
-		a.st.Cursor = len(in)
-		return
-	}
-	row := rows[nr]
-	idx, col := row.start, 0
-	g := uniseg.NewGraphemes(string(in[row.start:row.end]))
-	for g.Next() {
-		gw := cellWidth(g.Str())
-		if col+gw > a.st.WantCol {
-			break
-		}
-		col += gw
-		idx += len([]rune(g.Str()))
-	}
-	// A cursor at the end of a wrapped row would render at the next row's start.
-	if row.soft && idx == row.end && idx > row.start {
-		idx -= lastGraphemeLen(in[row.start:idx])
-	}
-	a.st.Cursor = idx
+	a.st.Cursor = vertTarget(in, rows, a.st.Cursor, a.st.WantCol, d)
 }

@@ -7,6 +7,8 @@ import (
 
 	"meno/internal/agent"
 	"meno/internal/llm"
+	"meno/internal/modes"
+	"meno/internal/prompt"
 	"meno/internal/safe"
 )
 
@@ -16,6 +18,10 @@ func (a *App) submit() {
 	}
 	text := strings.TrimSpace(a.messageText())
 	if text == "" {
+		return
+	}
+	if m, rest, ok := modes.Parse(text, a.st.Modes); ok && rest == "" && m.Default == "" && len(a.st.Images) == 0 {
+		a.notify("usage: #" + m.Name + " <what to do>")
 		return
 	}
 	msg := a.draftMessage(text)
@@ -29,6 +35,10 @@ func (a *App) submit() {
 		}
 	}
 	if a.st.Running {
+		if m, rest, ok := modes.Parse(msg.Text, a.st.Modes); ok {
+			msg.Text = rest // a mode starts a request; this message only steers the running one
+			a.notify("#" + m.Name + " applies to a new request · sent as a plain message")
+		}
 		// Steering: the runner picks it up before its next request to the model.
 		a.st.Queue.Push(msg)
 		a.clearDraft()
@@ -56,6 +66,17 @@ func (a *App) startTurn(msg agent.Message) {
 		a.notifyErr("provider not configured for model " + model)
 		return
 	}
+	cont := msg.Text == "" && len(msg.Attachments) == 0 // a continuation: events woke an idle session
+	var mode modes.Mode
+	if !cont {
+		if m, rest, ok := modes.Parse(msg.Text, a.st.Modes); ok {
+			if rest == "" {
+				rest = m.Default
+			}
+			mode, msg.Text = m, rest
+		}
+	}
+	previousMode := lastUserMode(a.st.Session)
 	ctx, cancel := context.WithCancel(context.Background())
 	a.mu.Lock()
 	a.st.cancel = cancel
@@ -67,27 +88,37 @@ func (a *App) startTurn(msg agent.Message) {
 	a.st.RunStart, a.st.RunTurns, a.st.RunJS, a.st.RunUsage0 = time.Now(), 0, 0, a.st.Usage
 	a.st.Scroll = 0
 	a.clearLive()
-	cont := msg.Text == "" && len(msg.Attachments) == 0 // a continuation: events woke an idle session
 	if !cont {
 		a.st.RequestID = agent.NewID()
+		// The js state lasts for one answer: a new request starts with a clean runtime.
+		a.st.VM.Reset()
+		a.applyMode(mode)
 	}
 	sess, sid := a.st.Session, a.st.Session.ID
 	prov, model, effort := a.selection()
 	effort = llm.ClampEffort(a.effortsFor(prov, model), effort) // the model may not take the stored level
 	// Stamp the session: from now on it keeps this model, whatever the default becomes.
 	sess.Provider, sess.Model, sess.Effort = prov, model, effort
+	runEffort := effort // a mode may ask for more thinking for this request only
+	if !cont && a.st.RunMode.Effort != "" {
+		runEffort = llm.ClampEffort(a.effortsFor(prov, model), a.st.RunMode.Effort)
+	}
+	block := ""
+	if !cont {
+		block = modeBlock(mode, previousMode)
+	}
 	idx := sess.Len()
 	hasHistory := idx > 0 || sess.Summary != ""
 	if !cont {
-		sess.Append(agent.Turn{Role: llm.RoleUser, Text: msg.Text, Attachments: msg.Attachments})
+		sess.Append(agent.Turn{Role: llm.RoleUser, Text: msg.Text, Attachments: msg.Attachments, Mode: mode.Name})
 	}
 	// Everything the goroutine needs is captured here; it must not touch a.st.
 	src, ps := a.worldSrc(), a.st.Prompt
 	d := agent.Deps{
 		Client: a.client(p), Provider: p, Model: model,
-		Effort: effort, Queue: &a.st.Queue, Cost: a.pricer(p, model),
+		Effort: runEffort, Goal: a.st.RunGoal, Queue: &a.st.Queue, Cost: a.pricer(p, model),
 		Events: a.eventSource(sid), AutoCompact: a.autoCompact(p, model), DebugPayload: a.debugPayload(),
-		VM: a.st.VM, Thinking: a.st.Settings.Thinking != "off", ModelTimeout: a.st.Settings.ModelTimeout(),
+		VM: a.st.VM, Thinking: a.st.Settings.Thinking != "off", ModelTimeout: a.st.Settings.ModelTimeout(), ToolDesc: prompt.ToolDescription(false),
 		Emit:  func(e agent.Ev) { a.postEvent(agentEv{sid: sid, ev: e}) },
 		Retry: a.providerRetry(p),
 	}
@@ -103,7 +134,7 @@ func (a *App) startTurn(msg agent.Message) {
 		prep := prepare(ctx, ps, src, hasHistory)
 		switch {
 		case !cont:
-			sess.SetSystem(idx, prep.Event)
+			sess.SetSystem(idx, joinBlocks(block, prep.Event))
 		case prep.Event != "":
 			// A wake-up has no user message to carry the changes of the world, and
 			// the baseline moves on now: they go in as an event of their own.
@@ -187,7 +218,7 @@ func (a *App) currentProvider() (llm.Provider, bool) {
 		return llm.Provider{}, false
 	}
 	for _, p := range a.st.Providers {
-		if p.Name == prov {
+		if p.Name == prov && p.Active() {
 			return p, true
 		}
 	}

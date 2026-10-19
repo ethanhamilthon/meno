@@ -85,6 +85,9 @@ type Request struct {
 	System   string
 	Msgs     []Msg
 	Tools    bool
+	// ToolDescription is the description of the js tool: the rules of the runtime
+	// and its globals. Empty means DefaultToolDescription.
+	ToolDescription string
 	// ModelTimeout adds a timeout argument to the js tool: the model picks how
 	// long each call may run.
 	ModelTimeout bool
@@ -106,7 +109,11 @@ func (m Msg) Calls() []ToolCall {
 	return nil
 }
 
-func ToolSchema(modelTimeout bool) map[string]any {
+// ToolSchema is the definition of the js tool. An empty desc gives the default.
+func ToolSchema(desc string, modelTimeout bool) map[string]any {
+	if desc == "" {
+		desc = DefaultToolDescription
+	}
 	props := map[string]any{
 		"code": map[string]any{"type": "string"},
 		"title": map[string]any{
@@ -123,7 +130,7 @@ func ToolSchema(modelTimeout bool) map[string]any {
 	return map[string]any{
 		"type":        "function",
 		"name":        ToolName,
-		"description": ToolDescription,
+		"description": desc,
 		"parameters": map[string]any{
 			"type":       "object",
 			"properties": props,
@@ -132,8 +139,8 @@ func ToolSchema(modelTimeout bool) map[string]any {
 	}
 }
 
-// ToolDescription is shown to the model as the description of the js tool.
-const ToolDescription = "Run JavaScript in a clean runtime. The code runs synchronously and the value of the last expression is returned; the available globals are described in the system prompt."
+// DefaultToolDescription is the description of the js tool when the request has none.
+const DefaultToolDescription = "Run JavaScript and get the value of the last expression."
 
 // MaxTitleRunes bounds the title of a js call, whatever the model sent.
 const MaxTitleRunes = 60

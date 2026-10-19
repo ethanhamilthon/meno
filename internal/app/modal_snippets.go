@@ -41,7 +41,7 @@ func (a *App) snippetsKey(k *tcell.EventKey) {
 	case k.Key() == tcell.KeyEnter && n > 0:
 		a.pasteSnippetName(a.st.Snippets[sel].Name)
 	case isKey(k, 'r') && n > 0:
-		a.st.Editing, a.st.Buffer = true, []rune(a.st.Snippets[sel].Name)
+		a.beginEdit(a.st.Snippets[sel].Name, false, false)
 		a.st.SnippetDel = ""
 	case isKey(k, 'd') && n > 0:
 		name := a.st.Snippets[sel].Name
@@ -55,35 +55,29 @@ func (a *App) snippetsKey(k *tcell.EventKey) {
 }
 
 func (a *App) snippetRenameKey(k *tcell.EventKey) {
-	switch k.Key() {
-	case tcell.KeyEsc:
-		a.st.Editing, a.st.Buffer = false, nil
-	case tcell.KeyEnter:
+	switch {
+	case k.Key() == tcell.KeyEsc:
+		a.endEdit()
+	case k.Key() == tcell.KeyEnter:
 		a.commitSnippetRename()
-	case tcell.KeyBackspace, tcell.KeyBackspace2:
-		if n := len(a.st.Buffer); n > 0 {
-			a.st.Buffer = a.st.Buffer[:n-1]
-		}
-	case tcell.KeyRune:
-		if k.Modifiers()&(tcell.ModCtrl|tcell.ModAlt) == 0 {
-			a.st.Buffer = append(a.st.Buffer, k.Rune())
-		}
+	default:
+		a.st.Edit.Handle(k)
 	}
 }
 
 func (a *App) commitSnippetRename() {
 	sel := clampSel(a.st.Sel, len(a.st.Snippets))
 	if len(a.st.Snippets) == 0 {
-		a.st.Editing, a.st.Buffer = false, nil
+		a.endEdit()
 		return
 	}
 	old := a.st.Snippets[sel].Name
-	name := strings.TrimSpace(string(a.st.Buffer))
+	name := strings.TrimSpace(a.st.Edit.String())
 	if err := a.store.RenameSnippet(old, name); err != nil {
 		a.notifyErr(err.Error())
 		return
 	}
-	a.st.Editing, a.st.Buffer = false, nil
+	a.endEdit()
 	if err := a.reloadSnippets(); err != nil {
 		a.notifyErr(err.Error())
 		return
@@ -118,14 +112,9 @@ func (a *App) selectSnippet(name string) {
 }
 
 func (a *App) drawSnippets(c ui.Canvas, w, h int) {
-	sel := clampSel(a.st.Sel, len(a.st.Snippets))
 	items := make([]item, len(a.st.Snippets))
 	for i, sn := range a.st.Snippets {
-		label := sn.Name
-		if a.st.Editing && i == sel {
-			label = string(a.st.Buffer) + "▏"
-		}
-		items[i] = item{label: label, right: snippetLines(sn.Text), detail: oneLine(sn.Text)}
+		items[i] = item{label: sn.Name, right: snippetLines(sn.Text), detail: oneLine(sn.Text)}
 	}
 	hint := "j/k select · enter paste · r rename · d delete · esc close"
 	switch {

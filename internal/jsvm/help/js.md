@@ -1,5 +1,5 @@
 # js
-The js tool runs JavaScript in a fresh runtime for each call. Nothing you declare or change survives to the next call. Keep lasting data in files.
+The js tool runs JavaScript in a runtime that lives for your current answer. Variables, functions and classes you declare at the top level of a call are there in the next calls (let, const and class behave like var, so a later call may declare the same name again). When the user sends a new message, the runtime starts clean: keep lasting data in files. Code with a top-level return or await runs inside a function, and what it declares stays local to that call. After a timeout the runtime keeps what it had, but an object the stopped code was building may be half done.
 - The runtime is synchronous. Every host function returns its result directly. Do not use async, await, Promise, or then. A promise that stays pending is an error.
 - The call returns the value of the last expression, or of an explicit top-level return. Strings are returned as they are. Objects and arrays are returned as JSON. Functions, Map, Set, and cyclic objects are errors.
 - console.log output and the returned value share one 64 KB budget for each call. Each call has a timeout.
@@ -12,3 +12,4 @@ The js tool runs JavaScript in a fresh runtime for each call. Nothing you declar
 - console.log(...) writes to the call output.
 - There is no fetch, URL, URLSearchParams or env global. For another HTTP API use sh(curl ...).
 - Relative paths resolve against the working directory.
+- In a read-only mode such as #plan, fs.write, fs.patch and fs.edit, tasks.start and agents.spawn are refused, and sh runs in a sandbox that cannot change files. The error says so; describe the change in your answer instead.

@@ -15,7 +15,7 @@ func (r *Runner) streamAttempt(ctx context.Context, s *Session) ([]call, llm.Msg
 	var streamErr error
 	req := llm.Request{
 		Provider: r.D.Provider, Model: r.D.Model, Effort: r.D.Effort,
-		System: r.D.System, Msgs: s.ToMsgs(), Tools: true, ModelTimeout: r.D.ModelTimeout,
+		System: r.D.System, Msgs: s.ToMsgs(), Tools: true, ToolDescription: r.D.ToolDesc, ModelTimeout: r.D.ModelTimeout,
 	}
 	r.sent = req.Msgs
 	r.emit(s, Ev{Kind: EvRequest, Req: &req})

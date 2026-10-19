@@ -14,12 +14,21 @@ const (
 // never saved to the database.
 const SourceFile = "file"
 
+// SourceOAuth marks the provider meno derives from the OAuth accounts of the
+// local helper. It is rebuilt at every start and never saved.
+const SourceOAuth = "oauth"
+
+// OAuthName is the name of that provider.
+const OAuthName = "oauth"
+
 type Provider struct {
 	Name     string `json:"name"`
 	BaseURL  string `json:"base_url"`
 	APIKey   string `json:"api_key"`
 	Protocol string `json:"protocol"`
 	Source   string `json:"-"`
+	// Disabled keeps the provider in the list but out of the model list and out of use.
+	Disabled bool `json:"disabled,omitempty"`
 	// Run is a shell command meno starts at launch (for a local proxy) and stops
 	// at exit. It is not waited for: a request that fails while the proxy is
 	// starting is retried.
@@ -27,6 +36,12 @@ type Provider struct {
 	// Models holds the user's own settings for single models, by model id.
 	Models map[string]ModelSettings `json:"models,omitempty"`
 }
+
+// Active reports whether the provider is switched on.
+func (p Provider) Active() bool { return !p.Disabled }
+
+// Managed reports whether meno derives the provider from OAuth accounts.
+func (p Provider) Managed() bool { return p.Source == SourceOAuth }
 
 // FromFile reports whether the provider is defined in provider.json.
 func (p Provider) FromFile() bool { return p.Source == SourceFile }

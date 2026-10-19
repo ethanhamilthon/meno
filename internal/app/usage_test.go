@@ -145,7 +145,7 @@ func TestCatalogPickerAndCache(t *testing.T) {
 			t.Fatal(models)
 		}
 	}
-	a.st.Query = []rune("catalog-only")
+	a.st.Query.Set("catalog-only")
 	if models := a.modelList(); len(models) != 1 || models[0].ID != "catalog-only" {
 		t.Fatal(models)
 	}

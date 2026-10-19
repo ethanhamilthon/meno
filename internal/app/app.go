@@ -52,6 +52,8 @@ type App struct {
 	daemons *proc.Daemons     // the run commands of providers (local proxies)
 	kids    *childMgr         // subagents of the main sessions
 
+	loginParts // the OAuth helper and the login in progress (login_oauth.go)
+
 	rts    map[string]*Runtime // every session loaded in this run, by id
 	rtList []*Runtime          // the same, in creation order
 	dbRows []agent.SessionInfo // sessions in the database, as last listed for :sessions
@@ -86,6 +88,7 @@ func New(scr tcell.Screen, paths config.Paths, client func(llm.Provider) llm.Cli
 		mcp: mcp.NewManager(), client: client, events: make(chan any, 512),
 		rts: map[string]*Runtime{},
 	}
+	a.openURL = openBrowser
 	a.evStore, _ = agent.OpenEvents(paths.Home)
 	if d, err := db.Open(paths.Home); err == nil {
 		a.tasks, _ = proc.New(d, filepath.Join(paths.Home, "tasks"), proc.Hooks{Finished: a.onTaskFinished})
@@ -109,26 +112,13 @@ func New(scr tcell.Screen, paths config.Paths, client func(llm.Provider) llm.Cli
 	// One empty session in the launch directory; sessions of earlier runs are
 	// only opened on request (:sessions).
 	a.st.Runtime = a.newRuntime(a.newAgentSession(paths.Cwd), paths.Cwd)
+	a.reloadModes()
 	a.reportWarnings()
 	return a, nil
 }
 
-func (a *App) loadAll() error {
-	var err error
-	if a.st.Providers, err = a.store.LoadProviders(); err != nil {
-		return err
-	}
-	if a.st.Skills, err = a.store.LoadSkills(); err != nil {
-		return err
-	}
-	if a.st.Servers, err = a.store.LoadServers(); err != nil {
-		return err
-	}
-	a.mergeOverlays()
-	return nil
-}
-
 func (a *App) Close() {
+	a.cancelFlow()
 	a.clearImages()
 	a.closeOnce.Do(func() { close(a.done) })
 	a.mcpStop()
@@ -156,6 +146,8 @@ func (a *App) Run(ctx context.Context) error {
 	a.fetchMetadata()
 	a.startUpdateCheck()
 	a.startProviderRuns()
+	a.startOAuth()
+	a.enforceProvider()
 	a.startServers()
 	safe.Go(func() {
 		for {
@@ -246,6 +238,10 @@ func (a *App) handle(msg any) {
 		a.onSessionsLoaded(m)
 	case modelsLoaded:
 		a.onModelsLoaded(m)
+	case accountsLoaded, oauthRefreshed, flowStep, flowLogin, flowDone:
+		a.onLoginEvent(m)
+	case nextMode:
+		a.onNextMode(m)
 	case compactDone:
 		a.inRT(m.sid, func() {
 			if m.err == nil {
@@ -259,7 +255,10 @@ func (a *App) handle(msg any) {
 	case preparedEv:
 		a.inRT(m.sid, func() { a.onPrepared(m.p) })
 	case turnDone:
-		a.inRT(m.sid, func() { a.onTurnDone(m.err) })
+		a.inRT(m.sid, func() {
+			a.onModeEnd(m.err) // before onTurnDone, which may start the next request and replace the mode
+			a.onTurnDone(m.err)
+		})
 		a.markUnseen(m.sid)
 	case askOpen:
 		a.inRT(m.sid, func() { a.openAsk(m.st) })

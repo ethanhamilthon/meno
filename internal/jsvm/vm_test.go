@@ -15,20 +15,67 @@ func newVM(t *testing.T) *VM {
 	return New(Options{Root: root, Timeout: 2 * time.Second})
 }
 
-func TestNothingPersistsAcrossExec(t *testing.T) {
+func TestStatePersistsUntilReset(t *testing.T) {
 	v := newVM(t)
 	ctx := context.Background()
-	v.Exec(ctx, "var n = 2; const c = 3; globalThis.g = 4; Array.prototype.sum = 1")
-	for _, probe := range []string{"typeof n", "typeof c", "typeof g", "typeof [].sum"} {
-		if r := v.Exec(ctx, probe); r.Value != "undefined" {
-			t.Fatalf("%s survived: %+v", probe, r)
+	v.Exec(ctx, "var n = 2; const c = 3; let l = 4; function f() { return 5 } class K { v() { return 6 } } globalThis.g = 7")
+	for probe, want := range map[string]string{"n": "2", "c": "3", "l": "4", "f()": "5", "new K().v()": "6", "g": "7"} {
+		if r := v.Exec(ctx, probe); r.Err != "" || r.Value != want {
+			t.Fatalf("%s: %+v, want %s", probe, r, want)
 		}
 	}
-	// Redeclaring is fine because every call starts clean.
-	for i := 0; i < 2; i++ {
-		if r := v.Exec(ctx, "const again = 1; again"); r.Err != "" || r.Value != "1" {
-			t.Fatalf("%+v", r)
+	v.Reset()
+	for _, probe := range []string{"typeof n", "typeof c", "typeof l", "typeof f", "typeof K", "typeof g"} {
+		if r := v.Exec(ctx, probe); r.Value != "undefined" {
+			t.Fatalf("%s survived Reset: %+v", probe, r)
 		}
+	}
+}
+
+func TestRedeclaringInLaterCalls(t *testing.T) {
+	v := newVM(t)
+	ctx := context.Background()
+	for i, code := range []string{"const a = 1; let b = 2; class C {}; a + b", "const a = 10; let b = 20; class C { x() { return 1 } }; a + b", "let b; typeof b"} {
+		r := v.Exec(ctx, code)
+		want := []string{"3", "30", "undefined"}[i]
+		if r.Err != "" || r.Value != want {
+			t.Fatalf("call %d: %+v, want %s", i, r, want)
+		}
+	}
+	if r := v.Exec(ctx, "const z;"); r.Err == "" {
+		t.Fatal("a const without a value must stay a syntax error")
+	}
+}
+
+func TestWrappedCodeKeepsItsDeclarationsLocal(t *testing.T) {
+	v := newVM(t)
+	ctx := context.Background()
+	if r := v.Exec(ctx, "var inner = 1; globalThis.shared = 2; return inner"); r.Err != "" || r.Value != "1" {
+		t.Fatalf("%+v", r)
+	}
+	if r := v.Exec(ctx, "[typeof inner, typeof shared].join()"); r.Value != "undefined,number" {
+		t.Fatalf("%+v", r)
+	}
+}
+
+func TestOutputIsPerCall(t *testing.T) {
+	v := newVM(t)
+	ctx := context.Background()
+	v.Exec(ctx, "console.log('first')")
+	if r := v.Exec(ctx, "console.log('second')"); r.Output != "second\n" {
+		t.Fatalf("output %q", r.Output)
+	}
+}
+
+func TestStateSurvivesATimeout(t *testing.T) {
+	v := newVM(t)
+	ctx := context.Background()
+	v.Exec(ctx, "var kept = 42")
+	if r := v.ExecTimeout(ctx, "while (true) {}", 50*time.Millisecond); !r.TimedOut {
+		t.Fatalf("%+v", r)
+	}
+	if r := v.Exec(ctx, "kept"); r.Err != "" || r.Value != "42" {
+		t.Fatalf("%+v", r)
 	}
 }
 

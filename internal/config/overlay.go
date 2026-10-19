@@ -184,7 +184,7 @@ func MergeServers(saved, file []mcp.Server) ([]mcp.Server, []string) {
 func OwnProviders(ps []llm.Provider) []llm.Provider {
 	var out []llm.Provider
 	for _, p := range ps {
-		if p.Source != llm.SourceFile {
+		if p.Source != llm.SourceFile && p.Source != llm.SourceOAuth {
 			out = append(out, p)
 		}
 	}

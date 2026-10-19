@@ -182,27 +182,21 @@ func chips(c ui.Canvas, b box, y, x int, opts []string, cur string) int {
 
 // searchRow draws the search input on a slightly darker surface. An empty
 // query shows the dim placeholder after the cursor.
-func searchRow(c ui.Canvas, b box, y int, query, placeholder, count string) {
+func searchRow(c ui.Canvas, b box, y int, query *textEdit, placeholder, count string) {
 	if y < 0 || y >= b.h {
 		return
 	}
 	b.fill(c, y, ui.BgPopupIn)
 	b.put(c, 2, y, "/", ui.Blue, ui.BgPopupIn)
 	queryW := max(0, b.w-6-ui.TextWidth(count)-2)
-	if query == "" {
-		x := b.x + 4
-		x += c.Text(x, b.y+y, queryW, "█", ui.Style{FG: ui.FgWhite, BG: ui.BgPopupIn}.TCell())
-		c.Text(x, b.y+y, max(0, queryW-1), placeholder, ui.Style{FG: ui.FgDim, BG: ui.BgPopupIn}.TCell())
-	} else {
-		query = ui.Truncate(query, max(0, queryW-1))
-		c.Text(b.x+4, b.y+y, queryW, query+"█", ui.Style{FG: ui.FgWhite, BG: ui.BgPopupIn}.TCell())
-	}
+	query.Placeholder = placeholder
+	query.Draw(c, b.x+4, b.y+y, queryW, 1, ui.Style{FG: ui.FgWhite, BG: ui.BgPopupIn}.TCell(), true)
 	b.putRight(c, y, count, ui.FgDim, ui.BgPopupIn)
 }
 
 // titledSearch is the shared header of searchable lists: title row, blank row,
 // search row. Lists start at row 4.
-func titledSearch(c ui.Canvas, b box, title, sub, query, placeholder string) {
+func titledSearch(c ui.Canvas, b box, title, sub string, query *textEdit, placeholder string) {
 	titleRow(title, sub)(c, b)
 	searchRow(c, b, 2, query, placeholder, "")
 }

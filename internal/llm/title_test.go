@@ -20,7 +20,7 @@ func TestToolTitle(t *testing.T) {
 
 func TestToolSchemaAsksForATitle(t *testing.T) {
 	for _, m := range []bool{false, true} {
-		p := ToolSchema(m)["parameters"].(map[string]any)
+		p := ToolSchema("", m)["parameters"].(map[string]any)
 		if _, ok := p["properties"].(map[string]any)["title"]; !ok {
 			t.Fatalf("modelTimeout=%v: no title property", m)
 		}

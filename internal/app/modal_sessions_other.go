@@ -99,7 +99,7 @@ func (a *App) drawSessions(c ui.Canvas, w, h int) {
 	b := centered(w, h, 0, bh)
 	b.frame(c)
 	titleRow("sessions", itoa(len(items))+" / "+itoa(len(rows)))(c, b)
-	searchRow(c, b, 2, string(a.st.Query), "search title, date or path", "")
+	searchRow(c, b, 2, &a.st.Query, "search title, date or path", "")
 	if len(items) == 0 {
 		b.put(c, 4, 4, "no matching sessions", ui.FgDim, ui.BgPopup)
 	}

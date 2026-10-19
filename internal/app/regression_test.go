@@ -49,10 +49,10 @@ func TestCommandCompletion(t *testing.T) {
 	a, s := newTestApp(t)
 	defer s.Fini()
 	a.st.Mode = ui.ModeCommand
-	a.st.Cmd = []rune("pro")
+	a.st.Cmd = []rune("log")
 	a.onCommandKey(tcell.NewEventKey(tcell.KeyDown, 0, tcell.ModNone))
 	a.onCommandKey(tcell.NewEventKey(tcell.KeyTab, 0, tcell.ModNone))
-	if string(a.st.Cmd) != "providers" {
+	if string(a.st.Cmd) != "login" {
 		t.Fatalf("completion: %s", string(a.st.Cmd))
 	}
 	a.st.Cmd = []rune("set")
@@ -107,7 +107,7 @@ func TestRunningSessionGuards(t *testing.T) {
 	if a.quit || !strings.Contains(a.lastNotice(), "not quitting") || !strings.Contains(a.lastNotice(), "running") || !strings.Contains(a.lastNotice(), ":q!") {
 		t.Fatalf("q while running: quit=%v notice %q", a.quit, a.lastNotice())
 	}
-	for cmd, over := range map[string]Overlay{"settings": OverSettings, "model": OverModel, "mcp": OverMCP, "skills": OverSkills, "providers": OverProviders, "help": OverHelp, "sessions": OverSessions} {
+	for cmd, over := range map[string]Overlay{"settings": OverSettings, "model": OverModel, "mcp": OverMCP, "skills": OverSkills, "login": OverLogin, "help": OverHelp, "sessions": OverSessions} {
 		a.closeOverlay()
 		a.runCommand(cmd)
 		if a.st.Over != over {

@@ -67,6 +67,10 @@ type Deps struct {
 	Thinking bool
 	// ModelTimeout lets the model pass a timeout with every js call.
 	ModelTimeout bool
+	// ToolDesc is the description of the js tool (prompt.ToolDescription).
+	ToolDesc string
+	// Goal, when set, keeps the run going until the agent gives a verdict.
+	Goal *Goal
 	// Retry is the policy for failed model requests (zero value: defaults).
 	Retry RetryPolicy
 	// Queue, when set, delivers messages the user wrote during the turn; they

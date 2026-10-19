@@ -93,7 +93,7 @@ func (a *App) drawBottom(c ui.Canvas, x, y, w, h int) {
 func (a *App) drawStatus(c ui.Canvas, x, y, w int) {
 	label := a.st.Mode.Label()
 	if a.st.Over != OverNone {
-		labels := map[Overlay]string{OverModel: "MODEL", OverSettings: "SETTINGS", OverProviders: "PROVIDERS", OverProviderEdit: "PROVIDER", OverSkills: "SKILLS", OverMCP: "MCP", OverMCPEdit: "MCP", OverSessions: "SESSIONS", OverHelp: "HELP", OverFork: "FORK", OverTasks: "TASKS", OverAgents: "AGENTS", OverSnippets: "SNIPPETS"}
+		labels := map[Overlay]string{OverModel: "MODEL", OverSettings: "SETTINGS", OverLogin: "LOGIN", OverLoginFlow: "LOGIN", OverProviderEdit: "PROVIDER", OverSkills: "SKILLS", OverMCP: "MCP", OverMCPEdit: "MCP", OverSessions: "SESSIONS", OverHelp: "HELP", OverFork: "FORK", OverTasks: "TASKS", OverAgents: "AGENTS", OverSnippets: "SNIPPETS"}
 		if name := labels[a.st.Over]; name != "" {
 			label = name
 		}
@@ -131,6 +131,9 @@ func (a *App) drawStatus(c ui.Canvas, x, y, w int) {
 		}
 	}
 	right := []ui.Seg{{Text: dot, FG: color}, {Text: a.modelLabel(), FG: ui.FgDim}, {Text: " ", FG: ui.FgDim}}
+	if m := a.modeStatus(); m != "" {
+		right = append([]ui.Seg{{Text: m + "  ", FG: ui.Orange}}, right...)
+	}
 	if b := bgBadge(a.bgCount(a.st.Session.ID)); b != "" {
 		// Background tasks or subagents of this session: a purple blinking marker by the model.
 		right = append([]ui.Seg{{Text: b + "  ", FG: bgColor()}}, right...)

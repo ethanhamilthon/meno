@@ -27,7 +27,7 @@ func TestSectionOrder(t *testing.T) {
 	out := Build(full())
 	last := -1
 	for _, h := range []string{
-		"You are meno, a coding agent.", "## Guidelines", "## The js tool", "## Background tasks and subagents", "## MCP\n", "## Skills",
+		"You are meno, a coding agent.", "## Guidelines", "## Skills",
 		"## Global instructions", "## Project instructions", "## MCP servers", "## Environment",
 	} {
 		i := strings.Index(out, h)
@@ -69,7 +69,7 @@ func TestOptionalSectionsAbsentWhenEmpty(t *testing.T) {
 			t.Fatalf("%s must be absent:\n%s", h, out)
 		}
 	}
-	if !strings.Contains(out, "## Environment") || !strings.Contains(out, "help(\"mcpServers\")") {
+	if !strings.Contains(out, "## Environment") || !strings.Contains(out, "## Guidelines") {
 		t.Fatal("bare prompt lost a fixed section")
 	}
 }
@@ -116,7 +116,7 @@ func TestBuildSkillsAndTools(t *testing.T) {
 		Tools:  []Tool{{"github", "search-repos", "Search repositories", "{query: string, page?: number}"}}})
 	for _, want := range []string{
 		"## Skills", "- api-security — check auth and rate limits (/p/.meno/skills/api-security.md)", "- bare (/p/bare.md)",
-		"## MCP servers", "- github (1 tool): search_repos", "mcpTools(",
+		"## MCP servers", "- github (1 tool): search_repos",
 	} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("missing %q in:\n%s", want, out)

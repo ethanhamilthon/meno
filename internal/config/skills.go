@@ -32,9 +32,9 @@ func SkillName(s string) string {
 	return strings.Trim(s, "-_")
 }
 
-// parseFrontmatter splits an optional "---" header of "key: value" lines from
+// ParseFrontmatter splits an optional "---" header of "key: value" lines from
 // the body of a markdown file.
-func parseFrontmatter(text string) (map[string]string, string) {
+func ParseFrontmatter(text string) (map[string]string, string) {
 	text = strings.TrimPrefix(text, "\ufeff")
 	lines := strings.Split(text, "\n")
 	if len(lines) == 0 || strings.TrimSpace(lines[0]) != "---" {
@@ -88,7 +88,7 @@ func readSkill(path, fallback, scope string) (Skill, bool) {
 	if err != nil {
 		return Skill{}, false
 	}
-	meta, body := parseFrontmatter(string(b))
+	meta, body := ParseFrontmatter(string(b))
 	name := SkillName(meta["name"])
 	if name == "" {
 		name = SkillName(fallback)

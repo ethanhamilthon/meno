@@ -42,7 +42,7 @@ func (chatClient) Stream(ctx context.Context, req Request, emit func(Event)) err
 		body["reasoning_effort"] = req.Effort
 	}
 	if req.Tools {
-		body["tools"] = []any{map[string]any{"type": "function", "function": ToolSchema(req.ModelTimeout)}}
+		body["tools"] = []any{map[string]any{"type": "function", "function": ToolSchema(req.ToolDescription, req.ModelTimeout)}}
 	}
 	applyCache(body, req)
 	resp, err := post(ctx, req.Provider, "/chat/completions", body, nil)

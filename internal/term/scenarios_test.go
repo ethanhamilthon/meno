@@ -12,18 +12,17 @@ import (
 
 var protocols = []string{"chat", "responses"}
 
-// 1. First run: no provider, add one in :providers, pick a model in :model, talk.
+// 1. First run: no provider, so the login list opens and cannot be closed. Add
+// an API-key provider there, pick a model in :model, talk.
 func TestFirstRunSetupThroughDialogs(t *testing.T) {
 	f := newFakeLLM(t)
 	f.Handler = func(q *llmReq) { q.Text("first ", "answer") }
-	s := start(t, options{})
-	s.WaitFor("give a task")
-	s.Say("hello")
-	s.WaitFor("provider not configured")
-
-	s.Cmd("providers")
-	s.WaitFor("new provider")
-	s.Send("n")
+	s := start(t, options{firstRun: true})
+	s.WaitFor("add a provider to start")
+	s.Send(Esc)
+	time.Sleep(150 * time.Millisecond)
+	s.WaitFor("add a provider to start") // esc must not close the list
+	s.Send("j" + Enter)                  // API key · Chat Completions
 	s.WaitFor("base url")
 	s.Send(Enter) // edit name
 	s.Type("fake")
@@ -34,13 +33,11 @@ func TestFirstRunSetupThroughDialogs(t *testing.T) {
 	s.Send("j" + Enter)
 	s.Type("secret-key")
 	s.Send(Enter)
-	s.WaitFor("fake")
-	s.Send(CtrlS)
-	s.WaitFor("provider saved")
+	s.WaitFor("ready")
 	s.Send(Esc)
 	time.Sleep(150 * time.Millisecond)
 	s.Send(Esc)
-	time.Sleep(150 * time.Millisecond)
+	s.WaitGone("LOGIN")
 
 	s.Cmd("model")
 	s.WaitFor("fake-model")

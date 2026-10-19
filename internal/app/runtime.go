@@ -11,6 +11,7 @@ import (
 	"meno/internal/jsvm"
 	"meno/internal/llm"
 	"meno/internal/mcp"
+	"meno/internal/modes"
 	"meno/internal/ui"
 )
 
@@ -40,6 +41,10 @@ type Runtime struct {
 	Delegated         float64             // their spend, kept apart from this session's own
 	DelegatedUnpriced bool
 	Cancelled         map[string]bool
+
+	// RunMode and RunGoal belong to the request being worked on (see modes.go).
+	RunMode modes.Mode
+	RunGoal *agent.Goal
 
 	Running   bool
 	Queue     agent.Queue // messages written while the turn runs; the runner takes them between steps

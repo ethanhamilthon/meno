@@ -2,6 +2,7 @@ package app
 
 import (
 	"meno/internal/agent"
+	"meno/internal/cliproxy"
 	"meno/internal/llm"
 )
 
@@ -37,4 +38,33 @@ type modelsLoaded struct {
 	provider string
 	models   []llm.Model
 	err      error
+}
+
+// accountsLoaded carries the OAuth accounts listed by the local helper.
+type accountsLoaded struct {
+	list []cliproxy.Account
+	err  error
+}
+
+// oauthRefreshed is the outcome of the start-up look for a newer helper.
+type oauthRefreshed struct {
+	out cliproxy.Outcome
+	err error
+}
+
+// The messages of a running login; id tells a stale login from the current one.
+type flowStep struct {
+	id   int
+	text string
+}
+
+type flowLogin struct {
+	id    int
+	login cliproxy.Login
+	err   error
+}
+
+type flowDone struct {
+	id  int
+	err error
 }

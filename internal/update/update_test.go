@@ -134,3 +134,34 @@ func TestCheckIgnoresFailures(t *testing.T) {
 		t.Fatalf("check: %q", got)
 	}
 }
+
+func TestLatestReadsTheReleasePageRedirect(t *testing.T) {
+	web := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/o/r/releases/latest" {
+			http.NotFound(w, r)
+			return
+		}
+		http.Redirect(w, r, "/o/r/releases/tag/v1.2.3", http.StatusFound)
+	}))
+	defer web.Close()
+	c := Client{Repo: "o/r", Web: web.URL}
+	tag, err := c.Latest(context.Background())
+	if err != nil || tag != "v1.2.3" {
+		t.Fatalf("tag %q err %v", tag, err)
+	}
+}
+
+func TestLatestFallsBackToTheAPIWhenThePageFails(t *testing.T) {
+	web := httptest.NewServer(http.NotFoundHandler())
+	defer web.Close()
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, `{"tag_name":"v2.0.0"}`)
+	}))
+	defer api.Close()
+	// With an API base set the page is skipped, as in the other tests; without
+	// one a failing page must leave the API as the way out.
+	c := Client{Repo: "o/r", Web: web.URL, API: api.URL}
+	if tag, err := c.Latest(context.Background()); err != nil || tag != "v2.0.0" {
+		t.Fatalf("tag %q err %v", tag, err)
+	}
+}

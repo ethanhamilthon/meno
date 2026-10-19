@@ -53,6 +53,7 @@ func run() error {
 	if os.Getenv("MENO_NO_UPDATE_CHECK") == "" {
 		c := update.Client{Version: version}
 		a.SetUpdateCheck(func(ctx context.Context) string { return c.Check(ctx, paths.Home, version, time.Now()) })
+		a.EnableOAuthUpdates()
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

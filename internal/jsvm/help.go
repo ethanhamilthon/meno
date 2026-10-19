@@ -27,6 +27,7 @@ var helpTopics = []helpTopic{
 	{name: "askUser", line: "ask the user questions in one form", file: "askUser.md", mainOnly: true},
 	{name: "tasks", line: "background shell commands", file: "tasks.md", mainOnly: true},
 	{name: "agents", line: "subagents", file: "agents.md", childFile: "agents-child.md"},
+	{name: "goal", line: "goal.done and goal.blocked, for #goal runs", file: "goal.md", mainOnly: true},
 	{name: "mcp", line: "call MCP tools, read cut results, schemas", file: "mcp.md"},
 	{name: "mcpServers", line: "list, add, update, remove, restart MCP servers", file: "mcpServers.md"},
 }

@@ -23,17 +23,9 @@ func containsFold(s, q string) bool {
 }
 
 func (a *App) queryKey(k *tcell.EventKey) {
-	switch k.Key() {
-	case tcell.KeyBackspace, tcell.KeyBackspace2:
-		if n := len(a.st.Query); n > 0 {
-			a.st.Query = a.st.Query[:n-1]
-		}
-	case tcell.KeyRune:
-		a.st.Query = append(a.st.Query, k.Rune())
-	default:
-		return
+	if a.st.Query.Handle(k) {
+		a.st.Sel = 0
 	}
-	a.st.Sel = 0
 }
 
 func (a *App) searchList(c ui.Canvas, w, h, bw, total int, title, placeholder string, items []item, hint string) {
@@ -49,7 +41,11 @@ func (a *App) searchListEmpty(c ui.Canvas, w, h, bw, total int, title, placehold
 	}
 	b := centered(w, h, bw, bh)
 	b.frame(c)
-	titledSearch(c, b, title, itoa(len(items))+" / "+itoa(total), string(a.st.Query), placeholder)
+	q := &a.st.Query
+	if a.st.Editing {
+		q = &a.st.Edit // a rename takes over the search row
+	}
+	titledSearch(c, b, title, itoa(len(items))+" / "+itoa(total), q, placeholder)
 	if len(items) == 0 {
 		if empty == "" {
 			empty = "nothing here"

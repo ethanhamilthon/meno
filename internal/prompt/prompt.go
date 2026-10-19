@@ -69,13 +69,9 @@ func Build(in Input) string {
 	}
 	add(identityPrompt)
 	add(guidelines(in.Subagent))
-	add(jsTool(in.Subagent))
 	if in.Subagent {
 		add(subagentPrompt)
-	} else {
-		add(workPrompt)
 	}
-	add(mcpPrompt)
 	add(skillsSection(in.Skills))
 	add(instructionsSection("Global instructions", in.GlobalAgents))
 	add(instructionsSection("Project instructions", in.ProjectAgents))
@@ -253,23 +249,4 @@ func ident(name string) string {
 		return "_"
 	}
 	return b.String()
-}
-
-// guidelines is the Guidelines section. A subagent does not get the ask rule:
-// it cannot ask the user.
-func guidelines(subagent bool) string {
-	l := []string{"## Guidelines"}
-	l = append(l, baseGuidelines)
-	if !subagent {
-		l = append(l, askGuideline)
-	}
-	return strings.Join(l, "\n")
-}
-
-func jsTool(subagent bool) string {
-	globals := jsGlobalsMain
-	if subagent {
-		globals = jsGlobalsChild
-	}
-	return jsToolPrompt + globals + jsHelpLine
 }

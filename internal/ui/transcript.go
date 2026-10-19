@@ -82,7 +82,11 @@ func BuildLines(turns []agent.Turn, w int, js JSOpts) []Line {
 			}
 		case t.Role == llm.RoleUser:
 			out = append(out, Band(BgUser))
-			out = append(out, WrapLines(withObjectLabels(t.Text), wrapW-2, userLineMaker())...)
+			shown := t.Text
+			if t.Mode != "" {
+				shown = "#" + t.Mode + " " + shown // the tag was taken off the text; the transcript shows it as typed
+			}
+			out = append(out, WrapLines(withObjectLabels(shown), wrapW-2, userLineMaker())...)
 			out = append(out, Band(BgUser))
 			for _, at := range t.Attachments {
 				out = append(out, imageBlock(at, "attachment", w, js.Images)...)

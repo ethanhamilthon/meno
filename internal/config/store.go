@@ -101,7 +101,7 @@ func (s *Store) LoadProviders() ([]llm.Provider, error) {
 	if err != nil {
 		return nil, err
 	}
-	rows, err := d.Query("SELECT name, base_url, api_key, protocol, run, models_json FROM providers ORDER BY pos")
+	rows, err := d.Query("SELECT name, base_url, api_key, protocol, run, models_json, disabled FROM providers ORDER BY pos")
 	if err != nil {
 		return nil, err
 	}
@@ -110,9 +110,11 @@ func (s *Store) LoadProviders() ([]llm.Provider, error) {
 	for rows.Next() {
 		var p llm.Provider
 		var models string
-		if err := rows.Scan(&p.Name, &p.BaseURL, &p.APIKey, &p.Protocol, &p.Run, &models); err != nil {
+		var off int
+		if err := rows.Scan(&p.Name, &p.BaseURL, &p.APIKey, &p.Protocol, &p.Run, &models, &off); err != nil {
 			return nil, err
 		}
+		p.Disabled = off != 0
 		// A damaged value costs the model settings of this provider, not the provider.
 		if err := json.Unmarshal([]byte(models), &p.Models); err != nil || len(p.Models) == 0 {
 			p.Models = nil
@@ -120,6 +122,13 @@ func (s *Store) LoadProviders() ([]llm.Provider, error) {
 		ps = append(ps, p)
 	}
 	return ps, rows.Err()
+}
+
+func boolInt(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
 }
 
 func (s *Store) SaveProviders(ps []llm.Provider) error {
@@ -135,8 +144,8 @@ func putProviders(t *sql.Tx, ps []llm.Provider) error {
 		if len(p.Models) > 0 {
 			models, _ = json.Marshal(p.Models)
 		}
-		if _, err := t.Exec("INSERT INTO providers(pos,name,base_url,api_key,protocol,run,models_json) VALUES(?,?,?,?,?,?,?)",
-			i, p.Name, p.BaseURL, p.APIKey, p.Protocol, p.Run, string(models)); err != nil {
+		if _, err := t.Exec("INSERT INTO providers(pos,name,base_url,api_key,protocol,run,models_json,disabled) VALUES(?,?,?,?,?,?,?,?)",
+			i, p.Name, p.BaseURL, p.APIKey, p.Protocol, p.Run, string(models), boolInt(p.Disabled)); err != nil {
 			return err
 		}
 	}

@@ -10,9 +10,9 @@ func (a *App) openOverlay(o Overlay) {
 	a.st.Over = o
 	a.st.Sel = 0
 	a.st.Field = 0
-	a.st.Query = nil
-	a.st.Editing = false
-	a.st.Buffer = nil
+	a.st.Query.Reset()
+	a.endEdit()
+	a.st.FormNote = ""
 }
 
 func (a *App) closeOverlay() {
@@ -22,7 +22,14 @@ func (a *App) closeOverlay() {
 func (a *App) backOverlay() {
 	switch a.st.Over {
 	case OverProviderEdit:
-		a.st.Over, a.st.Sel, a.st.Field = OverProviders, max(a.st.EditIdx, 0), 0
+		a.st.Over, a.st.Sel, a.st.Field = OverLogin, 0, 0
+		if a.st.EditIdx >= 0 {
+			a.st.Sel = a.loginRowOfProvider(a.st.EditIdx)
+		}
+		a.afterProvidersChanged()
+	case OverLoginFlow:
+		a.cancelFlow()
+		a.st.Over, a.st.Sel = OverLogin, 0
 	case OverMCPEdit:
 		a.st.Over, a.st.Sel, a.st.Field = OverMCP, max(a.st.EditIdx, 0), 0
 	case OverAgents:
@@ -40,12 +47,16 @@ func (a *App) backOverlay() {
 	default:
 		a.closeOverlay()
 	}
-	a.st.Editing = false
-	a.st.Buffer = nil
+	a.endEdit()
+	a.st.FormNote = ""
 }
 
 func (a *App) onOverlayKey(k *tcell.EventKey) {
 	if k.Key() == tcell.KeyEsc && !a.st.Editing {
+		if a.st.Locked && a.st.Over == OverLogin {
+			a.notify("add a provider to start · ctrl+c quits")
+			return
+		}
 		a.backOverlay()
 		return
 	}
@@ -54,8 +65,10 @@ func (a *App) onOverlayKey(k *tcell.EventKey) {
 		a.modelKey(k)
 	case OverSettings:
 		a.settingsKey(k)
-	case OverProviders:
-		a.providersKey(k)
+	case OverLogin:
+		a.loginKey(k)
+	case OverLoginFlow:
+		a.loginFlowKey(k)
 	case OverProviderEdit:
 		a.providerEditKey(k)
 	case OverSkills:
@@ -85,8 +98,10 @@ func (a *App) drawOverlay(c ui.Canvas, w, h int) {
 		a.drawModel(c, w, h)
 	case OverSettings:
 		a.drawSettings(c, w, h)
-	case OverProviders:
-		a.drawProviders(c, w, h)
+	case OverLogin:
+		a.drawLogin(c, w, h)
+	case OverLoginFlow:
+		a.drawLoginFlow(c, w, h)
 	case OverProviderEdit:
 		a.drawProviderEdit(c, w, h)
 	case OverSkills:

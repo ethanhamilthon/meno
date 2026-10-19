@@ -26,7 +26,7 @@ func (m *childMgr) build(c *childRun, pr llm.Provider, model, effort, system str
 	c.vm = vm
 	c.deps = agent.Deps{
 		Client: a.client(pr), Provider: pr, Model: model, Effort: effort, System: system, VM: vm,
-		ModelTimeout: st.ModelTimeout(), Queue: &c.queue, Events: agent.StoreSource{Store: a.evStore, Session: c.sess.ID},
+		ModelTimeout: st.ModelTimeout(), ToolDesc: prompt.ToolDescription(true), Queue: &c.queue, Events: agent.StoreSource{Store: a.evStore, Session: c.sess.ID},
 		Cost: c.price, Emit: c.onEmit, Halt: c.halt, Retry: a.providerRetry(pr),
 	}
 	return nil

@@ -11,7 +11,7 @@ import (
 )
 
 func (a *App) modelList() []llm.Model {
-	return llm.FilterModels(a.allModels(), string(a.st.Query))
+	return llm.FilterModels(a.allModels(), a.st.Query.String())
 }
 
 func (a *App) modelKey(k *tcell.EventKey) {
@@ -32,14 +32,10 @@ func (a *App) modelKey(k *tcell.EventKey) {
 			a.persistSettings()
 			a.closeOverlay()
 		}
-	case k.Key() == tcell.KeyBackspace || k.Key() == tcell.KeyBackspace2:
-		if n := len(a.st.Query); n > 0 {
-			a.st.Query = a.st.Query[:n-1]
+	default:
+		if a.st.Query.Handle(k) {
+			a.st.Sel = 0
 		}
-		a.st.Sel = 0
-	case k.Key() == tcell.KeyRune:
-		a.st.Query = append(a.st.Query, k.Rune())
-		a.st.Sel = 0
 	}
 }
 
@@ -101,7 +97,7 @@ func (a *App) drawModel(c ui.Canvas, w, h int) {
 	bh := 4 + body + 3 // title, gap, search, gap | gap, effort, gap+hint
 	b := centered(w, h, bw, bh)
 	b.frame(c)
-	titledSearch(c, b, "model", itoa(len(list))+" / "+itoa(len(a.allModels())), string(a.st.Query), "search models")
+	titledSearch(c, b, "model", itoa(len(list))+" / "+itoa(len(a.allModels())), &a.st.Query, "search models")
 	y := 4
 	rows := max(0, min(8, b.h-8)) // box height minus title, search, effort, hint and the detail line
 	start := max(0, a.st.Sel-rows+1)

@@ -122,6 +122,17 @@ func (d *Daemons) Running(name string) bool {
 	}
 }
 
+// RunningCommand is the command of the live daemon name, or "" when it does
+// not run.
+func (d *Daemons) RunningCommand(name string) string {
+	if !d.Running(name) {
+		return ""
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.procs[name].command
+}
+
 // Stop ends the daemon name: SIGTERM to its group, SIGKILL after a short wait.
 func (d *Daemons) Stop(name string) {
 	d.mu.Lock()
