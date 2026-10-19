@@ -25,7 +25,7 @@ func TestLoadSettingsNormalizesInvalidValues(t *testing.T) {
 
 func TestSettingsDecodeValidAndLegacy(t *testing.T) {
 	for _, lines := range []int{1, 50} {
-		want := Settings{Provider: "custom", Model: "custom-model", Effort: "max", JSCode: "off", JSLines: lines, JSOutLines: 7, JSOutput: "off", JSStrings: "off", JSStringLines: 2, Thinking: "off", ThinkLines: 4, JSTiming: "slow", TurnSummary: "off", JSTimeout: "model", JSTimeoutSec: 90, Theme: "dracula", Notify: "done", NotifyCommand: "say hi", NotifySound: "chime", NotifyVolume: 60, WebSearch: "brave", WebSearchKey: "key", SubagentProvider: "openai", SubagentModel: "gpt-5", SubagentEffort: "low", CompactPercent: 70, CompactKeep: 10, CompactSummaryTokens: 3000}
+		want := Settings{Provider: "custom", Model: "custom-model", Effort: "max", JSCode: "off", JSLines: lines, JSOutLines: 7, JSOutput: "off", JSStrings: "off", JSStringLines: 2, Thinking: "off", ThinkLines: 4, JSTiming: "slow", TurnSummary: "off", JSTimeout: "model", JSTimeoutSec: 90, Theme: "dracula", Notify: "done", NotifyCommand: "say hi", NotifySound: "chime", NotifyVolume: 60, WebSearch: "brave", WebSearchKey: "key", SubagentProvider: "openai", SubagentModel: "gpt-5", SubagentEffort: "low", SubagentMaxSpawn: 50, CompactPercent: 70, CompactKeep: 10, CompactSummaryTokens: 3000}
 		b, err := json.Marshal(want)
 		if err != nil {
 			t.Fatal(err)

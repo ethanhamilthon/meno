@@ -92,6 +92,7 @@ func (a *App) startTurn(msg agent.Message) {
 		a.st.RequestID = agent.NewID()
 		// The js state lasts for one answer: a new request starts with a clean runtime.
 		a.st.VM.Reset()
+		a.st.Spawned = 0
 		a.applyMode(mode)
 	}
 	sess, sid := a.st.Session, a.st.Session.ID

@@ -76,10 +76,15 @@ func (p parentAgents) Spawn(tc jsvm.TaskCall, spec map[string]any) (any, error) 
 			return
 		}
 		settings = p.a.st.Settings
+		if rt.Spawned >= settings.SubagentMaxSpawn {
+			err = fmt.Errorf("agents.spawn: this request already started %d subagents, the limit (subagent_max_spawn): work with the results you have", rt.Spawned)
+			return
+		}
 		pricer = p.a.pricer(pr, model)
 		src = p.a.worldSrc()
 		src.Paths.Cwd = cwd
 		src.Model = modelSig{prov, model, effort}
+		rt.Spawned++ // only a spawn that passed every check uses up the limit
 	})
 	if err != nil {
 		return nil, err
