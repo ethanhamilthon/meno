@@ -46,6 +46,9 @@ type accountsLoaded struct {
 	err  error
 }
 
+type oauthPortChanged struct{}
+type oauthHelperStatus struct{ ready bool }
+
 // oauthRefreshed is the outcome of the start-up look for a newer helper.
 type oauthRefreshed struct {
 	out cliproxy.Outcome

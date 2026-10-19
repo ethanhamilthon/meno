@@ -31,7 +31,9 @@ type State struct {
 	Port          int       `json:"port"`
 	ClientKey     string    `json:"client_key"`
 	ManagementKey string    `json:"management_key"`
-	HasAccounts   bool      `json:"has_accounts"` // at least one enabled OAuth account
+	HasAccounts   bool      `json:"has_accounts"`   // at least one enabled OAuth account
+	Accounts      int       `json:"accounts"`       // all OAuth accounts, including disabled ones
+	AccountsKnown bool      `json:"accounts_known"` // false only before the first account sync
 	CheckedAt     time.Time `json:"checked_at"`
 	Latest        string    `json:"latest"`
 }
@@ -78,6 +80,11 @@ func (m *Manager) load() {
 	m.loaded = true
 	_ = store.LoadJSON(m.statePath(), &m.st)
 	changed := false
+	// Older state only recorded enabled accounts. Preserve a positive count when
+	// possible; otherwise startup performs one helper sync to discover accounts.
+	if !m.st.AccountsKnown && m.st.HasAccounts {
+		m.st.Accounts, m.st.AccountsKnown, changed = 1, true, true
+	}
 	if m.st.ClientKey == "" {
 		m.st.ClientKey, changed = randomKey("mc-"), true
 	}

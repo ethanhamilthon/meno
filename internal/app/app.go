@@ -96,6 +96,9 @@ func New(scr tcell.Screen, paths config.Paths, client func(llm.Provider) llm.Cli
 	a.kids = newChildMgr(a)
 	a.daemons = proc.NewDaemons(filepath.Join(paths.Home, "providers"))
 	a.daemons.OnExit = func(name string, err error, log string) {
+		if a.helperStopped(name, err, log) {
+			return
+		}
 		a.postEvent(errNotice{text: "provider " + name + ": the run command ended (" + err.Error() + "), see " + log})
 	}
 	a.mcpCtx, a.mcpStop = context.WithCancel(context.Background())
@@ -237,7 +240,7 @@ func (a *App) handle(msg any) {
 		a.onSessionsLoaded(m)
 	case modelsLoaded:
 		a.onModelsLoaded(m)
-	case accountsLoaded, oauthRefreshed, flowStep, flowLogin, flowDone:
+	case accountsLoaded, oauthPortChanged, oauthHelperStatus, oauthRefreshed, flowStep, flowLogin, flowDone:
 		a.onLoginEvent(m)
 	case compactDone:
 		a.inRT(m.sid, func() {

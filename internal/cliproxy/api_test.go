@@ -3,6 +3,7 @@ package cliproxy
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -45,7 +46,7 @@ func newAPITest(t *testing.T) (*Manager, *fakeHelper) {
 				_, _ = w.Write([]byte(`{"status":"ok"}`))
 				return
 			}
-			_, _ = w.Write([]byte(`{"files":[{"name":"codex-1.json","provider":"codex","email":"a@b.c","disabled":false,"id_token":{"plan_type":"plus"}},{"name":"kimi-2.json","provider":"kimi","label":"kim","disabled":true,"failed":2}]}`))
+			_, _ = w.Write([]byte(`{"files":[{"name":"codex-1.json","provider":"codex","email":"a@b.c","disabled":false,"id_token":{"plan_type":"plus"}},{"name":"kimi-2.json","provider":"kimi","label":"kim","disabled":true,"failed":2,"status_message":"disabled (invalid grant)"}]}`))
 		case "/v0/management/auth-files/status", "/v0/management/oauth-callback":
 			_, _ = w.Write([]byte(`{"status":"ok"}`))
 		default:
@@ -97,7 +98,7 @@ func TestAccountsSetDisabledLogout(t *testing.T) {
 	if a := list[0]; a.Service != "ChatGPT / Codex" || a.Label != "a@b.c" || a.Plan != "plus" || a.Disabled || a.File != "codex-1.json" {
 		t.Fatalf("%+v", a)
 	}
-	if a := list[1]; a.Service != "Kimi" || a.Label != "kim" || !a.Disabled || a.Failed != 2 {
+	if a := list[1]; a.Service != "Kimi" || a.Label != "kim" || !a.Disabled || a.Failed != 2 || a.Note != "disabled (invalid grant)" {
 		t.Fatalf("%+v", a)
 	}
 	if err := m.SetDisabled(context.Background(), "codex-1.json", true); err != nil || h.body["name"] != "codex-1.json" || h.body["disabled"] != true {
@@ -105,6 +106,15 @@ func TestAccountsSetDisabledLogout(t *testing.T) {
 	}
 	if err := m.Logout(context.Background(), "codex-1.json"); err != nil || h.reqs[len(h.reqs)-1] != "DELETE /v0/management/auth-files?name=codex-1.json" {
 		t.Fatalf("%v %v", err, h.reqs)
+	}
+}
+
+func TestTransportFailureIsHelperDown(t *testing.T) {
+	m := New(t.TempDir())
+	m.Update(func(s *State) { s.Port = freePort() })
+	_, err := m.Accounts(context.Background())
+	if !errors.Is(err, ErrHelperDown) {
+		t.Fatalf("error = %v, want ErrHelperDown", err)
 	}
 }
 
