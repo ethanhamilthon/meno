@@ -71,9 +71,7 @@ func ToolDescriptionFor(subagent bool, only []string) string {
 		}
 	}
 	left := []string{}
-	for _, n := range only {
-		left = append(left, n)
-	}
+	left = append(left, only...)
 	return base + "\n\nThis request runs in a restricted mode. These globals are not available and fail with ReferenceError: " +
 		strings.Join(gone, ", ") + ". Only these remain: " + strings.Join(left, ", ") + "."
 }

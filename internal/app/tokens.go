@@ -26,16 +26,6 @@ func isNameRune(r rune) bool {
 
 func isSigil(r rune) bool { return r == kindSkill || r == kindMode }
 
-// firstWord reports that only blanks come before position i.
-func firstWord(in []rune, i int) bool {
-	for _, r := range in[:i] {
-		if !unicode.IsSpace(r) {
-			return false
-		}
-	}
-	return true
-}
-
 func wordStart(in []rune, i int) bool { return i == 0 || unicode.IsSpace(in[i-1]) }
 
 func (a *App) skillEnabled(name string) bool {

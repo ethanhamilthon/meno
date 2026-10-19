@@ -22,16 +22,6 @@ func outputOf(a *App, id string) string {
 	return "<no such call>"
 }
 
-func userTurns(a *App) []agent.Turn {
-	var out []agent.Turn
-	for _, tr := range a.st.Session.Snapshot() {
-		if tr.Role == llm.RoleUser && tr.Kind == "" {
-			out = append(out, tr)
-		}
-	}
-	return out
-}
-
 func TestModesReplaceAsASetAndStayUntilChanged(t *testing.T) {
 	cl := &scriptedClient{turns: [][]llm.Event{
 		{{Kind: llm.EvText, Text: "one"}, {Kind: llm.EvDone}},
