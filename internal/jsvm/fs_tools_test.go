@@ -22,18 +22,20 @@ func TestReadAndInspectRanges(t *testing.T) {
 	write(t, dir, "a.txt", "один\nдва\nthree\n")
 	v := New(Options{Root: dir})
 	for code, want := range map[string]string{
+		"fs.read('a.txt', {offset: 2, limit: 2})":       "два\nthree\n",
 		"fs.read('a.txt')":                              "один\nдва\nthree\n",
 		"fs.read('a.txt', {startLine: 2})":              "два\nthree\n",
 		"fs.read('a.txt', {startLine: 2, endLine: 2})":  "два\n",
 		"fs.read('a.txt', {endLine: 1})":                "один\n",
 		"fs.read('a.txt', {startLine: 3, endLine: 99})": "three\n",
 		"fs.inspect('a.txt', {startLine: 2, endLine: 3}).startLine + '-' + fs.inspect('a.txt', {startLine: 2, endLine: 3}).endLine": "2-3",
+		"fs.inspect('a.txt', {offset: 2, limit: 2}).startLine + '-' + fs.inspect('a.txt', {offset: 2, limit: 2}).endLine":           "2-3",
 	} {
 		if r := ex(t, v, code); r.Err != "" || r.Value != want {
 			t.Errorf("%s => %+v", code, r)
 		}
 	}
-	for _, bad := range []string{"{startLine: 0, endLine: 0, x: 1}", "{startLine: 3, endLine: 2}", "{startLine: 9}", "{startLine: -1}"} {
+	for _, bad := range []string{"{startLine: 0, endLine: 0, x: 1}", "{startLine: 3, endLine: 2}", "{startLine: 9}", "{startLine: -1}", "{offset: 2, startLine: 2}", "{limit: 2, endLine: 2}"} {
 		if r := ex(t, v, "fs.read('a.txt', "+bad+")"); r.Err == "" {
 			t.Errorf("%s must fail", bad)
 		}
@@ -84,18 +86,51 @@ func TestPatchStaleHashAmbiguityOverlapAndAtomicity(t *testing.T) {
 	}
 }
 
-func TestEditDiagnostics(t *testing.T) {
+func TestReadInspectAliasesAndEditRemoval(t *testing.T) {
 	dir := t.TempDir()
-	write(t, dir, "e.txt", "one\ntwo words\ntwo words\n")
+	write(t, dir, "e.txt", "one\ntwo words\nthree\nfour\nfive\n")
 	v := New(Options{Root: dir})
-	if r := ex(t, v, "fs.edit('e.txt', 'two words', 'x')"); !strings.Contains(r.Err, "2 times") {
-		t.Fatalf("%+v", r)
+	if r := ex(t, v, "fs.read('e.txt', {offset: 2, limit: 3})"); r.Err != "" || r.Value != "two words\nthree\nfour\n" {
+		t.Fatalf("offset/limit read: %+v", r)
 	}
-	if r := ex(t, v, "fs.edit('e.txt', 'one\\nthree', 'x')"); !strings.Contains(r.Err, "line 1") {
-		t.Fatalf("nearest line: %+v", r)
+	if r := ex(t, v, "fs.inspect('e.txt', {offset: 2, limit: 3}).startLine + '-' + fs.inspect('e.txt', {offset: 2, limit: 3}).endLine"); r.Err != "" || r.Value != "2-4" {
+		t.Fatalf("offset/limit inspect: %+v", r)
 	}
-	if r := ex(t, v, "fs.edit('e.txt', 'ONE', 'x')"); r.Err == "" {
-		t.Fatal("no silent replace-all or fuzzy edit")
+	for _, code := range []string{
+		"fs.read('e.txt', {offset: 2, startLine: 2})",
+		"fs.inspect('e.txt', {limit: 2, endLine: 3})",
+	} {
+		if r := ex(t, v, code); !strings.Contains(r.Err, "both") {
+			t.Errorf("%s should reject mixed aliases: %+v", code, r)
+		}
+	}
+	if r := ex(t, v, "typeof fs.edit"); r.Err != "" || r.Value != "undefined" {
+		t.Fatalf("fs.edit must be undefined: %+v", r)
+	}
+	if r := ex(t, v, "fs.edit('e.txt', 'one', 'x')"); r.Err == "" {
+		t.Fatal("calling fs.edit must throw")
+	}
+	if r := ex(t, v, "fs.read('e.txt', {offset: 0, limit: 2})"); r.Err != "" || r.Value != "one\ntwo words\n" {
+		t.Fatalf("zero offset: %+v", r)
+	}
+}
+
+func TestWriteExistingReportsSafeNextStep(t *testing.T) {
+	dir := t.TempDir()
+	write(t, dir, "existing.txt", "one\ntwo\n")
+	v := New(Options{Root: dir})
+	h := ex(t, v, "fs.inspect('existing.txt').sha256").Value
+	r := ex(t, v, "fs.write('existing.txt', 'secret content')")
+	for _, want := range []string{"sha256 " + h, "2 lines", "fs.inspect", "fs.patch", "expectedHash", "overwrite: true"} {
+		if !strings.Contains(r.Err, want) {
+			t.Errorf("missing %q from error: %s", want, r.Err)
+		}
+	}
+	if strings.Count(r.Err, "\n") != 0 {
+		t.Fatalf("error must be one line: %s", r.Err)
+	}
+	if strings.Contains(r.Err, "secret content") || strings.Contains(r.Err, "one") || strings.Contains(r.Err, "two") {
+		t.Fatalf("error leaked file contents: %s", r.Err)
 	}
 }
 

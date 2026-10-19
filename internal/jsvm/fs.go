@@ -45,35 +45,19 @@ func (f FS) Write(p, content string, overwrite ...bool) error {
 	allowOverwrite := len(overwrite) > 0 && overwrite[0]
 	if !allowOverwrite {
 		if _, err := os.Stat(full); err == nil {
-			return fmt.Errorf("fs.write: %s already exists (use fs.patch or fs.edit to change it, or pass {overwrite: true})", p)
+			b, readErr := os.ReadFile(full)
+			if readErr != nil {
+				return readErr
+			}
+			return fmt.Errorf("fs.write: %s already exists (sha256 %s, %d lines). Use fs.inspect and then fs.patch with expectedHash for a targeted edit, or pass {overwrite: true} to replace the whole file.", p, hashOf(b), len(splitLines(string(b))))
+		} else if !os.IsNotExist(err) {
+			return err
 		}
 	}
 	if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
 		return err
 	}
 	return os.WriteFile(full, []byte(content), 0o644)
-}
-
-func (f FS) Edit(p, oldS, newS string) (int, error) {
-	full, err := f.path(p)
-	if err != nil {
-		return 0, err
-	}
-	if oldS == "" {
-		return 0, fmt.Errorf("fs.edit: old string is empty")
-	}
-	defer lockPath(full)()
-	b, err := os.ReadFile(full)
-	if err != nil {
-		return 0, err
-	}
-	src := string(b)
-	n := strings.Count(src, oldS)
-	if n != 1 {
-		return n, fmt.Errorf("fs.edit: %s in %s", matchProblem(src, oldS, n), p)
-	}
-	_, _, err = writeAtomic(full, b, []byte(strings.Replace(src, oldS, newS, 1)), 1)
-	return 1, err
 }
 
 func (f FS) Exists(p string) bool {

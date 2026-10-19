@@ -39,19 +39,29 @@ func TestBigOutputIsCutOnlyAfterTheModelAnsweredIt(t *testing.T) {
 	}
 	s.Append(Turn{Role: llm.RoleAssistant, Text: "thanks"})
 	got := toolTexts(s.ToMsgs())[0]
-	if len(got) > 4500 || !strings.HasPrefix(got, strings.Repeat("a", 2048)) || !strings.HasSuffix(got, strings.Repeat("z", 1024)) {
+	if len(got) > trimHead+trimTail+250 || !strings.HasPrefix(got, strings.Repeat("a", trimHead)) || !strings.HasSuffix(got, strings.Repeat("z", trimTail)) {
 		t.Fatalf("%d bytes: %.80q", len(got), got)
 	}
 	if strings.Contains(got, "mmmm") || !strings.Contains(got, "bytes cut") || !strings.Contains(got, "narrower command") {
-		t.Fatalf("marker: %q", got[2000:2400])
+		t.Fatalf("marker: %q", got[max(0, len(got)-500):])
 	}
 	if s.Snapshot()[1].Output != big {
 		t.Fatal("the stored output must stay whole")
 	}
 }
 
+func TestOutputAtThresholdIsKeptAndOneByteMoreIsCut(t *testing.T) {
+	for _, size := range []int{trimAbove, trimAbove + 1} {
+		s := sessionWith(Turn{Role: llm.RoleUser, Text: "go"}, jsTurn("1", strings.Repeat("x", size), ""), Turn{Role: llm.RoleAssistant, Text: "done"})
+		got := toolTexts(s.ToMsgs())[0]
+		if cut := strings.Contains(got, "bytes cut"); cut != (size > trimAbove) {
+			t.Errorf("size %d cut=%v", size, cut)
+		}
+	}
+}
+
 func TestSmallOutputsAndErrorsAreKept(t *testing.T) {
-	s := sessionWith(Turn{Role: llm.RoleUser, Text: "go"}, jsTurn("1", strings.Repeat("s", 8192), ""), jsTurn("2", "x", ""), Turn{Role: llm.RoleAssistant, Text: "ok"})
+	s := sessionWith(Turn{Role: llm.RoleUser, Text: "go"}, jsTurn("1", strings.Repeat("s", 1024), ""), jsTurn("2", "x", ""), Turn{Role: llm.RoleAssistant, Text: "ok"})
 	for _, o := range toolTexts(s.ToMsgs()) {
 		if strings.Contains(o, "bytes cut") {
 			t.Fatal("an output at the limit was cut")
@@ -88,7 +98,7 @@ func TestBatchOutputsWaitForTheNextResponse(t *testing.T) {
 	}
 	s.Append(Turn{Role: llm.RoleAssistant, Text: "next"})
 	for _, o := range toolTexts(s.ToMsgs()) {
-		if len(o) > 4500 {
+		if len(o) > trimHead+trimTail+250 {
 			t.Fatal("not cut after the next response")
 		}
 	}

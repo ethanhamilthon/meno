@@ -38,6 +38,9 @@ func TestSystemPromptHoldsNoJSReference(t *testing.T) {
 	for _, sub := range []bool{false, true} {
 		in := full()
 		in.Subagent = sub
+		if sub {
+			in.Only = []string{"agents", "goal", "askUser", "help", "hash", "path", "base64", "btoa", "atob"}
+		}
 		out := Build(in)
 		for _, moved := range []string{"## The js tool", "fs: read, inspect", "sh(cmd) returns", "websearch(query", "mcp.<server>.<tool>", "tasks.start(", "agents.spawn(", "help() lists"} {
 			if strings.Contains(out, moved) {
@@ -46,6 +49,16 @@ func TestSystemPromptHoldsNoJSReference(t *testing.T) {
 		}
 		if !strings.Contains(out, "Your only tool is js") {
 			t.Errorf("subagent=%v: the prompt must say that js is the only tool", sub)
+		}
+		if !strings.Contains(out, "<voice>") || !strings.Contains(out, "<method>") {
+			t.Errorf("subagent=%v: missing voice or method section", sub)
+		}
+		if sub {
+			if strings.Contains(out, "<editing>") || strings.Contains(out, "<verification>") || strings.Contains(out, "<output>") {
+				t.Error("restricted prompt must omit tool-dependent sections")
+			}
+		} else if !strings.Contains(out, "<editing>") || !strings.Contains(out, "<verification>") || !strings.Contains(out, "<output>") {
+			t.Error("unrestricted prompt must keep tool-dependent sections")
 		}
 	}
 }
@@ -99,7 +112,7 @@ func TestPromptDoesNotMentionRemovedThings(t *testing.T) {
 
 func TestToolDescriptionHoldsTheJSReference(t *testing.T) {
 	main := ToolDescription(false)
-	for _, want := range []string{"fs: read, inspect", "sh(cmd) returns", "websearch(query", "mcp.<server>.<tool>", "mcpTools(\"server\")", "tasks.start(", "agents.spawn(", "askUser", "help() lists the topics"} {
+	for _, want := range []string{"fs: read, inspect, search, patch, write, glob, exists", "sh(cmd) returns", "websearch(query", "mcp.<server>.<tool>", "mcpTools(\"server\")", "tasks.start(", "agents.spawn(", "askUser", "help() lists the topics"} {
 		if !strings.Contains(main, want) {
 			t.Errorf("main: missing %q", want)
 		}

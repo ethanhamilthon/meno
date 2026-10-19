@@ -25,9 +25,12 @@ func full() Input {
 
 func TestSectionOrder(t *testing.T) {
 	out := Build(full())
+	if out != Build(full()) {
+		t.Fatal("identical input must produce byte-identical prompts")
+	}
 	last := -1
 	for _, h := range []string{
-		"You are meno, a coding agent.", "<guidelines>", "<skills>",
+		"You are meno, a coding agent.", "<voice>", "<method>", "<editing>", "<verification>", "<output>", "<guidelines>", "<skills>",
 		"<global-instructions>", "<project-instructions>", "<mcp-servers>", "<environment>",
 	} {
 		i := strings.Index(out, h)
@@ -36,7 +39,7 @@ func TestSectionOrder(t *testing.T) {
 		}
 		last = i
 	}
-	if !strings.HasPrefix(out, "You are meno, a coding agent.\n\n<guidelines>") {
+	if !strings.HasPrefix(out, "You are meno, a coding agent.\n\n<voice>") {
 		t.Fatal("identity must be a bare first line")
 	}
 	if !strings.HasSuffix(out, "- Working directory: /w\n- OS: macOS 15.1 (darwin/arm64). Shell: /bin/sh.\n- Date: 2026-10-17, Saturday (UTC).\n</environment>") {

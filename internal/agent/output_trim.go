@@ -13,9 +13,9 @@ import (
 // Cutting at that moment costs the provider's prefix cache almost nothing,
 // because the output is still near the end of the history.
 const (
-	trimAbove = 8 << 10 // outputs up to this size are never cut
-	trimHead  = 2 << 10
-	trimTail  = 1 << 10
+	trimAbove = 1 << 10 // outputs up to this size are never cut
+	trimHead  = 768
+	trimTail  = 256
 )
 
 // resultMsg is the tool result of turn i of all, cut when the model is done with it.

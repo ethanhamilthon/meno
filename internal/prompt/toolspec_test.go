@@ -7,6 +7,14 @@ import (
 	"meno/internal/jsvm"
 )
 
+func TestToolDescriptionOmitsRemovedEdit(t *testing.T) {
+	d := ToolDescription(false)
+	line := "fs: read, inspect, search, patch, write, glob, exists."
+	if !strings.Contains(d, line) || strings.Contains(d, "fs: read, inspect, search, patch, edit") {
+		t.Fatalf("filesystem tool list is wrong: %s", d)
+	}
+}
+
 // Without a restriction the description is the one every request had before.
 func TestToolDescriptionForNilIsUnchanged(t *testing.T) {
 	if ToolDescriptionFor(false, nil) != ToolDescription(false) {

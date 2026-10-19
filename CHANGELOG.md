@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Trim answered tool output above 1 KB while preserving the stored result.
+- Rebuild the system prompt when mode policy changes; add gated voice, method, editing, verification and output sections.
+- Remove `fs.edit`; add `offset`/`limit` aliases and safer existing-file errors for `fs.write`.
+- Add `Buffer` guidance to `help("js")`.
+
 ## 0.3.1
 
 - **A `#mode` no longer deletes files, folders and skills from the message.** `#goal read @file` used to send `read` and lose the `@file` reference. The mode tags are now taken out by the new `objtag.Extract`, and every other object stays in the text. This holds for a new request, for a message queued while the agent runs, and for a started turn.

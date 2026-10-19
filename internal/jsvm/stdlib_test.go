@@ -43,8 +43,9 @@ func TestFSWriteRefusesOverwriteWithoutFlag(t *testing.T) {
 	if r := ex(t, v, "fs.write('a.txt', 'first')"); r.Err != "" {
 		t.Fatal(r.Err)
 	}
-	if r := ex(t, v, "fs.write('a.txt', 'second')"); !strings.Contains(r.Err, "already exists") || !strings.Contains(r.Err, "overwrite: true") {
-		t.Fatalf("expected overwrite error, got %+v", r)
+	h := ex(t, v, "fs.inspect('a.txt').sha256").Value
+	if r := ex(t, v, "fs.write('a.txt', 'second')"); !strings.Contains(r.Err, "already exists") || !strings.Contains(r.Err, "overwrite: true") || !strings.Contains(r.Err, "sha256 "+h) || !strings.Contains(r.Err, "1 lines") {
+		t.Fatalf("expected detailed overwrite error, got %+v", r)
 	}
 	if r := ex(t, v, "fs.read('a.txt')"); r.Value != "first" {
 		t.Fatalf("file was overwritten: %q", r.Value)

@@ -22,7 +22,7 @@ type helpTopic struct {
 // helpTopics are the topics of help(), in the order help() lists them.
 var helpTopics = []helpTopic{
 	{name: "js", line: "runtime rules, sh, view, websearch", file: "js.md"},
-	{name: "fs", line: "read, inspect, search, patch, edit, write, glob, exists", file: "fs.md"},
+	{name: "fs", line: "read, inspect, search, patch, write, glob, exists", file: "fs.md"},
 	{name: "session", line: "models", file: "session.md", childFile: "session-child.md"},
 	{name: "askUser", line: "ask the user questions in one form", file: "askUser.md", mainOnly: true},
 	{name: "tasks", line: "background shell commands", file: "tasks.md", mainOnly: true},

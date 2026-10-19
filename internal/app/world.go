@@ -63,6 +63,8 @@ type worldSrc struct {
 	// starting. A prompt is built from them, so only that waits; the next look
 	// reports a server that came up in the meantime as an event.
 	NoMCPWait bool
+	Only      []string // tool globals kept by the current mode policy
+	PolicySig string   // sorted signature captured on the UI goroutine
 }
 
 // maxMCPWait is how long a prompt build waits for MCP servers that are still
@@ -78,7 +80,7 @@ func (w worldSrc) gather(ctx context.Context) (world, []string) {
 		w.MCP.WaitReady(ctx, maxMCPWait)
 	}
 	in := prompt.Input{Cwd: w.Paths.Cwd, Now: w.Now, OS: prompt.DescribeOS(), Shell: "/bin/sh",
-		Provider: w.Model.Provider, Model: w.Model.Model, Effort: w.Model.Effort}
+		Only: w.Only, Provider: w.Model.Provider, Model: w.Model.Model, Effort: w.Model.Effort}
 	b := &baseline{
 		Cwd: w.Paths.Cwd, Skills: map[string]skillSig{}, Agents: map[string]fileSig{}, MCP: map[string]mcpSig{},
 		Date: w.Now.Format("2006-01-02"), Model: w.Model,

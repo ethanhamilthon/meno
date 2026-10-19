@@ -17,7 +17,7 @@ const toolRuntime = `Runtime:
 - The runtime is synchronous. Do not use async, await, Promise, or then. The call returns the value of the last expression. Console output and the result share 64 KB. Each call has a timeout.`
 
 const toolGlobals = `Globals:
-- fs: read, inspect, search, patch, edit, write, glob, exists. To change a file, read it with fs.inspect and pass its sha256 to fs.patch as expectedHash.
+- fs: read, inspect, search, patch, write, glob, exists. To change a file, read it with fs.inspect and pass its sha256 to fs.patch as expectedHash.
 - sh(cmd) returns {stdout, stderr, code, timedOut}. view(path) shows a PNG or JPEG after the call.
 - websearch(query, {count?}) searches the web and returns {query, backend, answer?, results: [{title, url, snippet}]}. Use it for fresh facts. For another HTTP API use sh(curl ...): there is no fetch, URL or env.
 - console.log.`

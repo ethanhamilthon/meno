@@ -2,14 +2,10 @@ package prompt
 
 import "strings"
 
-// baseGuidelines and askGuideline are the bullets of the Guidelines section.
-// The ask rule is last; a subagent does not get it.
+// guidelines contains only the js tool reminder and the main agent ask rule.
 const (
-	baseGuidelines = `- Your only tool is js. Its description lists the globals you can use.
-- Batch independent work in one js call. Use tasks or agents for long parallel work.
-- Explore first. Implement only when you have enough information.
-- Give short final answers. Do not explain details if the user did not ask.`
-	askGuideline = "- Ask: use askUser({questions}). It shows all questions in one form. See help(\"askUser\")."
+	baseGuidelines = "- Your only tool is js. Its description lists the globals you can use."
+	askGuideline   = "- Ask: use askUser({questions}). It shows all questions in one form. See help(\"askUser\")."
 )
 
 // subagentPrompt tells a child who it is.

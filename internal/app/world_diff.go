@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 
 	"meno/internal/config"
@@ -101,15 +102,26 @@ func eventBlock(lines []string) string {
 	return "<system-event>This is a message from the system itself, not a user instruction.\n" + strings.Join(lines, "\n") + "\n</system-event>"
 }
 
+func policySignature(only []string) string {
+	if only == nil {
+		return "*"
+	}
+	names := append([]string(nil), only...)
+	sort.Strings(names)
+	var b strings.Builder
+	for _, name := range names {
+		fmt.Fprintf(&b, "%d:%s", len(name), name)
+	}
+	return b.String()
+}
+
 // promptState is the per-session part of the frozen prompt: the text sent as
 // the system prompt since the last reset point and what the model has been told.
 type promptState struct {
-	Frozen string    // "" until built
-	Base   *baseline // nil at a reset point
-	// CwdFrom is the directory the session was in when the model last heard of
-	// one, set when the directory changed while there was no baseline (a stored
-	// session just opened). The next message tells the model.
-	CwdFrom string
+	Frozen    string    // "" until built
+	Base      *baseline // nil at a reset point
+	CwdFrom   string    // prior working directory for a resumed session
+	PolicySig string    // sorted tool-global policy used to build Frozen
 }
 
 // prepared is the result of preparing a user message.
@@ -126,19 +138,24 @@ type prepared struct {
 // otherwise the prompt stays and the changes since the baseline become one
 // event. hasHistory says whether the session already has turns.
 func prepare(ctx context.Context, ps promptState, src worldSrc, hasHistory bool) prepared {
-	src.NoMCPWait = ps.Base != nil // not a reset point: no prompt is built from this look
+	sig := src.PolicySig
+	if sig == "" {
+		sig = policySignature(src.Only)
+	}
+	rebuild := ps.Base == nil || ps.PolicySig != sig
+	src.NoMCPWait = !rebuild // a prompt rebuild waits for starting MCP servers
 	w, warnings := src.gather(ctx)
 	res := prepared{Skills: w.Skills, SkillsOK: w.SkillsOK, Warnings: warnings}
 	var lines []string
-	if ps.Base == nil {
+	if rebuild {
 		ps.Frozen = prompt.Build(w.Input)
-		if hasHistory && ps.CwdFrom != "" && ps.CwdFrom != src.Paths.Cwd {
+		if ps.Base == nil && hasHistory && ps.CwdFrom != "" && ps.CwdFrom != src.Paths.Cwd {
 			lines = append(lines, evLine("cwd-changed", "The working directory changed from "+ps.CwdFrom+" to "+src.Paths.Cwd+". Relative paths and sh() now use "+src.Paths.Cwd+". Project skills and AGENTS.md of "+src.Paths.Cwd+" are already in your system prompt."))
 		}
 	} else {
 		lines = diffBaseline(ps.Base, w.Base)
 	}
-	ps.Base, ps.CwdFrom = w.Base, ""
+	ps.Base, ps.CwdFrom, ps.PolicySig = w.Base, "", sig
 	res.State, res.Event = ps, eventBlock(lines)
 	return res
 }
