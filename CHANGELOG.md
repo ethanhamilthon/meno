@@ -8,6 +8,7 @@
 - Remove `fs.edit`; add `offset`/`limit` aliases and safer existing-file errors for `fs.write`.
 - Add `Buffer` guidance to `help("js")`.
 - Keep cliproxyapi running while disabled OAuth accounts exist. meno now discovers, starts and restarts the helper, retries failed account actions once, and repairs port conflicts. The `:login` list shows helper errors, account status notes and a manual restart action.
+- Added optional per-request effort routing. The router never changes the model, needs two matching verdicts to change effort, and shows each applied change. Configure it in `:settings` under **Agents**.
 
 ## 0.3.1
 

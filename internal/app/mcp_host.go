@@ -156,7 +156,7 @@ func (a *App) worldSrc() worldSrc {
 	}
 	return worldSrc{
 		Paths: paths, MCP: a.mcp, Servers: append([]mcp.Server(nil), a.st.Servers...), Now: time.Now(),
-		Model: a.modelSig(), Only: only, PolicySig: policySignature(only),
+		Model: a.modelSig(), Only: only, PolicySig: policySignature(only), Effort: a.st.RunEffort,
 	}
 }
 

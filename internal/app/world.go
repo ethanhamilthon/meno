@@ -59,6 +59,8 @@ type worldSrc struct {
 	Servers []mcp.Server // configured servers (copy)
 	Now     time.Time
 	Model   modelSig // the session's model
+	Effort  string   // the effort used by the request being prepared
+	Routed  bool     // true when routing is enabled for this request
 	// NoMCPWait takes the servers as they are instead of waiting for those still
 	// starting. A prompt is built from them, so only that waits; the next look
 	// reports a server that came up in the meantime as an event.
@@ -79,8 +81,12 @@ func (w worldSrc) gather(ctx context.Context) (world, []string) {
 	if !w.NoMCPWait {
 		w.MCP.WaitReady(ctx, maxMCPWait)
 	}
+	effort := w.Effort
+	if effort == "" {
+		effort = w.Model.Effort
+	}
 	in := prompt.Input{Cwd: w.Paths.Cwd, Now: w.Now, OS: prompt.DescribeOS(), Shell: "/bin/sh",
-		Only: w.Only, Provider: w.Model.Provider, Model: w.Model.Model, Effort: w.Model.Effort}
+		Only: w.Only, Provider: w.Model.Provider, Model: w.Model.Model, Effort: effort}
 	b := &baseline{
 		Cwd: w.Paths.Cwd, Skills: map[string]skillSig{}, Agents: map[string]fileSig{}, MCP: map[string]mcpSig{},
 		Date: w.Now.Format("2006-01-02"), Model: w.Model,

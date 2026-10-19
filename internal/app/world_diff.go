@@ -118,10 +118,15 @@ func policySignature(only []string) string {
 // promptState is the per-session part of the frozen prompt: the text sent as
 // the system prompt since the last reset point and what the model has been told.
 type promptState struct {
-	Frozen    string    // "" until built
-	Base      *baseline // nil at a reset point
-	CwdFrom   string    // prior working directory for a resumed session
-	PolicySig string    // sorted tool-global policy used to build Frozen
+	Frozen string    // "" until built
+	Base   *baseline // nil at a reset point
+	// CwdFrom is the directory the session was in when the model last heard of
+	// one, set when the directory changed while there was no baseline (a stored
+	// session just opened). The next message tells the model.
+	CwdFrom   string
+	PolicySig string // sorted tool-global policy used to build Frozen
+	Effort    string // effort named in the frozen Environment section
+	Routed    bool   // true when routing is enabled for this request
 }
 
 // prepared is the result of preparing a user message.
@@ -142,7 +147,7 @@ func prepare(ctx context.Context, ps promptState, src worldSrc, hasHistory bool)
 	if sig == "" {
 		sig = policySignature(src.Only)
 	}
-	rebuild := ps.Base == nil || ps.PolicySig != sig
+	rebuild := ps.Base == nil || ps.PolicySig != sig || ps.Routed != src.Routed || src.Routed && ps.Effort != src.Effort
 	src.NoMCPWait = !rebuild // a prompt rebuild waits for starting MCP servers
 	w, warnings := src.gather(ctx)
 	res := prepared{Skills: w.Skills, SkillsOK: w.SkillsOK, Warnings: warnings}
@@ -154,6 +159,9 @@ func prepare(ctx context.Context, ps promptState, src worldSrc, hasHistory bool)
 		}
 	} else {
 		lines = diffBaseline(ps.Base, w.Base)
+	}
+	if rebuild {
+		ps.Effort, ps.Routed = w.Input.Effort, src.Routed
 	}
 	ps.Base, ps.CwdFrom, ps.PolicySig = w.Base, "", sig
 	res.State, res.Event = ps, eventBlock(lines)
