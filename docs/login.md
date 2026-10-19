@@ -30,9 +30,14 @@ reported, because it may change the configuration format.
 
 - The helper listens on `127.0.0.1` only, on a port meno picks, and answers only to keys
   meno generated (`$MENO_HOME/cliproxy/state.json`, mode 0600). Its tokens are in
-  `$MENO_HOME/cliproxy/auth/` (mode 0600). The helper is started and stopped with meno.
-- Your accounts reach the model as one provider called `oauth`. meno builds it from the
-  enabled accounts and never saves it; `:model` lists the models of all of them.
+  `$MENO_HOME/cliproxy/auth/` (mode 0600). meno starts it when accounts exist, keeps it
+  running when all accounts are off, and restarts it after a failure.
+- Your enabled accounts reach the model as one provider called `oauth`. meno builds it from
+  the accounts and never saves it; `:model` lists their models.
+- In `:login`, select **Login helper: restart** to start it again and reload accounts. The
+  entry appears when accounts exist or meno cannot reach the helper. The list shows an
+  account's disabled reason when the helper provides one.
+
 - **Claude, ChatGPT/Codex and Antigravity**: meno opens the page in your browser and the
   browser comes back to the helper by itself. While the login lasts the helper listens
   for that return on a fixed local port (all interfaces; only the login that is waiting
@@ -42,3 +47,11 @@ reported, because it may change the configuration format.
 - `y` copies the login address, `o` opens it again, `Esc` cancels.
 - Using a subscription this way may be against the terms of the service. That is your
   decision; meno does not check it.
+
+## If the helper does not respond
+
+meno tries to restart the helper when an account action fails. If it still does not respond,
+open `:login` and select **Login helper: restart**. The row shows the log file path. meno
+tries delayed restarts after unexpected exits. It stops those attempts after five failures
+in ten minutes. If an account shows `needs a new login`, select it and press `Space` to
+try to enable it, or press `d` twice to remove it and sign in again.

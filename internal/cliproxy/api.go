@@ -9,8 +9,12 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 )
+
+// ErrHelperDown reports that the local OAuth helper cannot be reached.
+var ErrHelperDown = errors.New("OAuth helper is not responding")
 
 func (m *Manager) client() *http.Client {
 	if m.HTTP != nil {
@@ -36,6 +40,9 @@ func (m *Manager) call(ctx context.Context, method, path string, body any, out a
 	}
 	resp, err := m.client().Do(req)
 	if err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "connection refused") || strings.Contains(strings.ToLower(err.Error()), "dial tcp") {
+			return fmt.Errorf("%w: %v", ErrHelperDown, err)
+		}
 		return err
 	}
 	defer resp.Body.Close()
@@ -140,20 +147,22 @@ type Account struct {
 	Plan     string
 	Disabled bool
 	Failed   int
+	Note     string // helper status text, for example why a token was disabled
 }
 
 // Accounts lists the accounts of the helper.
 func (m *Manager) Accounts(ctx context.Context) ([]Account, error) {
 	var r struct {
 		Files []struct {
-			Name     string `json:"name"`
-			Provider string `json:"provider"`
-			Label    string `json:"label"`
-			Email    string `json:"email"`
-			Account  string `json:"account"`
-			Disabled bool   `json:"disabled"`
-			Failed   int    `json:"failed"`
-			IDToken  struct {
+			Name          string `json:"name"`
+			Provider      string `json:"provider"`
+			Label         string `json:"label"`
+			Email         string `json:"email"`
+			Account       string `json:"account"`
+			Disabled      bool   `json:"disabled"`
+			StatusMessage string `json:"status_message"`
+			Failed        int    `json:"failed"`
+			IDToken       struct {
 				Plan string `json:"plan_type"`
 			} `json:"id_token"`
 		} `json:"files"`
@@ -168,7 +177,7 @@ func (m *Manager) Accounts(ctx context.Context) ([]Account, error) {
 		if s, ok := ServiceOf(f.Provider); ok {
 			svc = s.Label
 		}
-		out = append(out, Account{File: f.Name, Provider: f.Provider, Service: svc, Label: label, Plan: f.IDToken.Plan, Disabled: f.Disabled, Failed: f.Failed})
+		out = append(out, Account{File: f.Name, Provider: f.Provider, Service: svc, Label: label, Plan: f.IDToken.Plan, Disabled: f.Disabled, Failed: f.Failed, Note: f.StatusMessage})
 	}
 	return out, nil
 }

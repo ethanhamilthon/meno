@@ -21,6 +21,24 @@ func TestStateGetsKeysAndAPortOnce(t *testing.T) {
 	}
 }
 
+func TestOldStateDiscoversAccountCountOnce(t *testing.T) {
+	dir := t.TempDir()
+	m := New(dir)
+	if err := os.MkdirAll(m.Dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(m.statePath(), []byte(`{"has_accounts":true}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	st := New(dir).State()
+	if st.Accounts != 1 || !st.AccountsKnown || !st.HasAccounts {
+		t.Fatalf("legacy state: %+v", st)
+	}
+	if again := New(dir).State(); again.Accounts != 1 {
+		t.Fatalf("account count was not persisted: %+v", again)
+	}
+}
+
 func TestWriteConfigListensOnLoopbackOnly(t *testing.T) {
 	m := New(t.TempDir())
 	if err := m.WriteConfig(); err != nil {
