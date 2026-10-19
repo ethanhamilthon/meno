@@ -1,5 +1,16 @@
 # Upgrading, data and privacy
 
+## 0.3.0
+
+- Modes changed. `#plan` and `#build` are gone. No mode is read-only any more: none refuses fs writes, `tasks.start` or `agents.spawn`. Built-in modes: `#subagents`, `#brainstorm`, `#goal`, picked from the menu; `#none` clears them. A typed `#goal` is plain text now. Sessions saved by 0.2.1 start with no modes; a mode name saved in a session that no longer exists is ignored.
+- Your own `modes/*.md` files, in `$MENO_HOME/modes` and in `.meno/modes` of a project, are no longer read. You can delete them.
+- The sandbox for `sh` is removed. `sh` runs without a sandbox. `#subagents` has no `sh`, `fs`, `websearch` or `mcp`.
+- `subagent_max_spawn` (new, default 50) limits the subagents one request may start. It has no row in `:settings`.
+- A goal does not nudge while its subagents work; their events wake it.
+- The sessions table gets a `modes` column when meno opens `meno.db`. The schema version does not change.
+
+## Earlier upgrades
+
 Upgrade by running the installer again (see the README). Your data in `$MENO_HOME` is kept.
 
 The one-time import of `settings.json`, `providers.json`, `skills.json` and

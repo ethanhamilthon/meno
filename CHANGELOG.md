@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.0
+
+- **Modes changed.** `#plan` and `#build` are gone. The built-in modes are `#subagents` (the agent starts subagents and has no file, shell, web or MCP access), `#brainstorm` (only the prompt changes; it writes one spec in `.report/specs/`) and `#goal`. Pick a mode from the menu; `#none` clears them. A set of modes replaces the one before. The set stays with the session ([docs/modes.md](docs/modes.md)).
+- **Typed modes are plain text.** Only modes picked from the menu count, so a typed `#goal` is plain text. The `#` menu offers modes anywhere in a message.
+- **The status bar shows the modes** of the session, for example `#subagents #goal 3/25`.
+- **No mode is read-only.** No mode refuses fs writes, `tasks.start` or `agents.spawn`.
+- **The sandbox for `sh` is removed.** `sh` runs without a sandbox. `#subagents` has no `sh`, `fs`, `websearch` or `mcp`.
+- **A goal does not nudge while subagents work.** Their events wake the session instead.
+- **`subagent_max_spawn`** limits the subagents one request may start (default 50). A refused spawn returns an error to the agent.
+- The session table gets a `modes` column, added on open like the other session columns (no schema version change).
+
 ## 0.2.1
 
 - `make clean-home` deletes the dev `MENO_HOME` (`~/.meno-dev`, or `DEV_HOME`).

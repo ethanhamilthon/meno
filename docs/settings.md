@@ -60,3 +60,5 @@ notice and the rest still loads.
 Settings without a row in the dialog live in the settings JSON (`meno.db`):
 `compact_keep` (8) and `compact_summary_tokens` (4000) tune the automatic
 compaction safety net, see [sessions](sessions.md).
+
+`subagent_max_spawn` (50) limits the subagents one request may start, see [modes](modes.md).

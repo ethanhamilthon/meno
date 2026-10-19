@@ -17,8 +17,7 @@ import (
 	ver "meno/internal/version"
 )
 
-// version defaults to internal/version/VERSION; a release may override it with
-// -ldflags "-X main.version=…".
+// version is read from internal/version/VERSION (ver.Number()).
 var version = ver.Number()
 
 func main() {

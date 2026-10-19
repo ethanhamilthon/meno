@@ -39,7 +39,7 @@ type Turn struct {
 	// System is the <system-event> block sent in front of a user message. It is
 	// part of the request history but never shown to the user.
 	System string `json:"system,omitempty"`
-	// Mode is the mode the user started the request with (#plan, #goal...).
+	// Mode is the mode the user started the request with (#subagents, #goal...).
 	Mode string `json:"mode,omitempty"`
 	// Attachments are the images the user message refers to.
 	Attachments []Attachment `json:"attachments,omitempty"`

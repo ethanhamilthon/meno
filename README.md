@@ -64,7 +64,7 @@ every push and pull request on Linux and macOS and installs a snapshot build wit
 | --- | --- |
 | [The agent's tool](docs/tools.md) | every global the model can use: fs, sh, websearch, session, tasks, agents, askUser, mcp, help |
 | [Sessions, history and events](docs/sessions.md) | :new, :fork, :cd, compaction, steering, :stop |
-| [Modes](docs/modes.md), [accounts and providers](docs/login.md) | `#plan`, `#build`, `#goal`; `:login` |
+| [Modes](docs/modes.md), [accounts and providers](docs/login.md) | `#subagents`, `#brainstorm`, `#goal`, `#none`; `:login` |
 | [Interface](docs/ui.md) | keys, commands, timeline, Markdown, images, JS display |
 | [Settings](docs/settings.md), [notifications](docs/notifications.md) | |
 | [Upgrading, data and privacy](docs/upgrading.md) | migrations, where data lives, what is logged |

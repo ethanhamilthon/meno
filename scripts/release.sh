@@ -12,7 +12,7 @@ for target in darwin/arm64 darwin/amd64 linux/arm64 linux/amd64; do
 	os=${target%/*}
 	arch=${target#*/}
 	stage=$(mktemp -d)
-	CGO_ENABLED=0 GOOS=$os GOARCH=$arch go build -trimpath -ldflags "-s -w -X main.version=$version" -o "$stage/meno" ./cmd/meno
+	CGO_ENABLED=0 GOOS=$os GOARCH=$arch go build -trimpath -ldflags "-s -w" -o "$stage/meno" ./cmd/meno
 	tar -C "$stage" -czf "$out/meno_${version}_${os}_${arch}.tar.gz" meno
 	rm -rf "$stage"
 done
