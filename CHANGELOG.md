@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add standalone bash execution, restricted meno command parsing, bounded output logs, timeout controls, and conservative heredoc body detection for the daemon migration.
+
 - **The composer is transparent and identifies the session.** Its top row is a `─` rule with the session name at the right, clipped to 30% of the terminal width; untitled sessions show their working-directory name (or `~` in the home directory).
 - Trim answered tool output above 1 KB while preserving the stored result.
 - Rebuild the system prompt when mode policy changes; add gated voice, method, editing, verification and output sections.
