@@ -1,8 +1,8 @@
 # meno
 
 A terminal coding agent for individual developers. It has one tool, `js`: a
-fresh JavaScript runtime ([goja](https://github.com/dop251/goja)) per call with
-the file system, a shell, web search, background tasks,
+JavaScript runtime ([goja](https://github.com/dop251/goja)) that keeps its
+variables for one answer of the agent, with the file system, a shell, web search, background tasks,
 subagents and your MCP servers inside it. The UI is a vim-style TUI built on
 [tcell](https://github.com/gdamore/tcell). Pure Go, no CGO. macOS and Linux
 (arm64, amd64). MIT licensed.
@@ -19,7 +19,7 @@ in `~/.local/bin` (`/usr/local/bin` when run as root):
 
 ```sh
 curl -fsSL https://github.com/ethanhamilthon/meno/releases/latest/download/install.sh | sh
-curl -fsSL https://github.com/ethanhamilthon/meno/releases/latest/download/install.sh | sh -s -- v0.2.0   # a version
+curl -fsSL https://github.com/ethanhamilthon/meno/releases/latest/download/install.sh | sh -s -- v0.2.1   # a version
 ```
 
 Options (environment): `MENO_INSTALL_DIR`, `MENO_REPO`, `MENO_BASE_URL`. Update with `meno update`
@@ -39,18 +39,21 @@ make build && ./meno        # or: make install
 
 ## Releasing
 
-Push a tag: `git tag v0.2.0 && git push origin v0.2.0`. The `release` workflow runs
+Push a tag: `git tag v0.2.1 && git push origin v0.2.1`. The `release` workflow runs
 `make check`, builds the four archives with `scripts/release.sh`, verifies the checksums
 and publishes a GitHub release with the archives, `SHA256SUMS`, `install.sh` and `uninstall.sh` attached
-(tags containing `-`, such as `v0.2.0-rc1`, are pre-releases). The `ci` workflow tests
+(tags containing `-`, such as `v0.2.1-rc1`, are pre-releases). The `ci` workflow tests
 every push and pull request on Linux and macOS and installs a snapshot build with
 `install.sh`. Run `scripts/release.sh v0.0.0-local dist` to try it locally.
 
 ## First start
 
-1. `:providers` — add a provider: a name, base URL (for example
-   `https://api.openai.com/v1`), API key and protocol (`responses` or
-   `chat completions`).
+1. `:login` — meno opens it by itself when there is no provider, and it stays open
+   until one works. Add an **API key** provider (name, base URL such as
+   `https://api.openai.com/v1`, key; choose *Responses* or *Chat Completions*), or
+   **log in** with your browser to Claude, ChatGPT/Codex, Antigravity, xAI, Meta or
+   Kimi (see [accounts](docs/login.md)). Everything you add stays in the list; `space`
+   switches an entry off and on, `d` removes it.
 2. `:model` — pick a model (the list comes from the provider's `/models`) and an
    effort level. It applies to the current session.
 3. Press `i`, type a task, press Enter.
@@ -61,11 +64,11 @@ every push and pull request on Linux and macOS and installs a snapshot build wit
 | --- | --- |
 | [The agent's tool](docs/tools.md) | every global the model can use: fs, sh, websearch, session, tasks, agents, askUser, mcp, help |
 | [Sessions, history and events](docs/sessions.md) | :new, :fork, :cd, compaction, steering, :stop |
+| [Modes](docs/modes.md), [accounts and providers](docs/login.md) | `#plan`, `#build`, `#goal`; `:login` |
 | [Interface](docs/ui.md) | keys, commands, timeline, Markdown, images, JS display |
 | [Settings](docs/settings.md), [notifications](docs/notifications.md) | |
 | [Upgrading, data and privacy](docs/upgrading.md) | migrations, where data lives, what is logged |
 | [Terminal graphics](docs/graphics.md) | Kitty, Sixel and iTerm images |
-| [Progress and known limits](docs/progress.md) | what is verified and what is not |
 
 Instructions for the agent live in `$MENO_HOME/AGENTS.md` (global) and
 `AGENTS.md` in the session's directory (project); both go into the system
@@ -94,6 +97,7 @@ make race    # go test -race ./...
 make check   # gofmt + vet + race
 make term    # end-to-end: the real binary in a pty against a fake provider
 make bench   # deterministic benchmarks (docs/performance.md)
+make clean-home  # delete the dev MENO_HOME (~/.meno-dev)
 ```
 
 See [AGENTS.md](AGENTS.md) for the repository map. `make term` builds the binary,
