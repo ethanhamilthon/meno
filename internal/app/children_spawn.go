@@ -94,6 +94,7 @@ func (p parentAgents) Spawn(tc jsvm.TaskCall, spec map[string]any) (any, error) 
 	sess.AttachDir = p.a.attachDir()
 	w, _ := src.gather(tc.Ctx)
 	w.Input.Subagent = true
+	w.Input.Only = nil // the child VM starts with the full tool set
 	system := prompt.Build(w.Input)
 	c := &childRun{sess: sess, price: pricer, parent: p.sid}
 	c.rec = agent.ChildRecord{ID: sess.ID, Parent: p.sid, Owner: p.requestID(), Task: task, Status: agent.ChildStarting, Gen: 1, Created: time.Now().UTC()}

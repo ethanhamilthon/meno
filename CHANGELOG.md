@@ -3,6 +3,10 @@
 ## Unreleased
 
 - **The composer is transparent and identifies the session.** Its top row is a `─` rule with the session name at the right, clipped to 30% of the terminal width; untitled sessions show their working-directory name (or `~` in the home directory).
+- Trim answered tool output above 1 KB while preserving the stored result.
+- Rebuild the system prompt when mode policy changes; add gated voice, method, editing, verification and output sections.
+- Remove `fs.edit`; add `offset`/`limit` aliases and safer existing-file errors for `fs.write`.
+- Add `Buffer` guidance to `help("js")`.
 
 ## 0.3.1
 

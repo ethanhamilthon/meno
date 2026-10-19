@@ -14,10 +14,10 @@ result share one 64 KB budget; there is a timeout (a setting).
 
 | Global | |
 | --- | --- |
-| `fs.read(path, {startLine?, endLine?})`, `fs.inspect(...)` | 1-based inclusive lines; `inspect` also returns `{sha256}` of the whole file |
+| `fs.read(path, {startLine?, endLine?, offset?, limit?})`, `fs.inspect(...)` | 1-based inclusive lines; `offset`/`limit` alias the range fields and cannot be mixed with them; `inspect` also returns `{sha256}` of the whole file |
 | `fs.search(query, {root?, glob?, regex?, caseSensitive?, includeIgnored?, limit?, cursor?})` | `{matches: [{path, line, column, text}], nextCursor, truncated}`; columns are Unicode scalar positions; skips git-ignored files unless asked |
 | `fs.patch(path, [{oldText, newText}], {expectedHash})` | all-or-nothing exact edits against what `inspect` showed; each `oldText` must match once; atomic replace keeping permissions |
-| `fs.edit`, `fs.write`, `fs.glob`, `fs.exists` | `edit` needs a unique match and says where the near misses are |
+| `fs.write`, `fs.glob`, `fs.exists` | `write` refuses an existing file and reports its hash and line count; use `inspect` then `patch` for a targeted edit |
 | `sh(cmd)`, `console` | shell and output; there is no `fetch`, `URL`, `URLSearchParams` or `env` global |
 | `websearch(query, {count?})` | `{query, backend, answer?, results: [{title, url, snippet}]}`; provider-native search, then Brave or Tavily from settings, then DuckDuckGo; `count` is 1..10 (default 5) |
 | `session.models({provider?, refresh?})` | models of enabled providers with known capabilities; `null` means unknown |

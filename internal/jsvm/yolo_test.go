@@ -26,8 +26,8 @@ func TestFSReachesOutsideRoot(t *testing.T) {
 	if got, err := f.Read(rel); err != nil || got != "hi" {
 		t.Fatalf("parent-relative read %q: %q %v", rel, got, err)
 	}
-	if n, err := f.Edit(abs, "hi", "yo"); err != nil || n != 1 {
-		t.Fatalf("edit: %d %v", n, err)
+	if err := patchFile(t, f, abs, "hi", "yo"); err != nil {
+		t.Fatalf("patch: %v", err)
 	}
 	got, err := f.Glob(filepath.Join(outside, "**", "*.txt"))
 	if want := []string{abs}; err != nil || !reflect.DeepEqual(got, want) {

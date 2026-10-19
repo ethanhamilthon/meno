@@ -87,14 +87,15 @@ func TestPrintCaptured(t *testing.T) {
 	}
 }
 
-func TestFSWriteReadEditGlob(t *testing.T) {
+func TestFSWriteReadPatchGlob(t *testing.T) {
 	v := newVM(t)
 	ctx := context.Background()
 	r := v.Exec(ctx, `fs.write("src/a.ts", "hello rateLimit"); fs.write("src/b.ts", "x")`)
 	if r.Err != "" {
 		t.Fatal(r.Err)
 	}
-	r = v.Exec(ctx, `fs.edit("src/a.ts", "hello", "bye")`)
+	h := v.Exec(ctx, `fs.inspect("src/a.ts").sha256`).Value
+	r = v.Exec(ctx, `fs.patch("src/a.ts", [{oldText: "hello", newText: "bye"}], {expectedHash: "`+h+`"})`)
 	if r.Err != "" {
 		t.Fatal(r.Err)
 	}
@@ -112,18 +113,13 @@ func TestFSWriteReadEditGlob(t *testing.T) {
 	}
 }
 
-func TestEditErrors(t *testing.T) {
+func TestFSEditIsUndefined(t *testing.T) {
 	v := newVM(t)
-	ctx := context.Background()
-	v.Exec(ctx, `fs.write("a.txt", "x x")`)
-	if r := v.Exec(ctx, `fs.edit("a.txt", "x", "y")`); !strings.Contains(r.Err, "matches 2") {
-		t.Fatalf("ambiguous edit should fail: %+v", r)
+	if r := v.Exec(context.Background(), `typeof fs.edit`); r.Err != "" || r.Value != "undefined" {
+		t.Fatalf("fs.edit must be undefined: %+v", r)
 	}
-	if r := v.Exec(ctx, `fs.edit("a.txt", "zzz", "y")`); !strings.Contains(r.Err, "not found") {
-		t.Fatalf("missing edit should fail: %+v", r)
-	}
-	if r := v.Exec(ctx, `fs.edit("a.txt", "", "y")`); r.Err == "" {
-		t.Fatal("empty old should fail")
+	if r := v.Exec(context.Background(), `fs.edit("a.txt", "x", "y")`); r.Err == "" {
+		t.Fatal("calling fs.edit must throw")
 	}
 }
 
@@ -192,11 +188,12 @@ func TestGlobMatching(t *testing.T) {
 	}
 }
 
-func TestEditRespectsFileRoot(t *testing.T) {
+func TestPatchRespectsFileRoot(t *testing.T) {
 	root := t.TempDir()
 	os.WriteFile(filepath.Join(root, "f.txt"), []byte("abc"), 0o644)
 	v := New(Options{Root: root})
-	v.Exec(context.Background(), `fs.edit("f.txt","b","B")`)
+	h := v.Exec(context.Background(), `fs.inspect("f.txt").sha256`).Value
+	v.Exec(context.Background(), `fs.patch("f.txt", [{oldText:"b",newText:"B"}], {expectedHash:"`+h+`"})`)
 	b, _ := os.ReadFile(filepath.Join(root, "f.txt"))
 	if string(b) != "aBc" {
 		t.Fatalf("edit result %q", b)

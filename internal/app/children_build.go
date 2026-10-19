@@ -71,6 +71,7 @@ func (m *childMgr) revive(rec agent.ChildRecord) (*childRun, error) {
 	}
 	w, _ := src.gather(contextBackground())
 	w.Input.Subagent = true
+	w.Input.Only = nil // the child VM starts with the full tool set
 	c := &childRun{sess: sess, rec: rec, price: price, parent: rec.Parent}
 	if err := m.build(c, pr, sess.Model, sess.Effort, prompt.Build(w.Input), st); err != nil {
 		return nil, err

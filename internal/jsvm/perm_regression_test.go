@@ -7,6 +7,16 @@ import (
 	"testing"
 )
 
+func patchFile(t *testing.T, fs FS, path, oldText, newText string) error {
+	t.Helper()
+	got, err := fs.Inspect(path, 0, 0)
+	if err != nil {
+		return err
+	}
+	_, _, err = fs.Patch(path, []Replacement{{Old: oldText, New: newText}}, got.SHA256)
+	return err
+}
+
 func TestFSInternalSymlinksAndSymlinkRoot(t *testing.T) {
 	root := t.TempDir()
 	if err := os.Mkdir(filepath.Join(root, "data"), 0o755); err != nil {
@@ -42,8 +52,8 @@ func TestFSInternalSymlinksAndSymlinkRoot(t *testing.T) {
 			if err := fs.Write("file.txt", "original", true); err != nil {
 				t.Fatal(err)
 			}
-			if n, err := fs.Edit("directory/file.txt", "original", "edited"); err != nil || n != 1 {
-				t.Fatalf("edit: %d, %v", n, err)
+			if err := patchFile(t, fs, "directory/file.txt", "original", "edited"); err != nil {
+				t.Fatalf("patch: %v", err)
 			}
 			if got, err := fs.Read("data/file.txt"); err != nil || got != "edited" {
 				t.Fatalf("read edited: %q, %v", got, err)
@@ -80,8 +90,8 @@ func TestFSExternalPathsAndSymlinks(t *testing.T) {
 		if !fs.Exists(path) {
 			t.Fatalf("exists %s: false", path)
 		}
-		if n, err := fs.Edit(path, "original", "changed"); err != nil || n != 1 {
-			t.Fatalf("edit %s: %d, %v", path, n, err)
+		if err := patchFile(t, fs, path, "original", "changed"); err != nil {
+			t.Fatalf("patch %s: %v", path, err)
 		}
 		if err := fs.Write(path, "original", true); err != nil {
 			t.Fatal(err)

@@ -11,5 +11,6 @@ The js tool runs JavaScript in a runtime that lives for your current answer. Var
 - websearch(query, {count?}) returns {query, backend, answer?, results: [{title, url, snippet}]}. It uses the provider's own search, then the backend from settings, then DuckDuckGo. count is 1..10 (default 5).
 - console.log(...) writes to the call output.
 - There is no fetch, URL, URLSearchParams or env global. For another HTTP API use sh(curl ...).
+- There is no Buffer. Use base64.encode and base64.decode.
 - Relative paths resolve against the working directory.
 - In a mode such as #subagents some globals are removed (for example fs, sh, tasks, mcp): a name you do not have fails with ReferenceError. The description of the js tool lists what is left.

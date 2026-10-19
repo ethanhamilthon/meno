@@ -48,6 +48,8 @@ type Input struct {
 	Tools         []Tool
 	Now           time.Time
 	OS, Shell     string
+	// Only lists the tool globals this prompt keeps; nil keeps them all.
+	Only []string
 	// Model is the model this session talks to; empty omits the line.
 	Provider, Model, Effort string
 }
@@ -62,6 +64,17 @@ func Build(in Input) string {
 		}
 	}
 	add(identityPrompt)
+	add(voiceSection())
+	add(methodSection(in.Only))
+	if hasGlobal(in.Only, "fs") {
+		add(editingSection())
+	}
+	if hasGlobal(in.Only, "sh") {
+		add(verificationSection())
+	}
+	if hasGlobal(in.Only, "fs") || hasGlobal(in.Only, "sh") {
+		add(outputSection())
+	}
 	add(guidelines(in.Subagent))
 	if in.Subagent {
 		add(subagentRole())

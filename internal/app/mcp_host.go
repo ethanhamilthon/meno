@@ -148,9 +148,15 @@ func (a *App) modelSig() modelSig {
 func (a *App) worldSrc() worldSrc {
 	paths := a.paths
 	paths.Cwd = a.st.Cwd // the current session's directory
+	only := a.st.VM.Only()
+	if only != nil {
+		copied := make([]string, len(only))
+		copy(copied, only)
+		only = copied
+	}
 	return worldSrc{
 		Paths: paths, MCP: a.mcp, Servers: append([]mcp.Server(nil), a.st.Servers...), Now: time.Now(),
-		Model: a.modelSig(),
+		Model: a.modelSig(), Only: only, PolicySig: policySignature(only),
 	}
 }
 
