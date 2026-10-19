@@ -24,7 +24,6 @@ type fakeHelper struct {
 	accounts []map[string]any
 	polls    atomic.Int32
 	okAfter  int32
-	disabled map[string]bool
 	callback []string
 }
 

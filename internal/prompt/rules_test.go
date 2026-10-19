@@ -117,8 +117,11 @@ func TestToolDescriptionHoldsTheJSReference(t *testing.T) {
 
 func TestToolDescriptionIsStable(t *testing.T) {
 	for _, sub := range []bool{false, true} {
-		if ToolDescription(sub) != ToolDescription(sub) {
-			t.Fatal("the description feeds the prompt cache and must not vary")
+		first := ToolDescription(sub)
+		for i := 0; i < 3; i++ {
+			if ToolDescription(sub) != first {
+				t.Fatal("the description feeds the prompt cache and must not vary")
+			}
 		}
 	}
 }
