@@ -19,6 +19,8 @@ supports every motion and yank (`y` copies through OSC 52). `:` opens commands.
 
 `:reset` no longer exists: every JS call starts fresh.
 
+The composer shares the terminal background. Its top row is a `─` rule with the session title (saved title or first user message) at the right; long names are limited to 30% of the terminal width. Before a session has a title, the rule shows the working-directory name, or `~` for the home directory.
+
 **Keyboard layouts.** Commands are matched by the key's position, so on a Russian or
 Ukrainian layout `о` is `j`, `ж` (Shift) is `:`, and the command name after `:` is
 typed in either layout (`:ьщвуд` is `:model`). Text you type (the input, search

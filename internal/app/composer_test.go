@@ -175,7 +175,8 @@ func TestCursorBlinksOnlyInInsertMode(t *testing.T) {
 	a.setInput([]rune("hi"))
 	a.draw()
 	x, y, vis := s.GetCursor()
-	if !vis || x != composerPadX+2 || y != 20-1-1-composerPadY {
+	wantY := a.logHeight() + 1 // the first text row follows the header
+	if !vis || x != composerPadX+2 || y != wantY {
 		t.Fatalf("insert cursor %d,%d vis=%v", x, y, vis)
 	}
 	if s.style != tcell.CursorStyleBlinkingBar {
@@ -208,7 +209,7 @@ func TestCursorBlinksOnlyInInsertMode(t *testing.T) {
 
 func TestPlaceholderFollowsAgentPhase(t *testing.T) {
 	a, s := visualFixture(t, 90, 20)
-	row := func() string { a.draw(); return visualRow(s, 20-1-1-composerPadY) }
+	row := func() string { a.draw(); return visualRow(s, a.logHeight()+1) }
 	if got := row(); !strings.Contains(got, "give a task... or use /skills") {
 		t.Fatalf("idle: %q", got)
 	}

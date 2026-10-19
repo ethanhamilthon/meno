@@ -5,13 +5,18 @@ import (
 	"time"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/rivo/uniseg"
 
 	"meno/internal/ui"
 )
 
 // composerMaxText caps how many text rows the composer may occupy.
 const composerMaxText = 8
+
+const (
+	composerPadX = 2
+	// composerPadY is the bottom padding; the top row is the header.
+	composerPadY = 1
+)
 
 const placeholderIdle = "give a task... or use /skills"
 
@@ -35,7 +40,7 @@ func (a *App) composerTextRows(w int) int {
 // composerHeight is the full composer band height including vertical padding.
 func (a *App) composerHeight() int {
 	w, _ := a.scr.Size()
-	return a.composerTextRows(w) + composerPadY*2
+	return 1 + a.composerTextRows(w) + composerPadY
 }
 
 // placeholder is shown while the input is empty; it reflects what the agent is doing.
@@ -85,39 +90,4 @@ func (a *App) applyCursor() {
 		return
 	}
 	a.scr.ShowCursor(a.cur.x, a.cur.y)
-}
-
-// drawInputRow draws input[row.start:row.end] with prompt/skill highlighting.
-func (a *App) drawInputRow(c ui.Canvas, x, y, maxW int, row vrow, toks []tokSpan, bg tcell.Color, mask []bool) {
-	in := a.st.Input
-	plain := ui.Style{FG: ui.FgWhite, BG: bg}.TCell()
-	col, idx := 0, row.start
-	g := uniseg.NewGraphemes(string(in[row.start:row.end]))
-	for g.Next() && col < maxW {
-		s := g.Str()
-		st := plain
-		for _, t := range toks {
-			if idx >= t.start && idx < t.end {
-				st = ui.Style{FG: tokenColor(t.kind), BG: bg}.TCell()
-				break
-			}
-		}
-		if idx < len(mask) && mask[idx] {
-			st = st.Background(ui.BgSelect)
-		}
-		if s == "\t" {
-			s = "    "
-		}
-		if r := []rune(s); len(r) == 1 {
-			if o, ok := objectAt(r[0]); ok {
-				s = o.Label()
-				st = ui.Style{FG: ui.Blue, BG: bg}.TCell()
-				if idx < len(mask) && mask[idx] {
-					st = st.Background(ui.BgSelect)
-				}
-			}
-		}
-		col += c.Text(x+col, y, maxW-col, s, st)
-		idx += len([]rune(g.Str()))
-	}
 }

@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **The composer is transparent and identifies the session.** Its top row is a `─` rule with the session name at the right, clipped to 30% of the terminal width; untitled sessions show their working-directory name (or `~` in the home directory).
+
 ## 0.3.1
 
 - **A `#mode` no longer deletes files, folders and skills from the message.** `#goal read @file` used to send `read` and lose the `@file` reference. The mode tags are now taken out by the new `objtag.Extract`, and every other object stays in the text. This holds for a new request, for a message queued while the agent runs, and for a started turn.

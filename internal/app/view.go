@@ -64,62 +64,6 @@ func (a *App) jsOpts() ui.JSOpts {
 	return js
 }
 
-// Composer geometry in terminal cells, derived from the design's 18/20 padding
-// scaled to the cell grid (1 cell = 10px horizontally, 1 row = 18px vertically).
-const (
-	composerPadX = 2
-	composerPadY = 1
-)
-
-// drawComposer draws the input band. Text starts at the padded origin; the real
-// terminal cursor marks the edit position (see applyCursor).
-func (a *App) drawComposer(c ui.Canvas, x, y, w, h int) {
-	pad := min(composerPadX, max(0, (w-1)/2))
-	textX := x + pad
-	innerW := max(0, w-2*pad)
-	row := y
-	if h > composerPadY+1 {
-		row = y + composerPadY
-	}
-	bg := ui.BgUser
-	a.clampCursor()
-	if len(a.st.Input) == 0 {
-		a.st.ComposerRows = []vrow{{0, 0, false}}
-		a.st.ComposerX, a.st.ComposerY, a.st.ComposerTop = textX, row, 0
-		if !a.st.InLog {
-			a.cur = cursorPos{textX, row, true}
-		}
-		text, fg := a.placeholder(), ui.FgDim
-		c.Text(textX, row, innerW, text, ui.Style{FG: fg, BG: bg}.TCell())
-		return
-	}
-	rows := layoutInput(a.st.Input, max(1, innerW))
-	avail := max(1, h-2*composerPadY)
-	if h <= composerPadY+1 {
-		avail = 1
-	}
-	cr := cursorRow(rows, a.st.Cursor)
-	// Keep the cursor row inside the visible window.
-	top := min(max(0, a.st.InputTop), max(0, len(rows)-avail))
-	if cr < top {
-		top = cr
-	}
-	if cr >= top+avail {
-		top = cr - avail + 1
-	}
-	a.st.InputTop = top
-	a.st.ComposerRows, a.st.ComposerX, a.st.ComposerY, a.st.ComposerTop = rows, textX, row, top
-	toks := a.inputTokens()
-	mask := a.inputSelMask()
-	for i := 0; i < avail && top+i < len(rows); i++ {
-		a.drawInputRow(c, textX, row+i, innerW, rows[top+i], toks, bg, mask)
-	}
-	col := widthBetween(a.st.Input, rows[cr].start, a.st.Cursor)
-	if !a.st.InLog {
-		a.cur = cursorPos{textX + min(col, max(0, innerW-1)), row + cr - top, true}
-	}
-}
-
 func (a *App) drawCommandRows(c ui.Canvas, x, y, w, rows int) {
 	all := commandRows(a)
 	_, cd := a.cdRows()

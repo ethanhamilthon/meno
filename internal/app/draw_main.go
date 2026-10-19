@@ -84,7 +84,7 @@ func (a *App) drawBottom(c ui.Canvas, x, y, w, h int) {
 		}
 		y += ac
 		bodyH -= ac
-		c.Fill(x, y, w, bodyH, ui.BgUser)
+		c.Fill(x, y, w, bodyH, ui.BgTerm)
 		a.drawComposer(c, x, y, w, bodyH)
 	}
 	a.drawStatus(c, x, statusY, w)
