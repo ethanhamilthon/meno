@@ -13,10 +13,10 @@ Sessions compacted by an old version cannot get back the turns that version
 discarded: they are marked as partially covered and forks of them are
 conversation-only. Version journals start at the upgrade.
 
-The `state` global and the `sessions` global are gone, and so is `session.compact`: the agent cannot compact by itself. Context is compacted at `compact_percent` (set it in `:settings`, "auto compact") and with `:compact`. Schema version 8 adds the `run` and `models_json` columns to `providers` (additive). Schema version 7 deletes the saved `state` values of every session; plans are kept.
+The `state` global and the `sessions` global are gone, and so is `session.compact`: the agent cannot compact by itself. Context is compacted at `compact_percent` (set it in `:settings`, "auto compact") and with `:compact`. Schema version 11 adds the `disabled` column to `providers` (additive): a provider can be switched off in `:login`. The `:providers` dialog is gone; `:login` replaces it. Schema version 8 adds the `run` and `models_json` columns to `providers` (additive). Schema version 7 deletes the saved `state` values of every session; plans are kept.
 
-**Tool API changes in this release** (the API was pre-release): `:reset` is gone and each
-js call is a fresh runtime; `askUser` takes a form, not a string;
+**Tool API changes in this release** (the API was pre-release): `:reset` is gone and the js
+runtime lasts for one answer of the agent; `askUser` takes a form, not a string;
 MCP calls return an envelope instead of text and no longer throw on a tool's own
 error (check `isError`); `await` is limited to settled values.
 

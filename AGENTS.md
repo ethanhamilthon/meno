@@ -33,24 +33,26 @@
 
 ## Repo map
 
-meno is a Go terminal coding agent with a tcell UI, a fresh-per-call goja
-JavaScript VM, provider APIs, MCP integrations, and SQLite persistence.
+meno is a Go terminal coding agent with a tcell UI, a goja JavaScript VM whose
+state lasts for one answer, provider APIs, MCP integrations, and SQLite persistence.
 
 | Path | Responsibility / starting points |
 | --- | --- |
 | `cmd/meno/main.go` | CLI entry point; terminal setup and application lifecycle. |
-| `internal/app/` | TUI controller, state, input, commands, modals, session/runtime wiring. Start with `app.go`, `state.go`, `runtime.go`, `turn.go`. |
+| `internal/app/` | TUI controller, state, input, commands, modals, session/runtime wiring. Start with `app.go`, `state.go`, `runtime.go`, `turn.go`. Text fields outside the composer: `textedit*.go` (`textEdit`), forms in `forms.go`. `:login` (the only providers UI): `login.go` (list), `login_flow.go` (OAuth login modal), `login_oauth.go` (helper glue, the derived `oauth` provider), `login_api.go` (API-key providers, the first-run lock). |
 | `internal/ui/` | Rendering primitives, themes, Markdown, transcript layout, widgets. Start with `render.go`, `transcript.go`, `theme.go`. |
 | `internal/agent/` | Agent loop, events, retries, queues, compaction, sessions. Start with `loop.go`, `session.go`, `sessiondb.go`; history/fork/versioned store in `history.go`, `fork.go`, `kv.go`; steering queue in `events.go`; subagent records in `agents_store.go`; retrieval in `retrieval.go`. |
 | `internal/llm/` | Provider API clients, streaming, native web search, model catalog, usage and protocol types. Start with `types.go`, `http.go`, `chat.go`, `responses.go`, `websearch.go`. |
-| `internal/jsvm/` | Fresh-per-call JS runtime and its bindings: filesystem (`fs_*.go`), shell, web search, session, tasks, agents, askUser forms, MCP, and `help` (topic texts in `help/*.md`). Start with `vm.go`, `exec.go`, `compile.go` and `prelude.js`. |
+| `internal/jsvm/` | JS runtime (state lasts until `VM.Reset`, called when a new user request starts) and its bindings: filesystem (`fs_*.go`), shell, web search, session, tasks, agents, askUser forms, MCP, and `help` (topic texts in `help/*.md`). Start with `vm.go`, `exec.go`, `compile.go` and `prelude.js`. |
 | `internal/mcp/` | MCP server lifecycle, transports, JSON-RPC, tool schemas, typed results and the local result/artifact store. Start with `manager.go`, `client.go`, `result.go`, `store.go`. |
 | `internal/websearch/` | Brave, Tavily and keyless DuckDuckGo search backends; `search.go` dispatches by backend. |
-| `internal/prompt/` | System prompt assembly and built-in tool instructions; `prompt.go`. |
+| `internal/prompt/` | System prompt assembly (`prompt.go`, `tools.go`) and the js tool description with the runtime rules and globals (`toolspec.go`). |
 | `internal/config/` | Paths, settings, providers, skills, snippets, MCP configuration, and the read-only `provider.json`/`mcp.json` overlays (`overlay.go`). Start with `paths.go`, `settings.go`, `store.go`, `snippets.go`. |
 | `internal/db/` | Shared SQLite database; additive versioned migrations live in `migrations.go`, opening in `db.go`. |
 | `internal/proc/` | Background process supervisor: process groups, bounded rotating disk logs, durable task results; `daemon.go` runs the provider `run` commands. |
-| `internal/update/` | `meno update` and the start-up check: latest GitHub release, SHA-256 verified install over the executable, cached check in `$MENO_HOME/update.json`. |
+| `internal/update/` | `meno update` and the start-up check: latest GitHub release (the release page redirect, API as fallback), SHA-256 verified install (`Asset`/`InstallAsset`, also used for cliproxyapi), cached check in `$MENO_HOME/update.json`. |
+| `internal/modes/` | Modes of a request (`#plan`, `#build`, `#goal`, the user's own in `modes/*.md`): definitions, loading, tag parsing. Their effects live in `jsvm/policy.go` (read-only), `jsvm/sandbox.go`, `jsvm/goal.go`, `agent/goal.go` (the loop keeps a goal run going) and `app/modes.go`. |
+| `internal/cliproxy/` | The cliproxyapi helper behind OAuth logins: install and update from its GitHub releases (`install.go`), config and command (`config.go`), state/keys (`manager.go`), management API client for logins and accounts (`api.go`), the six services (`services.go`). The process itself runs under `proc.Daemons`. |
 | `internal/version/` | Single version source: `VERSION` file (embedded); `Label()` feeds the welcome screen and help title, `Number()` feeds `--version`. Bump it for every release. |
 | `internal/store/` | Reusable JSON loading and atomic saving; `json.go`. |
 | `internal/safe/` | Panic containment for goroutines and UI handlers: `Call`, `Recover`, `Go`; `safe.go`. |
@@ -60,6 +62,8 @@ JavaScript VM, provider APIs, MCP integrations, and SQLite persistence.
 | `internal/termimg/` | Image encoding for the Kitty, Sixel and iTerm terminal graphics protocols. |
 | `internal/notify/` | Built-in notification sound synthesis and platform audio playback. |
 | `internal/term/` | Build-tagged pseudo-terminal end-to-end tests with a fake provider. |
+| `docs/` | User documentation only (features, settings, tools, upgrading). No plans, progress logs or reports here. |
+| `.report/` | Plans, specs, reports, audits and other working notes. Git-ignored; never linked from docs or code. |
 | `.meno/skills/` | Project-local agent skill instructions. |
 | `README.md` | User-facing setup, commands, settings, and behavior reference. |
 | `Makefile` | Build, formatting, test, race, vet, and terminal-test commands. |
@@ -86,3 +90,6 @@ JavaScript VM, provider APIs, MCP integrations, and SQLite persistence.
   race tests. Use `make term` for real-terminal behavior changes.
 - Build with `make build`. Report what was validated and any checks not run.
 - Keep this repo map current when package responsibilities or entry points change.
+- Do not create clutter in this repo. Plans, reports, audits, scratch notes and generated
+  artifacts go in `.report/`, never in the root, `docs/` or `internal/`. Remove temporary
+  files before you finish. Keep `docs/` to user documentation.

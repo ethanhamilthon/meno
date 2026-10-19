@@ -50,7 +50,7 @@ notice and the rest still loads.
   keeps the value of the model catalog, and a model without a catalog entry is priced only when both
   `input` and `output` are set. `efforts` replaces the standard levels for that model in `:model`,
   `session.models()` and `agents.spawn`; a stored effort the model does not take is replaced by
-  `medium`, `high` or its first level. In `:providers` the `run` command has its own field;
+  `medium`, `high` or its first level. In `:login` the `run` command has its own field;
   `models` can only be set in `provider.json` (a saved provider keeps what it has).
 - `mcp.json`: `[{"name", "transport", "command" or "url", "env", "headers", "enabled"}]`;
   `enabled` defaults to true, `transport` to `stdio`.

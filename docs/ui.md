@@ -13,7 +13,7 @@ supports every motion and yank (`y` copies through OSC 52). `:` opens commands.
 | `Ctrl+V`, drag and drop, `@` | attach a PNG/JPEG from the clipboard, a dropped file or the picker |
 | `:new :fork :rename :sessions :cd :compact :export` | sessions, see [sessions](sessions.md) |
 | `:tasks :agents` | background processes, working subagents |
-| `:model :settings :skills :mcp :providers` | dialogs |
+| `:model :settings :skills :mcp :login` | dialogs |
 | `:snippets :save_snippet <name> :paste_snippet <name>` | saved text: list, save the selection, insert at the cursor |
 | `:stop :q :q!` | stop the active request, quit, quit and cancel everything |
 

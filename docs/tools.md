@@ -1,7 +1,10 @@
 # The agent's tool
 
-The model has one tool, `js`. **Every call runs in a fresh runtime**: declarations,
-`globalThis` changes and patched builtins do not survive the call.
+The model has one tool, `js`. **The runtime lives for one answer of the agent**: variables,
+functions and classes declared at the top level of a call are there in the next calls, and a
+new message from the user (or a new run of a subagent) starts a clean runtime. Top-level `let`,
+`const` and `class` behave like `var`, so a later call can declare a name again; code with a
+top-level `return` or `await` runs inside a function and keeps its declarations local.
 Durable data lives in files and tasks. `help()` lists the topics; `help("name")` returns the full API of one global (the text is embedded in `internal/jsvm/help/`). Host functions are
 synchronous; `await` works on values that are already settled and a promise that
 stays pending is an error. The last expression, or an explicit top-level
@@ -21,6 +24,7 @@ result share one 64 KB budget; there is a timeout (a setting).
 | `tasks.start/list/status/logs/wait/cancel` | background processes, see below |
 | `agents.spawn/list/status/send/wait/result/cancel` | subagents, see below |
 | `askUser({questions, timeout})` | one form with all questions, see below |
+| `goal.done(summary)`, `goal.blocked(reason)` | the verdict of a `#goal` run, see [modes](modes.md); they throw elsewhere |
 | `mcp.<server>.<tool>(args)`, `mcpResults`, `mcpServers` | MCP, see below |
 | `view(path)` | look at a PNG/JPEG |
 
