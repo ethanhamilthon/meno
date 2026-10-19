@@ -23,6 +23,11 @@ key, notify command), Enter saves it and Esc cancels. Every change is saved at o
 | Notify | notify volume | `20`…`100` percent; previews on change; ignored for a custom command |
 | Notify | notify command | optional shell command that replaces the sound |
 | Agents | subagent provider, model, effort | defaults for `agents.spawn`; an empty value ("inherit") uses this agent's value |
+| Agents | effort routing | `off` (default) or `auto` — choose effort for each user request |
+| Agents | effort router model | model ID; empty uses the subagent model, then this session's model |
+| Agents | effort router provider | provider name; empty uses this session's provider |
+Effort routing chooses an effort level for each user request. It never changes the model. The level changes only after the router asks for the same different level on two requests in a row. The status bar continues to show the manual level.
+
 | Context | auto compact | the percentage of the context window at which meno compacts before a request |
 | Context | js timeout | `<n> sec`, `off`, `model` — with `model` the tool gets a `timeout` argument and the model chooses per call |
 

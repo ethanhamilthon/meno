@@ -110,6 +110,8 @@ type promptState struct {
 	// one, set when the directory changed while there was no baseline (a stored
 	// session just opened). The next message tells the model.
 	CwdFrom string
+	Effort  string // effort named in the frozen Environment section
+	Routed  bool   // true when routing is enabled for this request
 }
 
 // prepared is the result of preparing a user message.
@@ -130,13 +132,17 @@ func prepare(ctx context.Context, ps promptState, src worldSrc, hasHistory bool)
 	w, warnings := src.gather(ctx)
 	res := prepared{Skills: w.Skills, SkillsOK: w.SkillsOK, Warnings: warnings}
 	var lines []string
+	rebuild := ps.Base == nil || ps.Routed != src.Routed || src.Routed && ps.Effort != src.Effort
 	if ps.Base == nil {
-		ps.Frozen = prompt.Build(w.Input)
 		if hasHistory && ps.CwdFrom != "" && ps.CwdFrom != src.Paths.Cwd {
 			lines = append(lines, evLine("cwd-changed", "The working directory changed from "+ps.CwdFrom+" to "+src.Paths.Cwd+". Relative paths and sh() now use "+src.Paths.Cwd+". Project skills and AGENTS.md of "+src.Paths.Cwd+" are already in your system prompt."))
 		}
 	} else {
 		lines = diffBaseline(ps.Base, w.Base)
+	}
+	if rebuild {
+		ps.Frozen = prompt.Build(w.Input)
+		ps.Effort, ps.Routed = w.Input.Effort, src.Routed
 	}
 	ps.Base, ps.CwdFrom = w.Base, ""
 	res.State, res.Event = ps, eventBlock(lines)

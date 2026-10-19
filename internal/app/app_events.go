@@ -4,6 +4,7 @@ import (
 	"meno/internal/agent"
 	"meno/internal/cliproxy"
 	"meno/internal/llm"
+	"meno/internal/routing"
 )
 
 type agentEv struct {
@@ -18,8 +19,15 @@ type turnDone struct {
 // preparedEv carries the prompt state and system event of a message that is
 // about to be sent.
 type preparedEv struct {
-	sid string
-	p   prepared
+	sid         string
+	p           prepared
+	routeNotice string
+	effort      string
+}
+
+type routingStateEv struct {
+	sid    string
+	sticky *routing.Sticky
 }
 
 // tick drives animations (the blinking activity dot) while the agent works.

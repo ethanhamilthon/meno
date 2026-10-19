@@ -75,7 +75,11 @@ func (a *App) drawSettings(c ui.Canvas, w, h int) {
 				y++
 				continue
 			} else if cur != "" {
-				text = llm.Mask(cur)
+				if r.key == "websearch_key" || r.key == "notify_command" || r.key == "effort_router_model" || r.key == "effort_router_provider" {
+					text = llm.Mask(cur)
+				} else {
+					text = cur
+				}
 			}
 			b.putRight(c, y, text, ui.FgDim, bg)
 			y++

@@ -150,7 +150,7 @@ func (a *App) worldSrc() worldSrc {
 	paths.Cwd = a.st.Cwd // the current session's directory
 	return worldSrc{
 		Paths: paths, MCP: a.mcp, Servers: append([]mcp.Server(nil), a.st.Servers...), Now: time.Now(),
-		Model: a.modelSig(),
+		Model: a.modelSig(), Effort: a.st.RunEffort,
 	}
 }
 

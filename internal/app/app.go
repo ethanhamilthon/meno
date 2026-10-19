@@ -249,8 +249,8 @@ func (a *App) handle(msg any) {
 			a.onTurnDone(m.err)
 		})
 		a.markUnseen(m.sid)
-	case preparedEv:
-		a.inRT(m.sid, func() { a.onPrepared(m.p) })
+	case routingStateEv, preparedEv:
+		a.handleRoutingEvent(m)
 	case turnDone:
 		a.inRT(m.sid, func() {
 			a.onGoalEnd(m.err) // before onTurnDone, which may start the next request and replace the goal

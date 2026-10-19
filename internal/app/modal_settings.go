@@ -60,6 +60,9 @@ var settingTabs = []settingTab{
 			{"subagent provider", "subagent_provider"},
 			{"subagent model", "subagent_model"},
 			{"subagent effort", "subagent_effort"},
+			{"effort routing", "effort_router"},
+			{"effort router model", "effort_router_model"},
+			{"effort router provider", "effort_router_provider"},
 		},
 	},
 	{

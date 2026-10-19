@@ -44,9 +44,12 @@ type Settings struct {
 	// NotifyCommand is the shell command that makes the signal. Empty: the
 	// default of the platform (a sound on macOS, else the terminal bell);
 	// "bell": the terminal bell.
-	NotifyCommand string `json:"notify_command"`
-	NotifySound   string `json:"notify_sound"`
-	NotifyVolume  int    `json:"notify_volume"`
+	NotifyCommand        string `json:"notify_command"`
+	NotifySound          string `json:"notify_sound"`
+	NotifyVolume         int    `json:"notify_volume"`
+	EffortRouter         string `json:"effort_router,omitempty"`
+	EffortRouterModel    string `json:"effort_router_model,omitempty"`
+	EffortRouterProvider string `json:"effort_router_provider,omitempty"`
 	// WebSearch picks the fallback search backend of websearch(): auto,
 	// brave, tavily, duckduckgo or off. WebSearchKey is the Brave or Tavily key.
 	WebSearch    string `json:"websearch"`
@@ -146,6 +149,7 @@ func (s *Settings) UnmarshalJSON(data []byte) error {
 func DefaultSettings() Settings {
 	return Settings{
 		Effort:         "high",
+		EffortRouter:   "off",
 		JSCode:         "all",
 		JSLines:        5,
 		JSOutput:       "all",

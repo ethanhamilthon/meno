@@ -8,6 +8,7 @@ import (
 	"meno/internal/agent"
 	"meno/internal/llm"
 	"meno/internal/prompt"
+	"meno/internal/routing"
 	"meno/internal/safe"
 )
 
@@ -105,6 +106,12 @@ func (a *App) startTurn(msg agent.Message) {
 	effort = llm.ClampEffort(a.effortsFor(prov, model), effort) // the model may not take the stored level
 	// Stamp the session: from now on it keeps this model, whatever the default becomes.
 	sess.Provider, sess.Model, sess.Effort = prov, model, effort
+	manualEffort := effort
+	routeCfg := effortRouteConfig{
+		settings: a.st.Settings, providers: append([]llm.Provider(nil), a.st.Providers...), client: a.client,
+		modes: append([]string(nil), sess.Modes...), cwd: a.st.Cwd,
+		allowed: a.effortsFor(prov, model), sticky: a.st.EffortSticky,
+	}
 	block := ""
 	if !cont {
 		block = a.st.RunModes.Text
@@ -116,6 +123,7 @@ func (a *App) startTurn(msg agent.Message) {
 	}
 	// Everything the goroutine needs is captured here; it must not touch a.st.
 	src, ps := a.worldSrc(), a.st.Prompt
+	src.Effort = effort
 	d := agent.Deps{
 		Client: a.client(p), Provider: p, Model: model,
 		Effort: effort, Goal: a.st.RunGoal, Waiting: func() bool { return a.waitingSubagents(sid) }, Queue: &a.st.Queue, Cost: a.pricer(p, model),
@@ -133,6 +141,16 @@ func (a *App) startTurn(msg agent.Message) {
 		if hook != nil {
 			hook()
 		}
+		routeNotice := ""
+		effort := manualEffort
+		if !cont {
+			var sticky *routing.Sticky
+			effort, routeNotice, sticky = routeEffort(ctx, msg, prov, model, manualEffort, routeCfg)
+			a.postEvent(routingStateEv{sid: sid, sticky: sticky})
+			d.Effort = effort
+			src.Effort = effort
+			src.Routed = routeCfg.settings.EffortRouter == "auto"
+		}
 		prep := prepare(ctx, ps, src, hasHistory)
 		switch {
 		case !cont:
@@ -142,7 +160,7 @@ func (a *App) startTurn(msg agent.Message) {
 			// the baseline moves on now: they go in as an event of their own.
 			sess.Append(agent.Turn{Role: llm.RoleUser, Kind: agent.KindEvent, Text: prep.Event, Time: time.Now().UTC()})
 		}
-		a.postEvent(preparedEv{sid, prep})
+		a.postEvent(preparedEv{sid: sid, p: prep, routeNotice: routeNotice, effort: d.Effort})
 		d.System = prep.State.Frozen
 		// A panic in the agent loop ends this turn with an error; the app keeps running.
 		var err error

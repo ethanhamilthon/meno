@@ -12,6 +12,7 @@ import (
 	"meno/internal/llm"
 	"meno/internal/mcp"
 	"meno/internal/modes"
+	"meno/internal/routing"
 	"meno/internal/ui"
 )
 
@@ -24,12 +25,14 @@ import (
 // App.mu) and VM, which has its own locks. Work in other goroutines gets what
 // it needs as arguments and reports back through events carrying the session id.
 type Runtime struct {
-	Session *agent.Session
-	Prompt  promptState // frozen system prompt and baseline of Session
-	Cwd     string      // working directory of this session
-	PrevCwd string      // directory before the last :cd, for ":cd -"
-	VM      *jsvm.VM
-	cancel  context.CancelFunc
+	Session      *agent.Session
+	Prompt       promptState     // frozen system prompt and baseline of Session
+	EffortSticky *routing.Sticky // request-level effort hysteresis
+	RunEffort    string          // effort of the request in flight
+	Cwd          string          // working directory of this session
+	PrevCwd      string          // directory before the last :cd, for ":cd -"
+	VM           *jsvm.VM
+	cancel       context.CancelFunc
 
 	// RequestID is the root request being worked on: a user message starts one,
 	// steering and continuations belong to it. Cancelled holds the stopped ones.
@@ -209,6 +212,7 @@ func (a *App) stampSelection(s *agent.Session) {
 func (a *App) setSelection(provider, model, effort string) {
 	if s := a.st.Session; s != nil {
 		s.Provider, s.Model, s.Effort = provider, model, effort
+		a.st.EffortSticky = nil
 	}
 	a.st.Settings.Provider, a.st.Settings.Model, a.st.Settings.Effort = provider, model, effort
 }

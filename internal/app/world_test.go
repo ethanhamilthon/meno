@@ -7,10 +7,13 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 
+	"meno/internal/config"
 	"meno/internal/llm"
+	"meno/internal/mcp"
 	"meno/internal/prompt"
 )
 
@@ -73,6 +76,23 @@ func writeSkill(t *testing.T, a *App, name, body string) string {
 		t.Fatal(err)
 	}
 	return p
+}
+
+func TestPromptRebuildsWhenRoutedLevelChanges(t *testing.T) {
+	paths := config.Paths{Home: t.TempDir(), Cwd: t.TempDir()}
+	src := worldSrc{Paths: paths, MCP: mcp.NewManager(), Now: time.Now(), Model: modelSig{Provider: "p", Model: "m", Effort: "high"}, Effort: "high", Routed: true}
+	first := prepare(context.Background(), promptState{}, src, false)
+	if !strings.Contains(first.State.Frozen, "effort high") {
+		t.Fatalf("first prompt: %s", first.State.Frozen)
+	}
+	src.Effort = "low"
+	second := prepare(context.Background(), first.State, src, true)
+	if !strings.Contains(second.State.Frozen, "effort low") {
+		t.Fatalf("routed level missing: %s", second.State.Frozen)
+	}
+	if second.Event != "" {
+		t.Fatalf("routing created a system event: %q", second.Event)
+	}
 }
 
 func TestSkillEditBetweenMessagesProducesOneEvent(t *testing.T) {

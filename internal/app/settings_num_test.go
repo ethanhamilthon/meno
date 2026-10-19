@@ -7,6 +7,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 
 	"meno/internal/agent"
+	"meno/internal/config"
 	"meno/internal/llm"
 )
 
@@ -18,6 +19,32 @@ func settingIdx(t *testing.T, key string) int {
 	}
 	t.Fatalf("no setting row %s", key)
 	return 0
+}
+
+func TestEffortRoutingSettingsUI(t *testing.T) {
+	a, screen := newTestApp(t)
+	defer screen.Fini()
+	a.openOverlay(OverSettings)
+	a.st.Sel = settingIdx(t, "effort_router")
+	a.draw()
+	if text := screenText(screen); !strings.Contains(text, "effort routing") || !strings.Contains(text, "off") || !strings.Contains(text, "auto") {
+		t.Fatalf("routing setting missing: %s", text)
+	}
+	a.onKey(keyK(tcell.KeyRight))
+	if a.st.Settings.EffortRouter != "auto" {
+		t.Fatalf("routing choice %q", a.st.Settings.EffortRouter)
+	}
+	a.st.Sel = settingIdx(t, "effort_router_model")
+	a.onKey(keyK(tcell.KeyEnter))
+	typeRunes(a, "router-small")
+	a.onKey(keyK(tcell.KeyEnter))
+	if a.st.Settings.EffortRouterModel != "router-small" {
+		t.Fatalf("router model %q", a.st.Settings.EffortRouterModel)
+	}
+	saved, err := config.NewStore(a.paths).LoadSettings()
+	if err != nil || saved.EffortRouter != "auto" || saved.EffortRouterModel != "router-small" {
+		t.Fatalf("settings not saved: %+v %v", saved, err)
+	}
 }
 
 func TestSettingsNumbersForThinkingAndTimeout(t *testing.T) {
