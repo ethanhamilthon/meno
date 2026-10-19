@@ -6,16 +6,17 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"meno/internal/llm"
 )
 
 func readSession(db *sql.DB, id string) (*Session, error) {
 	var s Session
-	var metrics, updated string
+	var metrics, updated, modes string
 	var legacy int
-	err := db.QueryRow("SELECT id,title,cwd,provider,model,effort,summary,metrics,updated_at,kind,parent_id,fork_source,fork_boundary,next_hid,coverage,legacy FROM sessions WHERE id = ?", id).
-		Scan(&s.ID, &s.Title, &s.Cwd, &s.Provider, &s.Model, &s.Effort, &s.Summary, &metrics, &updated, &s.Kind, &s.ParentID, &s.ForkSource, &s.ForkBoundary, &s.NextHID, &s.Coverage, &legacy)
+	err := db.QueryRow("SELECT id,title,cwd,provider,model,effort,summary,metrics,updated_at,kind,parent_id,fork_source,fork_boundary,next_hid,coverage,legacy,modes FROM sessions WHERE id = ?", id).
+		Scan(&s.ID, &s.Title, &s.Cwd, &s.Provider, &s.Model, &s.Effort, &s.Summary, &metrics, &updated, &s.Kind, &s.ParentID, &s.ForkSource, &s.ForkBoundary, &s.NextHID, &s.Coverage, &legacy, &modes)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, os.ErrNotExist
 	}
@@ -24,6 +25,7 @@ func readSession(db *sql.DB, id string) (*Session, error) {
 	}
 	s.UpdatedAt = parseTS(updated)
 	s.Legacy = legacy != 0
+	s.Modes = strings.Fields(modes)
 	if err := json.Unmarshal([]byte(metrics), &s.Metrics); err != nil {
 		return nil, fmt.Errorf("session %s metrics: %w", id, err)
 	}

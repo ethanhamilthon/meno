@@ -3,6 +3,7 @@ package agent
 import (
 	"database/sql"
 	"encoding/json"
+	"strings"
 )
 
 func b2i(b bool) int {
@@ -54,13 +55,13 @@ func writeSessionTx(tx *sql.Tx, s *Session) (pend Pending, err error) {
 	if kind == "" {
 		kind = KindMain
 	}
-	if _, err = tx.Exec(`INSERT INTO sessions(id,title,cwd,provider,model,effort,summary,metrics,updated_at,kind,parent_id,fork_source,fork_boundary,next_hid,coverage,legacy)
-		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+	if _, err = tx.Exec(`INSERT INTO sessions(id,title,cwd,provider,model,effort,summary,metrics,updated_at,kind,parent_id,fork_source,fork_boundary,next_hid,coverage,legacy,modes)
+		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 		ON CONFLICT(id) DO UPDATE SET title=excluded.title, cwd=excluded.cwd, provider=excluded.provider, model=excluded.model,
-		effort=excluded.effort, summary=excluded.summary, metrics=excluded.metrics, updated_at=excluded.updated_at,
+		effort=excluded.effort, summary=excluded.summary, metrics=excluded.metrics, updated_at=excluded.updated_at, modes=excluded.modes,
 		next_hid=excluded.next_hid, coverage=excluded.coverage`,
 		s.ID, s.Title, s.Cwd, s.Provider, s.Model, s.Effort, s.Summary, string(metrics), ts(s.UpdatedAt),
-		kind, s.ParentID, s.ForkSource, s.ForkBoundary, s.NextHID, s.Coverage, b2i(s.Legacy)); err != nil {
+		kind, s.ParentID, s.ForkSource, s.ForkBoundary, s.NextHID, s.Coverage, b2i(s.Legacy), strings.Join(s.Modes, " ")); err != nil {
 		return pend, err
 	}
 	for _, t := range pend.Archive {

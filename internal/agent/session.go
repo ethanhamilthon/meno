@@ -108,9 +108,12 @@ type Session struct {
 	// Provider, Model and Effort are the model this session talks to; each
 	// session has its own. Sessions saved before this was per session may have
 	// only Model.
-	Provider  string    `json:"provider,omitempty"`
-	Model     string    `json:"model"`
-	Effort    string    `json:"effort,omitempty"`
+	Provider string `json:"provider,omitempty"`
+	Model    string `json:"model"`
+	Effort   string `json:"effort,omitempty"`
+	// Modes are the modes the messages of this session are sent in (#subagents,
+	// #goal...). A message that names modes replaces the set; #none empties it.
+	Modes     []string  `json:"modes,omitempty"`
 	UpdatedAt time.Time `json:"updated_at"`
 	Summary   string    `json:"summary,omitempty"`
 	// Kind is KindMain or KindChild (empty = main). ParentID owns a child.
