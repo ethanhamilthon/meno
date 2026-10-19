@@ -8,7 +8,7 @@ A typed `#name` without the menu is plain text.
 | --- | --- |
 | `#subagents` | The agent orchestrates. It has no file, shell, web or MCP access: it starts subagents with `agents.spawn` (in parallel where it can), waits for their results, starts the next work, and ends with a reviewer. A subagent does the work with the normal tools. |
 | `#brainstorm` | The agent explores before anything is built: options with pros, cons and risks, prototypes only in a temporary directory, and at the end one complete spec in `.report/specs/`. The spec says what to build and how the parts fit; another agent writes the code. Only the prompt changes: the tools stay. |
-| `#goal` | The message is a goal. The agent works until it calls `goal.done(summary)` or `goal.blocked(reason)`. An answer without either makes meno ask it to go on, at most 25 times (`#goal 3/25` in the status bar). It does not nudge while subagents are still working: their events wake it. |
+| `#goal` | The message is a goal. The agent works until it calls `goal.done(summary)` or `goal.blocked(reason)`. An answer without either makes meno ask it to go on, at most 25 times. It does not nudge while subagents are still working: their events wake it. |
 | `#none` | Clears the modes of the session. |
 
 ## Sets of modes
@@ -19,7 +19,7 @@ you send `#goal #subagents ship`, the set is now `goal` and `subagents`; `brains
 A message without modes keeps the set. `#none` empties it.
 
 The set belongs to the session: it stays until it is changed, including after a restart. A new
-session starts with no modes. The status bar shows the set, for example `#subagents #goal 3/25`.
+session starts with no modes. The badge at the left of the status bar shows the set, for example `NORMAL #subagents #goal`.
 
 ## Limits
 

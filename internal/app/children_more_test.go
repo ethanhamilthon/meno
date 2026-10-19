@@ -52,7 +52,7 @@ func TestSubagentBlockAndResume(t *testing.T) {
 	}
 	var seen bool
 	for _, q := range cl.requests() {
-		if strings.Contains(q.System, "You are a subagent") && strings.Contains(lastUser(q), "use sqlite") {
+		if strings.Contains(q.System, "<subagent-role>") && strings.Contains(lastUser(q), "use sqlite") {
 			seen = strings.Contains(lastUser(q), "source=\"parent\"")
 		}
 	}
@@ -90,7 +90,7 @@ func TestSubagentProhibitedBindingsAndCancel(t *testing.T) {
 	})
 	var probe string
 	for _, q := range cl.requests() {
-		if strings.Contains(q.System, "You are a subagent") && lastToolResult(q) != "" {
+		if strings.Contains(q.System, "<subagent-role>") && lastToolResult(q) != "" {
 			probe = lastToolResult(q)
 		}
 	}
@@ -161,7 +161,7 @@ func TestAgentsDialogListsOnlyWorkingAndMessagesThroughSteering(t *testing.T) {
 	})
 	var wrapped bool
 	for _, q := range cl.requests() {
-		if strings.Contains(q.System, "You are a subagent") && strings.Contains(lastUser(q), "<user-message") && strings.Contains(lastUser(q), "pick sqlite") {
+		if strings.Contains(q.System, "<subagent-role>") && strings.Contains(lastUser(q), "<user-message") && strings.Contains(lastUser(q), "pick sqlite") {
 			wrapped = true
 		}
 	}

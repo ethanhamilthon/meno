@@ -37,6 +37,23 @@ composer at the cursor and returns to insert mode. `:snippets` lists them:
 Enter pastes, `r` renames, `d` twice deletes. Snippets are global and live in
 `meno.db`; a name uses letters, digits, dot, dash or underscore.
 
+## Status bar
+
+Left: a colored badge with the mode (`INSERT`, `NORMAL`, …) followed by the modes of the
+session, for example `NORMAL #subagents #goal`. An open dialog shows its own name instead
+(`SESSIONS`, `HELP`, …). On a narrow terminal the modes leave the badge first.
+
+Next to it are groups of the form `N x ◆` written without spaces (`3x◆`):
+
+- green, blinking: `1x◆` — the agent of this session is working;
+- purple, blinking: `Nx◆` — N background tasks or subagents of this session;
+- after a `|`: `Kx◆` (green, blinking) is the number of other sessions that are
+  running, and `D◉` (blue) the number of other sessions that finished since you last
+  looked at them. A session that waits for an answer is not counted here; see `:sessions`.
+
+Center: tokens in/out, cache share, context used/window and the spend. Right: the
+model, with its effort in brackets.
+
 ## Timeline
 
 Answers are drawn as Markdown (headings, lists, quotes, alerts, tables, fenced code

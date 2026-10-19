@@ -46,7 +46,7 @@ state lasts for one answer, provider APIs, MCP integrations, and SQLite persiste
 | `internal/jsvm/` | JS runtime (state lasts until `VM.Reset`, called when a new user request starts) and its bindings: filesystem (`fs_*.go`), shell, web search, session, tasks, agents, askUser forms, MCP, and `help` (topic texts in `help/*.md`). Start with `vm.go`, `exec.go`, `compile.go` and `prelude.js`. |
 | `internal/mcp/` | MCP server lifecycle, transports, JSON-RPC, tool schemas, typed results and the local result/artifact store. Start with `manager.go`, `client.go`, `result.go`, `store.go`. |
 | `internal/websearch/` | Brave, Tavily and keyless DuckDuckGo search backends; `search.go` dispatches by backend. |
-| `internal/prompt/` | System prompt assembly (`prompt.go`, `tools.go`) and the js tool description with the runtime rules and globals (`toolspec.go`). |
+| `internal/prompt/` | System prompt assembly: `prompt.go` (`Build`, inputs), `sections.go` (one XML element per section), `xml.go` (`element`, `escapeBody`), `tools.go` (guidelines, subagent role) and the js tool description with the runtime rules and globals (`toolspec.go`). |
 | `internal/config/` | Paths, settings, providers, skills, snippets, MCP configuration, and the read-only `provider.json`/`mcp.json` overlays (`overlay.go`). Start with `paths.go`, `settings.go`, `store.go`, `snippets.go`. |
 | `internal/db/` | Shared SQLite database; additive versioned migrations live in `migrations.go`, opening in `db.go`. |
 | `internal/proc/` | Background process supervisor: process groups, bounded rotating disk logs, durable task results; `daemon.go` runs the provider `run` commands. |
@@ -57,7 +57,7 @@ state lasts for one answer, provider APIs, MCP integrations, and SQLite persiste
 | `internal/store/` | Reusable JSON loading and atomic saving; `json.go`. |
 | `internal/safe/` | Panic containment for goroutines and UI handlers: `Call`, `Recover`, `Go`; `safe.go`. |
 | `internal/attach/` | Attachment parsing and source loading. |
-| `internal/objtag/` | Text form of input objects (file, folder, skill references): tags, parsing and escaping. |
+| `internal/objtag/` | Text form of input objects (file, folder, skill references): tags, parsing, escaping and `Extract` (take some objects out, keep the rest). |
 | `internal/pathsearch/` | Fuzzy, bounded file and folder search behind the `@` picker. |
 | `internal/termimg/` | Image encoding for the Kitty, Sixel and iTerm terminal graphics protocols. |
 | `internal/notify/` | Built-in notification sound synthesis and platform audio playback. |

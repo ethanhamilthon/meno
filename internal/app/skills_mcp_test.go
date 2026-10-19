@@ -71,7 +71,7 @@ func waitStarted(t *testing.T, a *App, n int) {
 func TestSystemPromptListsEnabledSkillsOnly(t *testing.T) {
 	a, scr := newTestApp(t)
 	defer scr.Fini()
-	if got := a.systemPrompt(); strings.Contains(got, "## Project instructions") || strings.Contains(got, "## Skills") {
+	if got := a.systemPrompt(); strings.Contains(got, "<project-instructions>") || strings.Contains(got, "<skills>") {
 		t.Fatalf("a bare install must send the bare prompt:\n%s", got)
 	}
 	dir := a.paths.ProjectSkillsDir()
@@ -117,7 +117,7 @@ func TestMCPServersStartAtLaunchAndReachJS(t *testing.T) {
 	if r := a.st.VM.Exec(contextBackground(), "mcp.fake.echo({msg: 'hi'}).text"); r.Value != "echo:hi" || r.Err != "" {
 		t.Fatalf("js call: %+v", r)
 	}
-	if got := a.systemPrompt(); !strings.Contains(got, "## MCP servers\n- fake (1 tool): echo") {
+	if got := a.systemPrompt(); !strings.Contains(got, "<mcp-servers>\n- fake (1 tool): echo\n</mcp-servers>") {
 		t.Fatalf("tool missing from the prompt:\n%s", got)
 	}
 	a.openOverlay(OverMCP)
@@ -164,7 +164,7 @@ func TestSystemPromptIncludesAgentsFiles(t *testing.T) {
 	os.WriteFile(g, []byte("be brief"), 0o644)
 	os.WriteFile(p, []byte("use tabs"), 0o644)
 	got := a.systemPrompt()
-	for _, want := range []string{"## Global instructions\nFrom " + g, "be brief", "## Project instructions\nFrom " + p, "use tabs"} {
+	for _, want := range []string{"<global-instructions>\nFrom " + g, "be brief", "<project-instructions>\nFrom " + p, "use tabs"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("missing %q:\n%s", want, got)
 		}
@@ -172,7 +172,7 @@ func TestSystemPromptIncludesAgentsFiles(t *testing.T) {
 	os.Remove(p)
 	os.Mkdir(p, 0o755) // unreadable as a file
 	got = a.systemPrompt()
-	if strings.Contains(got, "## Project instructions") || !strings.Contains(a.lastNotice(), "AGENTS.md") {
+	if strings.Contains(got, "<project-instructions>") || !strings.Contains(a.lastNotice(), "AGENTS.md") {
 		t.Fatalf("unreadable AGENTS.md must be skipped with a notice (%q):\n%s", a.lastNotice(), got)
 	}
 }

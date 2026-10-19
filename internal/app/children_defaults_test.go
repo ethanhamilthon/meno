@@ -43,7 +43,7 @@ func TestSubagentSpawnUsesSettingsDefaults(t *testing.T) {
 	waitUntil(t, a, "the child's first request", func() bool { return cl.childCalls() >= 1 })
 	var req *llm.Request
 	for _, q := range cl.requests() {
-		if strings.Contains(q.System, "You are a subagent") {
+		if strings.Contains(q.System, "<subagent-role>") {
 			q := q
 			req = &q
 			break

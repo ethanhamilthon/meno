@@ -14,7 +14,7 @@ func TestStatusBarShowsBackgroundWorkNextToTheModel(t *testing.T) {
 	}
 	a.onBgLoaded(bgLoaded{map[string]int{a.st.Session.ID: 2}})
 	a.draw()
-	if !strings.Contains(screenText(scr), "◆ 2") {
+	if !strings.Contains(screenText(scr), "2x◆") {
 		t.Fatalf("no background marker in the status bar:\n%s", screenText(scr))
 	}
 	if !a.animating() {

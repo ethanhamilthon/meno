@@ -103,21 +103,16 @@ func (a *App) messageModes(text string) (names []string, rest string, tagged boo
 		}
 		return ref == modes.Control || a.objectKnown(k, ref)
 	}
-	var kept []string
-	for _, s := range objtag.Split(text, known) {
-		if s.Obj == nil || s.Obj.Kind != objtag.Mode {
-			kept = append(kept, s.Text)
-			continue
-		}
-		tagged = true
-		if s.Obj.Ref != modes.Control && !hasName(names, s.Obj.Ref) {
-			names = append(names, s.Obj.Ref)
-		}
-	}
-	if !tagged {
+	taken, kept := objtag.Extract(text, known, func(o objtag.Object) bool { return o.Kind == objtag.Mode })
+	if len(taken) == 0 {
 		return nil, text, false
 	}
-	return names, strings.TrimSpace(strings.Join(kept, "")), true
+	for _, o := range taken {
+		if o.Ref != modes.Control && !hasName(names, o.Ref) {
+			names = append(names, o.Ref)
+		}
+	}
+	return names, strings.TrimSpace(kept), true
 }
 
 // modesNotice is the line that says which modes a session runs in now.
@@ -160,29 +155,4 @@ func (a *App) onGoalEnd(err error) {
 	case g.Exhausted() && err == nil && !a.waitingSubagents(a.st.Session.ID):
 		a.notifyErr("goal stopped: no verdict after " + itoa(rounds) + " of " + itoa(limit) + " rounds")
 	}
-}
-
-// modeStatus is the modes of the session for the status bar, for example
-// "#subagents #goal 3/25" with the goal rounds used so far.
-func (a *App) modeStatus() string {
-	names := a.st.Session.Modes
-	if len(names) == 0 {
-		return ""
-	}
-	s := ""
-	for _, n := range names {
-		s += "#" + n + " "
-	}
-	if g := a.st.RunGoal; g != nil && a.st.Running {
-		rounds, limit := g.Progress()
-		s += itoa(rounds) + "/" + itoa(limit)
-	}
-	return trimSpace(s)
-}
-
-func trimSpace(s string) string {
-	for len(s) > 0 && s[len(s)-1] == ' ' {
-		s = s[:len(s)-1]
-	}
-	return s
 }

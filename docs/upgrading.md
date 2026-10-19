@@ -1,5 +1,11 @@
 # Upgrading, data and privacy
 
+## 0.3.1
+
+- No data or schema change. The system prompt is built again on start, so every session sends the new XML-style prompt from its next request; the prompt cache is cold for that one request.
+- Text in your `AGENTS.md` or skill descriptions that contains `</` reaches the model as `&lt;/`.
+- The status bar changed (state groups `Nx◆`, modes in the badge; see [ui](ui.md#status-bar)). The goal round counter is not shown there any more.
+
 ## 0.3.0
 
 - Modes changed. `#plan` and `#build` are gone. No mode is read-only any more: none refuses fs writes, `tasks.start` or `agents.spawn`. Built-in modes: `#subagents`, `#brainstorm`, `#goal`, picked from the menu; `#none` clears them. A typed `#goal` is plain text now. Sessions saved by 0.2.1 start with no modes; a mode name saved in a session that no longer exists is ignored.

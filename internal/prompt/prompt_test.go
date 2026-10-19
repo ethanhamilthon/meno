@@ -27,8 +27,8 @@ func TestSectionOrder(t *testing.T) {
 	out := Build(full())
 	last := -1
 	for _, h := range []string{
-		"You are meno, a coding agent.", "## Guidelines", "## Skills",
-		"## Global instructions", "## Project instructions", "## MCP servers", "## Environment",
+		"You are meno, a coding agent.", "<guidelines>", "<skills>",
+		"<global-instructions>", "<project-instructions>", "<mcp-servers>", "<environment>",
 	} {
 		i := strings.Index(out, h)
 		if i <= last {
@@ -36,10 +36,10 @@ func TestSectionOrder(t *testing.T) {
 		}
 		last = i
 	}
-	if !strings.HasPrefix(out, "You are meno, a coding agent.\n\n## Guidelines") {
+	if !strings.HasPrefix(out, "You are meno, a coding agent.\n\n<guidelines>") {
 		t.Fatal("identity must be a bare first line")
 	}
-	if !strings.HasSuffix(out, "- Working directory: /w\n- OS: macOS 15.1 (darwin/arm64). Shell: /bin/sh.\n- Date: 2026-10-17, Saturday (UTC).") {
+	if !strings.HasSuffix(out, "- Working directory: /w\n- OS: macOS 15.1 (darwin/arm64). Shell: /bin/sh.\n- Date: 2026-10-17, Saturday (UTC).\n</environment>") {
 		t.Fatalf("environment must be last:\n%s", out)
 	}
 	if strings.Index(out, "- a —") > strings.Index(out, "- b —") || !strings.Contains(out, "- s1 (2 tools): a, y") || strings.Index(out, "- s1 (") > strings.Index(out, "- s2 (") {
@@ -51,7 +51,7 @@ func TestEnvironmentNamesTheModel(t *testing.T) {
 	in := full()
 	in.Provider, in.Model, in.Effort = "openai", "gpt-5.5", "high"
 	out := Build(in)
-	if !strings.HasSuffix(out, "- Date: 2026-10-17, Saturday (UTC).\n- Model: gpt-5.5 (openai, effort high).") {
+	if !strings.HasSuffix(out, "- Date: 2026-10-17, Saturday (UTC).\n- Model: gpt-5.5 (openai, effort high).\n</environment>") {
 		t.Fatalf("model line must close the environment:\n%s", out)
 	}
 	if got := DescribeModel("", "m", ""); got != "m" {
@@ -64,19 +64,19 @@ func TestEnvironmentNamesTheModel(t *testing.T) {
 
 func TestOptionalSectionsAbsentWhenEmpty(t *testing.T) {
 	out := Build(Input{Cwd: "/w", Now: now})
-	for _, h := range []string{"## Skills", "## Global instructions", "## Project instructions", "## MCP servers"} {
-		if strings.Contains(out, h) {
+	for _, h := range []string{"skills", "global-instructions", "project-instructions", "mcp-servers"} {
+		if strings.Contains(out, "<"+h+">") || strings.Contains(out, "</"+h+">") {
 			t.Fatalf("%s must be absent:\n%s", h, out)
 		}
 	}
-	if !strings.Contains(out, "## Environment") || !strings.Contains(out, "## Guidelines") {
+	if !strings.Contains(out, "<environment>") || !strings.Contains(out, "<guidelines>") {
 		t.Fatal("bare prompt lost a fixed section")
 	}
 }
 
 func TestInstructionsFormat(t *testing.T) {
 	out := Build(full())
-	want := "## Global instructions\nFrom /h/AGENTS.md. Follow these unless the user's message says otherwise.\n\nglobal text\n\n## Project instructions\nFrom /w/AGENTS.md. Follow these unless the user's message says otherwise.\n\nproject text\n\n"
+	want := "<global-instructions>\nFrom /h/AGENTS.md. Follow these unless the user's message says otherwise.\n\nglobal text\n</global-instructions>\n\n<project-instructions>\nFrom /w/AGENTS.md. Follow these unless the user's message says otherwise.\n\nproject text\n</project-instructions>\n\n"
 	if !strings.Contains(out, want) {
 		t.Fatalf("instructions format:\n%s", out)
 	}
@@ -90,11 +90,11 @@ func TestPrefixIsByteStable(t *testing.T) {
 		mod    func(*Input)
 		marker string // first heading that may differ
 	}{
-		{"skills", func(i *Input) { i.Skills = append(i.Skills, Skill{"c", "", "/c.md"}) }, "## Skills"},
-		{"global agents", func(i *Input) { i.GlobalAgents.Text = "other" }, "## Global instructions"},
-		{"project agents", func(i *Input) { i.ProjectAgents = Instructions{} }, "## Project instructions"},
-		{"tools", func(i *Input) { i.Tools = i.Tools[:1] }, "## MCP servers"},
-		{"cwd and date", func(i *Input) { i.Cwd = "/other"; i.Now = now.AddDate(0, 0, 1) }, "## Environment"},
+		{"skills", func(i *Input) { i.Skills = append(i.Skills, Skill{"c", "", "/c.md"}) }, "<skills>"},
+		{"global agents", func(i *Input) { i.GlobalAgents.Text = "other" }, "<global-instructions>"},
+		{"project agents", func(i *Input) { i.ProjectAgents = Instructions{} }, "<project-instructions>"},
+		{"tools", func(i *Input) { i.Tools = i.Tools[:1] }, "<mcp-servers>"},
+		{"cwd and date", func(i *Input) { i.Cwd = "/other"; i.Now = now.AddDate(0, 0, 1) }, "<environment>"},
 	}
 	for _, c := range cases {
 		in := full()
@@ -115,8 +115,8 @@ func TestBuildSkillsAndTools(t *testing.T) {
 		Skills: []Skill{{"api-security", "check\nauth  and rate limits", "/p/.meno/skills/api-security.md"}, {"bare", "", "/p/bare.md"}},
 		Tools:  []Tool{{"github", "search-repos", "Search repositories", "{query: string, page?: number}"}}})
 	for _, want := range []string{
-		"## Skills", "- api-security — check auth and rate limits (/p/.meno/skills/api-security.md)", "- bare (/p/bare.md)",
-		"## MCP servers", "- github (1 tool): search_repos",
+		"<skills>", "- api-security — check auth and rate limits (/p/.meno/skills/api-security.md)", "- bare (/p/bare.md)",
+		"<mcp-servers>", "- github (1 tool): search_repos",
 	} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("missing %q in:\n%s", want, out)

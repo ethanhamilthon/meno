@@ -6,7 +6,8 @@ providers, MCP servers and settings are shared.
 
 - `:sessions` lists the last 200 main sessions of all projects (children are never
   listed) with live statuses: blinking green = running, orange `?` = waiting for an
-  answer, red = last turn failed, blue = finished while you were elsewhere.
+  answer, red = last turn failed, blue = finished while you were elsewhere. The status bar
+  counts the other sessions too (see [ui](ui.md#status-bar)).
 - `:new` starts an empty session in the current directory; other sessions keep running.
 - `:fork` makes a new independent session from an earlier message (default: the
   latest). The boundary is widened to a whole tool-call group; the fork gets the

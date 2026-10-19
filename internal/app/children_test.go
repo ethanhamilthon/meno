@@ -12,7 +12,7 @@ import (
 )
 
 // routeClient answers parent and child requests by who is asking: a request
-// whose system prompt says "You are a subagent" is a child's.
+// whose system prompt says "<subagent-role>" is a child's.
 type routeClient struct {
 	mu     sync.Mutex
 	parent []func(llm.Request) []llm.Event
@@ -25,7 +25,7 @@ func (c *routeClient) Stream(ctx context.Context, req llm.Request, emit func(llm
 	c.mu.Lock()
 	c.reqs = append(c.reqs, req)
 	var evs []llm.Event
-	if strings.Contains(req.System, "You are a subagent") {
+	if strings.Contains(req.System, "<subagent-role>") {
 		if c.cn < len(c.child) {
 			evs = c.child[c.cn](req)
 		}
@@ -36,7 +36,7 @@ func (c *routeClient) Stream(ctx context.Context, req llm.Request, emit func(llm
 		}
 		c.pn++
 	}
-	child := strings.Contains(req.System, "You are a subagent")
+	child := strings.Contains(req.System, "<subagent-role>")
 	c.mu.Unlock()
 	for _, e := range evs {
 		emit(e)
@@ -112,7 +112,7 @@ func TestSubagentSpawnCompleteWakesParent(t *testing.T) {
 	waitUntil(t, a, "the wake-up request", func() bool { return len(cl.requests()) >= 4 && !a.st.Running })
 	var parentReqs []llm.Request
 	for _, r := range cl.requests() {
-		if !strings.Contains(r.System, "You are a subagent") {
+		if !strings.Contains(r.System, "<subagent-role>") {
 			parentReqs = append(parentReqs, r)
 		}
 	}
@@ -125,7 +125,7 @@ func TestSubagentSpawnCompleteWakesParent(t *testing.T) {
 	}
 	// The child saw only its explicit task, not the parent's conversation.
 	for _, r := range cl.requests() {
-		if strings.Contains(r.System, "You are a subagent") {
+		if strings.Contains(r.System, "<subagent-role>") {
 			if first := r.Msgs[0].Text; !strings.Contains(first, "Count the files") || strings.Contains(first, "delegate") {
 				t.Fatalf("child context: %q", first)
 			}

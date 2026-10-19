@@ -2,7 +2,6 @@ package app
 
 import (
 	"fmt"
-	"time"
 
 	"meno/internal/ui"
 )
@@ -90,58 +89,6 @@ func (a *App) drawBottom(c ui.Canvas, x, y, w, h int) {
 	}
 	a.drawStatus(c, x, statusY, w)
 }
-func (a *App) drawStatus(c ui.Canvas, x, y, w int) {
-	label := a.st.Mode.Label()
-	if a.st.Over != OverNone {
-		labels := map[Overlay]string{OverModel: "MODEL", OverSettings: "SETTINGS", OverLogin: "LOGIN", OverLoginFlow: "LOGIN", OverProviderEdit: "PROVIDER", OverSkills: "SKILLS", OverMCP: "MCP", OverMCPEdit: "MCP", OverSessions: "SESSIONS", OverHelp: "HELP", OverFork: "FORK", OverTasks: "TASKS", OverAgents: "AGENTS", OverSnippets: "SNIPPETS"}
-		if name := labels[a.st.Over]; name != "" {
-			label = name
-		}
-	}
-	left := []ui.Seg{{Text: " " + label + " ", FG: ui.FgBlack}}
-	// The room between the mode badge and the model, which stay in view.
-	room := w - ui.TextWidth(label) - 2 - ui.TextWidth(a.modelLabel()) - 3 - ui.TextWidth(bgBadge(a.bgCount(a.st.Session.ID))) - 6
-	center := a.statusUsage(room)
-	midColor := ui.FgDim
-	if hint := a.visualHint(); hint != "" {
-		center, midColor = hint, ui.FgDim
-	}
-	if rt := a.retryText(); rt != "" {
-		center, midColor = rt, ui.Yellow
-	}
-	if t := a.askStatus(); t != "" {
-		center, midColor = t, ui.Orange
-	}
-	mid := []ui.Seg{{Text: center, FG: midColor}}
-	if sum, col := a.sessionsSummary(); sum != "" {
-		// What the other sessions are doing comes first; the usage text only if it fits.
-		both := []ui.Seg{{Text: sum, FG: col}, {Text: "   ", FG: ui.FgDim}, {Text: center, FG: midColor}}
-		if center != "" && ui.TextWidth(joinSegText(both))+ui.TextWidth(a.modelLabel())+ui.TextWidth(label)+10 <= w {
-			mid = both
-		} else {
-			mid = []ui.Seg{{Text: sum, FG: col}}
-		}
-	}
-	dot, color := "○ ", ui.FgDim
-	if a.st.Running {
-		// Blink while the agent works: 500ms on, 500ms off.
-		dot, color = "● ", ui.Green
-		if time.Now().UnixMilli()/500%2 == 1 {
-			color = ui.FgDim
-		}
-	}
-	right := []ui.Seg{{Text: dot, FG: color}, {Text: a.modelLabel(), FG: ui.FgDim}, {Text: " ", FG: ui.FgDim}}
-	if m := a.modeStatus(); m != "" {
-		right = append([]ui.Seg{{Text: m + "  ", FG: ui.Orange}}, right...)
-	}
-	if b := bgBadge(a.bgCount(a.st.Session.ID)); b != "" {
-		// Background tasks or subagents of this session: a purple blinking marker by the model.
-		right = append([]ui.Seg{{Text: b + "  ", FG: bgColor()}}, right...)
-	}
-	ui.DrawBar(c, x, y, w, ui.BgTerm, left, mid, right)
-	ui.Badge(c, x, y, label, a.st.Mode.Color())
-}
-
 func compactTokens(n int) string {
 	if n >= 1000000 {
 		return fmt.Sprintf("%.1fm", float64(n)/1000000)

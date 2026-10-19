@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1
+
+- **A `#mode` no longer deletes files, folders and skills from the message.** `#goal read @file` used to send `read` and lose the `@file` reference. The mode tags are now taken out by the new `objtag.Extract`, and every other object stays in the text. This holds for a new request, for a message queued while the agent runs, and for a started turn.
+- **The system prompt sections are XML elements.** `<guidelines>`, `<subagent-role>` (subagents only), `<skills>`, `<global-instructions>`, `<project-instructions>`, `<mcp-servers>` and `<environment>` replace the `## ` headings, so the model can tell meno's text from your `AGENTS.md`. Text inside an element that contains `</` is written as `&lt;/`, so it cannot close an element early. Order and wording are unchanged. The first request after the upgrade misses the prompt cache once.
+- **New status bar.** The badge on the left shows the mode and the modes of the session (`NORMAL #subagents #goal`). After it come state groups: `1x◆` (green, blinking) while the agent works, `Nx◆` (purple, blinking) for background tasks and subagents of the session, and after a `|` `Kx◆` for other running sessions and `D◉` (blue) for other sessions that finished unseen. The right side shows only the model. The goal rounds (`3/25`), the `○`/`●` dot and the `◆ n` marker are gone from the bar. On a narrow terminal the modes leave the badge first.
+
 ## 0.3.0
 
 - **Modes changed.** `#plan` and `#build` are gone. The built-in modes are `#subagents` (the agent starts subagents and has no file, shell, web or MCP access), `#brainstorm` (only the prompt changes; it writes one spec in `.report/specs/`) and `#goal`. Pick a mode from the menu; `#none` clears them. A set of modes replaces the one before. The set stays with the session ([docs/modes.md](docs/modes.md)).

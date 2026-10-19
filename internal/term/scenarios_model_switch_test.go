@@ -60,7 +60,7 @@ func TestParallelSessions(t *testing.T) {
 	s.Cmd("new")
 	s.Say("quick-two")
 	s.WaitFor("answer-two")
-	s.WaitFor("1 running")
+	s.WaitFor("| 1x◆")
 	s.Cmd("sessions")
 	s.WaitFor("slow-one")
 	s.WaitFor("quick-two")

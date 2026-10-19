@@ -66,12 +66,12 @@ func TestVisualReferenceBottom(t *testing.T) {
 	if got := ui.TextWidth(row[:index]); got != (112-ui.TextWidth(center))/2 {
 		t.Fatalf("center at %d: %s", got, row)
 	}
-	if !strings.Contains(row, "○ gpt-5.5 (high)") {
-		t.Fatal(row)
+	if !strings.Contains(row, "gpt-5.5 (high)") || strings.ContainsAny(row, "○●◆") {
+		t.Fatal("idle bar shows the model only on the right:", row)
 	}
 	a.st.Running = true
 	a.draw()
-	if !strings.Contains(visualRow(s, 35), "● gpt-5.5 (high)") {
+	if !strings.Contains(visualRow(s, 35), "1x◆") {
 		t.Fatal("running activity not indicated")
 	}
 	exportVisual(t, s, "main")

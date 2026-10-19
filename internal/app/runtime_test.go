@@ -98,7 +98,7 @@ func TestTwoSessionsRunConcurrently(t *testing.T) {
 	if !second.Unseen || first.Unseen {
 		t.Fatal("a turn finished in the background must be flagged unseen")
 	}
-	if sum, _ := a.sessionsSummary(); sum != "◉ 1 done" {
+	if sum := joinSegText(a.statusGroups()); sum != " 1x◆ | 1◉" {
 		t.Fatalf("summary %q", sum)
 	}
 	cl.open("alpha")
@@ -117,7 +117,7 @@ func TestTwoSessionsRunConcurrently(t *testing.T) {
 	if second.Unseen {
 		t.Fatal("viewing clears the flag")
 	}
-	if sum, _ := a.sessionsSummary(); sum != "" {
+	if sum := joinSegText(a.statusGroups()); sum != "" {
 		t.Fatalf("summary %q", sum)
 	}
 }
@@ -138,12 +138,12 @@ func TestSessionsDialogShowsLiveStatuses(t *testing.T) {
 	if g, _ := first.status().glyph(); g != "●" {
 		t.Fatal("running glyph")
 	}
-	if sum, _ := a.sessionsSummary(); sum != "● 1 running" {
+	if sum := joinSegText(a.statusGroups()); sum != " | 1x◆" {
 		t.Fatalf("summary %q", sum)
 	}
 	a.closeOverlay()
 	a.draw()
-	if text := screenText(scr); !strings.Contains(text, "● 1 running") {
+	if text := screenText(scr); !strings.Contains(text, "| 1x◆") {
 		t.Fatalf("status bar lacks the summary:\n%s", text)
 	}
 	// Enter opens the running session without stopping it.
@@ -185,8 +185,8 @@ func TestBackgroundQuestionWaitsAndIsAnswerableAfterSwitching(t *testing.T) {
 	if g, _ := asker.status().glyph(); g != "?" || asker.status() != statusAsk {
 		t.Fatal("waiting glyph")
 	}
-	if sum, _ := a.sessionsSummary(); sum != "? 1 waiting" {
-		t.Fatalf("summary %q", sum)
+	if sum := joinSegText(a.statusGroups()); strings.Contains(sum, "waiting") || strings.Contains(sum, "?") {
+		t.Fatalf("a waiting session is not shown in the bar: %q", sum)
 	}
 	a.draw()
 	if strings.Contains(screenText(scr), "agent asks") {

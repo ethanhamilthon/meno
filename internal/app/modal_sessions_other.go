@@ -1,8 +1,6 @@
 package app
 
 import (
-	"strings"
-
 	"github.com/gdamore/tcell/v2"
 
 	"meno/internal/ui"
@@ -25,26 +23,6 @@ func (a *App) otherSessions() (running, waiting, done int) {
 		}
 	}
 	return running, waiting, done
-}
-
-// sessionsSummary is the status-bar text about the other sessions, "" when
-// none of them is active.
-func (a *App) sessionsSummary() (string, tcell.Color) {
-	running, waiting, done := a.otherSessions()
-	var parts []string
-	color := ui.Blue
-	if running > 0 {
-		parts = append(parts, "● "+itoa(running)+" running")
-		color = dimOr(blinkOn(), ui.Green)
-	}
-	if waiting > 0 {
-		parts = append(parts, "? "+itoa(waiting)+" waiting")
-		color = ui.Orange
-	}
-	if done > 0 {
-		parts = append(parts, "◉ "+itoa(done)+" done")
-	}
-	return strings.Join(parts, " · "), color
 }
 
 func dimOr(on bool, c tcell.Color) tcell.Color {
