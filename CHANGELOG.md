@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add local `meno read`, `edit`, `write`, and `search` commands, embedded CLI help, and a typed command API for daemon-backed groups.
+
 - **The composer is transparent and identifies the session.** Its top row is a `─` rule with the session name at the right, clipped to 30% of the terminal width; untitled sessions show their working-directory name (or `~` in the home directory).
 - Trim answered tool output above 1 KB while preserving the stored result.
 - Rebuild the system prompt when mode policy changes; add gated voice, method, editing, verification and output sections.

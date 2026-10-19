@@ -19,7 +19,7 @@ func TestVersionAndHelp(t *testing.T) {
 		}
 	}
 	for _, flag := range []string{"-h", "--help", "help"} {
-		if code, out, _ := runCLI(flag); code != 0 || !strings.Contains(out, "meno update") {
+		if code, out, _ := runCLI(flag); code != 0 || !strings.Contains(out, "meno <command>") {
 			t.Fatalf("%s: %d %q", flag, code, out)
 		}
 	}
@@ -27,7 +27,7 @@ func TestVersionAndHelp(t *testing.T) {
 
 func TestUnknownCommandFails(t *testing.T) {
 	code, out, errOut := runCLI("load")
-	if code != 1 || out != "" || !strings.Contains(errOut, `unknown command "load"`) || !strings.Contains(errOut, "meno -h") {
+	if code != 1 || out != "" || !strings.Contains(errOut, `unknown command "load"`) || !strings.Contains(errOut, "Run 'meno -h'") {
 		t.Fatalf("%d %q %q", code, out, errOut)
 	}
 	if code, _, errOut := runCLI("update", "now"); code != 1 || !strings.Contains(errOut, "meno -h") {
