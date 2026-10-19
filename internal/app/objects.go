@@ -4,6 +4,7 @@ import (
 	"strings"
 	"sync"
 
+	"meno/internal/modes"
 	"meno/internal/objtag"
 )
 
@@ -100,11 +101,35 @@ func labelText(rs []rune) string {
 // messageText is the composer content as the message text.
 func (a *App) messageText() string { return externalText(a.st.Input) }
 
+// objectKind maps a completion sigil to the kind of object it selects.
+func objectKind(sigil rune) (objtag.Kind, bool) {
+	switch sigil {
+	case kindSkill:
+		return objtag.Skill, true
+	case kindMode:
+		return objtag.Mode, true
+	}
+	return "", false
+}
+
+// objectKnown says whether a skill or mode tag may become an input object: the
+// skill must be enabled and the mode must exist. Files and folders always may.
+func (a *App) objectKnown(k objtag.Kind, ref string) bool {
+	switch k {
+	case objtag.Skill:
+		return a.skillEnabled(ref)
+	case objtag.Mode:
+		_, ok := modes.Find(a.modeCatalog(), ref)
+		return ok
+	}
+	return true
+}
+
 // runesFromText restores a message text into composer runes; only well-formed
 // tags of available skills and absolute paths become objects.
 func (a *App) runesFromText(text string) []rune {
 	var out []rune
-	for _, s := range objtag.Split(text, a.skillEnabled) {
+	for _, s := range objtag.Split(text, a.objectKnown) {
 		if s.Obj == nil {
 			out = append(out, dropUnknownObjects([]rune(s.Text))...)
 			continue

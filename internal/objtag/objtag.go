@@ -16,7 +16,12 @@ const (
 	File   Kind = "file"
 	Folder Kind = "folder"
 	Skill  Kind = "skill"
+	Mode   Kind = "mode"
 )
+
+// Check says whether a skill or mode reference may stay an object: it is the
+// caller's list of what is known (nil accepts any name).
+type Check func(k Kind, ref string) bool
 
 // Object is a fixed reference. For files and folders Ref is an absolute path,
 // exactly as picked (symlinks are not resolved); for a skill it is its name.
@@ -33,6 +38,8 @@ func (o Object) Tag() string {
 	switch o.Kind {
 	case Skill:
 		return "<skill>" + esc(o.Ref) + "</skill>"
+	case Mode:
+		return "<mode>" + esc(o.Ref) + "</mode>"
 	case Folder:
 		return "<folder-link>" + esc(o.Ref) + "</folder-link>"
 	}
@@ -44,6 +51,8 @@ func (o Object) Label() string {
 	switch o.Kind {
 	case Skill:
 		return "/" + o.Ref
+	case Mode:
+		return "#" + o.Ref
 	case Folder:
 		return "@" + filepath.Base(o.Ref) + "/"
 	}
@@ -63,14 +72,15 @@ var kinds = []struct {
 	{"<file-link>", "</file-link>", File},
 	{"<folder-link>", "</folder-link>", Folder},
 	{"<skill>", "</skill>", Skill},
+	{"<mode>", "</mode>", Mode},
 }
 
 // Split cuts text into plain runs and objects. Only well-formed, complete tags
 // qualify: file and folder paths must be absolute and single-line, and a skill
-// must pass skillOK (nil accepts any name). Tags inside code spans or fences,
+// or mode must pass ok (nil accepts any name). Tags inside code spans or fences,
 // and anything relative, malformed or unclosed, stay plain text. Untagged paths
 // and /names are always plain.
-func Split(text string, skillOK func(name string) bool) []Segment {
+func Split(text string, ok Check) []Segment {
 	var segs []Segment
 	start := 0
 	flush := func(end int) {
@@ -91,7 +101,7 @@ func Split(text string, skillOK func(name string) bool) []Segment {
 			inSpan = false
 		}
 		if text[i] == '<' && !inFence && !inSpan {
-			if o, n, ok := tagAt(text[i:], skillOK); ok {
+			if o, n, found := tagAt(text[i:], ok); found {
 				flush(i)
 				segs = append(segs, Segment{Obj: &o})
 				i += n
@@ -105,7 +115,7 @@ func Split(text string, skillOK func(name string) bool) []Segment {
 	return segs
 }
 
-func tagAt(s string, skillOK func(string) bool) (Object, int, bool) {
+func tagAt(s string, ok Check) (Object, int, bool) {
 	for _, k := range kinds {
 		if !strings.HasPrefix(s, k.open) {
 			continue
@@ -118,11 +128,11 @@ func tagAt(s string, skillOK func(string) bool) (Object, int, bool) {
 		if ref == "" || strings.ContainsAny(ref, "\n\r") {
 			return Object{}, 0, false
 		}
-		if k.kind == Skill {
-			if skillOK != nil && !skillOK(ref) {
+		if k.kind == File || k.kind == Folder {
+			if !filepath.IsAbs(ref) {
 				return Object{}, 0, false
 			}
-		} else if !filepath.IsAbs(ref) {
+		} else if ok != nil && !ok(k.kind, ref) {
 			return Object{}, 0, false
 		}
 		return Object{k.kind, ref}, end + len(k.close), true

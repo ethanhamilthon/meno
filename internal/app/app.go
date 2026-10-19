@@ -112,7 +112,6 @@ func New(scr tcell.Screen, paths config.Paths, client func(llm.Provider) llm.Cli
 	// One empty session in the launch directory; sessions of earlier runs are
 	// only opened on request (:sessions).
 	a.st.Runtime = a.newRuntime(a.newAgentSession(paths.Cwd), paths.Cwd)
-	a.reloadModes()
 	a.reportWarnings()
 	return a, nil
 }
@@ -240,8 +239,6 @@ func (a *App) handle(msg any) {
 		a.onModelsLoaded(m)
 	case accountsLoaded, oauthRefreshed, flowStep, flowLogin, flowDone:
 		a.onLoginEvent(m)
-	case nextMode:
-		a.onNextMode(m)
 	case compactDone:
 		a.inRT(m.sid, func() {
 			if m.err == nil {
@@ -256,7 +253,7 @@ func (a *App) handle(msg any) {
 		a.inRT(m.sid, func() { a.onPrepared(m.p) })
 	case turnDone:
 		a.inRT(m.sid, func() {
-			a.onModeEnd(m.err) // before onTurnDone, which may start the next request and replace the mode
+			a.onGoalEnd(m.err) // before onTurnDone, which may start the next request and replace the goal
 			a.onTurnDone(m.err)
 		})
 		a.markUnseen(m.sid)

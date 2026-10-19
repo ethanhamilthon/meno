@@ -3,6 +3,8 @@ package app
 import (
 	"strings"
 	"unicode"
+
+	"meno/internal/modes"
 )
 
 // Skill (/name) references can appear anywhere in the input,
@@ -63,8 +65,7 @@ func (a *App) inputTokens() []tokSpan {
 			continue
 		}
 		name := string(in[i+1 : e])
-		ok := name != "" && (in[i] == kindSkill && a.skillEnabled(name) ||
-			in[i] == kindMode && firstWord(in, i) && a.modeKnown(strings.ToLower(name)))
+		ok := name != "" && (in[i] == kindSkill && a.skillEnabled(name))
 		if ok {
 			out = append(out, tokSpan{i, e, in[i], name})
 		}
@@ -127,13 +128,13 @@ func (a *App) acMatches() []acItem {
 			}
 		}
 	case kindMode:
-		if !firstWord(a.st.Input, t.start) {
-			break
-		}
-		for _, m := range a.st.Modes {
+		for _, m := range a.modeCatalog() {
 			if strings.HasPrefix(m.Name, t.prefix) {
 				out = append(out, acItem{kindMode, m.Name, m.Description})
 			}
+		}
+		if strings.HasPrefix(modes.Control, t.prefix) {
+			out = append(out, acItem{kindMode, modes.Control, "clear the modes of this session"})
 		}
 	}
 	return out

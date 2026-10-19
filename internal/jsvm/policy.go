@@ -1,21 +1,24 @@
 package jsvm
 
-import (
-	"errors"
-	"fmt"
-)
+import "github.com/dop251/goja"
 
-// Policy limits what the code of a run may do. The zero value allows all. The
-// mode of a request sets it before the first call.
+// Policy says which of meno's tool globals a run keeps. A mode sets it before
+// the first call of a request; the runtime is built with it (see restrict).
 type Policy struct {
-	// ReadOnly refuses fs.write, fs.patch and fs.edit, runs sh in a read-only
-	// sandbox, and turns off tasks.start and agents.spawn.
-	ReadOnly bool
-	// Why names the mode in the error the model reads, for example "plan mode".
-	Why string
+	// Only lists the tool globals the run keeps. Nil keeps all of them. The
+	// JavaScript language itself (Math, JSON, ...) is never removed.
+	Only []string
 }
 
-// SetPolicy sets the policy for the following calls.
+// ToolGlobals are the globals meno adds to the runtime. A policy removes the
+// ones it does not keep.
+var ToolGlobals = []string{
+	"fs", "sh", "view", "websearch", "tasks", "agents", "session", "mcp", "mcpTools",
+	"mcpResults", "mcpServers", "goal", "help", "askUser", "hash", "path", "base64", "btoa", "atob",
+}
+
+// SetPolicy sets the policy for the following calls. It takes effect when the
+// runtime is built, which the next request does (see Reset).
 func (v *VM) SetPolicy(p Policy) { v.policy.Store(&p) }
 
 func (v *VM) currentPolicy() Policy {
@@ -25,23 +28,25 @@ func (v *VM) currentPolicy() Policy {
 	return Policy{}
 }
 
-// denied is the error for something the policy forbids.
-func (v *VM) denied(what string) error {
+// restrict removes the tool globals the policy does not keep. bind calls it
+// last, so no call of the run sees a global its mode does not allow.
+func (v *VM) restrict(rt *goja.Runtime) {
 	p := v.currentPolicy()
-	why := p.Why
-	if why == "" {
-		why = "this mode"
+	if p.Only == nil {
+		return
 	}
-	return fmt.Errorf("%s is not available in %s: it is read-only. Describe the change in your answer instead", what, why)
+	keep := make(map[string]bool, len(p.Only))
+	for _, n := range p.Only {
+		keep[n] = true
+	}
+	g := rt.GlobalObject()
+	for _, n := range ToolGlobals {
+		if !keep[n] {
+			_ = g.Delete(n)
+		}
+	}
 }
 
-// writable returns an error when the policy makes the run read-only.
-func (v *VM) writable(what string) error {
-	if v.currentPolicy().ReadOnly {
-		return v.denied(what)
-	}
-	return nil
-}
-
-// errNoSandbox means a read-only run needs a sandbox for sh and there is none.
-var errNoSandbox = errors.New("sh is not available in a read-only mode on this system: it has no sandbox tool (sandbox-exec or bwrap). Use fs.read, fs.search and fs.glob")
+// Only is the list of tool globals the current policy keeps, nil when it keeps
+// them all. The description of the js tool follows it (prompt.ToolDescriptionFor).
+func (v *VM) Only() []string { return v.currentPolicy().Only }

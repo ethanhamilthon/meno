@@ -5,83 +5,51 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 )
 
-func readOnlyVM(t *testing.T) (*VM, string) {
-	t.Helper()
+func TestPolicyRemovesToolGlobals(t *testing.T) {
 	v := newVM(t)
-	v.SetPolicy(Policy{ReadOnly: true, Why: "plan mode"})
-	return v, v.Root()
+	v.SetPolicy(Policy{Only: []string{"agents", "goal", "askUser", "help", "hash"}})
+	r := ex(t, v, "[typeof fs, typeof sh, typeof view, typeof tasks, typeof mcp, typeof hash, typeof Math].join(',')")
+	if r.Err != "" || r.Value != "undefined,undefined,undefined,undefined,undefined,function,object" {
+		t.Fatalf("%+v", r)
+	}
+	if r := ex(t, v, "fs.read('x')"); r.Err == "" {
+		t.Fatalf("a removed global must fail as an unknown name: %+v", r)
+	}
 }
 
-func TestReadOnlyRefusesWritesButAllowsReads(t *testing.T) {
-	v, root := readOnlyVM(t)
-	if err := os.WriteFile(filepath.Join(root, "a.txt"), []byte("one"), 0o644); err != nil {
-		t.Fatal(err)
+func TestPolicyNilKeepsEverything(t *testing.T) {
+	v := newVM(t)
+	v.SetPolicy(Policy{})
+	if r := ex(t, v, "typeof fs + typeof sh + typeof tasks"); r.Err != "" || r.Value != "objectfunctionundefined" {
+		t.Fatalf("%+v", r)
 	}
-	for _, code := range []string{
-		"fs.write('b.txt', 'x')",
-		"fs.write('a.txt', 'x', {overwrite: true})",
-		"fs.edit('a.txt', 'one', 'two')",
-		"fs.patch('a.txt', [{oldText: 'one', newText: 'two'}])",
-	} {
-		r := ex(t, v, code)
-		if !strings.Contains(r.Err, "not available in plan mode") {
-			t.Errorf("%s: %+v", code, r)
-		}
-	}
-	if b, _ := os.ReadFile(filepath.Join(root, "a.txt")); string(b) != "one" {
-		t.Fatalf("the file changed: %q", b)
-	}
-	if _, err := os.Stat(filepath.Join(root, "b.txt")); err == nil {
-		t.Fatal("a file was created")
-	}
-	if r := ex(t, v, "fs.read('a.txt') + fs.glob('*.txt').length + fs.exists('a.txt')"); r.Err != "" || r.Value != "one1true" {
-		t.Fatalf("reads must work: %+v", r)
+}
+
+func TestPolicyAppliesToTheFreshRuntime(t *testing.T) {
+	v := newVM(t)
+	v.SetPolicy(Policy{Only: []string{"hash"}})
+	ex(t, v, "var x = 1")
+	v.Reset()
+	if r := ex(t, v, "typeof fs"); r.Err != "" || r.Value != "undefined" {
+		t.Fatalf("the restriction must hold after Reset: %+v", r)
 	}
 	v.SetPolicy(Policy{})
-	if r := ex(t, v, "fs.write('b.txt', 'x'); fs.read('b.txt')"); r.Err != "" || r.Value != "x" {
-		t.Fatalf("the policy must be liftable: %+v", r)
+	v.Reset()
+	if r := ex(t, v, "fs.write('p-test.txt', 'x'); fs.read('p-test.txt')"); r.Err != "" || r.Value != "x" {
+		t.Fatalf("lifting the policy must restore fs: %+v", r)
 	}
 }
 
-func TestReadOnlyShellCannotWriteButCanRead(t *testing.T) {
-	// The directory must be outside the temporary ones, which stay writable.
-	dir, err := os.MkdirTemp(".", "sandbox-*")
-	if err != nil {
-		t.Fatal(err)
+func TestShellWorksWithoutAPolicy(t *testing.T) {
+	dir := t.TempDir()
+	v := New(Options{Root: dir})
+	if r := ex(t, v, "sh('echo ok > a.txt; cat a.txt').stdout"); r.Err != "" || strings.TrimSpace(r.Value) != "ok" {
+		t.Fatalf("%+v", r)
 	}
-	root, _ := filepath.Abs(dir)
-	t.Cleanup(func() { os.RemoveAll(root) })
-	v := New(Options{Root: root, Timeout: 5 * time.Second})
-	v.SetPolicy(Policy{ReadOnly: true, Why: "plan mode"})
-	if _, _, ok := readOnlyCommand("true"); !ok {
-		r := ex(t, v, "sh('echo hi')")
-		if !strings.Contains(r.Err, "no sandbox") {
-			t.Fatalf("without a sandbox sh must refuse, got %+v", r)
-		}
-		t.Skip("no sandbox tool on this system")
-	}
-	if err := os.WriteFile(filepath.Join(root, "a.txt"), []byte("one"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	r := ex(t, v, "sh('cat a.txt').stdout")
-	if r.Err != "" || strings.TrimSpace(r.Value) != "one" {
-		t.Fatalf("reading in the sandbox: %+v", r)
-	}
-	r = ex(t, v, "var w = sh('echo changed > a.txt; echo more > new.txt'); w.code")
-	if r.Err != "" || r.Value == "0" {
-		t.Fatalf("a write must fail: %+v", r)
-	}
-	if b, _ := os.ReadFile(filepath.Join(root, "a.txt")); string(b) != "one" {
-		t.Fatalf("the sandbox let a file change: %q", b)
-	}
-	if _, err := os.Stat(filepath.Join(root, "new.txt")); err == nil {
-		t.Fatal("the sandbox let a file appear")
-	}
-	if r := ex(t, v, "sh('echo ok > \"$TMPDIR/meno-ro-probe\" && cat \"$TMPDIR/meno-ro-probe\"').stdout"); r.Err != "" || !strings.Contains(r.Value, "ok") {
-		t.Fatalf("temporary files must stay writable: %+v", r)
+	if b, _ := os.ReadFile(filepath.Join(dir, "a.txt")); strings.TrimSpace(string(b)) != "ok" {
+		t.Fatalf("the file: %q", b)
 	}
 }
 

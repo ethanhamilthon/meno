@@ -63,9 +63,6 @@ func (v *VM) bindAgents() {
 		return
 	}
 	_ = obj.Set("spawn", func(c goja.FunctionCall) goja.Value {
-		if err := v.writable("agents.spawn"); err != nil {
-			panic(rt.NewGoError(err))
-		}
 		o := optsArg(rt, c.Arguments, 0)
 		checkKeys(rt, "agents.spawn", o, "task", "cwd", "provider", "model", "effort")
 		return check(h.Spawn(call(o), o))

@@ -92,3 +92,24 @@ func TestGoalVerdictNeedsText(t *testing.T) {
 		t.Fatal("no verdict yet")
 	}
 }
+
+func TestGoalDoesNotNudgeWhileSubagentsWork(t *testing.T) {
+	cl := &timeoutClient{}
+	g := NewGoal(5)
+	r, s, _ := goalRunner(t, cl, g)
+	waiting := true
+	r.D.Waiting = func() bool { return waiting }
+	if err := r.Turn(context.Background(), s, "delegate it"); err != nil {
+		t.Fatal(err)
+	}
+	if nudges(s) != 0 || len(cl.reqs) != 1 {
+		t.Fatalf("a run that waits for subagents ends without a nudge: requests %d nudges %d", len(cl.reqs), nudges(s))
+	}
+	waiting = false
+	if err := r.Continue(context.Background(), s); err != nil {
+		t.Fatal(err)
+	}
+	if nudges(s) == 0 {
+		t.Fatal("once nothing is pending the goal nudges again")
+	}
+}

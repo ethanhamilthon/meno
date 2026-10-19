@@ -68,9 +68,6 @@ func (v *VM) bindTasks() {
 	}
 	obj := rt.NewObject()
 	_ = obj.Set("start", func(c goja.FunctionCall) goja.Value {
-		if err := v.writable("tasks.start"); err != nil {
-			panic(rt.NewGoError(err))
-		}
 		cmd := strArg(rt, c.Arguments, 0, "command")
 		o := optsArg(rt, c.Arguments, 1)
 		checkKeys(rt, "tasks.start", o, "cwd", "env", "name", "timeout", "notify")

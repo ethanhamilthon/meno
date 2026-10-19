@@ -1,6 +1,10 @@
 package prompt
 
-import "strings"
+import (
+	"strings"
+
+	"meno/internal/jsvm"
+)
 
 // Everything about writing js lives in the description of the js tool, not in
 // the system prompt: providers show the model the tool definition next to the
@@ -46,4 +50,30 @@ func ToolDescription(subagent bool) string {
 	}
 	parts = append(parts, toolMCP)
 	return strings.Join(parts, "\n\n")
+}
+
+// ToolDescriptionFor is the description of the js tool when a mode keeps only
+// the globals in only (nil keeps them all). The description then names what is
+// left and says what is gone, so the model does not reach for it.
+func ToolDescriptionFor(subagent bool, only []string) string {
+	base := ToolDescription(subagent)
+	if only == nil {
+		return base
+	}
+	keep := map[string]bool{}
+	for _, n := range only {
+		keep[n] = true
+	}
+	var gone []string
+	for _, n := range jsvm.ToolGlobals {
+		if !keep[n] {
+			gone = append(gone, n)
+		}
+	}
+	left := []string{}
+	for _, n := range only {
+		left = append(left, n)
+	}
+	return base + "\n\nThis request runs in a restricted mode. These globals are not available and fail with ReferenceError: " +
+		strings.Join(gone, ", ") + ". Only these remain: " + strings.Join(left, ", ") + "."
 }

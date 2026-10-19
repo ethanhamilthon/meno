@@ -7,7 +7,6 @@ import (
 
 	"meno/internal/agent"
 	"meno/internal/llm"
-	"meno/internal/modes"
 	"meno/internal/prompt"
 	"meno/internal/safe"
 )
@@ -20,8 +19,10 @@ func (a *App) submit() {
 	if text == "" {
 		return
 	}
-	if m, rest, ok := modes.Parse(text, a.st.Modes); ok && rest == "" && m.Default == "" && len(a.st.Images) == 0 {
-		a.notify("usage: #" + m.Name + " <what to do>")
+	if names, rest, tagged := a.messageModes(text); tagged && rest == "" && len(a.st.Images) == 0 {
+		a.setModes(names)
+		a.notify(modesNotice(a.st.Session.Modes))
+		a.clearDraft()
 		return
 	}
 	msg := a.draftMessage(text)
@@ -35,9 +36,10 @@ func (a *App) submit() {
 		}
 	}
 	if a.st.Running {
-		if m, rest, ok := modes.Parse(msg.Text, a.st.Modes); ok {
-			msg.Text = rest // a mode starts a request; this message only steers the running one
-			a.notify("#" + m.Name + " applies to a new request · sent as a plain message")
+		if names, rest, tagged := a.messageModes(msg.Text); tagged {
+			msg.Text = rest // the modes apply from the next request; this message steers the running one
+			a.notify("modes apply to the next request · " + modesNotice(names))
+			a.setModes(names)
 		}
 		// Steering: the runner picks it up before its next request to the model.
 		a.st.Queue.Push(msg)
@@ -67,16 +69,12 @@ func (a *App) startTurn(msg agent.Message) {
 		return
 	}
 	cont := msg.Text == "" && len(msg.Attachments) == 0 // a continuation: events woke an idle session
-	var mode modes.Mode
 	if !cont {
-		if m, rest, ok := modes.Parse(msg.Text, a.st.Modes); ok {
-			if rest == "" {
-				rest = m.Default
-			}
-			mode, msg.Text = m, rest
+		if names, rest, tagged := a.messageModes(msg.Text); tagged {
+			a.setModes(names)
+			msg.Text = rest
 		}
 	}
-	previousMode := lastUserMode(a.st.Session)
 	ctx, cancel := context.WithCancel(context.Background())
 	a.mu.Lock()
 	a.st.cancel = cancel
@@ -93,33 +91,36 @@ func (a *App) startTurn(msg agent.Message) {
 		// The js state lasts for one answer: a new request starts with a clean runtime.
 		a.st.VM.Reset()
 		a.st.Spawned = 0
-		a.applyMode(mode)
+	}
+	// The modes of the session hold for a continuation too: the policy is set
+	// again, because a restarted meno has a fresh runtime without one. A goal is
+	// only built for a new request, so its rounds are not reset by a wake-up.
+	if cont {
+		a.restrictVM()
+	} else {
+		a.applyModes()
 	}
 	sess, sid := a.st.Session, a.st.Session.ID
 	prov, model, effort := a.selection()
 	effort = llm.ClampEffort(a.effortsFor(prov, model), effort) // the model may not take the stored level
 	// Stamp the session: from now on it keeps this model, whatever the default becomes.
 	sess.Provider, sess.Model, sess.Effort = prov, model, effort
-	runEffort := effort // a mode may ask for more thinking for this request only
-	if !cont && a.st.RunMode.Effort != "" {
-		runEffort = llm.ClampEffort(a.effortsFor(prov, model), a.st.RunMode.Effort)
-	}
 	block := ""
 	if !cont {
-		block = modeBlock(mode, previousMode)
+		block = a.st.RunModes.Text
 	}
 	idx := sess.Len()
 	hasHistory := idx > 0 || sess.Summary != ""
 	if !cont {
-		sess.Append(agent.Turn{Role: llm.RoleUser, Text: msg.Text, Attachments: msg.Attachments, Mode: mode.Name})
+		sess.Append(agent.Turn{Role: llm.RoleUser, Text: msg.Text, Attachments: msg.Attachments, Mode: strings.Join(a.st.Session.Modes, " ")})
 	}
 	// Everything the goroutine needs is captured here; it must not touch a.st.
 	src, ps := a.worldSrc(), a.st.Prompt
 	d := agent.Deps{
 		Client: a.client(p), Provider: p, Model: model,
-		Effort: runEffort, Goal: a.st.RunGoal, Queue: &a.st.Queue, Cost: a.pricer(p, model),
+		Effort: effort, Goal: a.st.RunGoal, Waiting: func() bool { return a.waitingSubagents(sid) }, Queue: &a.st.Queue, Cost: a.pricer(p, model),
 		Events: a.eventSource(sid), AutoCompact: a.autoCompact(p, model), DebugPayload: a.debugPayload(),
-		VM: a.st.VM, Thinking: a.st.Settings.Thinking != "off", ModelTimeout: a.st.Settings.ModelTimeout(), ToolDesc: prompt.ToolDescription(false),
+		VM: a.st.VM, Thinking: a.st.Settings.Thinking != "off", ModelTimeout: a.st.Settings.ModelTimeout(), ToolDesc: prompt.ToolDescriptionFor(false, a.st.VM.Only()),
 		Emit:  func(e agent.Ev) { a.postEvent(agentEv{sid: sid, ev: e}) },
 		Retry: a.providerRetry(p),
 	}

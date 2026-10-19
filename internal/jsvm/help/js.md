@@ -12,4 +12,4 @@ The js tool runs JavaScript in a runtime that lives for your current answer. Var
 - console.log(...) writes to the call output.
 - There is no fetch, URL, URLSearchParams or env global. For another HTTP API use sh(curl ...).
 - Relative paths resolve against the working directory.
-- In a read-only mode such as #plan, fs.write, fs.patch and fs.edit, tasks.start and agents.spawn are refused, and sh runs in a sandbox that cannot change files. The error says so; describe the change in your answer instead.
+- In a mode such as #subagents some globals are removed (for example fs, sh, tasks, mcp): a name you do not have fails with ReferenceError. The description of the js tool lists what is left.

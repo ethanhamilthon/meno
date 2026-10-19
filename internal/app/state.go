@@ -7,7 +7,6 @@ import (
 	"meno/internal/config"
 	"meno/internal/llm"
 	"meno/internal/mcp"
-	"meno/internal/modes"
 	"meno/internal/ui"
 )
 
@@ -97,7 +96,6 @@ type State struct {
 
 	// Login (:login): the OAuth accounts of the local helper, the running
 	// login, and the entry waiting for a second press of d to be removed.
-	Modes       []modes.Mode // #plan, #build, #goal and the user's own
 	Accounts    []cliproxy.Account
 	AccountsErr string
 	LoginDel    string

@@ -1,8 +1,7 @@
 package app
 
 import (
-	"os"
-	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -10,13 +9,9 @@ import (
 
 	"meno/internal/agent"
 	"meno/internal/llm"
+	"meno/internal/modes"
+	"meno/internal/objtag"
 )
-
-func sayMode(t *testing.T, a *App, text string) {
-	t.Helper()
-	typeRunes(a, text)
-	a.onKey(keyK(tcell.KeyEnter))
-}
 
 func outputOf(a *App, id string) string {
 	for _, tr := range a.st.Session.Snapshot() {
@@ -37,85 +32,103 @@ func userTurns(a *App) []agent.Turn {
 	return out
 }
 
-func TestPlanIsReadOnlyThenOffersBuild(t *testing.T) {
+func TestModesReplaceAsASetAndStayUntilChanged(t *testing.T) {
 	cl := &scriptedClient{turns: [][]llm.Event{
-		{{Kind: llm.EvTool, CallID: "c1", Code: "fs.write('x.txt', '1')"}},
-		{{Kind: llm.EvText, Text: "the plan"}, {Kind: llm.EvDone}},
-		{{Kind: llm.EvTool, CallID: "c2", Code: "fs.write('x.txt', '1'); 'written'"}},
-		{{Kind: llm.EvText, Text: "built"}, {Kind: llm.EvDone}},
-	}}
-	a, scr, paths := e2eApp(t, cl)
-	defer scr.Fini()
-
-	sayMode(t, a, "#plan add x.txt")
-	pump(t, a, func() bool { return a.st.Ask != nil })
-	if out := outputOf(a, "c1"); !strings.Contains(out, "not available in plan mode") {
-		t.Fatalf("a write in plan mode must be refused: %q", out)
-	}
-	if _, err := os.Stat(filepath.Join(paths.Cwd, "x.txt")); err == nil {
-		t.Fatal("plan mode wrote a file")
-	}
-	first := userTurns(a)[0]
-	if first.Text != "add x.txt" || first.Mode != "plan" {
-		t.Fatalf("the tag is taken off the text and kept as the mode: %+v", first)
-	}
-	if !strings.Contains(a.st.Session.ToMsgs()[0].Text, "Mode: plan.") {
-		t.Fatalf("the model must be told the mode:\n%s", a.st.Session.ToMsgs()[0].Text)
-	}
-	if q := a.st.Ask.F.Questions[0]; !strings.Contains(q.Text, "plan is ready") || len(q.Options) != 2 || q.Options[0].Label != "Start #build" {
-		t.Fatalf("offer: %+v", q)
-	}
-
-	a.onKey(keyK(tcell.KeyEnter)) // the first option: start #build
-	pump(t, a, func() bool { return cl.left() == 0 && !a.st.Running })
-	if out := outputOf(a, "c2"); out != "written" {
-		t.Fatalf("build may write: %q", out)
-	}
-	if b, err := os.ReadFile(filepath.Join(paths.Cwd, "x.txt")); err != nil || string(b) != "1" {
-		t.Fatalf("x.txt: %q %v", b, err)
-	}
-	users := userTurns(a)
-	if len(users) != 2 || users[1].Mode != "build" || users[1].Text != "Carry out the plan above." {
-		t.Fatalf("%+v", users)
-	}
-}
-
-func TestPlainRequestAfterAModeSaysTheModeEnded(t *testing.T) {
-	cl := &scriptedClient{turns: [][]llm.Event{
-		{{Kind: llm.EvText, Text: "built"}, {Kind: llm.EvDone}},
-		{{Kind: llm.EvText, Text: "plain"}, {Kind: llm.EvDone}},
+		{{Kind: llm.EvText, Text: "one"}, {Kind: llm.EvDone}},
+		{{Kind: llm.EvTool, CallID: "g1", Code: "goal.done('shipped')"}},
+		{{Kind: llm.EvText, Text: "done"}, {Kind: llm.EvDone}},
+		{{Kind: llm.EvText, Text: "three"}, {Kind: llm.EvDone}},
 	}}
 	a, scr, _ := e2eApp(t, cl)
 	defer scr.Fini()
-	sayMode(t, a, "#build do it")
-	pump(t, a, func() bool { return !a.st.Running && a.st.Ask == nil })
-	sayMode(t, a, "and now just talk")
+	sayObj(t, a, "#subagents #brainstorm idea")
+	pump(t, a, func() bool { return !a.st.Running && cl.left() == 3 })
+	if got := a.st.Session.Modes; len(got) != 2 || got[0] != "subagents" || got[1] != "brainstorm" {
+		t.Fatalf("modes: %v", got)
+	}
+	sayObj(t, a, "#goal #subagents ship")
+	pump(t, a, func() bool { return !a.st.Running && cl.left() == 1 })
+	if got := a.st.Session.Modes; len(got) != 2 || got[0] != "goal" || got[1] != "subagents" {
+		t.Fatalf("a new set replaces the old one as a whole: %v", got)
+	}
+	sayObj(t, a, "a plain message")
 	pump(t, a, func() bool { return !a.st.Running && cl.left() == 0 })
-	msgs := a.st.Session.ToMsgs()
-	var second string
-	for _, m := range msgs {
-		if strings.Contains(m.Text, "and now just talk") {
-			second = m.Text
-		}
-	}
-	if !strings.Contains(second, "Mode: none") || !strings.Contains(second, "(build)") {
-		t.Fatalf("the second request must end the mode:\n%s", second)
-	}
-	if strings.Contains(msgs[0].Text, "Mode: none") {
-		t.Fatal("the first request has no earlier mode to end")
+	if got := a.st.Session.Modes; len(got) != 2 || got[0] != "goal" {
+		t.Fatalf("a message without modes keeps the set: %v", got)
 	}
 }
 
-func TestBareModeWithoutATaskKeepsTheDraft(t *testing.T) {
-	a, scr, _ := e2eApp(t, &scriptedClient{})
+func TestNoneClearsTheSetAndPlainTextIsNoMode(t *testing.T) {
+	cl := &scriptedClient{turns: [][]llm.Event{{{Kind: llm.EvText, Text: "ok"}, {Kind: llm.EvDone}}}}
+	a, scr, _ := e2eApp(t, cl)
 	defer scr.Fini()
-	sayMode(t, a, "#plan")
-	if a.st.Running || string(a.st.Input) != "#plan" {
-		t.Fatalf("running=%v draft=%q", a.st.Running, string(a.st.Input))
+	a.st.Session.Modes = []string{"goal"}
+	sayObj(t, a, "#none")
+	if len(a.st.Session.Modes) != 0 || a.st.Running {
+		t.Fatalf("#none clears the set without a request: %v", a.st.Session.Modes)
 	}
-	if !strings.Contains(a.lastNotice(), "usage: #plan") {
-		t.Fatalf("notice %q", a.lastNotice())
+	a.setInput([]rune("fix the #goal login typed by hand"))
+	a.onKey(keyK(tcell.KeyEnter))
+	pump(t, a, func() bool { return !a.st.Running && cl.left() == 0 })
+	if len(a.st.Session.Modes) != 0 {
+		t.Fatalf("a typed #goal is text, not a mode: %v", a.st.Session.Modes)
 	}
+}
+
+func TestModeIsSentInTheModelPromptAndLimitsTheRun(t *testing.T) {
+	cl := &scriptedClient{turns: [][]llm.Event{
+		{{Kind: llm.EvTool, CallID: "c1", Code: "typeof fs"}},
+		{{Kind: llm.EvText, Text: "done"}, {Kind: llm.EvDone}},
+	}}
+	a, scr, _ := e2eApp(t, cl)
+	defer scr.Fini()
+	sayObj(t, a, "#subagents split this")
+	pump(t, a, func() bool { return !a.st.Running && cl.left() == 0 })
+	if out := outputOf(a, "c1"); !strings.Contains(out, "undefined") {
+		t.Fatalf("subagents has no fs: %q", out)
+	}
+	if !strings.Contains(a.st.Session.ToMsgs()[0].Text, "Mode: subagents.") {
+		t.Fatalf("the model is told the mode:\n%s", a.st.Session.ToMsgs()[0].Text)
+	}
+}
+
+func TestModeSurvivesARestartOfTheApp(t *testing.T) {
+	cl := &scriptedClient{turns: [][]llm.Event{{{Kind: llm.EvText, Text: "ok"}, {Kind: llm.EvDone}}}}
+	a, scr, paths := e2eApp(t, cl)
+	defer scr.Fini()
+	sayObj(t, a, "#brainstorm plan it")
+	pump(t, a, func() bool { return !a.st.Running && cl.left() == 0 })
+	if err := agent.SaveSession(paths.Home, a.st.Session); err != nil {
+		t.Fatal(err)
+	}
+	s, err := agent.LoadSession(paths.Home, a.st.Session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(s.Modes) != 1 || s.Modes[0] != "brainstorm" {
+		t.Fatalf("the set is kept with the session: %v", s.Modes)
+	}
+}
+
+// sayObj sends a message whose modes are picked from the menu: each #name
+// becomes an object, as acAccept makes it. Other words are typed as they are.
+func sayObj(t *testing.T, a *App, text string) {
+	t.Helper()
+	var rs []rune
+	for _, w := range strings.Split(text, " ") {
+		if name, ok := strings.CutPrefix(w, "#"); ok && name != "" {
+			r, ok := objectRune(objtag.Object{Kind: objtag.Mode, Ref: name})
+			if !ok {
+				t.Fatalf("no object for #%s", name)
+			}
+			rs = append(rs, r)
+		} else {
+			rs = append(rs, []rune(w)...)
+		}
+		rs = append(rs, ' ')
+	}
+	a.setInput(rs[:len(rs)-1])
+	a.onKey(keyK(tcell.KeyEnter))
 }
 
 func TestGoalKeepsGoingUntilTheAgentSaysDone(t *testing.T) {
@@ -126,7 +139,7 @@ func TestGoalKeepsGoingUntilTheAgentSaysDone(t *testing.T) {
 	}}
 	a, scr, _ := e2eApp(t, cl)
 	defer scr.Fini()
-	sayMode(t, a, "#goal make the tests pass")
+	sayObj(t, a, "#goal make the tests pass")
 	pump(t, a, func() bool { return !a.st.Running && cl.left() == 0 })
 	if a.st.RunGoal == nil {
 		t.Fatal("a goal run has a goal")
@@ -144,63 +157,59 @@ func TestGoalKeepsGoingUntilTheAgentSaysDone(t *testing.T) {
 
 func TestGoalWithoutAVerdictStopsAtTheLimit(t *testing.T) {
 	cl := &scriptedClient{}
-	for i := 0; i < 40; i++ {
+	for i := 0; i < modes.DefaultRounds+5; i++ {
 		cl.turns = append(cl.turns, []llm.Event{{Kind: llm.EvText, Text: "still on it"}, {Kind: llm.EvDone}})
 	}
 	a, scr, _ := e2eApp(t, cl)
 	defer scr.Fini()
-	a.st.Modes = append(a.st.Modes[:0:0], a.st.Modes...)
-	for i := range a.st.Modes {
-		if a.st.Modes[i].Name == "goal" {
-			a.st.Modes[i].Rounds = 2
-		}
-	}
-	sayMode(t, a, "#goal never finishes")
+	sayObj(t, a, "#goal never finishes")
 	pump(t, a, func() bool { return !a.st.Running })
-	if !strings.Contains(a.lastNotice(), "goal stopped") || !strings.Contains(a.lastNotice(), "2 of 2") {
+	want := strconv.Itoa(modes.DefaultRounds)
+	if !strings.Contains(a.lastNotice(), "goal stopped") || !strings.Contains(a.lastNotice(), want+" of "+want) {
 		t.Fatalf("notice %q", a.lastNotice())
 	}
-	if used := 40 - cl.left(); used != 3 {
-		t.Fatalf("1 answer + 2 rounds = 3 requests, got %d", used)
+	if used := modes.DefaultRounds + 5 - cl.left(); used != modes.DefaultRounds+1 {
+		t.Fatalf("1 answer + %d rounds = %d requests, got %d", modes.DefaultRounds, modes.DefaultRounds+1, used)
 	}
 }
 
-func TestModeTagCompletesInTheComposerAtTheStartOnly(t *testing.T) {
+func TestModeTagCompletesInTheComposerAnywhere(t *testing.T) {
 	a, scr, _ := e2eApp(t, &scriptedClient{})
 	defer scr.Fini()
-	typeRunes(a, "#pl")
+	typeRunes(a, "fix the #sub")
 	m := a.acMatches()
-	if len(m) != 1 || m[0].label() != "#plan" || m[0].desc == "" {
+	if len(m) != 1 || m[0].label() != "#subagents" || m[0].desc == "" {
 		t.Fatalf("%+v", m)
 	}
 	a.onKey(keyK(tcell.KeyTab))
-	if string(a.st.Input) != "#plan " {
-		t.Fatalf("input %q", string(a.st.Input))
+	if toks := a.inputTokens(); len(toks) != 0 {
+		t.Fatalf("a mode selected in the middle is an object, not a token here: %+v", toks)
 	}
-	if toks := a.inputTokens(); len(toks) != 1 || toks[0].kind != kindMode || toks[0].name != "plan" {
-		t.Fatalf("the tag is a token: %+v", toks)
+	if !strings.Contains(a.messageText(), "<mode>subagents</mode>") {
+		t.Fatalf("the object is spelled as a tag: %q", a.messageText())
 	}
-	a.setInput([]rune("fix the #pl"))
-	if len(a.acMatches()) != 0 {
-		t.Fatal("a mode is only the first word")
-	}
-	a.setInput([]rune("fix the #plan"))
-	if len(a.inputTokens()) != 0 {
-		t.Fatal("not a token in the middle of a message")
+	a.setInput([]rune("fix #subagents"))
+	if strings.Contains(a.messageText(), "<mode>") {
+		t.Fatal("a typed #name without the menu stays text")
 	}
 }
 
-func TestModeWhileRunningIsSentAsAPlainMessage(t *testing.T) {
-	a, scr, _ := e2eApp(t, &scriptedClient{})
+// A continuation (a subagent's event wakes the session) keeps the modes' globals
+// and does not start a new request: the goal keeps its rounds.
+func TestContinuationKeepsTheModePolicy(t *testing.T) {
+	cl := &scriptedClient{turns: [][]llm.Event{
+		{{Kind: llm.EvText, Text: "started"}, {Kind: llm.EvDone}},
+		{{Kind: llm.EvTool, CallID: "w1", Code: "typeof fs"}},
+		{{Kind: llm.EvText, Text: "after"}, {Kind: llm.EvDone}},
+	}}
+	a, scr, _ := e2eApp(t, cl)
 	defer scr.Fini()
-	a.st.Running = true
-	sayMode(t, a, "#plan look at this")
-	items := a.st.Queue.Take()
-	if len(items) != 1 || items[0].Text != "look at this" {
-		t.Fatalf("%+v", items)
+	sayObj(t, a, "#subagents split this")
+	pump(t, a, func() bool { return !a.st.Running && cl.left() == 2 })
+	a.st.VM.Reset()
+	a.startTurn(agent.Message{})
+	pump(t, a, func() bool { return !a.st.Running && cl.left() == 0 })
+	if out := outputOf(a, "w1"); !strings.Contains(out, "undefined") {
+		t.Fatalf("a continuation keeps the policy: %q", out)
 	}
-	if !strings.Contains(a.lastNotice(), "applies to a new request") {
-		t.Fatalf("notice %q", a.lastNotice())
-	}
-	a.st.Running = false
 }

@@ -91,7 +91,7 @@ func (r *Runner) loop(ctx context.Context, s *Session) error {
 			if r.D.Queue != nil && r.D.Queue.Len() > 0 {
 				continue // the user spoke meanwhile: answer without ending the turn
 			}
-			if r.D.Goal != nil {
+			if r.D.Goal != nil && (r.D.Waiting == nil || !r.D.Waiting()) {
 				if text, ok := r.D.Goal.Nudge(); ok {
 					s.Append(goalEvent(text))
 					r.emit(s, Ev{Kind: EvInjected})

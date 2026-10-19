@@ -42,9 +42,9 @@ type Runtime struct {
 	DelegatedUnpriced bool
 	Cancelled         map[string]bool
 
-	// RunMode and RunGoal belong to the request being worked on (see modes.go).
-	RunMode modes.Mode
-	RunGoal *agent.Goal
+	// RunModes and RunGoal belong to the request being worked on (see modes.go).
+	RunModes modes.Combined
+	RunGoal  *agent.Goal
 	// Spawned counts the subagents this request started (subagent_max_spawn).
 	Spawned int
 

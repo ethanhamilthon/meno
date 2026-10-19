@@ -34,6 +34,7 @@ func (v *VM) exec(ctx context.Context, code string, override *time.Duration) Res
 	}
 	v.active = timeout
 	v.syncMCP()
+	v.restrict(v.rt) // MCP globals come and go: the policy is applied after them
 	if err := ctx.Err(); err != nil {
 		return Result{Err: err.Error()}
 	}

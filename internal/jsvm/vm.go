@@ -106,7 +106,7 @@ func (v *VM) bind() {
 	v.bindFS()
 	v.bindStdlib()
 	_ = rt.Set("sh", func(cmd string) (map[string]any, error) {
-		res, err := (Shell{Root: v.Root(), Timeout: v.active, MaxOut: v.maxOut, Env: v.shellEnv(), ReadOnly: v.currentPolicy().ReadOnly}).Run(v.ctx, cmd)
+		res, err := (Shell{Root: v.Root(), Timeout: v.active, MaxOut: v.maxOut, Env: v.shellEnv()}).Run(v.ctx, cmd)
 		if err != nil {
 			return nil, err
 		}
@@ -128,6 +128,7 @@ func (v *VM) bind() {
 	if _, err := rt.RunProgram(askProg); err != nil {
 		panic("jsvm ask: " + err.Error())
 	}
+	v.restrict(rt)
 	v.stringify = captureStringify(rt)
 }
 

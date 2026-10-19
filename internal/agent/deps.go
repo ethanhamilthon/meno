@@ -71,6 +71,10 @@ type Deps struct {
 	ToolDesc string
 	// Goal, when set, keeps the run going until the agent gives a verdict.
 	Goal *Goal
+	// Waiting, when set, reports that the run waits for something outside the
+	// model's answer (subagents still working). A goal does not nudge then: the
+	// run ends and the event of the subagent wakes it again.
+	Waiting func() bool
 	// Retry is the policy for failed model requests (zero value: defaults).
 	Retry RetryPolicy
 	// Queue, when set, delivers messages the user wrote during the turn; they
