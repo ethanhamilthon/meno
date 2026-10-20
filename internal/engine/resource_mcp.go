@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"meno/internal/mcp"
 	"meno/internal/proto"
-	"net/url"
 )
 
 func (e *Engine) mcpResource(ctx context.Context, s *runState, tail []string, method string, data map[string]any, query string) (any, error) {
@@ -54,15 +53,4 @@ func (e *Engine) mcpResource(ctx context.Context, s *runState, tail []string, me
 		return nil, api(proto.CodeForbidden, "MCP server administration requires user confirmation")
 	}
 	return nil, api(proto.CodeNotFound, "unknown MCP operation")
-}
-func (e *Engine) webResource(ctx context.Context, s *runState, tail []string, method string, data map[string]any, query string) (any, error) {
-	if len(tail) == 0 || tail[0] != "search" {
-		return nil, api(proto.CodeNotFound, "unknown web operation")
-	}
-	q := stringValue(data, "query")
-	if q == "" {
-		v, _ := url.ParseQuery(query)
-		q = v.Get("q")
-	}
-	return (toolHost{engine: e, state: s}).Search(ctx, q, map[string]any{"count": number(data["count"])})
 }

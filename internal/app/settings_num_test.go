@@ -21,32 +21,6 @@ func settingIdx(t *testing.T, key string) int {
 	return 0
 }
 
-func TestEffortRoutingSettingsUI(t *testing.T) {
-	a, screen := newTestApp(t)
-	defer screen.Fini()
-	a.openOverlay(OverSettings)
-	a.st.Sel = settingIdx(t, "effort_router")
-	a.draw()
-	if text := screenText(screen); !strings.Contains(text, "effort routing") || !strings.Contains(text, "off") || !strings.Contains(text, "auto") {
-		t.Fatalf("routing setting missing: %s", text)
-	}
-	a.onKey(keyK(tcell.KeyRight))
-	if a.st.Settings.EffortRouter != "auto" {
-		t.Fatalf("routing choice %q", a.st.Settings.EffortRouter)
-	}
-	a.st.Sel = settingIdx(t, "effort_router_model")
-	a.onKey(keyK(tcell.KeyEnter))
-	typeRunes(a, "router-small")
-	a.onKey(keyK(tcell.KeyEnter))
-	if a.st.Settings.EffortRouterModel != "router-small" {
-		t.Fatalf("router model %q", a.st.Settings.EffortRouterModel)
-	}
-	saved, err := a.storeForTest().LoadSettings()
-	if err != nil || saved.EffortRouter != "auto" || saved.EffortRouterModel != "router-small" {
-		t.Fatalf("settings not saved: %+v %v", saved, err)
-	}
-}
-
 func TestSettingsNumbersForThinkingAndTimeout(t *testing.T) {
 	a, s := newTestApp(t)
 	defer s.Fini()
@@ -95,36 +69,6 @@ func TestSettingsNumbersForThinkingAndTimeout(t *testing.T) {
 	a.onKey(key('+'))
 	if a.st.Settings.BashTimeout != "off" {
 		t.Fatalf("+ changed a non-numeric timeout mode: %s", a.st.Settings.BashTimeout)
-	}
-}
-
-func TestSettingsWebSearchBackendAndKey(t *testing.T) {
-	a, s := newTestApp(t)
-	defer s.Fini()
-	a.openOverlay(OverSettings)
-	a.st.Sel = settingIdx(t, "websearch")
-	a.draw()
-	if text := screenText(s); !strings.Contains(text, "Web") || !strings.Contains(text, "auto") {
-		t.Fatalf("Web tab missing:\n%s", text)
-	}
-	a.onKey(keyK(tcell.KeyRight))
-	if a.st.Settings.WebSearch != "brave" {
-		t.Fatalf("backend %q", a.st.Settings.WebSearch)
-	}
-	a.st.Sel = settingIdx(t, "websearch_key")
-	a.onKey(keyK(tcell.KeyEnter))
-	typeRunes(a, "brave-key")
-	a.onKey(keyK(tcell.KeyEnter))
-	if a.st.Settings.WebSearchKey != "brave-key" {
-		t.Fatalf("key %q", a.st.Settings.WebSearchKey)
-	}
-	saved, err := a.storeForTest().LoadSettings()
-	if err != nil || saved.WebSearchKey != "brave-key" || saved.WebSearch != "brave" {
-		t.Fatalf("not persisted: %+v %v", saved, err)
-	}
-	a.draw()
-	if text := screenText(s); strings.Contains(text, "brave-key") || !strings.Contains(text, "••") {
-		t.Fatalf("key not masked:\n%s", text)
 	}
 }
 

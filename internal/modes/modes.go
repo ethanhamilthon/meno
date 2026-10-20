@@ -13,7 +13,6 @@ const (
 	GroupTasks  = "tasks"
 	GroupAsk    = "ask"
 	GroupGoal   = "goal"
-	GroupWeb    = "web"
 	GroupView   = "view"
 	GroupModels = "models"
 	GroupHelp   = "help"

@@ -14,7 +14,6 @@ import (
 	"meno/internal/modes"
 	"meno/internal/proc"
 	"meno/internal/proto"
-	"meno/internal/routing"
 	"meno/internal/tools"
 	"os"
 	"sync"
@@ -72,7 +71,6 @@ type runState struct {
 	token            tokenState
 	changed          time.Time
 	prompt           promptState
-	sticky           *routing.Sticky
 	lastRequests     []llm.Request
 	lastRequest      llm.Request
 	lastErr          string
@@ -274,7 +272,7 @@ func newToken() (string, error) {
 }
 func groupsFor(names []string) map[string]bool {
 	m := map[string]bool{}
-	for _, g := range []string{"tasks", "mcp", "web", "view", "goal", "models", "ask", "help"} {
+	for _, g := range []string{"tasks", "mcp", "view", "goal", "models", "ask", "help"} {
 		m[g] = true
 	}
 	return m

@@ -162,10 +162,7 @@ func (e *Engine) run(ctx context.Context, s *runState, text string, cont bool) {
 	if model == "" {
 		model = e.cfg().Model
 	}
-	effort, err := e.effort(ctx, s, text, p, model, current)
-	if err != nil {
-		effort = current
-	}
+	effort := llm.ClampEffort(p.EffortsFor(model, []string{"low", "medium", "high", "max"}), current)
 	s.mu.Lock()
 	if s.session.Provider == s.pinProvider && s.session.Model == s.pinModel {
 		s.session.Provider, s.session.Model, s.session.Effort = p.Name, model, effort
@@ -197,6 +194,7 @@ func (e *Engine) run(ctx context.Context, s *runState, text string, cont bool) {
 			return mi.Cost(u), true
 		},
 		Emit: func(ev agent.Ev) { e.agentEvent(s, ev) }}
+	var err error
 	err = safe.Call(func() { err = (&agent.Runner{D: deps}).Continue(ctx, s.session) })
 	if err == nil {
 		err = ctx.Err()

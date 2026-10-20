@@ -78,7 +78,7 @@ func (a *App) drawSettings(c ui.Canvas, w, h int) {
 				y++
 				continue
 			} else if cur != "" {
-				if r.key == "websearch_key" || r.key == "notify_command" || r.key == "effort_router_model" || r.key == "effort_router_provider" {
+				if r.key == "notify_command" {
 					text = llm.Mask(cur)
 				} else {
 					text = cur

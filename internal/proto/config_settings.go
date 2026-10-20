@@ -22,11 +22,6 @@ type ConfigSettings struct {
 	NotifyCommand        string `json:"notify_command"`
 	NotifySound          string `json:"notify_sound"`
 	NotifyVolume         int    `json:"notify_volume"`
-	EffortRouter         string `json:"effort_router,omitempty"`
-	EffortRouterModel    string `json:"effort_router_model,omitempty"`
-	EffortRouterProvider string `json:"effort_router_provider,omitempty"`
-	WebSearch            string `json:"websearch"`
-	WebSearchKey         string `json:"websearch_key"`
 	CompactPercent       int    `json:"compact_percent"`
 	CompactKeep          int    `json:"compact_keep"`
 	CompactSummaryTokens int    `json:"compact_summary_tokens"`

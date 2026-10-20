@@ -2,7 +2,6 @@ package cli
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -56,42 +55,6 @@ func runGoal(args []string, s IO, a API, j bool) (int, error) {
 		return 0, err
 	}
 	return 0, emit(s, j, map[string]string{"status": args[0], "text": text}, args[0]+" sent\n")
-}
-func runWeb(args []string, s IO, a API, j bool) (int, error) {
-	if len(args) == 0 {
-		return 0, usageError("usage: meno web search QUERY [--count N]")
-	}
-	cmd := args[0]
-	if cmd != "search" {
-		return 0, unknown(cmd, []string{"search"})
-	}
-	values, _, pos, err := parseFlags(args[1:], map[string]bool{"count": true}, nil)
-	if err != nil {
-		return 0, err
-	}
-	if len(pos) == 0 {
-		return 0, usageError("usage: meno web search QUERY [--count N]")
-	}
-	count, err := intFlag("count", values["count"], 5, 1)
-	if err != nil {
-		return 0, err
-	}
-	if err = apiRequired(a); err != nil {
-		return 0, err
-	}
-	res, err := a.WebSearch(strings.Join(pos, " "), count)
-	if err != nil {
-		return 0, err
-	}
-	if j {
-		return 0, emit(s, true, res, "")
-	}
-	var b strings.Builder
-	for _, r := range res.Results {
-		fmt.Fprintf(&b, "%s\n%s\n%s\n\n", r.Title, r.URL, r.Description)
-	}
-	_, err = io.WriteString(s.Out, b.String())
-	return 0, err
 }
 func runView(args []string, s IO, a API, j bool) (int, error) {
 	if len(args) != 1 {

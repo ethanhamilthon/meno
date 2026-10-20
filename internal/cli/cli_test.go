@@ -46,9 +46,6 @@ func (f *fakeAPI) Ask([]byte) (map[string]any, error) {
 }
 func (f *fakeAPI) GoalDone(string) error    { return f.check() }
 func (f *fakeAPI) GoalBlocked(string) error { return f.check() }
-func (f *fakeAPI) WebSearch(q string, n int) (WebResult, error) {
-	return WebResult{Query: q}, f.check()
-}
 func (f *fakeAPI) View(p string) (ViewResult, error) {
 	return ViewResult{Path: p, Displayed: true}, f.check()
 }
@@ -117,7 +114,7 @@ func TestTasksAndExitCodes(t *testing.T) {
 	}
 }
 func TestHelpGroupsAndLocalHelp(t *testing.T) {
-	for _, name := range []string{"mcp", "tasks", "ask", "goal", "web", "view", "models", "daemon", "sessions", "send", "tail"} {
+	for _, name := range []string{"mcp", "tasks", "ask", "goal", "view", "models", "daemon", "sessions", "send", "tail"} {
 		c, out, e := run([]string{name, "--help"}, nil, "")
 		if c != 0 || e != "" || out == "" {
 			t.Errorf("%s: %d %q", name, c, e)

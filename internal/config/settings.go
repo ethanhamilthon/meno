@@ -34,16 +34,9 @@ type Settings struct {
 	// NotifyCommand is the shell command that makes the signal. Empty: the
 	// default of the platform (a sound on macOS, else the terminal bell);
 	// "bell": the terminal bell.
-	NotifyCommand        string `json:"notify_command"`
-	NotifySound          string `json:"notify_sound"`
-	NotifyVolume         int    `json:"notify_volume"`
-	EffortRouter         string `json:"effort_router,omitempty"`
-	EffortRouterModel    string `json:"effort_router_model,omitempty"`
-	EffortRouterProvider string `json:"effort_router_provider,omitempty"`
-	// WebSearch picks the fallback search backend of websearch(): auto,
-	// brave, tavily, duckduckgo or off. WebSearchKey is the Brave or Tavily key.
-	WebSearch    string `json:"websearch"`
-	WebSearchKey string `json:"websearch_key"`
+	NotifyCommand string `json:"notify_command"`
+	NotifySound   string `json:"notify_sound"`
+	NotifyVolume  int    `json:"notify_volume"`
 	// CompactPercent is the share of the context window at which meno compacts
 	// before a request; CompactKeep the recent messages that always stay;
 	// CompactSummaryTokens the target size of the summary.
@@ -161,7 +154,6 @@ func DefaultSettings() Settings {
 		Tool: "bash", BashCode: "all", BashLines: 5, BashOutput: "all", BashOutputLines: 5,
 		BashStrings: "off", BashStringLines: 3, BashTiming: "all", BashTimeout: "120", DaemonIdleExitMin: 30,
 		Effort:         "high",
-		EffortRouter:   "off",
 		Thinking:       "all",
 		TurnSummary:    "on",
 		ThinkLines:     5,
@@ -170,6 +162,5 @@ func DefaultSettings() Settings {
 		Notify:       "off",
 		NotifySound:  "default",
 		NotifyVolume: 100,
-		WebSearch:    "auto",
 	}
 }

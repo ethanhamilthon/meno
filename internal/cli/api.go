@@ -23,7 +23,6 @@ type API interface {
 	Ask(form []byte) (map[string]any, error)
 	GoalDone(summary string) error
 	GoalBlocked(reason string) error
-	WebSearch(query string, count int) (WebResult, error)
 	View(path string) (ViewResult, error)
 	Models(provider string, refresh bool) ([]Model, error)
 	Daemon(action string, force bool) (DaemonStatus, error)

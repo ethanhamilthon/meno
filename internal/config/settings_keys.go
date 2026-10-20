@@ -13,9 +13,7 @@ var choices = map[string][]string{
 	"thinking":      {"all", "lines", "off"},
 	"turn_summary":  {"on", "off"},
 	"effort":        {"low", "medium", "high", "max"},
-	"effort_router": {"off", "auto"},
 	"notify":        {"off", "question", "done"},
-	"websearch":     {"auto", "brave", "tavily", "duckduckgo", "off"},
 	"notify_volume": {"20", "40", "60", "80", "100"},
 	// One choice: the row only carries the number (the threshold in percent).
 	"compact_percent": {"percent"},
@@ -23,7 +21,7 @@ var choices = map[string][]string{
 }
 
 func SettingKeys() []string {
-	return append([]string{"theme", "images", "thinking", "turn_summary", "notify", "notify_sound", "notify_volume", "notify_command", "websearch", "websearch_key", "effort_router", "effort_router_model", "effort_router_provider", "compact_percent"}, bashKeys...)
+	return append([]string{"theme", "images", "thinking", "turn_summary", "notify", "notify_sound", "notify_volume", "notify_command", "compact_percent"}, bashKeys...)
 }
 
 func Choices(key string) []string {
@@ -49,12 +47,6 @@ func (s *Settings) Get(key string) string {
 		return s.TurnSummary
 	case "effort":
 		return s.Effort
-	case "effort_router":
-		return s.EffortRouter
-	case "effort_router_model":
-		return s.EffortRouterModel
-	case "effort_router_provider":
-		return s.EffortRouterProvider
 	case "theme":
 		return s.Theme
 	case "notify_sound":
@@ -63,10 +55,6 @@ func (s *Settings) Get(key string) string {
 		return strconv.Itoa(s.NotifyVolume)
 	case "notify":
 		return s.Notify
-	case "websearch":
-		return s.WebSearch
-	case "websearch_key":
-		return s.WebSearchKey
 	case "notify_command":
 		return s.NotifyCommand
 	case "compact_percent":
@@ -85,15 +73,6 @@ func (s *Settings) Set(key, val string) error {
 			return fmt.Errorf("invalid value %q for %s", val, key)
 		}
 		s.Theme = val
-		return nil
-	case "websearch_key":
-		s.WebSearchKey = strings.TrimSpace(val)
-		return nil
-	case "effort_router_model":
-		s.EffortRouterModel = strings.TrimSpace(val)
-		return nil
-	case "effort_router_provider":
-		s.EffortRouterProvider = strings.TrimSpace(val)
 		return nil
 	case "notify_command":
 		s.NotifyCommand = strings.TrimSpace(val)
@@ -126,12 +105,6 @@ func (s *Settings) setRaw(key, val string) {
 		s.TurnSummary = val
 	case "effort":
 		s.Effort = val
-	case "effort_router":
-		s.EffortRouter = val
-	case "effort_router_model":
-		s.EffortRouterModel = val
-	case "effort_router_provider":
-		s.EffortRouterProvider = val
 	case "notify_sound":
 		s.NotifySound = val
 	case "notify_volume":
@@ -140,16 +113,12 @@ func (s *Settings) setRaw(key, val string) {
 		}
 	case "notify":
 		s.Notify = val
-	case "websearch":
-		s.WebSearch = val
-	case "websearch_key":
-		s.WebSearchKey = val
 	}
 }
 
 // TextSetting reports whether a setting is free text instead of a choice.
 func TextSetting(key string) bool {
-	return key == "websearch_key" || key == "notify_command" || key == "effort_router_model" || key == "effort_router_provider"
+	return key == "notify_command"
 }
 
 func (s *Settings) Cycle(key string, step int) string {

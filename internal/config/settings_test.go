@@ -6,43 +6,6 @@ import (
 	"testing"
 )
 
-func TestEffortRouterSettings(t *testing.T) {
-	s := DefaultSettings()
-	if s.EffortRouter != "off" || s.EffortRouterModel != "" || s.EffortRouterProvider != "" {
-		t.Fatalf("defaults: %+v", s)
-	}
-	for key, value := range map[string]string{"effort_router": "auto", "effort_router_model": " small ", "effort_router_provider": " router "} {
-		if err := s.Set(key, value); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if s.Get("effort_router") != "auto" || s.Get("effort_router_model") != "small" || s.Get("effort_router_provider") != "router" {
-		t.Fatalf("settings: %+v", s)
-	}
-	if !TextSetting("effort_router_model") || !TextSetting("effort_router_provider") {
-		t.Fatal("router model and provider must be text settings")
-	}
-	if got := s.Cycle("effort_router", 1); got != "off" {
-		t.Fatalf("cycle = %q", got)
-	}
-}
-
-func TestEffortRouterSettingsListed(t *testing.T) {
-	for _, key := range []string{"effort_router", "effort_router_model", "effort_router_provider"} {
-		found := false
-		for _, candidate := range SettingKeys() {
-			found = found || candidate == key
-		}
-		if !found {
-			t.Fatalf("SettingKeys() does not include %q", key)
-		}
-	}
-	choices := Choices("effort_router")
-	if len(choices) != 2 || choices[0] != "off" || choices[1] != "auto" {
-		t.Fatalf("choices: %v", choices)
-	}
-}
-
 func TestLoadSettingsNormalizesInvalidValues(t *testing.T) {
 	for _, data := range []string{
 		`{"effort":"obsolete","tool":"bash","bash_code":"bad","bash_output":"bad","thinking":"bad","bash_timeout":"bad","bash_lines":-1}`,
@@ -61,7 +24,7 @@ func TestLoadSettingsNormalizesInvalidValues(t *testing.T) {
 
 func TestSettingsDecodeValidAndLegacy(t *testing.T) {
 	for _, lines := range []int{1, 50} {
-		want := Settings{Provider: "custom", Model: "custom-model", Effort: "max", Tool: "bash", BashCode: "off", BashLines: lines, BashOutput: "off", BashOutputLines: 7, BashStrings: "off", BashStringLines: 2, BashTiming: "slow", BashTimeout: "model", TurnSummary: "off", Thinking: "off", ThinkLines: 4, DaemonIdleExitMin: 30, Theme: "dracula", Notify: "done", NotifyCommand: "say hi", NotifySound: "chime", NotifyVolume: 60, EffortRouter: "off", WebSearch: "brave", WebSearchKey: "key", CompactPercent: 70, CompactKeep: 10, CompactSummaryTokens: 3000}
+		want := Settings{Provider: "custom", Model: "custom-model", Effort: "max", Tool: "bash", BashCode: "off", BashLines: lines, BashOutput: "off", BashOutputLines: 7, BashStrings: "off", BashStringLines: 2, BashTiming: "slow", BashTimeout: "model", TurnSummary: "off", Thinking: "off", ThinkLines: 4, DaemonIdleExitMin: 30, Theme: "dracula", Notify: "done", NotifyCommand: "say hi", NotifySound: "chime", NotifyVolume: 60, CompactPercent: 70, CompactKeep: 10, CompactSummaryTokens: 3000}
 		b, err := json.Marshal(want)
 		if err != nil {
 			t.Fatal(err)

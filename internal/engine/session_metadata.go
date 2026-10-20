@@ -65,7 +65,6 @@ func (e *Engine) PatchSession(ctx context.Context, id string, q proto.PatchSessi
 	}
 	if q.Provider != nil {
 		s.session.Provider = *q.Provider
-		s.sticky = nil
 	}
 	if q.Model != nil {
 		s.session.Model = *q.Model

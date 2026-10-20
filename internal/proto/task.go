@@ -86,19 +86,6 @@ type MCPCallResponse struct {
 	IsError  bool   `json:"isError,omitempty"`
 }
 
-// WebSearchResponse contains a query and search results.
-type WebSearchResponse struct {
-	Query   string          `json:"query"`
-	Backend string          `json:"backend,omitempty"`
-	Answer  string          `json:"answer,omitempty"`
-	Results []WebSearchItem `json:"results"`
-}
-type WebSearchItem struct {
-	Title   string `json:"title"`
-	URL     string `json:"url"`
-	Snippet string `json:"snippet,omitempty"`
-}
-
 // ViewResponse reports whether an image was rendered by the caller.
 type ViewResponse struct {
 	Path      string `json:"path"`
@@ -132,10 +119,6 @@ type MCPResultRequest struct {
 type MCPServerRequest struct {
 	Server string          `json:"server,omitempty"`
 	Config json.RawMessage `json:"config,omitempty"`
-}
-type WebSearchRequest struct {
-	Query string `json:"query"`
-	Count int    `json:"count,omitempty"`
 }
 type ViewRequest struct {
 	Path string `json:"path"`

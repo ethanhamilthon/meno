@@ -40,8 +40,6 @@ func (e *Engine) sessionResource(ctx context.Context, method, path, query string
 		out, err = e.taskResource(ctx, s, parts[2:], method, data, query)
 	case "mcp":
 		out, err = e.mcpResource(ctx, s, parts[2:], method, data, query)
-	case "web":
-		out, err = e.webResource(ctx, s, parts[2:], method, data, query)
 	case "view":
 		out, err = e.viewResource(s, data)
 	case "goal":

@@ -39,27 +39,12 @@ var settingTabs = []settingTab{
 		},
 	},
 	{
-		name: "Web",
-		rows: []settingRow{
-			{"search", "websearch"},
-			{"search key", "websearch_key"},
-		},
-	},
-	{
 		name: "Notify",
 		rows: []settingRow{
 			{"notify", "notify"},
 			{"notify sound", "notify_sound"},
 			{"notify volume", "notify_volume"},
 			{"notify command", "notify_command"},
-		},
-	},
-	{
-		name: "Routing",
-		rows: []settingRow{
-			{"effort routing", "effort_router"},
-			{"effort router model", "effort_router_model"},
-			{"effort router provider", "effort_router_provider"},
 		},
 	},
 	{

@@ -73,19 +73,6 @@ type TaskWait struct {
 	TimedOut bool `json:"waitTimedOut,omitempty"`
 }
 
-// WebItem is one web search result.
-type WebItem struct {
-	Title       string `json:"title"`
-	URL         string `json:"url"`
-	Description string `json:"description,omitempty"`
-}
-
-// WebResult is a web search response.
-type WebResult struct {
-	Query   string    `json:"query"`
-	Results []WebItem `json:"results"`
-}
-
 // ViewResult reports an image display request.
 type ViewResult struct {
 	Path      string `json:"path"`

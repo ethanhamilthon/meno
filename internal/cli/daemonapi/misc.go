@@ -23,27 +23,6 @@ func (a *API) GoalBlocked(reason string) error {
 	return a.post("goal", "blocked", map[string]any{"reason": reason}, nil)
 }
 
-// WebSearch searches the web.
-func (a *API) WebSearch(query string, count int) (cli.WebResult, error) {
-	var raw struct {
-		Query   string `json:"query"`
-		Answer  string `json:"answer"`
-		Results []struct {
-			Title   string `json:"title"`
-			URL     string `json:"url"`
-			Snippet string `json:"snippet"`
-		} `json:"results"`
-	}
-	if err := a.post("web", "search", map[string]any{"query": query, "count": count}, &raw); err != nil {
-		return cli.WebResult{}, err
-	}
-	out := cli.WebResult{Query: raw.Query}
-	for _, r := range raw.Results {
-		out.Results = append(out.Results, cli.WebItem{Title: r.Title, URL: r.URL, Description: r.Snippet})
-	}
-	return out, nil
-}
-
 // View asks the client to show an image after the call.
 func (a *API) View(path string) (cli.ViewResult, error) {
 	var out cli.ViewResult
