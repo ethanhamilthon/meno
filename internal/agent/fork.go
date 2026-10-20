@@ -76,7 +76,7 @@ func ForkSession(dir, srcID string, hid int64, cwd string) (*Session, string, er
 		return nil, "", err
 	}
 	fork := &Session{
-		ID: NewID(), Title: src.Title, Cwd: cwd, Provider: src.Provider, Model: src.Model, Effort: src.Effort,
+		ID: NewID(), Title: src.Title, Cwd: cwd, Provider: src.Provider, Tool: src.Tool, Model: src.Model, Effort: src.Effort,
 		UpdatedAt: time.Now(), Kind: KindMain, ForkSource: srcID, ForkBoundary: boundary,
 		Coverage: src.Coverage, Metrics: Metrics{Context: src.Metrics.Context},
 	}

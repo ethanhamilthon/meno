@@ -39,7 +39,7 @@ func TestBuildLinesTimingWithHiddenOrLimitedCode(t *testing.T) {
 
 func run(status string, mods func(*agent.RunStats)) *agent.RunStats {
 	cost := 0.084
-	r := &agent.RunStats{Status: status, ElapsedMs: 84000, Turns: 7, JSCalls: 6, JSMs: 23000, Usage: llm.Usage{In: 48200, Out: 3100, Cached: 39524}, Cost: &cost}
+	r := &agent.RunStats{Status: status, ElapsedMs: 84000, Turns: 7, ToolCalls: 6, ToolMs: 23000, Usage: llm.Usage{In: 48200, Out: 3100, Cached: 39524}, Cost: &cost}
 	if mods != nil {
 		mods(r)
 	}
@@ -52,7 +52,7 @@ func TestSummaryOfRuns(t *testing.T) {
 		t.Fatalf("%q", lineTexts(ok))
 	}
 	got := ok[0].Text()
-	if !strings.HasPrefix(got, "  ✓ 1m 24s · 7 turns · 6 js calls · 23s in js ─") || !strings.HasSuffix(got, "─ ↓48.2k ↑3.1k ↺82% $0.084") {
+	if !strings.HasPrefix(got, "  ✓ 1m 24s · 7 turns · 6 tool calls · 23s in tools ─") || !strings.HasSuffix(got, "─ ↓48.2k ↑3.1k ↺82% $0.084") {
 		t.Fatalf("%q", got)
 	}
 	if ok[0].Width() != 100 {
@@ -88,8 +88,8 @@ func TestSummaryLeavesOutWhatIsEmpty(t *testing.T) {
 	if strings.TrimRight(bare, " ") != "  ✓ 2.1s · 1 turn" {
 		t.Fatalf("%q", bare)
 	}
-	one := SummaryLines(&agent.RunStats{Status: agent.RunOK, ElapsedMs: 2100, Turns: 1, JSCalls: 1, JSMs: 500}, 100)[0].Text()
-	if !strings.Contains(one, "1 turn · 1 js call") || strings.Contains(one, "calls") || strings.Contains(one, "in js") {
+	one := SummaryLines(&agent.RunStats{Status: agent.RunOK, ElapsedMs: 2100, Turns: 1, ToolCalls: 1, ToolMs: 500}, 100)[0].Text()
+	if !strings.Contains(one, "1 turn · 1 tool call") || strings.Contains(one, "calls") || strings.Contains(one, "in tools") {
 		t.Fatalf("%q", one)
 	}
 	noCost := SummaryLines(run(agent.RunOK, func(r *agent.RunStats) { r.Cost = nil }), 100)[0].Text()

@@ -1,5 +1,9 @@
 # Upgrading, data and privacy
 
+## Bash migration preparation
+
+Schema version 12 adds `sessions.tool`: existing rows default to `js`; sessions created by the daemon migration use `bash`. New sessions default to bash. The old `js_*` settings remain readable as aliases and are removed from the settings store on its next write. JS turns in a JS session can be converted to plain text for a bash request; the in-process loop is not switched in this stage.
+
 ## 0.3.1
 
 - No data or schema change. The system prompt is built again on start, so every session sends the new XML-style prompt from its next request; the prompt cache is cold for that one request.

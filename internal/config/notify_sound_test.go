@@ -24,8 +24,11 @@ func TestNotifySoundDefaultsAndRoundTrip(t *testing.T) {
 			t.Fatal(err)
 		}
 		var got Settings
-		if err := json.Unmarshal(data, &got); err != nil || got != s {
-			t.Fatalf("%s: %+v %v", name, got, err)
+		if err := json.Unmarshal(data, &got); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if got.NotifySound != name {
+			t.Fatalf("%s: %+v", name, got)
 		}
 	}
 }

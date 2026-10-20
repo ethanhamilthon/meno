@@ -46,9 +46,9 @@ func TestEffortRouterSettingsListed(t *testing.T) {
 
 func TestLoadSettingsNormalizesInvalidValues(t *testing.T) {
 	for _, data := range []string{
-		`{"effort":"obsolete","js_code":"bad","js_output":"bad","thinking":"bad","js_timeout":"bad","js_lines":-1}`,
-		`{"effort":"","js_code":"","js_output":"","thinking":"","js_timeout":"","js_lines":51}`,
-		`{}`, `null`, `{"js_lines":0}`,
+		`{"effort":"obsolete","tool":"bash","bash_code":"bad","bash_output":"bad","thinking":"bad","bash_timeout":"bad","bash_lines":-1}`,
+		`{"effort":"","tool":"bash","bash_code":"","bash_output":"","thinking":"","bash_timeout":"","bash_lines":51}`,
+		`{}`, `null`, `{"tool":"bash","bash_lines":0}`,
 	} {
 		t.Run(data, func(t *testing.T) {
 			var got Settings
@@ -62,7 +62,7 @@ func TestLoadSettingsNormalizesInvalidValues(t *testing.T) {
 
 func TestSettingsDecodeValidAndLegacy(t *testing.T) {
 	for _, lines := range []int{1, 50} {
-		want := Settings{Provider: "custom", Model: "custom-model", Effort: "max", JSCode: "off", JSLines: lines, JSOutLines: 7, JSOutput: "off", JSStrings: "off", JSStringLines: 2, Thinking: "off", ThinkLines: 4, JSTiming: "slow", TurnSummary: "off", JSTimeout: "model", JSTimeoutSec: 90, Theme: "dracula", Notify: "done", NotifyCommand: "say hi", NotifySound: "chime", NotifyVolume: 60, EffortRouter: "off", WebSearch: "brave", WebSearchKey: "key", SubagentProvider: "openai", SubagentModel: "gpt-5", SubagentEffort: "low", SubagentMaxSpawn: 50, CompactPercent: 70, CompactKeep: 10, CompactSummaryTokens: 3000}
+		want := Settings{Provider: "custom", Model: "custom-model", Effort: "max", Tool: "js", JSCode: "off", JSLines: lines, JSOutLines: 7, JSOutput: "off", JSStrings: "off", JSStringLines: 2, Thinking: "off", ThinkLines: 4, JSTiming: "slow", TurnSummary: "off", JSTimeout: "model", JSTimeoutSec: 90, BashCode: "off", BashLines: lines, BashOutput: "off", BashOutputLines: 7, BashStrings: "off", BashStringLines: 2, BashTiming: "slow", BashTimeout: "model", DaemonIdleExitMin: 30, Theme: "dracula", Notify: "done", NotifyCommand: "say hi", NotifySound: "chime", NotifyVolume: 60, EffortRouter: "off", WebSearch: "brave", WebSearchKey: "key", SubagentProvider: "openai", SubagentModel: "gpt-5", SubagentEffort: "low", SubagentMaxSpawn: 50, CompactPercent: 70, CompactKeep: 10, CompactSummaryTokens: 3000}
 		b, err := json.Marshal(want)
 		if err != nil {
 			t.Fatal(err)
@@ -95,7 +95,7 @@ func TestSettingsDecodeValidAndLegacy(t *testing.T) {
 }
 
 func TestMalformedSettingsDoNotPartiallyApply(t *testing.T) {
-	for _, data := range []string{`{"model":"changed","js_lines":"bad"}`, `{"js_timeout":3}`, `{"js_lines":999999999999999999999999}`, `{"model":`} {
+	for _, data := range []string{`{"model":"changed","bash_lines":"bad"}`, `{"bash_timeout":3}`, `{"bash_lines":999999999999999999999999}`, `{"model":`} {
 		got := DefaultSettings()
 		err := json.Unmarshal([]byte(data), &got)
 		if err == nil || got != DefaultSettings() {
@@ -117,15 +117,15 @@ func TestSettingsMigrateOldJSChoices(t *testing.T) {
 	if err := json.Unmarshal([]byte(`{"js_code":"full","js_output":"on","thinking":"on","js_timeout":"5s"}`), &got); err != nil {
 		t.Fatal(err)
 	}
-	if got.JSCode != "all" || got.JSOutput != "all" || got.JSOutLines != 5 || got.Thinking != "all" || got.ThinkLines != 5 || got.JSTimeout != "sec" || got.JSTimeoutSec != 5 {
+	if got.JSCode != "all" || got.JSOutput != "all" || got.JSOutLines != 5 || got.Thinking != "all" || got.ThinkLines != 5 || got.JSTimeout != "sec" || got.JSTimeoutSec != 5 || got.Tool != "js" {
 		t.Fatalf("%+v", got)
 	}
 	got = Settings{}
-	if err := json.Unmarshal([]byte(`{"js_timeout":"none"}`), &got); err != nil || got.JSTimeout != "off" || got.TimeoutDuration() != 0 {
+	if err := json.Unmarshal([]byte(`{"js_timeout":"none"}`), &got); err != nil || got.JSTimeout != "off" || got.TimeoutDuration() != 0 || got.Tool != "js" {
 		t.Fatalf("none: %+v %v", got, err)
 	}
 	got = Settings{}
-	if err := json.Unmarshal([]byte(`{"js_timeout":"30s"}`), &got); err != nil || got.JSTimeout != "sec" || got.JSTimeoutSec != 30 {
+	if err := json.Unmarshal([]byte(`{"js_timeout":"30s"}`), &got); err != nil || got.JSTimeout != "sec" || got.JSTimeoutSec != 30 || got.Tool != "js" {
 		t.Fatalf("30s: %+v %v", got, err)
 	}
 }

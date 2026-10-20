@@ -8,6 +8,20 @@ package modes
 // answers without a verdict.
 const DefaultRounds = 25
 
+// Command groups available to a bash tool.
+const (
+	GroupFiles  = "files"
+	GroupMCP    = "mcp"
+	GroupTasks  = "tasks"
+	GroupAgents = "agents"
+	GroupAsk    = "ask"
+	GroupGoal   = "goal"
+	GroupWeb    = "web"
+	GroupView   = "view"
+	GroupModels = "models"
+	GroupHelp   = "help"
+)
+
 // Mode is one mode.
 type Mode struct {
 	Name        string
@@ -17,6 +31,8 @@ type Mode struct {
 	Rounds int
 	// Only lists the tool globals the run keeps; nil keeps all of them.
 	Only []string
+	// Allow lists command groups available to bash; nil allows every group.
+	Allow []string
 	// Text is what the model is told.
 	Text string
 }
@@ -29,13 +45,19 @@ func Catalog() []Mode {
 	return []Mode{
 		{Name: "brainstorm", Description: "explore ideas, compare options and write a design spec", Text: brainstormText},
 		{Name: "goal", Description: "work until the goal is met", Goal: true, Rounds: DefaultRounds, Text: goalText},
-		{Name: "subagents", Description: "orchestrate: delegate all work to subagents", Only: subagentGlobals, Text: subagentsText},
+		{Name: "subagents", Description: "orchestrate: delegate all work to subagents", Only: subagentGlobals, Allow: []string{GroupAgents, GroupAsk, GroupGoal, GroupHelp}, Text: subagentsText},
 	}
 }
 
 // subagentGlobals are what the orchestrator keeps: it reads and writes nothing
 // itself. The pure helpers stay, they change nothing.
 var subagentGlobals = []string{"agents", "goal", "askUser", "help", "hash", "path", "base64", "btoa", "atob"}
+
+// ChildAllow lists the groups available to a child agent. Child agents cannot
+// ask, start tasks, or manage other agents, but can report and block.
+func ChildAllow() []string {
+	return []string{GroupFiles, GroupMCP, GroupAgents, GroupWeb, GroupView, GroupModels, GroupHelp}
+}
 
 // Find returns the mode called name.
 func Find(list []Mode, name string) (Mode, bool) {

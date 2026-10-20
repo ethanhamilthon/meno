@@ -1,5 +1,7 @@
 # Bash execution package
 
+The bash description and system prompt are available from `internal/prompt`. The provider-neutral schema names tool `bash` with required `command`; `timeout` is present only when the setting is `model`. The description names the ten meno groups and `meno --help`. Group permissions come from `internal/modes`; this migration preparation does not route the existing in-process loop to bash.
+
 The standalone internal/tools package provides primitives for the staged bash-tool migration. Integration supplies the session working directory, output directory, call ID, and complete caller environment. The executor does not inherit the daemon environment; include required host variables and MENO_* values in Env.
 
 ## Normal shell calls

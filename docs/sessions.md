@@ -1,7 +1,7 @@
 # Sessions, history and events
 
 Several sessions run at once. Each has its own conversation, working directory,
-model, effort, counters, pending question and half-typed message;
+model, effort, tool (`bash` for new sessions; existing sessions retain their stored tool), counters, pending question and half-typed message;
 providers, MCP servers and settings are shared.
 
 - `:sessions` lists the last 200 main sessions of all projects (children are never

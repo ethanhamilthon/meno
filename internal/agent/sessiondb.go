@@ -62,6 +62,7 @@ func ensureColumns(d *sql.DB) error {
 		{"sessions", "provider", "TEXT NOT NULL DEFAULT ''"},
 		{"sessions", "effort", "TEXT NOT NULL DEFAULT ''"},
 		{"sessions", "modes", "TEXT NOT NULL DEFAULT ''"},
+		{"sessions", "tool", "TEXT NOT NULL DEFAULT 'js'"},
 	} {
 		has, err := hasColumn(d, c.table, c.name)
 		if err != nil {

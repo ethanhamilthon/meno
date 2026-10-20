@@ -35,7 +35,7 @@ func TestStoppedInsideJSStillCountsTheCall(t *testing.T) {
 	if call.ElapsedMs < 50 || call.TimedOut || call.LimitMs != 0 {
 		t.Fatalf("%+v", call)
 	}
-	if run := lastTurn(s).Run; run == nil || run.Status != RunStop || run.JSCalls != 1 {
+	if run := lastTurn(s).Run; run == nil || run.Status != RunStop || run.ToolCalls != 1 {
 		t.Fatalf("%+v", run)
 	}
 }
@@ -73,7 +73,7 @@ func TestTimingAndRunSurviveSaveAndLoad(t *testing.T) {
 	s.Append(Turn{Role: llm.RoleUser, Text: "q", Time: time.Now()})
 	s.Append(Turn{Role: llm.RoleAssistant, CallID: "c1", Code: "x", Err: "js timeout after 30s", ElapsedMs: 30012, LimitMs: 30000, TimedOut: true, Time: time.Now()})
 	s.Append(Turn{Role: llm.RoleAssistant, Text: "bye", Time: time.Now()})
-	s.SetRun(RunStats{Status: RunFail, ElapsedMs: 31000, Turns: 2, JSCalls: 1, JSMs: 30012, Usage: llm.Usage{In: 5, Out: 6, Cached: 7, CacheWrite: 8}, Cost: &cost, Err: "boom"})
+	s.SetRun(RunStats{Status: RunFail, ElapsedMs: 31000, Turns: 2, ToolCalls: 1, ToolMs: 30012, Usage: llm.Usage{In: 5, Out: 6, Cached: 7, CacheWrite: 8}, Cost: &cost, Err: "boom"})
 	if err := SaveSession(dir, s); err != nil {
 		t.Fatal(err)
 	}
@@ -86,7 +86,7 @@ func TestTimingAndRunSurviveSaveAndLoad(t *testing.T) {
 		t.Fatalf("call turn %+v", c)
 	}
 	run := turns[2].Run
-	if run == nil || run.Status != RunFail || run.Turns != 2 || run.JSMs != 30012 || run.Usage.CacheWrite != 8 || run.Cost == nil || *run.Cost != cost || run.Err != "boom" {
+	if run == nil || run.Status != RunFail || run.Turns != 2 || run.ToolMs != 30012 || run.Usage.CacheWrite != 8 || run.Cost == nil || *run.Cost != cost || run.Err != "boom" {
 		t.Fatalf("run %+v", run)
 	}
 	if turns[0].Run != nil || turns[0].ElapsedMs != 0 || turns[0].TimedOut {

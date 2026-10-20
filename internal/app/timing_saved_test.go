@@ -19,10 +19,10 @@ func TestSavedTimingsAndSummaryAreDrawn(t *testing.T) {
 	cost := 0.0123
 	a.st.Session.Append(agent.Turn{Role: llm.RoleUser, Text: "go"})
 	a.st.Session.Append(agent.Turn{Role: llm.RoleAssistant, Text: "step", CallID: "c1", Code: "work()", Output: "fine", ElapsedMs: 15000, LimitMs: 30000})
-	a.st.Session.Append(agent.Turn{Role: llm.RoleAssistant, Text: "ready", Run: &agent.RunStats{Status: agent.RunOK, ElapsedMs: 21500, Turns: 2, JSCalls: 1, JSMs: 15000, Usage: llm.Usage{In: 2000, Out: 100, Cached: 1000}, Cost: &cost}})
+	a.st.Session.Append(agent.Turn{Role: llm.RoleAssistant, Text: "ready", Run: &agent.RunStats{Status: agent.RunOK, ElapsedMs: 21500, Turns: 2, ToolCalls: 1, ToolMs: 15000, Usage: llm.Usage{In: 2000, Out: 100, Cached: 1000}, Cost: &cost}})
 	a.draw()
 	text := screenText(s)
-	for _, want := range []string{"✓ 15s", "✓ 22s · 2 turns · 1 js call · 15s in js", "↓2k ↑100 ↺50% $0.012"} {
+	for _, want := range []string{"✓ 15s", "✓ 22s · 2 turns · 1 tool call · 15s in tools", "↓2k ↑100 ↺50% $0.012"} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("missing %q:\n%s", want, text)
 		}
@@ -136,7 +136,7 @@ func TestTurnEndsWithSummaryOnScreenAndInTheDatabase(t *testing.T) {
 		t.Fatal(err)
 	}
 	lt := loaded.Snapshot()
-	if lt[len(lt)-1].Run == nil || lt[len(lt)-1].Run.JSCalls != 1 {
+	if lt[len(lt)-1].Run == nil || lt[len(lt)-1].Run.ToolCalls != 1 {
 		t.Fatalf("not saved: %+v", lt[len(lt)-1].Run)
 	}
 	for _, tr := range lt {
