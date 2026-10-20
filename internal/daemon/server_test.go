@@ -81,7 +81,14 @@ func TestStaleFilesAndLongSocketFallback(t *testing.T) {
 	run := filepath.Join(home, "run")
 	_ = os.MkdirAll(run, 0o700)
 	_ = os.WriteFile(filepath.Join(run, "daemon.pid"), []byte("99999999"), 0o600)
-	_ = os.WriteFile(filepath.Join(run, "meno.sock"), []byte("stale"), 0o600)
+	stale, err := net.ListenUnix("unix", &net.UnixAddr{Name: SocketPath(home), Net: "unix"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	stale.SetUnlinkOnClose(false)
+	if err := stale.Close(); err != nil {
+		t.Fatal(err)
+	}
 	if len(SocketPath(filepath.Join(home, string(make([]byte, 120))))) >= 100 {
 		t.Fatal("long path fallback not short")
 	}
