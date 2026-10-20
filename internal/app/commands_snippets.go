@@ -19,7 +19,7 @@ func (a *App) saveSnippet(args []string) {
 		a.notifyErr("no selection: select text with v or the mouse first")
 		return
 	}
-	if err := a.store.SaveSnippet(name, text); err != nil {
+	if err := a.snip().SaveSnippet(name, text); err != nil {
 		a.notifyErr(err.Error())
 		return
 	}
@@ -58,7 +58,7 @@ func (a *App) snippetArg(args []string, cmd string) (string, bool) {
 
 // pasteSnippetName inserts a stored snippet at the composer cursor.
 func (a *App) pasteSnippetName(name string) bool {
-	sn, err := a.store.Snippet(name)
+	sn, err := a.snip().Snippet(name)
 	if err != nil {
 		a.notifyErr(err.Error())
 		return false

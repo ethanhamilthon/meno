@@ -3,7 +3,6 @@ package app
 import (
 	"strings"
 
-	"meno/internal/cliproxy"
 	"meno/internal/config"
 	"meno/internal/llm"
 	"meno/internal/ui"
@@ -23,7 +22,7 @@ type loginRow struct {
 	kind  rowKind
 	i     int
 	proto string
-	svc   cliproxy.Service
+	svc   loginService
 }
 
 // loginRows lists what the user has, then everything that can be added.
@@ -38,10 +37,10 @@ func (a *App) loginRows() []loginRow {
 		rows = append(rows, loginRow{kind: rowOAuth, i: i})
 	}
 	rows = append(rows, loginRow{kind: rowAddAPI, proto: llm.ProtoResponses}, loginRow{kind: rowAddAPI, proto: llm.ProtoChat})
-	for _, s := range cliproxy.Services {
+	for _, s := range loginServices {
 		rows = append(rows, loginRow{kind: rowAddOAuth, svc: s})
 	}
-	if len(a.st.Accounts) > 0 || a.oauth != nil && a.oauth.State().Accounts > 0 || a.st.AccountsErr != "" && a.oauth != nil && !a.oauth.State().AccountsKnown {
+	if len(a.st.Accounts) > 0 || a.st.AccountsErr != "" {
 		rows = append(rows, loginRow{kind: rowHelperRestart})
 	}
 	return rows
@@ -119,12 +118,9 @@ func (a *App) loginItem(r loginRow) item {
 		}
 		return item{glyph: g, glyphFG: fg, label: acc.Label, right: right, detail: "OAuth · " + state + " · space on/off · d log out"}
 	case rowHelperRestart:
-		status := "helper is not responding"
-		if a.helperChecked && a.helperRunning {
-			status = "helper is running"
-		}
-		if a.daemons != nil && !a.helperRunning {
-			status += " · see " + a.daemons.LogPath(llm.OAuthName)
+		status := "restart it when logins stop working"
+		if a.st.AccountsErr != "" {
+			status = "helper is not responding · " + a.st.AccountsErr
 		}
 		return item{glyph: "↻", glyphFG: ui.Blue, label: "Login helper: restart", accent: true, detail: status}
 	case rowAddAPI:

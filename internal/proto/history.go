@@ -78,6 +78,12 @@ type AskForm struct {
 	Deadline  string        `json:"deadline,omitempty"`
 }
 
+// AskChoice is one option of a question.
+type AskChoice struct {
+	ID    string `json:"id"`
+	Label string `json:"label"`
+}
+
 // AskQuestion describes one form input.
 type AskQuestion struct {
 	ID       string   `json:"id"`
@@ -85,6 +91,9 @@ type AskQuestion struct {
 	Type     string   `json:"type"`
 	Options  []string `json:"options,omitempty"`
 	Required bool     `json:"required,omitempty"`
+	// Choices are the options with their labels; Options keeps just the ids.
+	Choices        []AskChoice `json:"choices,omitempty"`
+	Recommendation string      `json:"recommendation,omitempty"`
 }
 
 // RetryState describes a pending retry.

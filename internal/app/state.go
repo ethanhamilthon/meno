@@ -3,12 +3,18 @@ package app
 import (
 	"time"
 
-	"meno/internal/cliproxy"
 	"meno/internal/config"
 	"meno/internal/llm"
 	"meno/internal/mcp"
 	"meno/internal/ui"
 )
+
+// mcpInfo is what the daemon says about a running MCP server.
+type mcpInfo struct {
+	Running, Starting bool
+	Err               string
+	Tools             int
+}
 
 type Overlay int
 
@@ -75,6 +81,7 @@ type State struct {
 	Loading    map[string]bool
 	Skills     []config.Skill
 	Servers    []mcp.Server
+	ServerInfo map[string]mcpInfo // runtime state of the servers, by name
 	Snippets   []config.Snippet
 	SnippetDel string
 
@@ -96,7 +103,7 @@ type State struct {
 
 	// Login (:login): the OAuth accounts of the local helper, the running
 	// login, and the entry waiting for a second press of d to be removed.
-	Accounts    []cliproxy.Account
+	Accounts    []oauthAccount
 	AccountsErr string
 	LoginDel    string
 	Flow        loginFlow

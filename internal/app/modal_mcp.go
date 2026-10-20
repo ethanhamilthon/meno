@@ -2,7 +2,6 @@ package app
 
 import (
 	"reflect"
-	"strings"
 
 	"github.com/gdamore/tcell/v2"
 
@@ -29,24 +28,16 @@ func (a *App) mcpItems() []item {
 		switch {
 		case !s.Enabled:
 			right = "disabled"
-		case a.mcp.Starting(s.Name):
+		case a.st.ServerInfo[s.Name].Starting:
 			g, gfg = "◌", ui.Yellow
 			right = "starting…"
-		case a.mcp.Running(s.Name):
+		case a.st.ServerInfo[s.Name].Running:
 			g, gfg = "●", ui.Green
-			tools := a.mcp.ToolsOf(s.Name)
-			right = s.Transport + " · " + itoa(len(tools)) + " tools"
-			if len(tools) > 0 {
-				names := make([]string, len(tools))
-				for i, t := range tools {
-					names[i] = t.Name
-				}
-				detail = strings.Join(names, ", ")
-			}
-		case a.mcp.Err(s.Name) != "":
+			right = s.Transport + " · running"
+		case a.st.ServerInfo[s.Name].Err != "":
 			g, gfg = "✕", ui.Red
 			right = "error"
-			detail = a.mcp.Err(s.Name)
+			detail = a.st.ServerInfo[s.Name].Err
 		}
 		if s.FromFile() {
 			right += " · " + config.MCPFileName
@@ -83,10 +74,9 @@ func (a *App) startMCP(i int) {
 	}
 	s := a.st.Servers[i]
 	if !s.Enabled {
-		a.mcp.Stop(s.Name)
 		return
 	}
-	a.startMCPAsync(s)
+	a.restartMCP(s.Name)
 }
 
 func (a *App) openMCPEdit(i int) {
@@ -106,12 +96,12 @@ func (a *App) openMCPEdit(i int) {
 
 func (a *App) drawMCP(c ui.Canvas, w, h int) {
 	running := 0
-	for _, n := range a.mcp.Names() {
-		if a.mcp.Running(n) {
+	for _, n := range a.st.ServerInfo {
+		if n.Running {
 			running++
 		}
 	}
-	header := titleRow("mcp servers", itoa(running)+" running · "+itoa(a.mcp.ToolCount())+" tools")
+	header := titleRow("mcp servers", itoa(running)+" running")
 	listBox(c, w, h, 73, header, a.mcpItems(), a.st.Sel,
 		"j/k select · space toggle · enter edit · n new · r restart · esc close")
 }
@@ -151,8 +141,6 @@ func (a *App) mcpEditKey(k *tcell.EventKey) {
 	case isKey(k, 'r') && !a.st.Editing && a.st.EditIdx >= 0:
 		a.startMCP(a.st.EditIdx)
 	case isKey(k, 'd') && !a.st.Editing && a.st.EditIdx >= 0:
-		name := a.st.Servers[a.st.EditIdx].Name
-		a.mcp.Stop(name)
 		a.st.Servers = append(a.st.Servers[:a.st.EditIdx], a.st.Servers[a.st.EditIdx+1:]...)
 		a.persistServers()
 		a.openOverlay(OverMCP)
@@ -177,7 +165,6 @@ func (a *App) saveMCPEdit() {
 			return // nothing changed: do not restart the server
 		}
 		if old := a.st.Servers[a.st.EditIdx].Name; old != s.Name {
-			a.mcp.Stop(old)
 		}
 		a.st.Servers[a.st.EditIdx] = s
 	} else {
@@ -199,7 +186,7 @@ func (a *App) drawMCPEdit(c ui.Canvas, w, h int) {
 		name = "new server"
 	}
 	b.put(c, 8, 0, name, ui.Blue, ui.BgPopup)
-	if a.st.EditIdx >= 0 && a.mcp.Running(name) {
+	if a.st.EditIdx >= 0 && a.st.ServerInfo[name].Running {
 		b.putRight(c, 0, "● running", ui.Green, ui.BgPopup)
 	} else {
 		b.putRight(c, 0, "○ stopped", ui.FgDim, ui.BgPopup)

@@ -12,7 +12,7 @@ func (a *App) transcriptWithSelection(w int) []ui.Line {
 	if a.st.Session == nil {
 		return nil
 	}
-	turns := viewTurns(a.st.Session.Snapshot())
+	turns := a.st.Session.Turns()
 	js := a.jsOpts()
 	var out []ui.Line
 	appendLines := func(lines []ui.Line) {

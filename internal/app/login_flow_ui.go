@@ -1,12 +1,8 @@
 package app
 
 import (
-	"context"
-	"time"
-
 	"github.com/gdamore/tcell/v2"
 
-	"meno/internal/safe"
 	"meno/internal/ui"
 )
 
@@ -38,20 +34,6 @@ func (a *App) loginFlowKey(k *tcell.EventKey) {
 		a.beginEdit("", false, false)
 		a.st.Edit.Placeholder = "paste the address of the page the browser ended on"
 	}
-}
-
-// submitCallback hands the helper the address the browser was sent to.
-func (a *App) submitCallback(addr string) {
-	if addr == "" {
-		return
-	}
-	safe.Go(func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-		defer cancel()
-		if err := a.withHelper(ctx, func(ctx context.Context) error { return a.oauth.SubmitCallback(ctx, addr) }); err != nil {
-			a.postEvent(errNotice{text: "login: " + a.accountError(err)})
-		}
-	}, a.reportPanic)
 }
 
 func (a *App) drawLoginFlow(c ui.Canvas, w, h int) {

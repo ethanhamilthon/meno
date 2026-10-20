@@ -5,25 +5,7 @@ import (
 	"testing"
 
 	"github.com/gdamore/tcell/v2"
-
-	"meno/internal/config"
-	"meno/internal/llm"
 )
-
-func newTestApp(t *testing.T) (*App, tcell.SimulationScreen) {
-	t.Helper()
-	scr := tcell.NewSimulationScreen("UTF-8")
-	if err := scr.Init(); err != nil {
-		t.Fatal(err)
-	}
-	scr.SetSize(96, 30)
-	paths := config.Paths{Home: t.TempDir(), Cwd: t.TempDir()}
-	a, err := New(scr, paths, func(llm.Provider) llm.Client { return nil })
-	if err != nil {
-		t.Fatal(err)
-	}
-	return a, scr
-}
 
 func screenText(scr tcell.SimulationScreen) string {
 	w, h := scr.Size()
@@ -46,8 +28,8 @@ func TestMainScreenRenders(t *testing.T) {
 	if !strings.Contains(out, "INSERT") {
 		t.Fatalf("status badge missing:\n%s", out)
 	}
-	if !strings.Contains(out, "no model selected") {
-		t.Fatalf("empty-model status missing:\n%s", out)
+	if !strings.Contains(out, "gpt-5.5") {
+		t.Fatalf("model in the status bar missing:\n%s", out)
 	}
 }
 

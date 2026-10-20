@@ -4,8 +4,6 @@ import (
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
-
-	"meno/internal/jsvm"
 )
 
 // askKey handles every key while a form is open: nothing reaches the composer.
@@ -96,7 +94,7 @@ func (a *App) askEnterRow() {
 		a.askAdvance()
 		return
 	}
-	if st.q().Type == jsvm.TypeSingle {
+	if st.q().Type == askSingle {
 		st.choose(st.Row)
 		st.Notice = ""
 	}
@@ -112,7 +110,7 @@ func (a *App) askPressRow() {
 	}
 	st.choose(st.Row)
 	st.Notice = ""
-	if st.q().Type == jsvm.TypeSingle {
+	if st.q().Type == askSingle {
 		a.askAdvance()
 	}
 }
@@ -130,7 +128,7 @@ func (a *App) askAdvance() {
 	st := a.st.Ask
 	if !st.answered(st.Cur) {
 		st.Notice = "answer this question first (" + itoa(st.Cur+1) + " of " + itoa(len(st.F.Questions)) + ")"
-		if st.q().Type == jsvm.TypeText {
+		if st.q().Type == askText {
 			st.Typing = true
 		}
 		return
@@ -150,7 +148,7 @@ func (a *App) askActivate(focus int) {
 	case focusNext:
 		a.askAdvance()
 	case focusCancel:
-		a.finishAsk(askResult{err: jsvm.ErrCancelled})
+		a.answerAsk(true)
 	}
 }
 
@@ -165,7 +163,7 @@ func (a *App) askSubmit() {
 			return
 		}
 	}
-	a.finishAsk(askResult{answers: st.build()})
+	a.answerAsk(false)
 }
 
 // askTypingKey edits the custom text of the current question.
@@ -181,7 +179,7 @@ func (a *App) askTypingKey(st *askState, k *tcell.EventKey) {
 		a.askAdvance()
 	case tcell.KeyEsc:
 		st.Typing = false
-		if st.q().Type == jsvm.TypeText {
+		if st.q().Type == askText {
 			st.Focus = focusNext
 		}
 	case tcell.KeyTab:
@@ -216,7 +214,7 @@ func (a *App) askInsert(text string) {
 	}
 	ans := &st.Ans[st.Cur]
 	ans.Other = append(ans.Other, []rune(text)...)
-	if st.q().Type == jsvm.TypeSingle && strings.TrimSpace(string(ans.Other)) != "" {
+	if st.q().Type == askSingle && strings.TrimSpace(string(ans.Other)) != "" {
 		for i := range ans.Picked {
 			ans.Picked[i] = false
 		}

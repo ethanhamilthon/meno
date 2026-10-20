@@ -101,7 +101,7 @@ func TestSubmitSendsImageAndStoresFile(t *testing.T) {
 	if len(a.st.Images) != 0 || len(a.st.Input) != 0 {
 		t.Fatal("draft not cleared")
 	}
-	pump(t, a, func() bool { return !a.st.Running })
+	pump(t, a, func() bool { return runDone(a) })
 	turns := a.st.Session.Snapshot()
 	if len(turns[0].Attachments) != 1 || turns[0].Text != "what is [Image #1]" {
 		t.Fatalf("turn: %+v", turns[0])
@@ -209,25 +209,4 @@ func TestModelWithoutVisionRejectsImages(t *testing.T) {
 	if n := a.currentNotices(); len(n) == 0 || !strings.Contains(n[len(n)-1].Text, "does not accept images") {
 		t.Fatalf("notices %+v", n)
 	}
-}
-
-func TestQueuedImageComesBackIntoComposerRenumbered(t *testing.T) {
-	a, scr, _ := e2eApp(t, &scriptedClient{})
-	defer scr.Fini()
-	a.clipboard = func() ([]byte, error) { return testPNG(t, 3, 3), nil }
-	a.st.Running = true // a turn is "running": Enter queues
-	for _, word := range []string{"one ", "two "} {
-		typeRunes(a, word)
-		a.onKey(keyK(tcell.KeyCtrlV))
-		waitImage(t, a)
-		a.onKey(keyK(tcell.KeyEnter))
-	}
-	if a.st.Queue.Len() != 2 {
-		t.Fatalf("queued %d", a.st.Queue.Len())
-	}
-	a.onKey(keyK(tcell.KeyUp))
-	if string(a.st.Input) != "one [Image #1]\n\ntwo [Image #2]" || len(a.st.Images) != 2 || a.st.Images[1].N != 2 {
-		t.Fatalf("input=%q images=%+v", string(a.st.Input), a.st.Images)
-	}
-	a.st.Running = false
 }

@@ -13,7 +13,7 @@ func (a *App) queueHeight() int {
 	if !a.st.Running || a.st.Over != OverNone || a.st.Mode == ui.ModeCommand {
 		return 0
 	}
-	n := a.st.Queue.Len()
+	n := len(a.st.Queued)
 	if n == 0 {
 		return 0
 	}
@@ -21,7 +21,7 @@ func (a *App) queueHeight() int {
 }
 
 func (a *App) drawQueue(c ui.Canvas, x, y, w, limit int) {
-	items := a.st.Queue.Items()
+	items := a.st.Queued
 	if len(items) == 0 || limit < 2 {
 		return
 	}
@@ -39,7 +39,7 @@ func (a *App) drawQueue(c ui.Canvas, x, y, w, limit int) {
 		c.Text(x+w-2-ui.TextWidth(hint), y, ui.TextWidth(hint), hint, style(ui.FgDim))
 	}
 	for i := 0; i < shown; i++ {
-		line := oneLine(a.labelsFromText(items[i].Text))
+		line := oneLine(a.labelsFromText(items[i]))
 		if i == shown-1 && len(items) > shown {
 			line += "  (+" + itoa(len(items)-shown) + " more)"
 		}

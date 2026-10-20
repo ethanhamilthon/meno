@@ -33,16 +33,12 @@ func (a *App) saveProviderEdit() {
 	}
 	a.st.FormNote = ""
 	if a.st.EditIdx >= 0 && a.st.EditIdx < len(a.st.Providers) {
-		if old := a.st.Providers[a.st.EditIdx].Name; old != p.Name {
-			a.daemons.Stop(old) // renamed: the daemon is keyed by the name
-		}
 		a.st.Providers[a.st.EditIdx] = p
 	} else {
 		a.st.Providers = append(a.st.Providers, p)
 		a.st.EditIdx = len(a.st.Providers) - 1
 	}
 	a.persistProviders()
-	a.syncProviderRun(p)
 	a.fetchModels()
 	a.afterProvidersChanged()
 }

@@ -91,7 +91,7 @@ func (a *App) pickSync() {
 	p.gen++
 	ctx, cancel := context.WithCancel(context.Background())
 	p.cancel = cancel
-	cwd, sid, gen, query := a.st.Cwd, a.st.Session.ID, p.gen, query
+	cwd, sid, gen, query := a.st.Cwd, a.st.Session.ID(), p.gen, query
 	home, _ := os.UserHomeDir()
 	a.running.Add(1)
 	go func() {

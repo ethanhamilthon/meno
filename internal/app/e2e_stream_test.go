@@ -18,9 +18,9 @@ func TestE2EStreamingFrames(t *testing.T) {
 		{
 			{Kind: llm.EvThinking, Text: "weighing options"},
 			{Kind: llm.EvText, Text: "checking the sum"},
-			{Kind: llm.EvToolDelta, CallID: "c1", Code: "const total"},
-			{Kind: llm.EvToolDelta, CallID: "c1", Code: "const total = 20 + 22;"},
-			{Kind: llm.EvTool, CallID: "c1", Code: "const total = 20 + 22;\nconsole.log(total)"},
+			{Kind: llm.EvToolDelta, CallID: "c1", Code: "echo total"},
+			{Kind: llm.EvToolDelta, CallID: "c1", Code: "echo total = 20 + 22"},
+			{Kind: llm.EvTool, CallID: "c1", Name: "bash", Code: "echo total = 20 + 22; echo 42", Arguments: `{"command":"echo total = 20 + 22; echo 42"}`},
 		},
 		{{Kind: llm.EvText, Text: "the answer is 42"}, {Kind: llm.EvDone}},
 	}}
@@ -37,7 +37,7 @@ func TestE2EStreamingFrames(t *testing.T) {
 			a.handle(msg)
 			a.draw()
 			frame := screenText(scr)
-			for _, want := range []string{"weighing options", "checking the sum", "const total", "20 + 22"} {
+			for _, want := range []string{"weighing options", "checking the sum", "echo total", "20 + 22"} {
 				if strings.Contains(frame, want) {
 					seen[want] = true
 				}
@@ -49,14 +49,14 @@ func TestE2EStreamingFrames(t *testing.T) {
 			t.Fatal("timeout")
 		}
 	}
-	for _, want := range []string{"weighing options", "checking the sum", "const total", "20 + 22"} {
+	for _, want := range []string{"weighing options", "checking the sum", "echo total", "20 + 22"} {
 		if !seen[want] {
 			t.Errorf("%q never appeared on screen while streaming", want)
 		}
 	}
 	a.draw()
 	final := screenText(scr)
-	if !strings.Contains(final, "the answer is 42") || strings.Count(final, "console.log(total)") != 1 {
+	if !strings.Contains(final, "the answer is 42") || strings.Count(final, "echo total = 20 + 22; echo 42") != 1 {
 		t.Fatalf("final frame:\n%s", final)
 	}
 	if len(a.st.LiveCalls) != 0 || a.st.LiveText != "" || a.st.LiveThink != "" {

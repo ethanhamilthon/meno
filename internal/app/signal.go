@@ -54,7 +54,7 @@ func (a *App) signal(event string) {
 	volume := s.NotifyVolume
 	env := []string{"MENO_NOTIFY_EVENT=" + event}
 	if a.st.Session != nil {
-		env = append(env, "MENO_NOTIFY_SESSION="+a.st.Session.ID, "MENO_NOTIFY_TITLE="+a.st.Session.DisplayTitle())
+		env = append(env, "MENO_NOTIFY_SESSION="+a.st.Session.ID(), "MENO_NOTIFY_TITLE="+a.st.Session.DisplayTitle())
 	}
 	if a.notifier != nil {
 		a.notifier(cmd, env)

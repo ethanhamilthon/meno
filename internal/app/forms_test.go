@@ -40,8 +40,8 @@ func TestProviderFormSavesWithoutSaveKey(t *testing.T) {
 	if len(a.st.Providers) != before+1 || a.st.Providers[before].APIKey != "secret" {
 		t.Fatalf("a later change must be saved at once: %+v", a.st.Providers)
 	}
-	loaded, err := a.store.LoadProviders()
-	if err != nil || len(loaded) != before+1 || loaded[before].APIKey != "secret" {
+	loaded, err := a.storeForTest().LoadProviders()
+	if err != nil || len(loaded) != before+1 || loaded[before].APIKey == "" { // the daemon keeps the key and only says it has one
 		t.Fatalf("not persisted: %v %+v", err, loaded)
 	}
 }

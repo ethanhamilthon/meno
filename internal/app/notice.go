@@ -29,8 +29,8 @@ func (a *App) addNotice(text string, isErr bool) {
 	}
 	n := notice{Text: text, Err: isErr, At: noticeNow()}
 	if a.st.Session != nil {
-		n.Session = a.st.Session.ID
-		n.After = len(a.st.Session.Snapshot())
+		n.Session = a.st.Session.ID()
+		n.After = a.st.Session.Len()
 	}
 	a.st.Notices = append(a.st.Notices, n)
 	if len(a.st.Notices) > maxNotices {
@@ -49,7 +49,7 @@ func (a *App) currentNotices() []notice {
 	}
 	var out []notice
 	for _, n := range a.st.Notices {
-		if n.Session == a.st.Session.ID {
+		if n.Session == a.st.Session.ID() {
 			out = append(out, n)
 		}
 	}
@@ -59,7 +59,7 @@ func (a *App) currentNotices() []notice {
 // timelineEmpty reports whether there is nothing but (maybe) notices to show,
 // i.e. the welcome screen should be visible.
 func (a *App) timelineEmpty() bool {
-	return a.st.Session == nil || len(a.st.Session.Snapshot()) == 0 && a.st.LiveText == "" && a.st.LiveThink == "" && len(a.st.LiveCalls) == 0
+	return a.st.Session == nil || a.st.Session.Len() == 0 && a.st.LiveText == "" && a.st.LiveThink == "" && len(a.st.LiveCalls) == 0
 }
 
 // lastNotice is the text of the newest notice of the active session.

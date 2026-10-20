@@ -1,18 +1,19 @@
 package app
 
 import (
+	"context"
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
 
-	"meno/internal/agent"
-	"meno/internal/llm"
+	"meno/internal/client"
+	"meno/internal/proto"
 	"meno/internal/ui"
 )
 
 // forkRow is a message of the current session that a fork can end at.
 type forkRow struct {
-	hid  int64
+	turn int
 	role string
 	text string
 }
@@ -21,13 +22,13 @@ type forkRow struct {
 // the default selection is the latest completed message.
 func (a *App) forkRows() []forkRow {
 	var rows []forkRow
-	for _, t := range a.st.Session.Snapshot() {
+	for i, t := range a.st.Session.Turns() {
 		text := strings.TrimSpace(t.Text)
 		if text == "" || t.Kind != "" {
 			continue
 		}
-		if t.Role == llm.RoleUser || t.Role == llm.RoleAssistant {
-			rows = append(rows, forkRow{hid: t.HID, role: t.Role, text: text})
+		if t.Role == ui.RoleUser || t.Role == ui.RoleAssistant {
+			rows = append(rows, forkRow{turn: i + 1, role: t.Role, text: text})
 		}
 	}
 	for i, j := 0, len(rows)-1; i < j; i, j = i+1, j-1 {
@@ -44,7 +45,6 @@ func (a *App) forkFiltered() ([]forkRow, []int) {
 
 // openFork shows the messages a fork may end at.
 func (a *App) openFork() {
-	a.saveSession()
 	if len(a.forkRows()) == 0 {
 		a.notifyErr("fork: nothing to fork yet")
 		return
@@ -58,7 +58,7 @@ func (a *App) forkKey(k *tcell.EventKey) {
 	case a.navKey(k, len(idx), false):
 	case k.Key() == tcell.KeyEnter:
 		if len(idx) > 0 {
-			a.forkAt(rows[idx[clampSel(a.st.Sel, len(idx))]].hid)
+			a.forkAt(rows[idx[clampSel(a.st.Sel, len(idx))]].turn)
 		}
 	default:
 		a.queryKey(k)
@@ -68,23 +68,31 @@ func (a *App) forkKey(k *tcell.EventKey) {
 // forkAt creates a fork of the current session ending at the message hid and
 // opens it. No model is called. A working directory that no longer exists is
 // not replaced silently: the user picks one with :cd and forks again.
-func (a *App) forkAt(hid int64) {
+func (a *App) forkAt(turn int) {
 	a.closeOverlay()
-	src := a.st.Session
-	fork, warn, err := agent.ForkSession(a.paths.Home, src.ID, hid, "")
-	if err != nil {
-		if strings.Contains(err.Error(), "choose a directory") {
-			a.notifyErr(err.Error() + " · use :cd <dir>, then :fork again")
-		} else {
-			a.notifyErr("fork failed: " + err.Error())
-		}
+	sid := a.st.Session.ID()
+	a.spawn(func() {
+		var r proto.ForkResponse
+		err := a.rpc(func(ctx context.Context, c *client.Client) error {
+			var e error
+			r, e = c.Fork(ctx, sid, proto.ForkRequest{Turn: turn, ClientID: newClientID()})
+			return e
+		})
+		a.postEvent(forked{id: r.Session.ID, err: err})
+	})
+}
+
+type forked struct {
+	id  string
+	err error
+}
+
+func (a *App) onForked(m forked) {
+	if m.err != nil {
+		a.notifyErr("fork failed: " + m.err.Error())
 		return
 	}
-	a.openSession(fork.ID)
-	if warn != "" {
-		a.notifyErr(warn)
-		return
-	}
+	a.openSession(m.id)
 	a.notify("forked · independent session, no model call yet")
 }
 
@@ -94,7 +102,7 @@ func (a *App) drawFork(c ui.Canvas, w, h int) {
 	for _, i := range idx {
 		r := rows[i]
 		glyph, fg := "›", ui.FgDim
-		if r.role == llm.RoleAssistant {
+		if r.role == ui.RoleAssistant {
 			glyph, fg = "◆", ui.FgDim
 		}
 		first, _, _ := strings.Cut(r.text, "\n")

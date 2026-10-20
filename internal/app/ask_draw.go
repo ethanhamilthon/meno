@@ -5,7 +5,6 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 
-	"meno/internal/jsvm"
 	"meno/internal/ui"
 )
 
@@ -108,16 +107,16 @@ func (a *App) drawAskForm(c ui.Canvas, w, h int) {
 		}
 	}
 	add("", ui.FgDim)
-	kind := map[string]string{jsvm.TypeSingle: "choose one", jsvm.TypeMulti: "choose any", jsvm.TypeText: "type an answer"}[q.Type]
+	kind := map[string]string{askSingle: "choose one", askMulti: "choose any", askText: "type an answer"}[q.Type]
 	add(kind, ui.FgDim)
 	ans := st.Ans[st.Cur]
 	for i, o := range q.Options {
 		mark := "( )"
-		if q.Type == jsvm.TypeMulti {
+		if q.Type == askMulti {
 			mark = "[ ]"
 		}
 		if ans.Picked[i] {
-			mark = map[bool]string{true: "[x]", false: "(•)"}[q.Type == jsvm.TypeMulti]
+			mark = map[bool]string{true: "[x]", false: "(•)"}[q.Type == askMulti]
 		}
 		fg, rbg := ui.FgSoft, bg
 		if st.Focus == focusBody && st.Row == i && !st.Typing {
@@ -126,13 +125,13 @@ func (a *App) drawAskForm(c ui.Canvas, w, h int) {
 		rows = append(rows, askRow{text: "  " + mark + " " + ui.Truncate(o.Label, max(1, inner-8)), fg: fg, bg: rbg, hit: &askHit{kind: hitRow, idx: i}})
 	}
 	otherLabel := "Other: "
-	if q.Type == jsvm.TypeText {
+	if q.Type == askText {
 		otherLabel = ""
 	}
 	val := string(ans.Other)
 	if st.Typing {
 		val += "█"
-	} else if val == "" && q.Type != jsvm.TypeText {
+	} else if val == "" && q.Type != askText {
 		val = "type your own answer…"
 	} else if val == "" {
 		val = "press enter to type…"
@@ -145,7 +144,7 @@ func (a *App) drawAskForm(c ui.Canvas, w, h int) {
 		fg = ui.FgDim
 	}
 	otherRow := len(q.Options)
-	if q.Type == jsvm.TypeText {
+	if q.Type == askText {
 		otherRow = 0
 	}
 	for i, l := range wordWrap(otherLabel+val, max(1, inner-2)) {

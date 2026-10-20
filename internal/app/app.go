@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -10,65 +9,50 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 
-	"meno/internal/agent"
+	"meno/internal/client"
 	"meno/internal/config"
-	"meno/internal/db"
-	"meno/internal/llm"
-	"meno/internal/mcp"
-	"meno/internal/proc"
+	"meno/internal/proto"
 	"meno/internal/safe"
 	"meno/internal/ui"
 )
 
 type App struct {
-	scr        tcell.Screen
-	drawErr    string   // last rendering panic, reported once until it changes
-	warnings   []string // problems found in provider.json, mcp.json, theme.json at start
-	mouse      mouseState
-	st         *State
-	store      *config.Store
-	paths      config.Paths
-	mcp        *mcp.Manager
-	mcpCtx     context.Context // lives as long as the app; ends every server process
-	mcpStop    context.CancelFunc
-	retry      agent.RetryPolicy // how failed model requests are repeated; the zero value is the default
-	client     func(llm.Provider) llm.Client
-	events     chan any
-	quit       bool
-	done       chan struct{}
-	closeOnce  sync.Once
-	waveOn     atomic.Bool    // the welcome screen was drawn last: keep it animating
-	agentsAt   time.Time      // when agentsOK was last checked
-	agentsOK   bool           // an AGENTS.md exists (cached for the welcome screen)
-	idleTick   bool           // the batch held only ticks: skip drawing when nothing runs
-	bg         map[string]int // running tasks and working subagents per session id
-	bgAt       time.Time      // when the background work was last counted
-	bgInflight bool           // a count is running
-	cur        cursorPos      // real terminal cursor, set while drawing
+	scr       tcell.Screen
+	drawErr   string   // last rendering panic, reported once until it changes
+	warnings  []string // problems found in the theme file at start
+	mouse     mouseState
+	st        *State
+	paths     config.Paths
+	cl        *client.Client // the daemon, which owns sessions, tools, tasks and config
+	events    chan any
+	quit      bool
+	done      chan struct{}
+	closeOnce sync.Once
+	waveOn    atomic.Bool // the welcome screen was drawn last: keep it animating
+	agentsAt  time.Time   // when agentsOK was last checked
+	agentsOK  bool        // an AGENTS.md exists (cached for the welcome screen)
+	idleTick  bool        // the batch held only ticks: skip drawing when nothing runs
+	cur       cursorPos   // real terminal cursor, set while drawing
 
-	imgs    imageMgr          // inline terminal graphics
-	evStore *agent.EventStore // the durable steering queue
-	tasks   *proc.Supervisor  // background processes of the main agents
-	daemons *proc.Daemons     // the run commands of providers (local proxies)
-	kids    *childMgr         // subagents of the main sessions
+	imgs imageMgr // inline terminal graphics
 
-	loginParts // the OAuth helper and the login in progress (login_oauth.go)
+	rts     map[string]*Runtime // every session loaded in this run, by id
+	rtList  []*Runtime          // the same, in creation order
+	dbRows  []proto.SessionItem // sessions the daemon listed for :sessions
+	openURL func(string) error
 
-	rts    map[string]*Runtime // every session loaded in this run, by id
-	rtList []*Runtime          // the same, in creation order
-	dbRows []agent.SessionInfo // sessions in the database, as last listed for :sessions
+	saves   saveQueue     // saves to the daemon, one at a time and in order
+	cfgSeq  atomic.Uint64 // numbers the reads of the daemon config
+	cfgSeen uint64        // the newest read that was applied
+	flowSeq int           // number of the last login, to tell a stale one from the current
+	closing bool          // Close is running
+	cdKey   string        // input and directory the :cd completions in cdCache belong to
+	cdCache []string      // rows of the :cd completion
 
-	closing bool     // Close is running: every turn has ended, so even a "running" session may be saved
-	cdKey   string   // input and directory the :cd completions in cdCache belong to
-	cdCache []string // rows of the :cd completion
-
-	mu sync.Mutex // guards Runtime.cancel
-	// prepareHook, when set, runs first in the goroutine that prepares a turn (tests slow it down).
-	prepareHook func()
-	running     sync.WaitGroup
-
-	pasting  bool   // between the start and end of a bracketed paste into the composer
-	pasteBuf []rune // text collected during that paste
+	running  sync.WaitGroup // short background calls
+	watchers sync.WaitGroup // the event streams of followed sessions
+	pasting  bool           // between the start and end of a bracketed paste into the composer
+	pasteBuf []rune         // text collected during that paste
 	// clipboard reads an image from the system clipboard (tests replace it).
 	clipboard func() ([]byte, error)
 	// notifier replaces the way signals are made (tests).
@@ -77,80 +61,54 @@ type App struct {
 	checkUpdate func(ctx context.Context) string
 }
 
-func New(scr tcell.Screen, paths config.Paths, client func(llm.Provider) llm.Client) (*App, error) {
-	st := config.NewStore(paths)
-	s, err := st.LoadSettings()
-	if err != nil {
-		return nil, err
-	}
+// New builds the TUI on a connection to the daemon. It does not start the
+// daemon: the caller (cmd/meno) ensures one is running and passes the client.
+func New(scr tcell.Screen, paths config.Paths, cl *client.Client) (*App, error) {
 	a := &App{
-		scr: scr, store: st, paths: paths, done: make(chan struct{}),
-		mcp: mcp.NewManager(), client: client, events: make(chan any, 512),
-		rts: map[string]*Runtime{},
+		scr: scr, paths: paths, cl: cl, done: make(chan struct{}),
+		events: make(chan any, 512), rts: map[string]*Runtime{},
 	}
 	a.openURL = openBrowser
-	a.evStore, _ = agent.OpenEvents(paths.Home)
-	if d, err := db.Open(paths.Home); err == nil {
-		a.tasks, _ = proc.New(d, filepath.Join(paths.Home, "tasks"), proc.Hooks{Finished: a.onTaskFinished})
-	}
-	a.kids = newChildMgr(a)
-	a.daemons = proc.NewDaemons(filepath.Join(paths.Home, "providers"))
-	a.daemons.OnExit = func(name string, err error, log string) {
-		if a.helperStopped(name, err, log) {
-			return
-		}
-		a.postEvent(errNotice{text: "provider " + name + ": the run command ended (" + err.Error() + "), see " + log})
-	}
-	a.mcpCtx, a.mcpStop = context.WithCancel(context.Background())
 	a.st = NewState()
-	a.st.Settings = s
 	a.loadThemeFile()
-	if !ui.SetTheme(s.Theme) {
-		ui.SetTheme(ui.DefaultTheme)
-	}
-	a.loadMetadataCache()
 	if err := a.loadAll(); err != nil {
 		return nil, err
 	}
-	// One empty session in the launch directory; sessions of earlier runs are
-	// only opened on request (:sessions).
-	a.st.Runtime = a.newRuntime(a.newAgentSession(paths.Cwd), paths.Cwd)
+	if !ui.SetTheme(a.st.Settings.Theme) {
+		ui.SetTheme(ui.DefaultTheme)
+	}
+	sess, err := a.createSession(paths.Cwd)
+	if err != nil {
+		return nil, err
+	}
+	a.st.Runtime = a.newRuntime(sess, paths.Cwd)
+	a.st.Runtime.watch = a.watch(sess.ID())
 	a.reportWarnings()
 	return a, nil
 }
 
+// Close stops the TUI. Work in the daemon goes on: closing a client never
+// stops a run, a task or a subagent.
 func (a *App) Close() {
+	a.closing = true
 	a.cancelFlow()
 	a.clearImages()
 	a.closeOnce.Do(func() { close(a.done) })
-	a.mcpStop()
-	a.cancelAll()
-	a.running.Wait()
-	if a.kids != nil {
-		a.kids.Shutdown()
-	}
-	if a.daemons != nil {
-		a.daemons.StopAll() // the proxies of the providers go with meno
-	}
-	if a.tasks != nil {
-		a.tasks.Shutdown() // cancels every managed process group before the database closes
-	}
-	a.closing = true
 	for _, rt := range a.rtList {
-		a.saveRT(rt)
+		if rt.watch != nil {
+			rt.watch()
+		}
 	}
-	agent.CloseSessionStores()
-	a.mcp.StopAll()
+	a.running.Wait()
+	a.watchers.Wait()
 }
 
 func (a *App) Run(ctx context.Context) error {
 	a.scr.EnablePaste()
 	a.fetchMetadata()
 	a.startUpdateCheck()
-	a.startProviderRuns()
-	a.startOAuth()
+	a.refreshConfig()
 	a.enforceProvider()
-	a.startServers()
 	safe.Go(func() {
 		for {
 			ev := a.scr.PollEvent()
@@ -218,8 +176,12 @@ func (a *App) handle(msg any) {
 	case *tcell.EventResize:
 		// tcell already resized and invalidated its buffer; a full Sync() clears
 		// the terminal and causes visible flicker.
-	case agentEv:
-		a.inRT(m.sid, func() { a.onAgent(m.ev) })
+	case wireEv:
+		a.onWire(m)
+	case snapshotEv:
+		a.onSnapshot(m)
+	case wireLost:
+		a.notifyErr("lost the daemon stream of a session: " + m.err.Error())
 	case imageDecoded:
 		a.imgs.placed = ""
 	case pickResults:
@@ -228,53 +190,36 @@ func (a *App) handle(msg any) {
 		a.notifyErr(m.text)
 	case updateAvailable:
 		a.onUpdateAvailable(m.tag)
-	case tasksLoaded:
-		a.onTasksLoaded(m)
-	case bgLoaded:
-		a.onBgLoaded(m)
-	case childChanged:
-		a.onChildChanged(m.parent)
-	case eventQueued:
-		a.onEventQueued(m.sid)
 	case sessionsLoaded:
 		a.onSessionsLoaded(m)
 	case modelsLoaded:
 		a.onModelsLoaded(m)
-	case accountsLoaded, oauthPortChanged, oauthHelperStatus, oauthRefreshed, flowStep, flowLogin, flowDone:
+	case settingsLoaded:
+		a.onSettingsLoaded(m)
+	case accountsLoaded, flowStep, flowLogin, flowDone:
 		a.onLoginEvent(m)
+	case forked:
+		a.onForked(m)
+	case childTurns:
+		if m.id == a.st.AgentsUI.OpenID {
+			a.st.AgentsUI.Turns = m.turns
+		}
+	case tasksLoaded:
+		a.onTasksLoaded(m)
+	case skillsLoaded:
+		a.st.Skills = m.skills
 	case compactDone:
-		a.inRT(m.sid, func() {
-			if m.err == nil {
-				a.st.Prompt.Base, a.st.Prompt.Frozen = nil, "" // a reset point: the cache is gone anyway
-				a.st.Context = m.after
-				a.notify("context compacted · " + itoa(m.before) + " → " + itoa(m.after) + " tokens")
-			}
-			a.onTurnDone(m.err)
-		})
-		a.markUnseen(m.sid)
-	case routingStateEv, preparedEv:
-		a.handleRoutingEvent(m)
-	case turnDone:
-		a.inRT(m.sid, func() {
-			a.onGoalEnd(m.err) // before onTurnDone, which may start the next request and replace the goal
-			a.onTurnDone(m.err)
-		})
-		a.markUnseen(m.sid)
-	case askOpen:
-		a.inRT(m.sid, func() { a.openAsk(m.st) })
-	case askClose:
-		a.inRT(m.sid, func() { a.closeAsk(m.st) })
+		a.onCompactDone(m)
+	case sendResult:
+		a.onSendResult(m)
+	case sessionRefreshed:
+		a.onSessionRefreshed(m)
 	case uiCall:
 		m.fn()
 		close(m.done)
-	case mcpStarted:
-		if m.err != nil {
-			a.notifyErr("mcp " + m.name + ": " + m.err.Error())
-		}
 	case waveTick:
 	case tick:
 		a.refreshTasks()
-		a.refreshBackground()
 		if a.pruneNotices() {
 			a.idleTick = false
 		}

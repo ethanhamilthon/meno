@@ -31,7 +31,7 @@ func TestSaveSnippetFromComposerSelection(t *testing.T) {
 		t.Fatalf("selection %q", a.st.SelText)
 	}
 	a.runCommand("save_snippet greet")
-	sn, err := a.store.Snippet("greet")
+	sn, err := a.storeForTest().Snippet("greet")
 	if err != nil || sn.Text != "hello world" {
 		t.Fatalf("stored %+v %v", sn, err)
 	}
@@ -61,7 +61,7 @@ func TestSaveSnippetNeedsSelection(t *testing.T) {
 	a, scr := newTestApp(t)
 	defer scr.Fini()
 	a.runCommand("save_snippet empty")
-	if _, err := a.store.Snippet("empty"); err == nil {
+	if _, err := a.storeForTest().Snippet("empty"); err == nil {
 		t.Fatal("saved a snippet without a selection")
 	}
 }
@@ -69,7 +69,7 @@ func TestSaveSnippetNeedsSelection(t *testing.T) {
 func TestPasteSnippetInsertsIntoComposer(t *testing.T) {
 	a, scr := newTestApp(t)
 	defer scr.Fini()
-	if err := a.store.SaveSnippet("greet", "hello world"); err != nil {
+	if err := a.storeForTest().SaveSnippet("greet", "hello world"); err != nil {
 		t.Fatal(err)
 	}
 	typeRunes(a, "say: ")
@@ -93,7 +93,7 @@ func TestSnippetsModalRenamesAndDeletes(t *testing.T) {
 	a, scr := newTestApp(t)
 	defer scr.Fini()
 	for _, sn := range [][2]string{{"one", "a"}, {"two", "b"}} {
-		if err := a.store.SaveSnippet(sn[0], sn[1]); err != nil {
+		if err := a.storeForTest().SaveSnippet(sn[0], sn[1]); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -108,7 +108,7 @@ func TestSnippetsModalRenamesAndDeletes(t *testing.T) {
 	}
 	typeRunes(a, "second")
 	a.onKey(keyK(tcell.KeyEnter))
-	if _, err := a.store.Snippet("second"); err != nil {
+	if _, err := a.storeForTest().Snippet("second"); err != nil {
 		t.Fatalf("rename failed: %v", err)
 	}
 	if a.st.Snippets[a.st.Sel].Name != "second" {
@@ -122,7 +122,7 @@ func TestSnippetsModalRenamesAndDeletes(t *testing.T) {
 	if len(a.st.Snippets) != 1 || a.st.Snippets[0].Name != "one" {
 		t.Fatalf("after delete %+v", a.st.Snippets)
 	}
-	if _, err := a.store.Snippet("second"); err == nil {
+	if _, err := a.storeForTest().Snippet("second"); err == nil {
 		t.Fatal("snippet still stored")
 	}
 	a.draw()

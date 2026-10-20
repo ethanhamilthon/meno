@@ -1,14 +1,15 @@
 package app
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
-	"os"
-	"reflect"
 
-	"meno/internal/agent"
+	"meno/internal/client"
 	"meno/internal/config"
 	"meno/internal/llm"
 	"meno/internal/mcp"
+	"meno/internal/proto"
 	"meno/internal/ui"
 )
 
@@ -21,36 +22,133 @@ func (a *App) loadThemeFile() {
 	a.warnings = append(a.warnings, append(warns, more...)...)
 }
 
+// settingsLoaded carries the daemon's configuration to the UI goroutine.
+type settingsLoaded struct {
+	seq       uint64 // order of the read: later reads win
+	settings  config.Settings
+	providers []llm.Provider
+	servers   []mcp.Server
+	info      map[string]mcpInfo
+	skills    []config.Skill
+	err       error
+}
+
+// loadAll reads the configuration from the daemon before the first frame.
 func (a *App) loadAll() error {
-	var err error
-	if a.st.Providers, err = a.store.LoadProviders(); err != nil {
-		return err
+	m := a.fetchConfig()
+	if m.err != nil {
+		return m.err
 	}
-	if a.st.Skills, err = a.store.LoadSkills(); err != nil {
-		return err
-	}
-	if a.st.Servers, err = a.store.LoadServers(); err != nil {
-		return err
-	}
-	a.mergeOverlays()
-	a.initOAuth()
+	a.applyConfig(m)
 	return nil
 }
 
-// mergeOverlays adds provider.json and mcp.json to the saved providers and
-// servers. Their entries are read only and never saved.
-func (a *App) mergeOverlays() {
-	files, warns := config.LoadProviderFile(a.paths.ProviderFile(), os.Getenv)
-	var more []string
-	a.st.Providers, more = config.MergeProviders(a.st.Providers, files)
-	warns = append(warns, more...)
-	servers, w := config.LoadMCPFile(a.paths.MCPFile())
-	warns = append(warns, w...)
-	a.st.Servers, more = config.MergeServers(a.st.Servers, servers)
-	a.warnings = append(a.warnings, append(warns, more...)...)
+// refreshConfig re-reads the configuration in the background.
+func (a *App) refreshConfig() {
+	a.spawn(func() { a.postEvent(a.fetchConfig()) })
 }
 
-// reportWarnings shows what was wrong in the overlay files, once.
+func (a *App) onSettingsLoaded(m settingsLoaded) {
+	if m.err != nil {
+		a.notifyErr("config: " + m.err.Error())
+		return
+	}
+	// A reply that left the daemon before my last edit reached it would undo
+	// that edit: only the newest read is applied.
+	if m.seq < a.cfgSeen {
+		return
+	}
+	a.cfgSeen = m.seq
+	a.applyConfig(m)
+	a.afterProvidersChanged()
+}
+
+func (a *App) applyConfig(m settingsLoaded) {
+	a.st.Settings, a.st.Providers, a.st.Servers, a.st.Skills = m.settings, m.providers, m.servers, m.skills
+	a.st.ServerInfo = m.info
+}
+
+func (a *App) fetchConfig() settingsLoaded {
+	out := settingsLoaded{seq: a.cfgSeq.Add(1)}
+	out.err = a.rpc(func(ctx context.Context, c *client.Client) error {
+		s, err := c.Settings(ctx)
+		if err != nil {
+			return err
+		}
+		out.settings = settingsFromWire(s.Settings)
+		ps, err := c.Providers(ctx)
+		if err != nil {
+			return err
+		}
+		for _, p := range ps.Providers {
+			out.providers = append(out.providers, providerFromWire(p))
+		}
+		ms, err := c.McpServers(ctx)
+		if err != nil {
+			return err
+		}
+		out.info = map[string]mcpInfo{}
+		for _, s := range ms.Servers {
+			out.servers = append(out.servers, serverFromWire(s))
+			out.info[s.Name] = mcpInfo{Running: s.Running, Starting: s.Starting, Err: s.Error}
+		}
+		sk, err := c.Skills(ctx)
+		if err != nil {
+			return err
+		}
+		for _, k := range sk.Skills {
+			out.skills = append(out.skills, config.Skill{Name: k.Name, Scope: k.Scope, Desc: k.Desc, Path: k.Path, Enabled: k.Enabled})
+		}
+		return nil
+	})
+	return out
+}
+
+func settingsFromWire(w proto.ConfigSettings) config.Settings {
+	s := config.DefaultSettings()
+	b, _ := json.Marshal(w)
+	_ = json.Unmarshal(b, &s)
+	return s
+}
+
+func settingsToWire(s config.Settings) proto.ConfigSettings {
+	var w proto.ConfigSettings
+	b, _ := json.Marshal(s)
+	_ = json.Unmarshal(b, &w)
+	return w
+}
+
+func providerFromWire(w proto.ConfigProvider) llm.Provider {
+	b, _ := json.Marshal(w)
+	var p llm.Provider
+	_ = json.Unmarshal(b, &p)
+	p.Source = w.Source
+	if w.HasAPIKey && p.APIKey == "" {
+		p.APIKey = "•" // the daemon keeps the key; the UI only needs to know there is one
+	}
+	return p
+}
+
+func providerToWire(p llm.Provider) proto.ConfigProvider {
+	b, _ := json.Marshal(p)
+	var w proto.ConfigProvider
+	_ = json.Unmarshal(b, &w)
+	w.Source = p.Source
+	if p.APIKey == "•" {
+		w.APIKey = ""
+	}
+	return w
+}
+
+func serverFromWire(w proto.ConfigMCPServer) mcp.Server {
+	return mcp.Server{Name: w.Name, Transport: w.Transport, Command: w.Command, Env: w.Env, URL: w.URL, Headers: w.Headers, Enabled: w.Enabled, Source: w.Source}
+}
+
+func serverToWire(s mcp.Server) proto.ConfigMCPServer {
+	return proto.ConfigMCPServer{Name: s.Name, Transport: s.Transport, Command: s.Command, Env: s.Env, URL: s.URL, Headers: s.Headers, Enabled: s.Enabled, Source: s.Source}
+}
+
+// reportWarnings shows what was wrong at start, once.
 func (a *App) reportWarnings() {
 	for _, w := range a.warnings {
 		a.notifyErr(w)
@@ -71,62 +169,4 @@ func (a *App) fileEntryNotice(name string) {
 	a.notifyErr("defined in " + name + " and read only: edit the file and restart meno")
 }
 
-// guardFileServers refuses a change that would alter or remove a server read
-// from mcp.json.
-func guardFileServers(old, next []mcp.Server) error {
-	for _, o := range old {
-		if !o.FromFile() {
-			continue
-		}
-		kept := false
-		for _, n := range next {
-			if reflect.DeepEqual(n, o) {
-				kept = true
-			}
-		}
-		if !kept {
-			return fmt.Errorf("%s is defined in %s and is read only: edit the file and restart meno", o.Name, config.MCPFileName)
-		}
-	}
-	return nil
-}
-
-// startProviderRuns starts the run command of every provider that has one. It
-// does not wait: a request that arrives before the proxy listens is retried.
-func (a *App) startProviderRuns() {
-	for _, p := range a.st.Providers {
-		a.syncProviderRun(p)
-	}
-}
-
-// syncProviderRun makes the daemon of p match its run command: started when
-// set, replaced when changed, stopped when empty.
-func (a *App) syncProviderRun(p llm.Provider) {
-	if a.daemons == nil {
-		return
-	}
-	if p.Disabled {
-		a.daemons.Stop(p.Name)
-		return
-	}
-	if p.Managed() && a.daemons.RunningCommand(p.Name) != p.Run {
-		if err := a.oauth.WriteConfig(); err != nil { // a fresh config before every start
-			a.notifyErr("cliproxyapi: " + err.Error())
-			return
-		}
-	}
-	if err := a.daemons.Start(p.Name, p.Run, a.paths.Cwd, os.Environ()); err != nil {
-		a.notifyErr("provider " + p.Name + ": " + err.Error())
-	}
-}
-
-// providerRetry is the retry policy for requests to p. A provider with a run
-// command may still be starting at the first request, so it gets more attempts
-// (about a minute and a half) than the default.
-func (a *App) providerRetry(p llm.Provider) agent.RetryPolicy {
-	r := a.retry
-	if p.Run != "" && r.Attempts == 0 {
-		r.Attempts = 9
-	}
-	return r
-}
+var _ = fmt.Sprint

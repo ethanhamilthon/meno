@@ -6,8 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"meno/internal/agent"
-	"meno/internal/llm"
 	"meno/internal/ui"
 )
 
@@ -70,8 +68,8 @@ func TestComposerHeaderUsesFolderWithoutTitle(t *testing.T) {
 	if got := a.composerHeaderLabel(); got != "project" {
 		t.Fatalf("untitled label %q", got)
 	}
-	a.st.Session.Title = ""
-	a.st.Session.Append(agent.Turn{Role: llm.RoleUser, Text: "first user message"})
+	// The daemon names a session after its first message and sends the name.
+	a.st.Session.Title = "first user message"
 	if got := a.composerHeaderLabel(); got != "first user message" {
 		t.Fatalf("first-message label %q", got)
 	}

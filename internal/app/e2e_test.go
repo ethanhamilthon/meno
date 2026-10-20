@@ -58,11 +58,21 @@ func e2eApp(t testing.TB, cl llm.Client) (*App, tcell.SimulationScreen, config.P
 	if err := st.SaveSettings(s); err != nil {
 		t.Fatal(err)
 	}
-	a, err := New(scr, paths, func(llm.Provider) llm.Client { return cl })
+	r := startRig(t, paths.Home, cl)
+	a, err := New(scr, paths, r.cl)
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(a.Close)
+	settle(t, a)
 	return a, scr, paths
+}
+
+// newTestApp is an app on a daemon whose model answers nothing.
+func newTestApp(t *testing.T) (*App, tcell.SimulationScreen) {
+	t.Helper()
+	a, scr, _ := e2eApp(t, &scriptedClient{})
+	return a, scr
 }
 
 // pump processes queued events until the turn finishes or the deadline passes.
@@ -89,7 +99,7 @@ func TestE2ETurnWithJSToolAndPersistence(t *testing.T) {
 
 	typeRunes(a, "calculate")
 	a.onKey(keyK(tcell.KeyEnter))
-	pump(t, a, func() bool { return !a.st.Running })
+	pump(t, a, func() bool { return runDone(a) })
 
 	a.draw()
 	out := screenText(scr)
@@ -125,9 +135,9 @@ func TestE2EAbortMarksSession(t *testing.T) {
 	defer scr.Fini()
 	typeRunes(a, "long task")
 	a.onKey(keyK(tcell.KeyEnter))
-	pump(t, a, func() bool { return !a.st.Running })
+	pump(t, a, func() bool { return runDone(a) })
 	a.abortTurn()
-	pump(t, a, func() bool { return !a.st.Running })
+	pump(t, a, func() bool { return runDone(a) })
 	if a.st.Running {
 		t.Fatal("still running after abort")
 	}

@@ -12,7 +12,6 @@ import (
 
 	"meno/internal/app"
 	"meno/internal/config"
-	"meno/internal/llm"
 	"meno/internal/update"
 	ver "meno/internal/version"
 )
@@ -35,6 +34,8 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	// The daemon is started first, before the screen is taken over, so its
+	// start-up errors are readable.
 	scr, err := tcell.NewScreen()
 	if err != nil {
 		return err
@@ -44,7 +45,12 @@ func run() error {
 	}
 	defer scr.Fini()
 	scr.EnableMouse(tcell.MouseDragEvents) // buttons, wheel and drags: selecting text with the mouse
-	a, err := app.New(scr, paths, llm.NewClient)
+	cl, err := ensureDaemon(paths.Home)
+	if err != nil {
+		scr.Fini()
+		return err
+	}
+	a, err := app.New(scr, paths, cl)
 	if err != nil {
 		return err
 	}
@@ -52,7 +58,6 @@ func run() error {
 	if os.Getenv("MENO_NO_UPDATE_CHECK") == "" {
 		c := update.Client{Version: version}
 		a.SetUpdateCheck(func(ctx context.Context) string { return c.Check(ctx, paths.Home, version, time.Now()) })
-		a.EnableOAuthUpdates()
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

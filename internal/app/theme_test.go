@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -34,7 +35,7 @@ func TestSettingsThemeCyclesAndPersists(t *testing.T) {
 	if ui.CurrentTheme() != want || a.st.Settings.Theme != want {
 		t.Fatalf("theme %q/%q, want %q", ui.CurrentTheme(), a.st.Settings.Theme, want)
 	}
-	saved, err := a.store.LoadSettings()
+	saved, err := a.storeForTest().LoadSettings()
 	if err != nil || saved.Theme != want {
 		t.Fatalf("not persisted: %+v %v", saved, err)
 	}
@@ -59,20 +60,25 @@ func TestThemeLoadedAtStartupWithFallback(t *testing.T) {
 	if err := st.SaveSettings(set); err != nil {
 		t.Fatal(err)
 	}
+	r := startRig(t, dir, &scriptedClient{})
 	defer ui.SetTheme(ui.DefaultTheme)
 	scr := tcell.NewSimulationScreen("UTF-8")
 	if err := scr.Init(); err != nil {
 		t.Fatal(err)
 	}
 	defer scr.Fini()
-	if _, err := New(scr, config.Paths{Home: dir, Cwd: dir}, nil); err != nil || ui.CurrentTheme() != "nord" {
+	a, err := New(scr, config.Paths{Home: dir, Cwd: dir}, r.cl)
+	if err != nil || ui.CurrentTheme() != "nord" {
 		t.Fatalf("startup theme %q err %v", ui.CurrentTheme(), err)
 	}
+	a.Close()
 	set.Theme = "no-such-theme"
-	if err := st.SaveSettings(set); err != nil {
+	if _, err := r.cl.PutSettings(context.Background(), settingsToWire(set)); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := New(scr, config.Paths{Home: dir, Cwd: dir}, nil); err != nil || ui.CurrentTheme() != ui.DefaultTheme {
+	a, err = New(scr, config.Paths{Home: dir, Cwd: dir}, r.cl)
+	if err != nil || ui.CurrentTheme() != ui.DefaultTheme {
 		t.Fatalf("fallback %q err %v", ui.CurrentTheme(), err)
 	}
+	a.Close()
 }

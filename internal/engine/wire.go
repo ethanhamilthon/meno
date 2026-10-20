@@ -82,8 +82,10 @@ func askWire(a *askState) *proto.AskForm {
 	f := proto.AskForm{AskID: a.id, By: a.by, Questions: []proto.AskQuestion{}}
 	for _, q := range a.form.Questions {
 		x := proto.AskQuestion{ID: q.ID, Prompt: q.Text, Type: q.Type, Required: true}
+		x.Recommendation = q.Recommendation
 		for _, o := range q.Options {
 			x.Options = append(x.Options, o.ID)
+			x.Choices = append(x.Choices, proto.AskChoice{ID: o.ID, Label: o.Label})
 		}
 		f.Questions = append(f.Questions, x)
 	}

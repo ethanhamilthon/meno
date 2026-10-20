@@ -8,9 +8,7 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 
-	"meno/internal/agent"
 	"meno/internal/prompt"
-	"meno/internal/safe"
 	"meno/internal/ui"
 )
 
@@ -45,8 +43,8 @@ func (a *App) runtimeModel(rt *Runtime) string {
 	return describeSelection(st.Provider, st.Model, st.Effort)
 }
 
-// sessionRows merges the sessions of the database with the ones loaded in this
-// run, newest first. Loaded sessions win: they are ahead of the database.
+// sessionRows merges the sessions the daemon listed with the ones followed in
+// this run, newest first. Followed sessions win: they are ahead of the list.
 func (a *App) sessionRows() []sessionRow {
 	seen := map[string]bool{}
 	var rows []sessionRow
@@ -63,7 +61,8 @@ func (a *App) sessionRows() []sessionRow {
 	}
 	for _, s := range a.dbRows {
 		if !seen[s.ID] {
-			rows = append(rows, sessionRow{ID: s.ID, Title: s.Title, Cwd: s.Cwd, UpdatedAt: s.UpdatedAt, Turns: s.Turns, Model: describeSelection(s.Provider, s.Model, s.Effort)})
+			t, _ := time.Parse(time.RFC3339Nano, s.UpdatedAt)
+			rows = append(rows, sessionRow{ID: s.ID, Title: s.Name, Cwd: s.Cwd, UpdatedAt: t, Model: s.Model})
 		}
 	}
 	sort.SliceStable(rows, func(i, j int) bool { return rows[i].UpdatedAt.After(rows[j].UpdatedAt) })
@@ -82,27 +81,6 @@ func (a *App) sessionsFiltered() ([]sessionRow, []int) {
 	})
 }
 
-// openSessions shows the dialog at once with what is known and lists the
-// database in the background.
-func (a *App) openSessions() {
-	a.openOverlay(OverSessions)
-	a.running.Add(1)
-	go func() {
-		defer safe.Recover(a.reportPanic)
-		defer a.running.Done()
-		list, err := agent.ListRecentSessions(a.paths.Home, maxSessionRows)
-		a.postEvent(sessionsLoaded{list, err})
-	}()
-}
-
-func (a *App) onSessionsLoaded(m sessionsLoaded) {
-	if m.err != nil {
-		a.notifyErr("sessions failed: " + m.err.Error())
-		return
-	}
-	a.dbRows = m.list
-}
-
 func (a *App) sessionsKey(k *tcell.EventKey) {
 	rows, idx := a.sessionsFiltered()
 	switch {
@@ -116,39 +94,6 @@ func (a *App) sessionsKey(k *tcell.EventKey) {
 		}
 	default:
 		a.queryKey(k)
-	}
-}
-
-// openSession puts a session on screen: one loaded in this run as it is, a
-// stored one freshly loaded with a new js VM. Running turns are left alone.
-func (a *App) openSession(id string) {
-	a.closeOverlay()
-	if rt := a.rts[id]; rt != nil {
-		a.switchTo(rt)
-		return
-	}
-	s, err := agent.LoadSession(a.paths.Home, id)
-	if err != nil {
-		a.notifyErr("open failed: " + err.Error())
-		return
-	}
-	a.stampSelection(s)
-	cwd, storedCwd := s.Cwd, s.Cwd
-	missing := cwd == "" || !dirExists(cwd)
-	if missing {
-		cwd = a.paths.Cwd
-		s.Cwd = cwd
-	}
-	rt := a.newRuntime(s, cwd)
-	rt.Saved = true
-	rt.LastUsage, rt.Usage, rt.Spent, rt.Context, rt.Unpriced = s.Metrics.LastUsage, s.Metrics.Usage, s.Metrics.Spent, s.Metrics.Context, s.Metrics.Unpriced
-	if !rt.Empty() && missing && storedCwd != "" {
-		rt.Prompt.CwdFrom = storedCwd // the prompt is built at the first message
-	}
-	a.switchTo(rt)
-	a.notify("session opened")
-	if missing {
-		a.notifyErr("directory " + storedCwd + " no longer exists · using " + cwd)
 	}
 }
 

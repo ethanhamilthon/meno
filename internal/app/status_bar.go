@@ -49,7 +49,7 @@ func (a *App) statusGroups() []ui.Seg {
 	if a.st.Running {
 		add(countGlyph(1), dimOr(blinkOn(), ui.Green))
 	}
-	if n := a.bgCount(a.st.Session.ID); n > 0 {
+	if n := a.bgCount(a.st.Session.ID()); n > 0 {
 		add(countGlyph(n), bgColor())
 	}
 	running, _, done := a.otherSessions()

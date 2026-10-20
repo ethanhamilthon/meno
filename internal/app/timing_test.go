@@ -1,6 +1,7 @@
 package app
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
@@ -9,6 +10,7 @@ import (
 
 	"meno/internal/agent"
 	"meno/internal/llm"
+	"meno/internal/proto"
 	"meno/internal/ui"
 )
 
@@ -57,7 +59,7 @@ func TestTimingSettingsInTheDialog(t *testing.T) {
 		t.Fatalf("summary %q", a.st.Settings.TurnSummary)
 	}
 	// The choice is saved: a new app on the same files sees it.
-	saved, err := a.store.LoadSettings()
+	saved, err := a.storeForTest().LoadSettings()
 	if err != nil || saved.BashTiming != "slow" || saved.TurnSummary != "off" {
 		t.Fatalf("not persisted: %+v %v", saved, err)
 	}
@@ -133,30 +135,36 @@ func TestStatusBarAndPlaceholderShowTheClock(t *testing.T) {
 	}
 }
 
+func wireEvent(typ string, v any) proto.Event {
+	b, _ := json.Marshal(v)
+	return proto.Event{Type: typ, Data: b}
+}
+
 func TestRunCountersFollowAgentEvents(t *testing.T) {
 	a, s := newTestApp(t)
 	defer s.Fini()
 	a.st.Running = true
 	a.st.RunStart = time.Now()
-	a.onAgent(agent.Ev{Kind: agent.EvUsage, Usage: llm.Usage{In: 10, Out: 2}})
-	a.onAgent(agent.Ev{Kind: agent.EvCode, CallID: "c1", Code: "x"})
+	rt := a.st.Runtime
+	a.applyWire(rt, wireEvent(proto.EventUsage, proto.UsageData{InputTokens: 10, OutputTokens: 2}))
+	a.applyWire(rt, wireEvent(proto.EventCallDelta, proto.CallDeltaData{CallID: "c1", Delta: "x"}))
 	if len(a.st.LiveCalls) != 1 || !a.st.LiveCalls[0].Started.IsZero() || a.st.LiveCalls[0].Running {
 		t.Fatalf("a call that is only streaming has not started: %+v", a.st.LiveCalls)
 	}
 	before := time.Now()
-	a.onAgent(agent.Ev{Kind: agent.EvJSStart, CallID: "c1", Code: "x", Limit: 30 * time.Second})
+	a.applyWire(rt, wireEvent(proto.EventCallStart, proto.CallStartData{CallID: "c1", Command: "x", LimitMS: 30000}))
 	c := a.st.LiveCalls[0]
 	if !c.Running || c.Limit != 30*time.Second || c.Started.Before(before) || time.Since(c.Started) > time.Second {
 		t.Fatalf("%+v", c)
 	}
-	a.onAgent(agent.Ev{Kind: agent.EvJSEnd, CallID: "c1", Elapsed: time.Second})
-	a.onAgent(agent.Ev{Kind: agent.EvUsage, Usage: llm.Usage{In: 20, Out: 3}})
+	a.applyWire(rt, wireEvent(proto.EventCallEnd, proto.CallEndData{CallID: "c1", ElapsedMS: 1000}))
+	a.applyWire(rt, wireEvent(proto.EventUsage, proto.UsageData{InputTokens: 20, OutputTokens: 3}))
 	if a.st.RunTurns != 2 || a.st.RunJS != 1 || len(a.st.LiveCalls) != 0 {
 		t.Fatalf("turns %d js %d live %d", a.st.RunTurns, a.st.RunJS, len(a.st.LiveCalls))
 	}
-	a.onTurnDone(nil)
-	if !a.st.RunStart.IsZero() {
-		t.Fatal("run clock still ticking")
+	a.applyWire(rt, wireEvent(proto.EventDone, proto.DoneData{}))
+	if a.st.Running {
+		t.Fatal("still running after done")
 	}
 }
 

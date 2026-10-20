@@ -1,48 +1,34 @@
 package app
 
 import (
-	"time"
+	"context"
+	"encoding/json"
 
 	"github.com/gdamore/tcell/v2"
 
-	"fmt"
-	"meno/internal/agent"
-	"meno/internal/safe"
+	"meno/internal/client"
+	"meno/internal/proto"
 	"meno/internal/ui"
 )
 
 // agentsView is the :agents dialog: the working children of this session.
 type agentsView struct {
 	OpenID string // the child whose conversation is open ("" = the list)
+	Turns  []ui.Turn
 }
 
 func (a *App) openAgents() {
-	if a.kids == nil {
-		a.notifyErr("agents are not available")
-		return
-	}
 	a.st.AgentsUI = agentsView{}
-	a.onChildChanged(a.st.Session.ID)
+	a.refreshSession(a.st.Session.ID())
 	a.openOverlay(OverAgents)
 }
 
-// workingKids are the children of the current session that are doing something,
-// with live state for the ones running in this process. Finished children are
-// internal: nothing lists them here.
-func (a *App) workingKids() []agent.ChildRecord {
-	var out []agent.ChildRecord
-	for _, r := range a.st.Kids {
-		live := r
-		a.kids.mu.Lock()
-		c := a.kids.runs[r.ID]
-		a.kids.mu.Unlock()
-		if c != nil {
-			c.mu.Lock()
-			live = c.rec
-			c.mu.Unlock()
-		}
-		if live.Working() {
-			out = append(out, live)
+// workingKids are the children of the current session that are doing something.
+func (a *App) workingKids() []kidRow {
+	var out []kidRow
+	for _, k := range a.st.Kids {
+		if kidWorking(k.Status) {
+			out = append(out, k)
 		}
 	}
 	return out
@@ -57,6 +43,7 @@ func (a *App) agentsKey(k *tcell.EventKey) {
 		case k.Key() == tcell.KeyEnter && len(kids) > 0:
 			v.OpenID = kids[clampSel(a.st.Sel, len(kids))].ID
 			a.st.Query.Reset()
+			a.loadChildTurns(v.OpenID)
 		}
 		return
 	}
@@ -69,31 +56,46 @@ func (a *App) agentsKey(k *tcell.EventKey) {
 	}
 }
 
-// sendToChild forwards a user message through the steering queue with the
-// user as its source. It does not start another request.
+type childTurns struct {
+	id    string
+	turns []ui.Turn
+}
+
+// loadChildTurns reads the conversation of a subagent from the daemon.
+func (a *App) loadChildTurns(id string) {
+	a.spawn(func() {
+		var sn proto.Snapshot
+		if err := a.rpc(func(ctx context.Context, c *client.Client) error {
+			var e error
+			sn, e = c.Snapshot(ctx, id)
+			return e
+		}); err != nil {
+			return
+		}
+		var ts []ui.Turn
+		for _, t := range sn.Turns {
+			ts = append(ts, turnFromWire(t))
+		}
+		a.postEvent(childTurns{id, ts})
+	})
+}
+
+// sendToChild tells the daemon to forward a message to a subagent.
 func (a *App) sendToChild(id, text string) {
 	if text == "" {
 		return
 	}
-	a.running.Add(1)
-	owner, parent := a.st.RequestID, a.st.Session.ID
-	go func() {
-		defer safe.Recover(a.reportPanic)
-		defer a.running.Done()
-		recs, err := a.kids.store.Get(parent, id)
+	sid := a.st.Session.ID()
+	a.spawn(func() {
+		data, _ := json.Marshal(map[string]any{"id": id, "text": text})
+		err := a.rpc(func(ctx context.Context, c *client.Client) error {
+			_, e := c.Resource(ctx, "POST", "/v1/sessions/"+sid+"/agents/send", "", proto.ResourceRequest{Data: data})
+			return e
+		})
 		if err != nil {
-			a.postEvent(errNotice{"agent not found"})
-			return
+			a.postEvent(errNotice{text: err.Error()})
 		}
-		c, err := a.kids.revive(recs)
-		if err != nil {
-			a.postEvent(errNotice{err.Error()})
-			return
-		}
-		if _, err := a.kids.deliver(c, owner, agent.SourceUser, text); err != nil {
-			a.postEvent(errNotice{err.Error()})
-		}
-	}()
+	})
 }
 
 func (a *App) drawAgents(c ui.Canvas, w, h int) {
@@ -106,12 +108,10 @@ func (a *App) drawAgents(c ui.Canvas, w, h int) {
 	items := make([]item, 0, len(kids))
 	for _, k := range kids {
 		glyph, fg := "●", ui.Green
-		if k.Status == agent.ChildBlocked {
+		if k.Status == "blocked" {
 			glyph, fg = "?", ui.Orange
 		}
-		it := item{glyph: glyph, glyphFG: fg, label: k.ID[len(k.ID)-6:] + "  " + oneLine(k.Task), right: k.Status + " " + clock(time.Since(k.Created))}
-		it.detail = costText(k)
-		items = append(items, it)
+		items = append(items, item{glyph: glyph, glyphFG: fg, label: tail6(k.ID) + "  " + oneLine(k.Task), right: k.Status})
 	}
 	sel := clampSel(a.st.Sel, len(items))
 	bh := 4 + itemsHeight(items, sel)
@@ -128,14 +128,9 @@ func (a *App) drawAgents(c ui.Canvas, w, h int) {
 	b.hint(c, "↑/↓ select · enter open and talk · esc close")
 }
 
-func costText(k agent.ChildRecord) string {
-	s := "in " + itoa(k.Usage.In) + " · out " + itoa(k.Usage.Out)
-	if k.Unpriced && k.Cost == 0 {
-		return s + " · cost unknown"
-	}
-	s += " · $" + fmt.Sprintf("%.4f", k.Cost)
-	if k.Unpriced {
-		s += "+ (some requests unpriced)"
+func tail6(s string) string {
+	if len(s) > 6 {
+		return s[len(s)-6:]
 	}
 	return s
 }
@@ -144,19 +139,14 @@ func (a *App) drawAgentChat(c ui.Canvas, w, h int) {
 	id := a.st.AgentsUI.OpenID
 	b := centered(w, h, 0, max(8, h-4))
 	b.frame(c)
-	titleRow("agent "+id[len(id)-6:], "")(c, b)
-	a.kids.mu.Lock()
-	run := a.kids.runs[id]
-	a.kids.mu.Unlock()
+	titleRow("agent "+tail6(id), "")(c, b)
 	room := max(0, b.h-5)
-	if run != nil {
-		lines := ui.BuildLines(viewTurns(run.sess.Snapshot()), b.w, a.jsOpts())
-		if len(lines) > room {
-			lines = lines[len(lines)-room:]
-		}
-		for i, l := range lines {
-			ui.DrawLine(c, b.x, b.y+2+i, b.w, l)
-		}
+	lines := ui.BuildLines(a.st.AgentsUI.Turns, b.w, a.jsOpts())
+	if len(lines) > room {
+		lines = lines[len(lines)-room:]
+	}
+	for i, l := range lines {
+		ui.DrawLine(c, b.x, b.y+2+i, b.w, l)
 	}
 	b.fill(c, b.h-3, ui.BgPopupIn)
 	b.put(c, 2, b.h-3, "›", ui.FgWhite, ui.BgPopupIn)

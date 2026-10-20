@@ -2,13 +2,11 @@ package app
 
 import (
 	"context"
-	"time"
-
 	"github.com/gdamore/tcell/v2"
 
+	"meno/internal/client"
 	"meno/internal/config"
 	"meno/internal/llm"
-	"meno/internal/safe"
 )
 
 // :login is the one place for providers: accounts that signed in with OAuth,
@@ -64,7 +62,9 @@ func (a *App) loginToggle(r loginRow) {
 		a.toggleProvider(r.i)
 	case rowOAuth:
 		acc := a.st.Accounts[r.i]
-		a.accountAction("account", func(ctx context.Context) error { return a.oauth.SetDisabled(ctx, acc.File, !acc.Disabled) })
+		a.accountAction("account", func(ctx context.Context, c *client.Client) error {
+			return c.SetLoginAccountEnabled(ctx, acc.File, acc.Disabled)
+		})
 	}
 }
 
@@ -91,20 +91,5 @@ func (a *App) loginRemove(r loginRow) {
 		return
 	}
 	file := a.st.Accounts[r.i].File
-	a.accountAction("log out", func(ctx context.Context) error { return a.oauth.Logout(ctx, file) })
-}
-
-// accountAction runs a change to an OAuth account off the UI goroutine and
-// then reloads the accounts.
-func (a *App) accountAction(what string, fn func(ctx context.Context) error) {
-	safe.Go(func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
-		defer cancel()
-		err := a.withHelper(ctx, func(ctx context.Context) error { return fn(ctx) })
-		if err != nil {
-			a.postEvent(errNotice{text: what + ": " + a.accountError(err)})
-			return
-		}
-		a.refreshAccounts()
-	}, a.reportPanic)
+	a.accountAction("log out", func(ctx context.Context, c *client.Client) error { return c.RemoveLoginAccount(ctx, file) })
 }

@@ -41,7 +41,7 @@ func TestEffortRoutingSettingsUI(t *testing.T) {
 	if a.st.Settings.EffortRouterModel != "router-small" {
 		t.Fatalf("router model %q", a.st.Settings.EffortRouterModel)
 	}
-	saved, err := config.NewStore(a.paths).LoadSettings()
+	saved, err := a.storeForTest().LoadSettings()
 	if err != nil || saved.EffortRouter != "auto" || saved.EffortRouterModel != "router-small" {
 		t.Fatalf("settings not saved: %+v %v", saved, err)
 	}
@@ -118,7 +118,7 @@ func TestSettingsWebSearchBackendAndKey(t *testing.T) {
 	if a.st.Settings.WebSearchKey != "brave-key" {
 		t.Fatalf("key %q", a.st.Settings.WebSearchKey)
 	}
-	saved, err := a.store.LoadSettings()
+	saved, err := a.storeForTest().LoadSettings()
 	if err != nil || saved.WebSearchKey != "brave-key" || saved.WebSearch != "brave" {
 		t.Fatalf("not persisted: %+v %v", saved, err)
 	}

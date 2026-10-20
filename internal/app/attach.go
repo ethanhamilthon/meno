@@ -1,6 +1,8 @@
 package app
 
 import (
+	"context"
+	"encoding/json"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -8,8 +10,9 @@ import (
 	"strings"
 	"unicode"
 
-	"meno/internal/agent"
 	"meno/internal/attach"
+	"meno/internal/client"
+	"meno/internal/proto"
 	"meno/internal/ui"
 )
 
@@ -19,7 +22,7 @@ const kindImage = 'I'
 // draftImage is an image attached to the message being written. Data is nil
 // once the bytes are in the attachment store.
 type draftImage struct {
-	agent.Attachment
+	attachment
 	Data []byte
 }
 
@@ -114,9 +117,25 @@ func (a *App) imageStartingAt(c int) (tokSpan, bool) {
 	return tokSpan{}, false
 }
 
+// attachment is an image a message refers to.
+type attachment struct {
+	N    int
+	Mime string
+	SHA  string
+	W, H int
+}
+
+// msgDraft is the text of a message with the images its tokens refer to; data
+// holds the bytes of the images that are only in memory yet.
+type msgDraft struct {
+	Text        string
+	Attachments []attachment
+	data        map[string][]byte
+}
+
 // draftMessage is the text with the images its tokens refer to.
-func (a *App) draftMessage(text string) agent.Message {
-	m := agent.Message{Text: text}
+func (a *App) draftMessage(text string) msgDraft {
+	m := msgDraft{Text: text, data: map[string][]byte{}}
 	used := map[int]bool{}
 	for _, loc := range imageTokenRe.FindAllStringSubmatch(text, -1) {
 		n, _ := strconv.Atoi(loc[1])
@@ -124,27 +143,14 @@ func (a *App) draftMessage(text string) agent.Message {
 	}
 	for _, im := range a.st.Images {
 		if used[im.N] {
-			m.Attachments = append(m.Attachments, im.Attachment)
+			m.Attachments = append(m.Attachments, im.attachment)
+			if im.Data != nil {
+				m.data[im.SHA] = im.Data
+			}
 		}
 	}
 	sort.Slice(m.Attachments, func(i, j int) bool { return m.Attachments[i].N < m.Attachments[j].N })
 	return m
-}
-
-// storeImages writes the bytes of the attachments of m that are only in memory.
-func (a *App) storeImages(m agent.Message) error {
-	st := attach.Store{Dir: a.attachDir()}
-	for _, im := range a.st.Images {
-		for _, at := range m.Attachments {
-			if at.N == im.N && im.Data != nil {
-				err := st.Put(attach.Image{Data: im.Data, Mime: im.Mime, W: im.W, H: im.H, SHA: im.SHA})
-				if err != nil {
-					return err
-				}
-			}
-		}
-	}
-	return nil
 }
 
 // imagesAllowed reports whether the model of this session takes images; it
@@ -158,23 +164,17 @@ func (a *App) imagesAllowed() bool {
 }
 
 // setDraft replaces the composer text and its images.
-func (a *App) setDraft(m agent.Message, data map[string][]byte) {
+func (a *App) setDraft(m msgDraft, data map[string][]byte) {
 	a.setInput(a.runesFromText(m.Text))
 	a.st.Images = nil
 	for _, at := range m.Attachments {
-		a.st.Images = append(a.st.Images, draftImage{Attachment: at, Data: data[at.SHA]})
+		a.st.Images = append(a.st.Images, draftImage{attachment: at, Data: data[at.SHA]})
 	}
 }
 
 // restoreDraft puts queued messages back into the composer, after what is
 // already there.
-func (a *App) restoreDraft(all []agent.Message) {
-	var rest []agent.Message
-	for _, m := range all {
-		if !m.Viewed { // images the agent asked for are not the user's to edit
-			rest = append(rest, m)
-		}
-	}
+func (a *App) restoreDraft(rest []msgDraft) {
 	if len(rest) == 0 {
 		return
 	}
@@ -183,18 +183,55 @@ func (a *App) restoreDraft(all []agent.Message) {
 	for _, im := range a.st.Images {
 		data[im.SHA] = im.Data
 	}
-	var msgs []agent.Message
-	if cur := a.messageText(); strings.TrimSpace(cur) != "" {
-		msgs = append(msgs, a.draftMessage(cur))
+	for _, m := range rest {
+		for k, v := range m.data {
+			data[k] = v
+		}
 	}
-	a.setDraft(agent.Combine(append(msgs, rest...)), data)
+	var texts []string
+	var atts []attachment
+	if cur := a.messageText(); strings.TrimSpace(cur) != "" {
+		texts = append(texts, cur)
+	}
+	for _, m := range rest {
+		texts = append(texts, m.Text)
+		atts = append(atts, m.Attachments...)
+	}
+	a.setDraft(msgDraft{Text: strings.Join(texts, "\n\n"), Attachments: atts}, data)
 }
 
-// recallQueue moves the queued messages back into the composer for editing.
+// recallQueue takes the queued messages back from the daemon into the composer
+// for editing.
 func (a *App) recallQueue() bool {
-	rest := a.st.Queue.TakeWritten()
-	a.restoreDraft(rest)
-	return len(rest) > 0
+	rt := a.st.Runtime
+	if len(rt.Queued) == 0 {
+		return false
+	}
+	sid := rt.ID()
+	var taken []string
+	err := a.rpc(func(ctx context.Context, c *client.Client) error {
+		r, e := c.Resource(ctx, "DELETE", "/v1/sessions/"+sid+"/queue", "", proto.ResourceRequest{})
+		if e != nil {
+			return e
+		}
+		var out struct {
+			Queued []string `json:"queued"`
+		}
+		_ = json.Unmarshal(r.Data, &out)
+		taken = out.Queued
+		return nil
+	})
+	if err != nil {
+		a.notifyErr("queue: " + err.Error())
+		return false
+	}
+	rt.Queued = nil
+	var back []msgDraft
+	for _, t := range taken {
+		back = append(back, msgDraft{Text: t})
+	}
+	a.restoreDraft(back)
+	return len(taken) > 0
 }
 
 // insertImage adds a prepared image to the draft and puts its token in the
@@ -217,11 +254,11 @@ func (a *App) insertImage(img attach.Image, after bool) {
 		n = max(n, im.N+1)
 	}
 	a.st.Images = append(a.st.Images, draftImage{
-		Attachment: agent.Attachment{N: n, Mime: img.Mime, SHA: img.SHA, W: img.W, H: img.H},
+		attachment: attachment{N: n, Mime: img.Mime, SHA: img.SHA, W: img.W, H: img.H},
 		Data:       img.Data,
 	})
 	normal := a.st.Mode == ui.ModeNormal
-	tok := []rune(agent.ImageToken(n))
+	tok := []rune("[Image #" + itoa(n) + "]")
 	a.clampCursor()
 	if normal {
 		a.pushUndo(a.snapshot())

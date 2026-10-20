@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
+	"meno/internal/client"
 	"meno/internal/llm"
-	"meno/internal/safe"
+	"meno/internal/proto"
 	"meno/internal/ui"
 )
 
@@ -28,29 +28,37 @@ func (a *App) postEvent(e any) {
 	}
 }
 func (a *App) fetchMetadata() {
-	go func() {
-		defer safe.Recover(a.reportPanic)
-		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-		defer cancel()
-		go func() {
-			defer safe.Recover(a.reportPanic)
-			select {
-			case <-a.done:
-				cancel()
-			case <-ctx.Done():
-			}
-		}()
-		m, err := llm.FetchMetadata(ctx)
-		if err == nil {
-			_ = a.store.SaveCatalog(m)
-		}
-		a.postEvent(metadataLoaded{m, err})
-	}()
+	a.spawn(func() {
+		var out proto.ModelsResponse
+		err := a.rpc(func(ctx context.Context, c *client.Client) error {
+			var e error
+			out, e = c.Models(ctx, proto.ModelsRequest{})
+			return e
+		})
+		a.postEvent(metadataLoaded{pricing: infoFromModels(out.Models), err: err})
+	})
 }
-func (a *App) loadMetadataCache() {
-	if m, err := a.store.LoadCatalog(); err == nil && len(m) > 0 {
-		a.st.Pricing = m
+
+// infoFromModels turns the daemon's model list into the catalog the status
+// bar prices with.
+func infoFromModels(ms []proto.ConfigModel) map[string]llm.ModelInfo {
+	out := map[string]llm.ModelInfo{}
+	for _, m := range ms {
+		info := llm.ModelInfo{Vision: m.Images}
+		if m.ContextWindow != nil {
+			info.Context = *m.ContextWindow
+		}
+		if m.Prices != nil {
+			info.Input, info.Output, info.CacheRead, info.CacheWrite = m.Prices.Input, m.Prices.Output, m.Prices.CacheRead, m.Prices.CacheWrite
+		} else {
+			info.MissingPricing = true
+		}
+		out[m.Provider+"/"+m.ID] = info
+		if _, ok := out[m.ID]; !ok {
+			out[m.ID] = info
+		}
 	}
+	return out
 }
 func modelOf(a *App) string {
 	_, m, _ := a.selection()

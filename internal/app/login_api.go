@@ -98,11 +98,6 @@ func (a *App) toggleProvider(i int) {
 	}
 	p.Disabled = !p.Disabled
 	a.persistProviders()
-	if a.daemons != nil && p.Disabled {
-		a.daemons.Stop(p.Name)
-	} else {
-		a.syncProviderRun(*p)
-	}
 	a.fetchModels()
 	a.notify(p.Name + map[bool]string{true: " is off", false: " is on"}[p.Disabled])
 	a.afterProvidersChanged()
@@ -117,9 +112,6 @@ func (a *App) deleteProvider(i int) {
 	if p.FromFile() {
 		a.fileEntryNotice("provider.json")
 		return
-	}
-	if a.daemons != nil {
-		a.daemons.Stop(p.Name)
 	}
 	a.st.Providers = append(a.st.Providers[:i], a.st.Providers[i+1:]...)
 	a.persistProviders()

@@ -30,7 +30,7 @@ func TestWelcomeShownWhenEmpty(t *testing.T) {
 	defer scr.Fini()
 	a.draw()
 	out := screenText(scr)
-	for _, want := range []string{"efficient and stable AI harness", "write", "skills", ":help", version.Label(), "no model selected"} {
+	for _, want := range []string{"efficient and stable AI harness", "write", "skills", ":help", version.Label(), "gpt-5.5"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("welcome missing %q:\n%s", want, out)
 		}
@@ -50,6 +50,8 @@ func TestSkillsToggleAndSearch(t *testing.T) {
 		}
 	}
 	a.runCommand("skills")
+	a.running.Wait()
+	a.applyConfig(a.fetchConfig())
 	if len(a.st.Skills) != 2 || !a.st.Skills[0].Enabled {
 		t.Fatalf("skills not discovered: %+v", a.st.Skills)
 	}
@@ -61,7 +63,7 @@ func TestSkillsToggleAndSearch(t *testing.T) {
 	if a.st.Skills[0].Enabled {
 		t.Fatal("space did not toggle skill")
 	}
-	saved, _ := a.store.LoadSkills()
+	saved, _ := a.storeForTest().LoadSkills()
 	if saved[0].Enabled || !saved[1].Enabled {
 		t.Fatalf("toggle not persisted: %+v", saved)
 	}

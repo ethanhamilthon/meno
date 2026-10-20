@@ -20,7 +20,7 @@ func (a *App) openSnippets() {
 }
 
 func (a *App) reloadSnippets() error {
-	list, err := a.store.LoadSnippets()
+	list, err := a.snip().LoadSnippets()
 	if err != nil {
 		return err
 	}
@@ -73,7 +73,7 @@ func (a *App) commitSnippetRename() {
 	}
 	old := a.st.Snippets[sel].Name
 	name := strings.TrimSpace(a.st.Edit.String())
-	if err := a.store.RenameSnippet(old, name); err != nil {
+	if err := a.snip().RenameSnippet(old, name); err != nil {
 		a.notifyErr(err.Error())
 		return
 	}
@@ -87,7 +87,7 @@ func (a *App) commitSnippetRename() {
 }
 
 func (a *App) deleteSnippet(name string) {
-	if err := a.store.DeleteSnippet(name); err != nil {
+	if err := a.snip().DeleteSnippet(name); err != nil {
 		a.notifyErr(err.Error())
 		return
 	}

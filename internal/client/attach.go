@@ -8,6 +8,12 @@ import (
 // Attach takes a snapshot, then resumes events without gaps or duplicates.
 // It reloads the snapshot when the event ring or daemon boot requires resync.
 func (c *Client) Attach(ctx context.Context, id string, mirror *Mirror, receive func(proto.Event) error) error {
+	return c.AttachWith(ctx, id, mirror, nil, receive)
+}
+
+// AttachWith is Attach that also hands every snapshot it takes (the first one
+// and each one after a resync) to onSnapshot.
+func (c *Client) AttachWith(ctx context.Context, id string, mirror *Mirror, onSnapshot func(proto.Snapshot), receive func(proto.Event) error) error {
 	var after uint64
 	var boot string
 	for {
@@ -22,6 +28,9 @@ func (c *Client) Attach(ctx context.Context, id string, mirror *Mirror, receive 
 		}
 		if mirror != nil {
 			mirror.Load(snap)
+		}
+		if onSnapshot != nil {
+			onSnapshot(snap)
 		}
 		after = snap.Seq
 		e = c.Stream(ctx, id, after, boot, func(ev proto.Event) error {
