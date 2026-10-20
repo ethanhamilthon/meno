@@ -130,8 +130,10 @@ func (m *childMgr) start(c *childRun) {
 	rec := c.rec
 	deps := c.deps
 	c.mu.Unlock()
-	if deps.VM != nil {
-		deps.VM.Reset() // a new generation is a new answer: it starts without js state
+	if deps.Tool != nil {
+		if resetter, ok := deps.Tool.(interface{ Reset() }); ok {
+			resetter.Reset()
+		} // a new generation is a new answer: it starts without js state
 	}
 	_ = m.store.Save(rec)
 	m.wg.Add(1)

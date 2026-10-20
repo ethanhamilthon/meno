@@ -145,3 +145,9 @@ func (v *VM) write(s string) {
 	// Slice before converting so a huge single write needs no huge byte copy.
 	_, _ = v.out.Write([]byte(s))
 }
+
+// Run implements the agent tool-runner interface.
+func (v *VM) Run(ctx context.Context, code string, timeout time.Duration) (string, string, string, bool, time.Duration) {
+	r := v.ExecTimeout(ctx, code, timeout)
+	return r.Output, r.Value, r.Err, r.TimedOut, r.Elapsed
+}

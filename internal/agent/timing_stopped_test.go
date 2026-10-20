@@ -19,7 +19,7 @@ func TestStoppedInsideJSStillCountsTheCall(t *testing.T) {
 	var evs []Ev
 	vm := jsvm.New(jsvm.Options{Root: ".", Timeout: 0})
 	r := newRunner(cl, &evs)
-	r.D.VM = vm
+	r.D.Tool = vm
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() { time.Sleep(80 * time.Millisecond); cancel() }()
 	s := NewSession(".", "m")

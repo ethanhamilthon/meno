@@ -25,7 +25,7 @@ func (m *childMgr) build(c *childRun, pr llm.Provider, model, effort, system str
 	vm.SetAgents(childAgents{m, c}, true)
 	c.vm = vm
 	c.deps = agent.Deps{
-		Client: a.client(pr), Provider: pr, Model: model, Effort: effort, System: system, VM: vm,
+		Client: a.client(pr), Provider: pr, Model: model, Effort: effort, System: system, Tool: vm,
 		ModelTimeout: st.ModelTimeout(), ToolDesc: prompt.ToolDescription(true), Queue: &c.queue, Events: agent.StoreSource{Store: a.evStore, Session: c.sess.ID},
 		Cost: c.price, Emit: c.onEmit, Halt: c.halt, Retry: a.providerRetry(pr),
 	}

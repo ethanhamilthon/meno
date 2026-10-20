@@ -9,8 +9,10 @@ type OpaqueResource struct {
 
 // ResourceRequest is a generic typed payload for not-yet-defined resource routes.
 type ResourceRequest struct {
-	ClientID string          `json:"client_id,omitempty"`
-	Data     json.RawMessage `json:"data,omitempty"`
+	ClientID  string          `json:"client_id,omitempty"`
+	Token     string          `json:"token,omitempty"`
+	Data      json.RawMessage `json:"data,omitempty"`
+	SessionID string          `json:"session_id,omitempty"`
 }
 
 // ResourceResponse carries an opaque daemon-owned resource result.

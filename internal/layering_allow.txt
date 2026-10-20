@@ -1,0 +1,11 @@
+# Temporary direct imports in the TUI. Remove entries as each layer migrates.
+app meno/internal/agent
+app meno/internal/cliproxy
+app meno/internal/config
+app meno/internal/db
+app meno/internal/jsvm
+app meno/internal/llm
+app meno/internal/mcp
+app meno/internal/proc
+ui meno/internal/agent
+ui meno/internal/llm

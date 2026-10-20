@@ -37,7 +37,7 @@ func runWithTimeout(t *testing.T, model bool, args string) (string, *timeoutClie
 		{Kind: llm.EvTool, CallID: "c1", Code: "String(sh('sleep 5').timedOut)", Arguments: args},
 		{Kind: llm.EvDone},
 	}}}
-	r := &Runner{D: Deps{Retry: RetryPolicy{Attempts: 1}, Client: cl, VM: vm, ModelTimeout: model, Emit: func(Ev) {}}}
+	r := &Runner{D: Deps{Retry: RetryPolicy{Attempts: 1}, Client: cl, Tool: vm, ModelTimeout: model, Emit: func(Ev) {}}}
 	s := NewSession(t.TempDir(), "m")
 	start := time.Now()
 	if err := r.Turn(context.Background(), s, "go"); err != nil {
@@ -71,7 +71,7 @@ func TestTimeoutArgumentIgnoredUnlessModelDecides(t *testing.T) {
 		{Kind: llm.EvTool, CallID: "c1", Code: "String(sh('sleep 5').timedOut)", Arguments: `{"code":"String(sh('sleep 5').timedOut)","timeout":100}`},
 		{Kind: llm.EvDone},
 	}}}
-	r := &Runner{D: Deps{Retry: RetryPolicy{Attempts: 1}, Client: cl, VM: vm, Emit: func(Ev) {}}}
+	r := &Runner{D: Deps{Retry: RetryPolicy{Attempts: 1}, Client: cl, Tool: vm, Emit: func(Ev) {}}}
 	s := NewSession(t.TempDir(), "m")
 	start := time.Now()
 	if err := r.Turn(context.Background(), s, "go"); err != nil {

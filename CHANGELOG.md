@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add a SQLite-backed daemon engine with persistent session runs, steering and stop, ask pause/resume, retries and goal modes, subagents, tasks and MCP services. The daemon emits sequenced session events and enforces ephemeral session/mode tokens for agent resource routes. `meno daemon run` now starts this backend.
+- Replace the agent runner's direct JavaScript VM dependency with `agent.ToolRunner`; the existing JavaScript VM implements it without changing in-process TUI behavior.
+- Add concrete typed task, subagent, MCP, web, view, goal, models and ask resource payloads; delegate unowned configuration resources through the engine handler.
+
 - Add daemon transport foundations: versioned wire types, a unix-socket HTTP/SSE server, resumable session and global event hubs, typed clients, startup locking, and the `meno daemon` lifecycle commands. Session logic remains a stub for later integration.
 - Add standalone bash execution, restricted meno command parsing, bounded output logs, timeout controls, and conservative heredoc body detection for the daemon migration.
 - Add local `meno read`, `edit`, `write`, and `search` commands, embedded CLI help, and a typed command API for daemon-backed groups.

@@ -6,6 +6,7 @@ import (
 	"meno/internal/proto"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 func (s *Server) routes() http.Handler {
@@ -127,6 +128,8 @@ func (s *Server) resource(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	q.Token = bearer(r)
+	q.SessionID = r.PathValue("id")
 	v, e := s.backend.Resource(r.Context(), r.Method, r.URL.Path, r.URL.RawQuery, q)
 	s.result(w, v, e)
 }
@@ -159,4 +162,16 @@ func body(w http.ResponseWriter, r *http.Request, v any) bool {
 		return false
 	}
 	return true
+}
+
+func bearer(r *http.Request) string {
+	if h := r.Header.Get("X-Meno-Token"); h != "" {
+		return h
+	}
+	const prefix = "Bearer "
+	h := r.Header.Get("Authorization")
+	if len(h) >= len(prefix) && strings.EqualFold(h[:len(prefix)], prefix) {
+		return strings.TrimSpace(h[len(prefix):])
+	}
+	return ""
 }

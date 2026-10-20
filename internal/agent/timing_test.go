@@ -71,7 +71,7 @@ func TestTimeoutIsRecorded(t *testing.T) {
 	}}
 	var evs []Ev
 	r := newRunner(cl, &evs)
-	r.D.VM = vm
+	r.D.Tool = vm
 	s := NewSession(".", "m")
 	if err := r.Turn(context.Background(), s, "q"); err != nil {
 		t.Fatal(err)

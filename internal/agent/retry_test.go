@@ -147,7 +147,7 @@ func TestCancelDuringBackoffAborts(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	var evs []Ev
 	vm := jsvm.New(jsvm.Options{Root: "."})
-	r := &Runner{D: Deps{Client: cl, VM: vm, Retry: RetryPolicy{Base: time.Hour, Cap: time.Hour}, Emit: func(e Ev) {
+	r := &Runner{D: Deps{Client: cl, Tool: vm, Retry: RetryPolicy{Base: time.Hour, Cap: time.Hour}, Emit: func(e Ev) {
 		evs = append(evs, e)
 		if e.Kind == EvRetry {
 			cancel()

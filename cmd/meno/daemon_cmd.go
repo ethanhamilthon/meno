@@ -7,6 +7,7 @@ import (
 	"meno/internal/client"
 	"meno/internal/config"
 	"meno/internal/daemon"
+	"meno/internal/engine"
 	ver "meno/internal/version"
 	"os"
 	"os/signal"
@@ -58,8 +59,16 @@ func daemonCLI(args []string, out, errOut io.Writer) int {
 	}
 }
 func runDaemon(home string, errOut io.Writer) int {
-	s, e := daemon.New(daemon.Options{Home: home, Version: ver.Label(), Backend: daemon.NotImplementedBackend{}})
+	hub := daemon.NewHub("", 20000)
+	global := daemon.NewGlobalHub("", 2000)
+	eng, e := engine.New(engine.Options{Home: home, EventHub: hub, GlobalHub: global})
 	if e != nil {
+		fmt.Fprintln(errOut, e)
+		return 1
+	}
+	s, e := daemon.New(daemon.Options{Home: home, Version: ver.Label(), Backend: eng, Hub: hub, Global: global, OnStop: eng.Close})
+	if e != nil {
+		eng.Close()
 		fmt.Fprintln(errOut, e)
 		return 1
 	}

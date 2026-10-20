@@ -24,6 +24,7 @@ type Options struct {
 	Backend       Backend
 	Hub           *Hub
 	Global        *GlobalHub
+	OnStop        func()
 }
 
 // Server owns the daemon HTTP transport and lifecycle.
@@ -35,6 +36,7 @@ type Server struct {
 	backend                                        Backend
 	hub                                            *Hub
 	global                                         *GlobalHub
+	onStop                                         func()
 	http                                           *http.Server
 	listener                                       net.Listener
 	stopOnce                                       sync.Once
@@ -81,7 +83,7 @@ func New(o Options) (*Server, error) {
 	if idle == 0 && o.IdleExitMin > 0 {
 		idle = time.Duration(o.IdleExitMin) * time.Minute
 	}
-	return &Server{home: o.Home, runDir: run, socket: SocketPath(o.Home), logPath: filepath.Join(logs, "daemon.log"), version: o.Version, bootID: boot, pid: os.Getpid(), started: time.Now(), idle: idle, backend: o.Backend, hub: hub, global: global, done: make(chan struct{})}, nil
+	return &Server{home: o.Home, runDir: run, socket: SocketPath(o.Home), logPath: filepath.Join(logs, "daemon.log"), version: o.Version, bootID: boot, pid: os.Getpid(), started: time.Now(), idle: idle, backend: o.Backend, hub: hub, global: global, onStop: o.OnStop, done: make(chan struct{})}, nil
 }
 func privateDir(path string) error {
 	if e := os.MkdirAll(path, 0o700); e != nil {

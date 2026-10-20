@@ -49,6 +49,9 @@ func (s *Server) Stop(reason string) {
 	s.stopOnce.Do(func() {
 		s.hub.Close(reason)
 		s.global.Close(reason)
+		if s.onStop != nil {
+			s.onStop()
+		}
 		if s.http != nil {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()

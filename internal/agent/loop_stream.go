@@ -5,7 +5,6 @@ import (
 	"errors"
 	"time"
 
-	"meno/internal/jsvm"
 	"meno/internal/llm"
 )
 
@@ -80,41 +79,41 @@ func (r *Runner) runJS(ctx context.Context, s *Session, text string, c call, rep
 	}
 	limit := r.limit(c)
 	r.emit(s, Ev{Kind: EvJSStart, Code: c.Code, Title: c.Title, CallID: c.ID, Limit: limit})
-	res := r.exec(ctx, c)
-	turn := Turn{Replay: replay, ReplayGroup: group, Role: llm.RoleAssistant, Text: text, CallID: c.ID, Code: c.Code, Title: c.Title, Output: res.Output, Err: res.Err, Time: nowUTC()}
-	if res.Elapsed > 0 {
-		turn.ElapsedMs = max(1, res.Elapsed.Milliseconds())
+	output, value, toolErr, timedOut, elapsed := r.exec(ctx, c)
+	turn := Turn{Replay: replay, ReplayGroup: group, Role: llm.RoleAssistant, Text: text, CallID: c.ID, Code: c.Code, Title: c.Title, Output: output, Err: toolErr, Time: nowUTC()}
+	if elapsed > 0 {
+		turn.ElapsedMs = max(1, elapsed.Milliseconds())
 		turn.LimitMs = limit.Milliseconds()
-		turn.TimedOut = res.TimedOut
+		turn.TimedOut = timedOut
 		if r.cur != nil {
 			r.cur.jsCalls++
-			r.cur.jsTime += res.Elapsed
+			r.cur.jsTime += elapsed
 		}
 	}
-	if res.Err == "" && res.Value != "" {
-		turn.Output += res.Value
+	if toolErr == "" && value != "" {
+		turn.Output += value
 	}
 	s.Append(turn)
-	r.emit(s, Ev{Kind: EvJSEnd, CallID: c.ID, Output: turn.Output, Err: res.Err, Elapsed: res.Elapsed, TimedOut: res.TimedOut})
+	r.emit(s, Ev{Kind: EvJSEnd, CallID: c.ID, Output: turn.Output, Err: toolErr, Elapsed: elapsed, TimedOut: timedOut})
 	return ctx.Err()
 }
 
 // exec runs one call. With ModelTimeout the call's own timeout wins; a model
 // that names none gets the default, and 0 or less means no limit.
-func (r *Runner) exec(ctx context.Context, c call) jsvm.Result {
-	if !r.D.ModelTimeout {
-		return r.D.VM.Exec(ctx, c.Code)
+func (r *Runner) exec(ctx context.Context, c call) (string, string, string, bool, time.Duration) {
+	if r.D.Tool == nil {
+		return "", "", "tool runner is not configured", false, 0
 	}
-	return r.D.VM.ExecTimeout(ctx, c.Code, r.limit(c))
+	return r.D.Tool.Run(ctx, c.Code, r.limit(c))
 }
 
 // limit is the timeout the call runs under (0 = none), as exec applies it.
 func (r *Runner) limit(c call) time.Duration {
 	if !r.D.ModelTimeout {
-		if r.D.VM == nil {
+		if r.D.Tool == nil {
 			return 0
 		}
-		return r.D.VM.Timeout()
+		return r.D.Tool.Timeout()
 	}
 	d := defaultModelTimeout
 	if c.Timeout != nil {

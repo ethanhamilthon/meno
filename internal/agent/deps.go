@@ -1,9 +1,9 @@
 package agent
 
 import (
+	"context"
 	"time"
 
-	"meno/internal/jsvm"
 	"meno/internal/llm"
 )
 
@@ -57,13 +57,18 @@ const (
 )
 
 // Deps is everything a Runner needs.
+type ToolRunner interface {
+	Run(context.Context, string, time.Duration) (string, string, string, bool, time.Duration)
+	Timeout() time.Duration
+}
+
 type Deps struct {
 	Client   llm.Client
 	Provider llm.Provider
 	Model    string
 	Effort   string
 	System   string
-	VM       *jsvm.VM
+	Tool     ToolRunner
 	Thinking bool
 	// ModelTimeout lets the model pass a timeout with every js call.
 	ModelTimeout bool

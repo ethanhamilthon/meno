@@ -116,6 +116,7 @@ type Metrics struct {
 // Snapshot is a consistent session view at one event sequence.
 type Snapshot struct {
 	Session    SessionItem `json:"session"`
+	AgentToken string      `json:"agent_token,omitempty"`
 	Cwd        string      `json:"cwd"`
 	Model      string      `json:"model,omitempty"`
 	Modes      []string    `json:"modes,omitempty"`

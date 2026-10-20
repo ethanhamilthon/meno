@@ -1,7 +1,8 @@
 # Daemon transport
 
-The daemon transport is an early foundation for a later client migration. The
-current interactive application still runs in-process.
+The daemon owns SQLite-backed sessions and agent runs. Closing a client does
+not cancel a run. The current interactive TUI still uses the in-process app; the
+client conversion is a later migration stage.
 The client uses a startup lock, starts one daemon, and waits for its socket.
 
 ## Commands
@@ -23,8 +24,10 @@ normal socket path is too long. Logs are in `$MENO_HOME/log/daemon.log`.
 
 - `internal/proto` defines JSON request, response, event, and error types.
 - `internal/daemon` owns the HTTP server, SSE event hub, and lifecycle.
-  Session operations use a `Backend` interface. The command currently uses a
-  stub backend, so session endpoints return `not_implemented`.
+  Session operations use a `Backend` interface. `internal/engine` implements
+  the backend, owns session runs, queues, tasks, subagents and MCP services, and
+  publishes agent events through the session hub. Session resource routes use
+  ephemeral bearer tokens. Configuration routes delegate to an injected handler.
 - `internal/client` provides typed HTTP calls, daemon startup, SSE resume, and a
   view-state mirror.
 

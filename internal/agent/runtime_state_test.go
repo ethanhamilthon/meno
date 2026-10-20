@@ -16,7 +16,7 @@ func TestJSStateLastsForOneRunAndTheDescriptionIsSent(t *testing.T) {
 		{{Kind: llm.EvTool, CallID: "c1", Code: "const n = 41; n"}, {Kind: llm.EvDone}},
 		{{Kind: llm.EvTool, CallID: "c2", Code: "n + 1"}, {Kind: llm.EvDone}},
 	}}
-	r := &Runner{D: Deps{Retry: RetryPolicy{Attempts: 1}, Client: cl, VM: vm, ToolDesc: "DOC", Emit: func(Ev) {}}}
+	r := &Runner{D: Deps{Retry: RetryPolicy{Attempts: 1}, Client: cl, Tool: vm, ToolDesc: "DOC", Emit: func(Ev) {}}}
 	s := NewSession(t.TempDir(), "m")
 	if err := r.Turn(context.Background(), s, "go"); err != nil {
 		t.Fatal(err)

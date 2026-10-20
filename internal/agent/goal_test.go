@@ -14,7 +14,7 @@ func goalRunner(t *testing.T, cl *timeoutClient, g *Goal) (*Runner, *Session, *j
 	t.Helper()
 	vm := jsvm.New(jsvm.Options{Root: t.TempDir(), Timeout: 5 * time.Second})
 	vm.SetGoal(g)
-	r := &Runner{D: Deps{Retry: RetryPolicy{Attempts: 1}, Client: cl, VM: vm, Goal: g, Emit: func(Ev) {}}}
+	r := &Runner{D: Deps{Retry: RetryPolicy{Attempts: 1}, Client: cl, Tool: vm, Goal: g, Emit: func(Ev) {}}}
 	return r, NewSession(t.TempDir(), "m"), vm
 }
 
@@ -77,7 +77,7 @@ func TestGoalBlockedAlsoEndsTheRun(t *testing.T) {
 
 func TestRunWithoutAGoalEndsAtTheFirstAnswer(t *testing.T) {
 	cl := &timeoutClient{}
-	r := &Runner{D: Deps{Retry: RetryPolicy{Attempts: 1}, Client: cl, VM: jsvm.New(jsvm.Options{Root: t.TempDir()}), Emit: func(Ev) {}}}
+	r := &Runner{D: Deps{Retry: RetryPolicy{Attempts: 1}, Client: cl, Tool: jsvm.New(jsvm.Options{Root: t.TempDir()}), Emit: func(Ev) {}}}
 	if err := r.Turn(context.Background(), NewSession(t.TempDir(), "m"), "x"); err != nil || len(cl.reqs) != 1 {
 		t.Fatalf("requests %d err %v", len(cl.reqs), err)
 	}
