@@ -23,6 +23,8 @@ session starts with no modes. The badge at the left of the status bar shows the 
 
 ## Limits
 
+When a session uses `bash`, mode permissions are enforced by allowed command groups. `#subagents` allows only `agents`, `ask`, `goal` and `help`, and runs these commands in restricted mode. A child allows `files`, `mcp`, `agents` (report/block only), `web`, `view`, `models` and `help`; it cannot ask, start tasks or start/manage other agents. `#goal` and `#brainstorm` do not reduce the allowed groups.
+
 - `subagent_max_spawn` in the settings limits how many subagents one request may start (default 50).
   A refused spawn returns an error to the agent, which can then work with the results it has.
   The count starts again with each new request; a wake-up does not reset it. The setting has no row in `:settings`.

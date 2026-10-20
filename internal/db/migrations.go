@@ -153,6 +153,10 @@ CREATE INDEX events_pending ON events(session_id, state, seq);
 ALTER TABLE turns ADD COLUMN event_id TEXT NOT NULL DEFAULT '';
 `,
 	`
+-- Bash tool selection. Sessions that already exist keep their js history.
+ALTER TABLE sessions ADD COLUMN tool TEXT NOT NULL DEFAULT 'js';
+`,
+	`
 -- Background processes started by the main agent. Logs live on disk next to
 -- the database; a task found running at startup is marked interrupted, never
 -- restarted.

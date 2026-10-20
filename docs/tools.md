@@ -1,5 +1,7 @@
 # The agent's tool
 
+During the bash migration, `tool` selects `bash` or the compatibility `js` tool for a session. New sessions default to bash. The in-process TUI still runs JS for sessions whose saved `tool` is `js`. JS history is converted to plain text before a bash request; no JS tool calls are replayed. See [bash preparation](bash-tool.md).
+
 The model has one tool, `js`. **The runtime lives for one answer of the agent**: variables,
 functions and classes declared at the top level of a call are there in the next calls, and a
 new message from the user (or a new run of a subagent) starts a clean runtime. Top-level `let`,

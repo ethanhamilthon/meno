@@ -74,8 +74,8 @@ type RunStats struct {
 	Status    string    `json:"status"`
 	ElapsedMs int64     `json:"elapsed_ms"`
 	Turns     int       `json:"turns"`
-	JSCalls   int       `json:"js_calls"`
-	JSMs      int64     `json:"js_ms"`
+	ToolCalls int       `json:"js_calls"`
+	ToolMs    int64     `json:"js_ms"`
 	Usage     llm.Usage `json:"usage"`
 	Cost      *float64  `json:"cost,omitempty"`
 	Err       string    `json:"err,omitempty"`
@@ -109,6 +109,7 @@ type Session struct {
 	// session has its own. Sessions saved before this was per session may have
 	// only Model.
 	Provider string `json:"provider,omitempty"`
+	Tool     string `json:"tool,omitempty"`
 	Model    string `json:"model"`
 	Effort   string `json:"effort,omitempty"`
 	// Modes are the modes the messages of this session are sent in (#subagents,
@@ -131,6 +132,13 @@ type Session struct {
 	// AttachDir is the directory with the bytes of attachments (set by the app).
 	AttachDir string `json:"-"`
 	Turns     []Turn `json:"turns"`
+}
+
+func (s *Session) toolName() string {
+	if s.Tool == "" {
+		return "js"
+	}
+	return s.Tool
 }
 
 func (s *Session) ensureLog() *SafeLog {
@@ -165,10 +173,11 @@ type SessionInfo struct {
 	Cwd       string
 	UpdatedAt time.Time
 	Turns     int
-	JSRuns    int
+	ToolRuns  int
 	Provider  string
 	Model     string
 	Effort    string
+	Tool      string
 }
 
 func NewID() string {
@@ -178,7 +187,7 @@ func NewID() string {
 }
 
 func NewSession(cwd, model string) *Session {
-	s := &Session{ID: NewID(), Cwd: cwd, Model: model, UpdatedAt: time.Now()}
+	s := &Session{ID: NewID(), Cwd: cwd, Model: model, Tool: "bash", UpdatedAt: time.Now()}
 	s.ensureLog()
 	return s
 }

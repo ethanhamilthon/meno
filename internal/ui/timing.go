@@ -101,11 +101,11 @@ func SummaryLines(run *agent.RunStats, w int) []Line {
 	if run.Turns > 0 {
 		rest = append(rest, plural(run.Turns, "turn"))
 	}
-	if run.JSCalls > 0 {
-		rest = append(rest, plural(run.JSCalls, "js call"))
+	if run.ToolCalls > 0 {
+		rest = append(rest, plural(run.ToolCalls, "tool call"))
 	}
-	if run.JSMs >= 1000 {
-		rest = append(rest, FmtDur(time.Duration(run.JSMs)*time.Millisecond)+" in js")
+	if run.ToolMs >= 1000 {
+		rest = append(rest, FmtDur(time.Duration(run.ToolMs)*time.Millisecond)+" in tools")
 	}
 	var right []string
 	if u := run.Usage; u.In > 0 || u.Out > 0 {

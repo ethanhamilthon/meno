@@ -139,11 +139,11 @@ func TestRunStatsOfFinishedRun(t *testing.T) {
 	if run == nil {
 		t.Fatal("no run stats on the last turn")
 	}
-	if run.Status != RunOK || run.Turns != 3 || run.JSCalls != 2 || run.Err != "" {
+	if run.Status != RunOK || run.Turns != 3 || run.ToolCalls != 2 || run.Err != "" {
 		t.Fatalf("%+v", run)
 	}
-	if run.JSMs < 40 || run.ElapsedMs < run.JSMs {
-		t.Fatalf("js %dms of %dms", run.JSMs, run.ElapsedMs)
+	if run.ToolMs < 40 || run.ElapsedMs < run.ToolMs {
+		t.Fatalf("tool %dms of %dms", run.ToolMs, run.ElapsedMs)
 	}
 	if run.Usage != (llm.Usage{In: 600, Out: 35, Cached: 450}) {
 		t.Fatalf("usage %+v", run.Usage)
@@ -194,7 +194,7 @@ func TestRunStatsOfFailedRun(t *testing.T) {
 		t.Fatal("want an error")
 	}
 	run := lastTurn(s).Run
-	if run == nil || run.Status != RunFail || run.Turns != 1 || run.JSCalls != 1 {
+	if run == nil || run.Status != RunFail || run.Turns != 1 || run.ToolCalls != 1 {
 		t.Fatalf("%+v", run)
 	}
 	if run.Err != "http 503: service unavailable" {

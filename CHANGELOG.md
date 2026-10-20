@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Prepare bash-only migration: add mode command-group permissions, bash settings with legacy JS aliases, persisted session tool selection, bash prompt/schema text, and plain-text replay conversion for old JS turns.
 - Add daemon transport foundations: versioned wire types, a unix-socket HTTP/SSE server, resumable session and global event hubs, typed clients, startup locking, and the `meno daemon` lifecycle commands. Session logic remains a stub for later integration.
 - Add standalone bash execution, restricted meno command parsing, bounded output logs, timeout controls, and conservative heredoc body detection for the daemon migration.
 - Add local `meno read`, `edit`, `write`, and `search` commands, embedded CLI help, and a typed command API for daemon-backed groups.

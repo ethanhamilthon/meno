@@ -87,6 +87,12 @@ func putSettings(t *sql.Tx, st Settings) error {
 	if err := json.Unmarshal(b, &m); err != nil {
 		return err
 	}
+	for _, key := range []string{"js_code", "js_lines", "js_output", "js_output_lines", "js_strings", "js_string_lines", "js_timing", "js_timeout", "js_timeout_sec"} {
+		delete(m, key)
+		if _, err := t.Exec("DELETE FROM settings WHERE key = ?", key); err != nil {
+			return err
+		}
+	}
 	for k, v := range m {
 		if _, err := t.Exec(`INSERT INTO settings(key,value_json) VALUES(?,?)
 			ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json`, k, string(v)); err != nil {

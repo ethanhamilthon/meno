@@ -1,7 +1,7 @@
 # Settings (`:settings`)
 
 Settings live in tabs: **General**, **Display**, **Web**, **Notify**, **Agents**,
-**Context**. `Tab` or `]` moves to the next tab, `Shift+Tab` or `[` to the
+**Context**. The `tool` setting selects `js` or `bash`; new sessions use `bash` unless changed. Existing sessions keep their saved tool. `Tab` or `]` moves to the next tab, `Shift+Tab` or `[` to the
 previous one. `↑`/`↓` or `j`/`k` selects a row; `←`/`→`, space or Enter
 changes a choice; `+`/`-` changes a number. Enter edits a text value (search
 key, notify command), Enter saves it and Esc cancels. Every change is saved at once.
@@ -10,10 +10,11 @@ key, notify command), Enter saves it and Esc cancels. Every change is saved at o
 | --- | --- | --- |
 | General | theme | one of the built-in color themes, with a live preview |
 | General | images | `auto`, `off`, `kitty`, `sixel`, `iterm` — see [terminal graphics](graphics.md) |
-| Display | js code | `all`, `lines <n>`, `off` — how much of the code the timeline shows |
-| Display | js output | `all`, `lines <n>`, `off` |
-| Display | js strings | `off` (default), `lines <n>` — string and template literals in tool-call source show their first `n` content lines and a muted `…` (`0` = marker only); display only |
-| Display | js timing | `all`, `slow only`, `off` — which finished js calls show their duration (slow: half of the limit or 10 s) |
+| Display | bash code | `all`, `lines <n>`, `off` — how much command text the timeline shows |
+| Display | bash output | `all`, `lines <n>`, `off` |
+| Display | bash strings | `off`, `lines <n>` — fold heredoc bodies for display only |
+| Display | bash timing | `all`, `slow only`, `off` — which finished bash calls show their duration |
+
 | Display | thinking | `all`, `lines <n>` (the newest rows), `off` |
 | Display | turn summary | `on`, `off` — the line that closes a run |
 | Web | search | `auto`, `brave`, `tavily`, `duckduckgo`, `off` — fallback backend of `websearch()`, see [tools](tools.md) |
@@ -29,7 +30,8 @@ key, notify command), Enter saves it and Esc cancels. Every change is saved at o
 Effort routing chooses an effort level for each user request. It never changes the model. The level changes only after the router asks for the same different level on two requests in a row. The status bar continues to show the manual level.
 
 | Context | auto compact | the percentage of the context window at which meno compacts before a request |
-| Context | js timeout | `<n> sec`, `off`, `model` — with `model` the tool gets a `timeout` argument and the model chooses per call |
+| Context | bash timeout | `<n>` seconds (default 120), `off`, `model` — with `model` the tool gets a `timeout` argument |
+| Context | daemon idle exit | minutes (default 30); 0 means never |
 
 The search order of `websearch()` is fixed: the provider's own web search (the
 responses protocol has one), then the chosen Brave or Tavily backend, then the

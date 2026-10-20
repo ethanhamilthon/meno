@@ -29,12 +29,23 @@ var choices = map[string][]string{
 }
 
 func SettingKeys() []string {
-	return []string{"theme", "images", "js_code", "js_output", "js_strings", "js_timing", "thinking", "turn_summary", "notify", "notify_sound", "notify_volume", "notify_command", "websearch", "websearch_key", "subagent_provider", "subagent_model", "subagent_effort", "effort_router", "effort_router_model", "effort_router_provider", "compact_percent", "js_timeout"}
+	return append([]string{"theme", "images", "thinking", "turn_summary", "notify", "notify_sound", "notify_volume", "notify_command", "websearch", "websearch_key", "subagent_provider", "subagent_model", "subagent_effort", "effort_router", "effort_router_model", "effort_router_provider", "compact_percent"}, bashKeys...)
 }
 
-func Choices(key string) []string { return choices[key] }
+func Choices(key string) []string {
+	if c, ok := bashChoices[key]; ok {
+		return c
+	}
+	return choices[key]
+}
 
 func (s *Settings) Get(key string) string {
+	if s.Tool == "bash" && strings.HasPrefix(key, "js_") && key != "js_timeout" {
+		key = canonicalSettingKey(key)
+	}
+	if value, ok := getBash(s, key); ok {
+		return value
+	}
 	switch key {
 	case "js_code":
 		return s.JSCode
@@ -87,6 +98,9 @@ func (s *Settings) Get(key string) string {
 }
 
 func (s *Settings) Set(key, val string) error {
+	if handled, err := setBashSetting(s, key, val); handled {
+		return err
+	}
 	switch key {
 	case "theme":
 		if strings.TrimSpace(val) == "" {
@@ -187,6 +201,19 @@ func TextSetting(key string) bool {
 }
 
 func (s *Settings) Cycle(key string, step int) string {
+	if _, ok := bashChoices[key]; ok {
+		opts := bashChoices[key]
+		cur := s.Get(key)
+		idx := 0
+		for i, v := range opts {
+			if v == cur {
+				idx = i
+			}
+		}
+		idx = ((idx+step)%len(opts) + len(opts)) % len(opts)
+		setBash(s, key, opts[idx])
+		return opts[idx]
+	}
 	opts := choices[key]
 	cur := s.Get(key)
 	idx := 0

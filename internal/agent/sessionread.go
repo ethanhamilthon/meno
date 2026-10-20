@@ -15,13 +15,16 @@ func readSession(db *sql.DB, id string) (*Session, error) {
 	var s Session
 	var metrics, updated, modes string
 	var legacy int
-	err := db.QueryRow("SELECT id,title,cwd,provider,model,effort,summary,metrics,updated_at,kind,parent_id,fork_source,fork_boundary,next_hid,coverage,legacy,modes FROM sessions WHERE id = ?", id).
-		Scan(&s.ID, &s.Title, &s.Cwd, &s.Provider, &s.Model, &s.Effort, &s.Summary, &metrics, &updated, &s.Kind, &s.ParentID, &s.ForkSource, &s.ForkBoundary, &s.NextHID, &s.Coverage, &legacy, &modes)
+	err := db.QueryRow("SELECT id,title,cwd,provider,model,effort,summary,metrics,updated_at,kind,parent_id,fork_source,fork_boundary,next_hid,coverage,legacy,modes,tool FROM sessions WHERE id = ?", id).
+		Scan(&s.ID, &s.Title, &s.Cwd, &s.Provider, &s.Model, &s.Effort, &s.Summary, &metrics, &updated, &s.Kind, &s.ParentID, &s.ForkSource, &s.ForkBoundary, &s.NextHID, &s.Coverage, &legacy, &modes, &s.Tool)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, os.ErrNotExist
 	}
 	if err != nil {
 		return nil, err
+	}
+	if s.Tool == "" {
+		s.Tool = "js"
 	}
 	s.UpdatedAt = parseTS(updated)
 	s.Legacy = legacy != 0
@@ -97,7 +100,7 @@ func listSessions(db *sql.DB, limit int) ([]SessionInfo, error) {
 	rows, err := db.Query(`SELECT s.id, s.title, s.cwd, s.updated_at,
 		(SELECT COUNT(1) FROM turns t WHERE t.session_id = s.id),
 		(SELECT COUNT(1) FROM turns t WHERE t.session_id = s.id AND (t.code <> '' OR t.call_id <> '')),
-		s.provider, s.model, s.effort
+		s.provider, s.model, s.effort, s.tool
 		FROM sessions s WHERE s.kind = 'main' ORDER BY s.updated_at DESC LIMIT ?`, limit)
 	if err != nil {
 		return nil, err
@@ -107,7 +110,7 @@ func listSessions(db *sql.DB, limit int) ([]SessionInfo, error) {
 	for rows.Next() {
 		var i SessionInfo
 		var updated string
-		if err := rows.Scan(&i.ID, &i.Title, &i.Cwd, &updated, &i.Turns, &i.JSRuns, &i.Provider, &i.Model, &i.Effort); err != nil {
+		if err := rows.Scan(&i.ID, &i.Title, &i.Cwd, &updated, &i.Turns, &i.ToolRuns, &i.Provider, &i.Model, &i.Effort, &i.Tool); err != nil {
 			return nil, err
 		}
 		i.UpdatedAt = parseTS(updated)

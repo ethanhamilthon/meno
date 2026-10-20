@@ -20,7 +20,7 @@ func TestSQLiteRoundTripAndRewrite(t *testing.T) {
 	s.Requests = []RequestUsage{{Provider: "p", Model: "m", Usage: llm.Usage{In: 10, Out: 2}, Cost: &cost}, {Provider: "p", Model: "m"}}
 	s.Metrics = Metrics{Spent: 1.5, Context: 12, Unpriced: true}
 	s.Summary = "sum"
-	s.Provider, s.Effort = "prov", "low"
+	s.Provider, s.Effort, s.Tool = "prov", "low", "bash"
 	if err := SaveSession(dir, s); err != nil {
 		t.Fatal(err)
 	}
@@ -28,7 +28,7 @@ func TestSQLiteRoundTripAndRewrite(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Provider != "prov" || got.Model != "m1" || got.Effort != "low" {
+	if got.Provider != "prov" || got.Model != "m1" || got.Effort != "low" || got.Tool != "bash" {
 		t.Fatalf("model of the session: %q %q %q", got.Provider, got.Model, got.Effort)
 	}
 	turns := got.Snapshot()
@@ -77,7 +77,7 @@ func TestSQLiteMigratesLegacyJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 	list, err := ListSessions(home)
-	if err != nil || len(list) != 1 || list[0].ID != "legacy-1" || list[0].Turns != 2 || list[0].JSRuns != 1 {
+	if err != nil || len(list) != 1 || list[0].ID != "legacy-1" || list[0].Turns != 2 || list[0].ToolRuns != 1 || list[0].Tool != "js" {
 		t.Fatalf("list %+v %v", list, err)
 	}
 	if _, err := os.Stat(filepath.Join(dir, "legacy-1.json.migrated")); err != nil {

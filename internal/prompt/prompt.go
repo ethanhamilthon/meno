@@ -50,6 +50,10 @@ type Input struct {
 	OS, Shell     string
 	// Only lists the tool globals this prompt keeps; nil keeps them all.
 	Only []string
+	// Tool selects the bash prompt when set to bash; empty preserves js.
+	Tool string
+	// Allow lists bash command groups; nil allows every group.
+	Allow []string
 	// Model is the model this session talks to; empty omits the line.
 	Provider, Model, Effort string
 }
@@ -57,6 +61,13 @@ type Input struct {
 // Build returns the full system prompt. Sections go from the most stable to
 // the most volatile so that a change only invalidates the text after it.
 func Build(in Input) string {
+	if in.Tool == "bash" {
+		return buildBash(in)
+	}
+	return buildJS(in)
+}
+
+func buildJS(in Input) string {
 	var parts []string
 	add := func(s string) {
 		if s != "" {

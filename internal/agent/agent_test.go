@@ -150,7 +150,7 @@ func TestSessionSaveLoadList(t *testing.T) {
 		t.Fatalf("load: %v %+v", err, got)
 	}
 	list, err := ListSessions(dir)
-	if err != nil || len(list) != 1 || list[0].JSRuns != 1 {
+	if err != nil || len(list) != 1 || list[0].ToolRuns != 1 {
 		t.Fatalf("list: %v %+v", err, list)
 	}
 }

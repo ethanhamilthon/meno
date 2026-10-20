@@ -26,10 +26,10 @@ func TestSettingsCycleWraps(t *testing.T) {
 
 func TestSettingsSetValidates(t *testing.T) {
 	s := DefaultSettings()
-	if err := s.Set("js_timeout", "model"); err != nil || s.JSTimeout != "model" || !s.ModelTimeout() {
+	if err := s.Set("bash_timeout", "model"); err != nil || s.BashTimeout != "model" || !s.BashModelTimeout() {
 		t.Fatalf("valid set failed: %v", err)
 	}
-	if err := s.Set("js_timeout", "1h"); err == nil {
+	if err := s.Set("bash_timeout", "1h"); err == nil {
 		t.Fatal("invalid value accepted")
 	}
 	if err := s.Set("nope", "x"); err == nil {

@@ -11,12 +11,22 @@ import (
 const DefaultMaxSpawn = 50
 
 type Settings struct {
-	Provider string `json:"provider"`
-	Model    string `json:"model"`
-	Effort   string `json:"effort"`
-	JSCode   string `json:"js_code"`
-	JSLines  int    `json:"js_lines"`
-	JSOutput string `json:"js_output"`
+	Provider          string `json:"provider"`
+	Model             string `json:"model"`
+	Effort            string `json:"effort"`
+	Tool              string `json:"tool"`
+	BashCode          string `json:"bash_code"`
+	BashLines         int    `json:"bash_lines"`
+	BashOutput        string `json:"bash_output"`
+	BashOutputLines   int    `json:"bash_output_lines"`
+	BashStrings       string `json:"bash_strings"`
+	BashStringLines   int    `json:"bash_string_lines"`
+	BashTiming        string `json:"bash_timing"`
+	BashTimeout       string `json:"bash_timeout"`
+	DaemonIdleExitMin int    `json:"daemon_idle_exit_min"`
+	JSCode            string `json:"js_code"`
+	JSLines           int    `json:"js_lines"`
+	JSOutput          string `json:"js_output"`
 	// JSStrings is off or lines: with lines, string literals in tool-call source
 	// show only their first JSStringLines lines of content (0 = just a marker).
 	JSStrings     string `json:"js_strings"`
@@ -89,7 +99,46 @@ func (s *Settings) UnmarshalJSON(data []byte) error {
 		next.Notify = "question"
 	}
 	st := Settings(next)
+	var raw map[string]json.RawMessage
+	_ = json.Unmarshal(data, &raw)
+	if _, hasTool := raw["tool"]; !hasTool && hasLegacyJSSetting(raw) {
+		st.Tool = "js"
+	}
+	if hasLegacyJSSetting(raw) {
+		copyJSSettings(raw, &st)
+	}
 	defaults := DefaultSettings()
+	if _, hasBash := raw["bash_code"]; !hasBash {
+		st.BashCode = defaults.BashCode
+	}
+	if _, hasBash := raw["bash_lines"]; !hasBash {
+		st.BashLines = defaults.BashLines
+	}
+	if _, hasBash := raw["bash_output"]; !hasBash {
+		st.BashOutput = defaults.BashOutput
+	}
+	if _, hasBash := raw["bash_output_lines"]; !hasBash {
+		st.BashOutputLines = defaults.BashOutputLines
+	}
+	if _, hasBash := raw["bash_strings"]; !hasBash {
+		st.BashStrings = defaults.BashStrings
+	}
+	if _, hasBash := raw["bash_string_lines"]; !hasBash {
+		st.BashStringLines = defaults.BashStringLines
+	}
+	if _, hasBash := raw["bash_timing"]; !hasBash {
+		st.BashTiming = defaults.BashTiming
+	}
+	if _, hasBash := raw["bash_timeout"]; !hasBash {
+		st.BashTimeout = defaults.BashTimeout
+	}
+	if _, hasBash := raw["daemon_idle_exit_min"]; !hasBash {
+		st.DaemonIdleExitMin = defaults.DaemonIdleExitMin
+	}
+	applyJSAliases(raw, &st)
+	if hasLegacyJSSetting(raw) {
+		applyLegacySettings(raw, &st)
+	}
 	// Values from before js code/output shared the same all/lines/off choices.
 	if st.JSCode == "full" {
 		st.JSCode = "all"
@@ -139,6 +188,10 @@ func (s *Settings) UnmarshalJSON(data []byte) error {
 	if st.JSTimeoutSec < 1 || st.JSTimeoutSec > MaxTimeoutSec {
 		st.JSTimeoutSec = defaults.JSTimeoutSec
 	}
+	normalizeBash(&st, defaults)
+	if st.Tool != "js" && st.Tool != "bash" {
+		st.Tool = defaults.Tool
+	}
 	if st.SubagentMaxSpawn < 1 {
 		st.SubagentMaxSpawn = DefaultMaxSpawn
 	}
@@ -148,6 +201,8 @@ func (s *Settings) UnmarshalJSON(data []byte) error {
 
 func DefaultSettings() Settings {
 	return Settings{
+		Tool: "bash", BashCode: "all", BashLines: 5, BashOutput: "all", BashOutputLines: 5,
+		BashStrings: "off", BashStringLines: 3, BashTiming: "all", BashTimeout: "120", DaemonIdleExitMin: 30,
 		Effort:         "high",
 		EffortRouter:   "off",
 		JSCode:         "all",

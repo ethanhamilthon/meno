@@ -9,6 +9,26 @@ import (
 	"meno/internal/mcp"
 )
 
+func TestSaveSettingsDropsLegacyJSKeys(t *testing.T) {
+	st := NewStore(Paths{Home: t.TempDir()})
+	t.Cleanup(db.CloseAll)
+	d, err := st.DB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := d.Exec(`INSERT INTO settings(key,value_json) VALUES('js_code','"lines"')`); err != nil {
+		t.Fatal(err)
+	}
+	s := DefaultSettings()
+	if err := st.SaveSettings(s); err != nil {
+		t.Fatal(err)
+	}
+	var n int
+	if err := d.QueryRow("SELECT COUNT(*) FROM settings WHERE key LIKE 'js_%'").Scan(&n); err != nil || n != 0 {
+		t.Fatalf("legacy keys %d %v", n, err)
+	}
+}
+
 func TestDBRoundTrips(t *testing.T) {
 	st := NewStore(Paths{Home: t.TempDir()})
 	t.Cleanup(db.CloseAll)

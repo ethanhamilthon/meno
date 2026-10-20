@@ -162,7 +162,7 @@ func (r *Runner) finish(s *Session, err error) {
 	}
 	st := RunStats{
 		Status: RunOK, ElapsedMs: time.Since(c.start).Milliseconds(),
-		Turns: c.turns, JSCalls: c.jsCalls, JSMs: c.jsTime.Milliseconds(), Usage: c.usage,
+		Turns: c.turns, ToolCalls: c.jsCalls, ToolMs: c.jsTime.Milliseconds(), Usage: c.usage,
 	}
 	switch {
 	case err == nil, errors.Is(err, ErrHalted):
