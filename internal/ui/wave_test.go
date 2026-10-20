@@ -6,16 +6,6 @@ import (
 	"github.com/gdamore/tcell/v2"
 )
 
-func count(in []float64, f func(float64) bool) int {
-	n := 0
-	for _, v := range in {
-		if f(v) {
-			n++
-		}
-	}
-	return n
-}
-
 func TestWaveHardLeftSoftRight(t *testing.T) {
 	const n = 100
 	// Put the hard edge at column 20: x - length + 0 = 20.
@@ -36,7 +26,6 @@ func TestWaveHardLeftSoftRight(t *testing.T) {
 
 func TestWaveSecondStartsAtSixtyFivePercent(t *testing.T) {
 	const n = 100
-	period := waveSpawn*n + waveLen(n)
 	at := func(headCol float64) []float64 { return WaveIntensity(n, (headCol+waveLen(n))/waveSpeed) }
 	// Before the first hard edge reaches column 65 only one wave is lit near the left.
 	if got := at(60)[0]; got != 0 {
@@ -45,7 +34,6 @@ func TestWaveSecondStartsAtSixtyFivePercent(t *testing.T) {
 	if got := at(66)[0]; got == 0 {
 		t.Fatal("second wave must have started")
 	}
-	_ = period
 }
 
 func TestWaveBounds(t *testing.T) {
