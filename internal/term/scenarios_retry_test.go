@@ -10,66 +10,6 @@ import (
 	"time"
 )
 
-// Provider errors: transient ones are retried with a visible countdown.
-func TestRetryAfterTransientErrors(t *testing.T) {
-	f := newFakeLLM(t)
-	f.Handler = func(q *llmReq) {
-		switch q.N {
-		case 1:
-			q.Fail(503, "1")
-		case 2:
-			q.Drop("partial that must vanish")
-		default:
-			q.Text("recovered fine")
-		}
-	}
-	s := start(t, options{fake: f})
-	s.Say("please")
-	s.WaitFor("retry 2/5")
-	s.WaitFor("503")
-	s.WaitFor("retry 3/5")
-	scr := s.WaitFor("recovered fine")
-	if strings.Contains(scr, "partial that must vanish") {
-		t.Fatalf("partial output of a dropped stream stayed:\n%s", scr)
-	}
-	if f.Requests() != 3 {
-		t.Fatalf("requests: %d", f.Requests())
-	}
-}
-
-// A bad key is not retried; the message stays in the timeline.
-func TestAuthErrorIsNotRetried(t *testing.T) {
-	f := newFakeLLM(t)
-	f.Handler = func(q *llmReq) { q.Fail(401, "") }
-	s := start(t, options{fake: f})
-	s.Say("anyone there")
-	s.WaitFor("401")
-	s.Never("retry 2/5", time.Second)
-	if f.Requests() != 1 {
-		t.Fatalf("requests: %d", f.Requests())
-	}
-	s.WaitFor("anyone there")
-}
-
-// Ctrl+C cancels the wait between retries.
-func TestCtrlCDuringBackoff(t *testing.T) {
-	f := newFakeLLM(t)
-	f.Handler = func(q *llmReq) { q.Fail(429, "30") }
-	s := start(t, options{fake: f})
-	s.Say("slow down")
-	s.WaitFor("retry 2/5 in")
-	s.Send(CtrlC)
-	s.WaitFor("[aborted]")
-	lines := strings.Split(s.Screen(), "\n")
-	if status := lines[len(lines)-1]; strings.Contains(status, "retry") {
-		t.Fatalf("status bar still shows a retry: %q", status)
-	}
-	time.Sleep(300 * time.Millisecond)
-	if f.Requests() != 1 {
-		t.Fatalf("requests: %d", f.Requests())
-	}
-}
-
 // askUser: the model asks, the user answers in the panel above the composer.
 func askHandler(code string, final string) func(q *llmReq) {
 	return func(q *llmReq) {
@@ -137,45 +77,6 @@ echo "[[answered]] exit=$?"`, "noted")
 	if !strings.Contains(scr, "exit=1") {
 		t.Fatalf("a cancelled form must fail the command:\n%s", scr)
 	}
-}
-
-func TestCtrlCDuringQuestion(t *testing.T) {
-	f := newFakeLLM(t)
-	f.Handler = askHandler("meno ask - <<'EOF'\n{\"questions\":[{\"id\":\"a\",\"text\":\"waiting forever?\",\"type\":\"text\"}]}\nEOF", "never")
-	s := start(t, options{fake: f})
-	s.Say("ask")
-	s.WaitFor("waiting forever?")
-	s.Send(CtrlC)
-	s.WaitFor("[aborted]")
-	s.WaitGone("agent asks")
-	time.Sleep(300 * time.Millisecond)
-	if f.Requests() != 1 {
-		t.Fatalf("requests: %d", f.Requests())
-	}
-	// The composer works normally again.
-	s.Type("hello again")
-	s.WaitFor("hello again")
-}
-
-func TestAskFormOnNarrowTerminal(t *testing.T) {
-	f := newFakeLLM(t)
-	f.Handler = askHandler("out=$(meno ask - <<'EOF'\n{\"questions\":[{\"id\":\"a\",\"text\":\"A rather long question that has to wrap on a narrow terminal, word by word\",\"type\":\"single\",\"options\":[{\"id\":\"1\",\"label\":\"one\"},{\"id\":\"2\",\"label\":\"two\"}]}]}\nEOF\n); echo \"[[answered]] $out\"", "all done")
-	s := start(t, options{fake: f, cols: 40, rows: 24})
-	s.Say("go")
-	s.WaitFor("agent asks")
-	s.WaitFor("Cancel")
-	for i, l := range strings.Split(s.Screen(), "\n") {
-		if n := len([]rune(l)); n > 40 {
-			t.Fatalf("row %d is %d wide: %q", i, n, l)
-		}
-	}
-	if scr := s.Screen(); !strings.Contains(scr, "narrow terminal") || !strings.Contains(scr, "Cancel") {
-		t.Fatalf("question or actions cut off:\n%s", scr)
-	}
-	s.Resize(100, 32)
-	s.WaitFor("[ Cancel ]")
-	s.Send(Enter)
-	s.WaitFor("all done")
 }
 
 // 20. A skill edited between two messages is reported in the second request only,

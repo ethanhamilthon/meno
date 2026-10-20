@@ -27,11 +27,3 @@ func BenchmarkBuildLinesLongTranscript(b *testing.B) {
 		_ = BuildLines(turns, 100, JSOpts{})
 	}
 }
-
-func BenchmarkHighlightAndFold(b *testing.B) {
-	code := strings.Repeat("const s = `line one\nline two\nline three $"+"{x}`; run('a', \"b\"); // c\n", 20)
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		_ = CodeLinesOpt(code, BgJSDone, 100, 0, CodeOpts{FoldStrings: true, FoldLines: 1})
-	}
-}

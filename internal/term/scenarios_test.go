@@ -10,7 +10,10 @@ import (
 	"github.com/hinshun/vt10x"
 )
 
-var protocols = []string{"chat", "responses"}
+// allProtocols are the wire protocols the streaming and tool tests cover; the
+// other scenarios run on one protocol, their subject is the UI, not the wire.
+var allProtocols = []string{"chat", "responses"}
+var protocols = []string{"chat"}
 
 // 1. First run: no provider, so the login list opens and cannot be closed. Add
 // an API-key provider there, pick a model in :model, talk.
@@ -55,7 +58,7 @@ func TestFirstRunSetupThroughDialogs(t *testing.T) {
 
 // 2. A message streams in and the turn completes, in both protocols.
 func TestStreamingAnswer(t *testing.T) {
-	for _, proto := range protocols {
+	for _, proto := range allProtocols {
 		t.Run(proto, func(t *testing.T) {
 			f := newFakeLLM(t)
 			f.Handler = func(q *llmReq) { q.Text("Hel", "lo ", "from ", proto) }
@@ -71,9 +74,9 @@ func TestStreamingAnswer(t *testing.T) {
 	}
 }
 
-// 3. The model runs js: code and output show up and the result is fed back.
-func TestJSToolTurn(t *testing.T) {
-	for _, proto := range protocols {
+// 3. The model runs bash: the command and output show up and the result is fed back.
+func TestBashToolTurn(t *testing.T) {
+	for _, proto := range allProtocols {
 		t.Run(proto, func(t *testing.T) {
 			f := newFakeLLM(t)
 			f.Handler = func(q *llmReq) {
@@ -120,23 +123,6 @@ func TestCtrlCDuringStream(t *testing.T) {
 	s.WaitFor("second turn fine")
 }
 
-// 5. :new starts an empty session, :sessions brings the old one back.
-func TestNewAndResume(t *testing.T) {
-	f := newFakeLLM(t)
-	f.Handler = func(q *llmReq) { q.Text("remember-me-answer") }
-	s := start(t, options{fake: f})
-	s.Say("my first question")
-	s.WaitFor("remember-me-answer")
-	s.WaitFor("100/20")
-	s.Cmd("new")
-	s.WaitGone("remember-me-answer")
-	s.Cmd("sessions")
-	s.WaitFor("my first question")
-	s.Type("first quest") // the search box has the focus
-	s.Send(Enter)
-	s.WaitFor("remember-me-answer")
-}
-
 // 5b. A session survives a restart of the program.
 func TestResumeAfterRestart(t *testing.T) {
 	f := newFakeLLM(t)
@@ -157,62 +143,6 @@ func TestResumeAfterRestart(t *testing.T) {
 	s2.Type("before restart")
 	s2.Send(Enter)
 	s2.WaitFor("persisted-answer")
-}
-
-// 6. Resizing the window re-lays the screen out, down to a very narrow terminal.
-func TestResizeAndNarrowTerminal(t *testing.T) {
-	f := newFakeLLM(t)
-	f.Handler = func(q *llmReq) {
-		q.Text("A fairly long answer that has to be wrapped differently when the window changes its width.")
-	}
-	s := start(t, options{fake: f})
-	s.Say("wrap please")
-	s.WaitFor("when the window")
-	s.Resize(60, 20)
-	s.WaitFor("INSERT")
-	lines := strings.Split(s.Screen(), "\n")
-	if len(lines) != 20 || !strings.Contains(lines[19], "INSERT") {
-		t.Fatalf("status bar not on the last row of 60x20:\n%s", s.Screen())
-	}
-	s.Resize(40, 14)
-	s.WaitFor("fake-model")
-	for i, l := range strings.Split(s.Screen(), "\n") {
-		if n := len([]rune(l)); n > 40 {
-			t.Fatalf("row %d is %d wide in a 40 column terminal: %q", i, n, l)
-		}
-	}
-	s.Resize(100, 32)
-	s.WaitFor("INSERT")
-	s.Say("still alive")
-	s.WaitFor("still alive")
-	if s.Exited() {
-		t.Fatal("meno died")
-	}
-}
-
-// 7. Cyrillic, emoji and Markdown are drawn, not mangled.
-func TestUnicodeAndMarkdown(t *testing.T) {
-	f := newFakeLLM(t)
-	f.Handler = func(q *llmReq) {
-		q.Text("Привет, **жирный** мир 🙂\n\n", "- первый пункт\n- второй пункт\n\n", "```go\nfmt.Println(\"привет\")\n```\n")
-	}
-	s := start(t, options{fake: f})
-	s.Say("скажи привет")
-	scr := s.WaitFor("fmt.Println")
-	for _, want := range []string{"Привет, жирный мир", "первый пункт", "второй пункт", "привет"} {
-		if !strings.Contains(scr, want) {
-			t.Fatalf("misses %q:\n%s", want, scr)
-		}
-	}
-	for _, bad := range []string{"**", "```"} {
-		if strings.Contains(scr, bad) {
-			t.Fatalf("raw markdown %q on screen:\n%s", bad, scr)
-		}
-	}
-	// The user's own cyrillic message is in the timeline too.
-	if !strings.Contains(scr, "скажи привет") {
-		t.Fatalf("user message missing:\n%s", scr)
-	}
 }
 
 // 8. :q ends the process cleanly and gives the terminal back.

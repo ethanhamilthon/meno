@@ -7,10 +7,6 @@ laptop (arm64, Go 1.27) and exist to compare runs on the same machine, not as pr
 | --- | --- |
 | lay out a 300-turn timeline from scratch | ~7 ms |
 | the same 600-turn timeline per frame with the per-turn layout cache | ~1 ms |
-| build the provider history of a 600-message session | ~0.19 ms |
-| save a 600-message session | ~4 ms |
-| request fingerprint of a 600-message session | ~0.6 ms |
-| highlight and fold 20 template/strings lines | ~0.27 ms |
 
 Measures taken: persisted turns are laid out once and reused until the width, a display
 setting or the turn changes; image decoding, `@` search, task logs run off
