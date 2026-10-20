@@ -9,7 +9,6 @@ const DefaultRounds = 25
 
 // Command groups available to a bash tool.
 const (
-	GroupFiles  = "files"
 	GroupMCP    = "mcp"
 	GroupTasks  = "tasks"
 	GroupAsk    = "ask"

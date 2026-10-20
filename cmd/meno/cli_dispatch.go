@@ -9,9 +9,6 @@ func isCLIHelp(args []string) bool {
 	}
 	for _, arg := range args[1:] {
 		if arg == "--help" || arg == "-h" {
-			if args[0] == "edit" && args[1] == "--json" {
-				return false
-			}
 			return true
 		}
 	}

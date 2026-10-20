@@ -26,7 +26,7 @@ type IO struct {
 	Dir      string
 }
 
-// Run parses and executes one meno command. File commands run locally; daemon-backed commands use api.
+// Run parses and executes one meno command. Daemon-backed commands use api.
 func Run(args []string, streams IO, api API) int {
 	if streams.In == nil {
 		streams.In = strings.NewReader("")
@@ -69,10 +69,9 @@ func Run(args []string, streams IO, api API) int {
 	}
 	name := args[0]
 	args = args[1:]
-	jsonEdit := name == "edit" && len(args) > 1 && args[1] == "--json"
 	jsonOut := false
 	for i := 0; i < len(args); {
-		if args[i] == "--json" && !(jsonEdit && i == 1) {
+		if args[i] == "--json" {
 			jsonOut = true
 			args = append(args[:i], args[i+1:]...)
 			continue
@@ -87,14 +86,6 @@ func Run(args []string, streams IO, api API) int {
 	var code int
 	var err error
 	switch name {
-	case "read", "edit", "write", "search":
-		code, err = runFileCommand(name, args, streams, jsonOut)
-	case "files":
-		if len(args) != 0 {
-			err = usageError("usage: meno files --help")
-		} else {
-			return printHelp(streams, "files")
-		}
 	case "mcp":
 		if len(args) > 0 && !containsString([]string{"servers", "tools", "call", "results", "add", "remove", "restart"}, args[0]) {
 			code, err = runMCP(append([]string{"call"}, args...), streams, api, jsonOut)

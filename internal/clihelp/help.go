@@ -13,7 +13,7 @@ var content embed.FS
 
 // Topics lists the help topics in stable display order.
 func Topics() []string {
-	return []string{"meno", "files", "read", "edit", "write", "search", "mcp", "mcp-call", "mcp-servers", "mcp-tools", "mcp-results", "mcp-add", "mcp-remove", "mcp-restart", "tasks", "tasks-start", "tasks-list", "tasks-status", "tasks-logs", "tasks-wait", "tasks-cancel", "ask", "goal", "goal-done", "goal-blocked", "web", "web-search", "view", "models", "daemon", "daemon-restart", "daemon-stop", "daemon-status", "daemon-start", "daemon-run", "daemon-logs", "sessions", "send", "tail"}
+	return []string{"meno", "mcp", "mcp-call", "mcp-servers", "mcp-tools", "mcp-results", "mcp-add", "mcp-remove", "mcp-restart", "tasks", "tasks-start", "tasks-list", "tasks-status", "tasks-logs", "tasks-wait", "tasks-cancel", "ask", "goal", "goal-done", "goal-blocked", "web", "web-search", "view", "models", "daemon", "daemon-restart", "daemon-stop", "daemon-status", "daemon-start", "daemon-run", "daemon-logs", "sessions", "send", "tail"}
 }
 
 // Text returns embedded help for a group or command. An empty topic means meno.

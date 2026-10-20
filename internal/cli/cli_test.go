@@ -2,8 +2,6 @@ package cli
 
 import (
 	"bytes"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -66,65 +64,10 @@ func run(args []string, a API, input string) (int, string, string) {
 	c := Run(args, IO{In: strings.NewReader(input), Out: &out, Err: &errOut, Dir: "."}, a)
 	return c, out.String(), errOut.String()
 }
-func TestReadOutputAndPerformance(t *testing.T) {
-	d := t.TempDir()
-	p := filepath.Join(d, "a")
-	_ = os.WriteFile(p, []byte("one\ntwo\n"), 0644)
-	start := time.Now()
-	c, out, e := run([]string{"read", p, "2", "2", "--hash"}, nil, "")
-	if c != 0 || e != "" || !strings.HasPrefix(out, "2\ttwo\nsha256 ") {
-		t.Fatalf("%d %q %q", c, out, e)
-	}
-	if time.Since(start) > 50*time.Millisecond {
-		t.Fatalf("read: %s", time.Since(start))
-	}
-}
-func TestWriteEditAndAtomicJSON(t *testing.T) {
-	d := t.TempDir()
-	p := filepath.Join(d, "a")
-	c, out, _ := run([]string{"write", p}, nil, "a\nb\n")
-	if c != 0 || !strings.Contains(out, "2 lines") {
-		t.Fatalf("%d %s", c, out)
-	}
-	c, _, e := run([]string{"write", p}, nil, "secret")
-	if c != 1 || !strings.Contains(e, "already exists") || !strings.Contains(e, "sha256") {
-		t.Fatalf("%d %s", c, e)
-	}
-	hash := hashBytes([]byte("a\nb\n"))
-	c, _, _ = run([]string{"edit", p, "--json", "--expect-hash", hash}, nil, "[{\"oldText\":\"a\",\"newText\":\"A\"},{\"oldText\":\"missing\",\"newText\":\"x\"}]")
-	b, _ := os.ReadFile(p)
-	if c != 1 || string(b) != "a\nb\n" {
-		t.Fatalf("non-atomic edit: %q", b)
-	}
-	c, _, _ = run([]string{"edit", p, "--json", "--expect-hash", hash}, nil, "[{\"oldText\":\"a\",\"newText\":\"A\"}]")
-	b, _ = os.ReadFile(p)
-	if c != 0 || string(b) != "A\nb\n" {
-		t.Fatalf("JSON edit: %d %q", c, b)
-	}
-	c, _, e = run([]string{"edit", p, "--json", "--expect-hash"}, nil, "")
-	if c != 2 || !strings.Contains(e, "needs a value") {
-		t.Fatalf("missing hash: %d %s", c, e)
-	}
-	c, _, e = run([]string{"edit", p, "b\nwrong", "X"}, nil, "")
-	if c != 1 || !strings.Contains(e, "stopped matching at line 3") {
-		t.Fatalf("%d %s", c, e)
-	}
-	code, _, _ := run([]string{"edit", p, "--json", "--expect-hash", hash}, nil, "[{\"oldText\":\"A\",\"newText\":\"B\"}]")
-	if code != 1 {
-		t.Fatalf("stale JSON edit code %d", code)
-	}
-}
-func TestSearchAndMCPArgumentForms(t *testing.T) {
-	d := t.TempDir()
-	_ = os.Mkdir(filepath.Join(d, "sub"), 0755)
-	_ = os.WriteFile(filepath.Join(d, "sub", "a.go"), []byte("needle\n"), 0644)
-	c, out, e := run([]string{"search", "nee.*", filepath.Join(d, "sub"), "--regex", "--glob", "*.go", "--json"}, nil, "")
-	if c != 0 || e != "" || !strings.Contains(out, "\"line\":1") {
-		t.Fatalf("%d %s %s", c, out, e)
-	}
+func TestMCPArgumentForms(t *testing.T) {
 	a := &fakeAPI{servers: []Server{{Name: "orders"}}, tools: []Tool{{Name: "get_order"}}}
 	for _, args := range [][]string{{"mcp", "call", "orders", "get_order", "id=7", "active=true"}, {"mcp", "call", "orders.get_order", "{\"id\":7,\"active\":true}"}, {"mcp", "orders.get_order", "id=7"}} {
-		c, _, e = run(args, a, "")
+		c, _, e := run(args, a, "")
 		if c != 0 || e != "" {
 			t.Fatalf("%v: %d %s", args, c, e)
 		}
@@ -132,11 +75,13 @@ func TestSearchAndMCPArgumentForms(t *testing.T) {
 	if a.args["id"] != float64(7) {
 		t.Fatalf("%#v", a.args)
 	}
-	c, _, e = run([]string{"mcp", "call", "orders", "get_order", "id=7", "active=true"}, a, "")
+	if c, _, e := run([]string{"mcp", "call", "orders", "get_order", "id=7", "active=true"}, a, ""); c != 0 || e != "" {
+		t.Fatalf("key=value: %d %s", c, e)
+	}
 	if a.args["active"] != true {
 		t.Fatalf("key=value bool: %#v", a.args)
 	}
-	c, _, e = run([]string{"mcp", "call", "ordres.get_order"}, a, "")
+	c, _, e := run([]string{"mcp", "call", "ordres.get_order"}, a, "")
 	if c != 1 || !strings.Contains(e, "did you mean") {
 		t.Fatalf("%d %s", c, e)
 	}
@@ -172,7 +117,7 @@ func TestTasksAndExitCodes(t *testing.T) {
 	}
 }
 func TestHelpGroupsAndLocalHelp(t *testing.T) {
-	for _, name := range []string{"mcp", "tasks", "ask", "goal", "web", "view", "models", "daemon", "sessions", "send", "tail", "read", "edit", "write", "search"} {
+	for _, name := range []string{"mcp", "tasks", "ask", "goal", "web", "view", "models", "daemon", "sessions", "send", "tail"} {
 		c, out, e := run([]string{name, "--help"}, nil, "")
 		if c != 0 || e != "" || out == "" {
 			t.Errorf("%s: %d %q", name, c, e)

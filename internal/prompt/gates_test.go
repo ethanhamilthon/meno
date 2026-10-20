@@ -5,14 +5,9 @@ import (
 	"testing"
 )
 
-func TestRestrictedGroupsDropFileSections(t *testing.T) {
+func TestRestrictedGroupsDropTheirRules(t *testing.T) {
 	out := Build(Input{Cwd: "/w", Allow: []string{"ask", "goal", "help"}})
-	for _, name := range []string{"editing", "verification", "output"} {
-		if strings.Contains(out, "<"+name+">") {
-			t.Errorf("restricted prompt includes <%s>", name)
-		}
-	}
-	for _, rule := range []string{"meno read", "meno mcp", "meno tasks", "meno web"} {
+	for _, rule := range []string{"meno mcp", "meno tasks", "meno web"} {
 		if strings.Contains(out, rule) {
 			t.Errorf("restricted method includes %q", rule)
 		}

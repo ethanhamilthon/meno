@@ -12,11 +12,9 @@ func buildBash(in Input) string {
 	add(identityPrompt)
 	add(voiceSection())
 	add(bashMethod(in.Allow))
-	if allows(in.Allow, "files") {
-		add(bashEditingSection())
-		add(verificationSection())
-		add(outputSection())
-	}
+	add(bashEditingSection())
+	add(verificationSection())
+	add(outputSection())
 	add(bashGuidelines(in.Allow))
 	add(skillsSection(in.Skills))
 	add(instructionsSection("global-instructions", in.GlobalAgents))
@@ -40,9 +38,6 @@ func allows(groups []string, group string) bool {
 
 func bashMethod(groups []string) string {
 	var lines []string
-	if allows(groups, "files") {
-		lines = append(lines, "- Inspect files before you change them. Use meno read, edit, write or search.")
-	}
 	if allows(groups, "mcp") {
 		lines = append(lines, "- Use meno mcp for MCP servers and tools.")
 	}
@@ -71,7 +66,7 @@ func bashMethod(groups []string) string {
 }
 
 func bashEditingSection() string {
-	return element("editing", "- Use meno read before edit. Use quoted heredocs for multi-line file writes; do not overwrite unknown content.")
+	return element("editing", "- Read a file before you change it. Change part of a file with sed or a quoted heredoc, not by sending the whole file again. Do not overwrite content you have not read.\n- Find with rg when it exists (check with command -v rg), otherwise grep -rn. Never guess a path or a symbol.")
 }
 
 func bashGuidelines(groups []string) string {
@@ -79,11 +74,7 @@ func bashGuidelines(groups []string) string {
 	if allows(groups, "tasks") {
 		first = "- Your only tool is bash. Each call starts a fresh shell; use files for state and meno tasks start for background work."
 	}
-	read := "- Read skills with cat. python3 and jq may be missing; check with command -v."
-	if allows(groups, "files") {
-		read = "- Read skills with cat or meno read. python3 and jq may be missing; check with command -v."
-	}
-	lines := []string{first, read, "- Use a quoted heredoc for multi-line file edits. The TUI folds heredoc bodies for display.", "- Results end with [exit N], [timed out after Ns] or [cancelled]."}
+	lines := []string{first, "- Read skills with cat. python3 and jq may be missing; check with command -v.", "- Use a quoted heredoc for multi-line file edits. The TUI folds heredoc bodies for display.", "- Results end with [exit N], [timed out after Ns] or [cancelled]."}
 	if allows(groups, "ask") {
 		lines = append(lines, "- Ask the user with meno ask when a decision is theirs to make.")
 	}

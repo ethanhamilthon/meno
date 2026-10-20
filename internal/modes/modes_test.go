@@ -54,11 +54,11 @@ func TestComposeIntersectsTheToolsAndKeepsGoal(t *testing.T) {
 
 func TestAllowedGroupHelpers(t *testing.T) {
 	all := Compose(nil)
-	if !all.Allows(GroupFiles) || all.AllowedGroups() != nil {
+	if !all.Allows(GroupMCP) || all.AllowedGroups() != nil {
 		t.Fatal("nil allow must mean all groups")
 	}
 	c := Compose([]Mode{{Allow: []string{GroupHelp}}})
-	if c.Allows(GroupFiles) || !c.Allows(GroupHelp) {
+	if c.Allows(GroupMCP) || !c.Allows(GroupHelp) {
 		t.Fatalf("restricted groups: %v", c.AllowedGroups())
 	}
 	got := c.AllowedGroups()
