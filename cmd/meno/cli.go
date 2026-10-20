@@ -16,6 +16,7 @@ const usage = `meno: a terminal coding agent
 
 Usage:
   meno             open the terminal UI
+  meno daemon      manage the background daemon
   meno update      update meno to the latest GitHub release
   meno -v          print the version
   meno -h          print this help
@@ -24,6 +25,8 @@ Usage:
 // cli runs a command line other than the bare "meno" and returns the exit code.
 func cli(args []string, out, errOut io.Writer) int {
 	switch args[0] {
+	case "daemon":
+		return daemonCLI(args[1:], out, errOut)
 	case "-h", "--help", "help":
 		fmt.Fprint(out, usage)
 		return 0
