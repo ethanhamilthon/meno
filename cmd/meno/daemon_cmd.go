@@ -7,6 +7,7 @@ import (
 	"meno/internal/client"
 	"meno/internal/config"
 	"meno/internal/daemon"
+	"meno/internal/daemon/cfgsvc"
 	ver "meno/internal/version"
 	"os"
 	"os/signal"
@@ -58,13 +59,19 @@ func daemonCLI(args []string, out, errOut io.Writer) int {
 	}
 }
 func runDaemon(home string, errOut io.Writer) int {
-	s, e := daemon.New(daemon.Options{Home: home, Version: ver.Label(), Backend: daemon.NotImplementedBackend{}})
+	service, e := cfgsvc.New(cfgsvc.Options{Paths: config.Paths{Home: home}})
 	if e != nil {
 		fmt.Fprintln(errOut, e)
 		return 1
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	s, e := daemon.New(daemon.Options{Home: home, Version: ver.Label(), Backend: cfgsvc.Backend{Backend: daemon.NotImplementedBackend{}, Service: service}, OnStart: service.Start, OnStop: service.Close})
+	if e != nil {
+		fmt.Fprintln(errOut, e)
+		return 1
+	}
+	service.SetNotify(func(event string) { s.GlobalHub().Publish("", event, map[string]any{}) })
 	if e = s.Serve(ctx); e != nil {
 		fmt.Fprintln(errOut, "meno: daemon:", e)
 		return 1
