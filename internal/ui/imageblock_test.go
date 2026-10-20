@@ -3,16 +3,13 @@ package ui
 import (
 	"strings"
 	"testing"
-
-	"meno/internal/agent"
-	"meno/internal/llm"
 )
 
 func TestImageBlocksReserveRowsOrFallBackToCaption(t *testing.T) {
-	at := agent.Attachment{N: 1, Mime: "image/png", SHA: "abc", W: 160, H: 160}
-	turns := []agent.Turn{
-		{Role: llm.RoleUser, Text: "see [Image #1]", Attachments: []agent.Attachment{at}},
-		{Role: llm.RoleUser, Kind: agent.KindView, Text: "Image from view(\"x.png\")", Attachments: []agent.Attachment{{N: 1, Mime: "image/jpeg", SHA: "def", W: 800, H: 3200}}},
+	at := Attachment{N: 1, Mime: "image/png", SHA: "abc", W: 160, H: 160}
+	turns := []Turn{
+		{Role: RoleUser, Text: "see [Image #1]", Attachments: []Attachment{at}},
+		{Role: RoleUser, Kind: KindView, Text: "Image from view(\"x.png\")", Attachments: []Attachment{{N: 1, Mime: "image/jpeg", SHA: "def", W: 800, H: 3200}}},
 	}
 	off := BuildLines(turns, 100, JSOpts{})
 	for _, l := range off {

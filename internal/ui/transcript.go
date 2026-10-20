@@ -5,9 +5,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"meno/internal/agent"
-	"meno/internal/llm"
 )
 
 const padX = 2
@@ -50,37 +47,37 @@ type JSOpts struct {
 	FoldLines   int
 }
 
-func BuildLines(turns []agent.Turn, w int, js JSOpts) []Line {
+func BuildLines(turns []Turn, w int, js JSOpts) []Line {
 	var out []Line
 	wrapW := w - padX*2
 	for _, t := range turns {
 		think := ""
-		if js.ThinkMode != JSOff && t.Replay != nil {
-			think = strings.TrimSpace(t.Replay.Thought)
+		if js.ThinkMode != JSOff && t.Thinking != "" {
+			think = strings.TrimSpace(t.Thinking)
 		}
-		visible := t.Role == llm.RoleUser || t.Code != "" || t.Role == llm.RoleAssistant && (t.Text != "" || think != "")
+		visible := t.Role == RoleUser || t.Code != "" || t.Role == RoleAssistant && (t.Text != "" || think != "")
 		if visible && len(out) > 0 {
 			out = append(out, Band(BgTerm))
 		}
-		if think != "" && t.Role == llm.RoleAssistant {
+		if think != "" && t.Role == RoleAssistant {
 			out = append(out, thinkingLines(think, wrapW-2, js)...)
 			if t.Text != "" || t.Code != "" {
 				out = append(out, Band(BgTerm))
 			}
 		}
 		switch {
-		case t.Role == llm.RoleUser && t.Kind == agent.KindEvent:
+		case t.Role == RoleUser && t.Kind == KindEvent:
 			out = append(out, WrapLines("⇢ "+eventSummary(t.Text), wrapW-2, func(s string) Line {
 				return Plain("  "+s, FgDim, BgTerm)
 			})...)
-		case t.Role == llm.RoleUser && t.Kind == agent.KindView:
+		case t.Role == RoleUser && t.Kind == KindView:
 			out = append(out, WrapLines("◌ "+t.Text, wrapW-2, func(s string) Line {
 				return Plain("  "+s, FgDim, BgTerm)
 			})...)
 			for _, at := range t.Attachments {
 				out = append(out, imageBlock(at, "view()", w, js.Images)...)
 			}
-		case t.Role == llm.RoleUser:
+		case t.Role == RoleUser:
 			out = append(out, Band(BgUser))
 			shown := t.Text
 			if t.Mode != "" {
@@ -100,7 +97,7 @@ func BuildLines(turns []agent.Turn, w int, js JSOpts) []Line {
 				out = append(out, Band(BgTerm))
 			}
 			out = append(out, block...)
-		case t.Role == llm.RoleAssistant && t.Text != "":
+		case t.Role == RoleAssistant && t.Text != "":
 			out = append(out, MarkdownLines(t.Text, wrapW-2, "◆")...)
 		}
 		if js.Summary && t.Run != nil {
@@ -113,7 +110,7 @@ func BuildLines(turns []agent.Turn, w int, js JSOpts) []Line {
 	return out
 }
 
-func jsBlock(t agent.Turn, w int, js JSOpts) []Line {
+func jsBlock(t Turn, w int, js JSOpts) []Line {
 	var out []Line
 	if js.Mode != JSOff {
 		max := 0
@@ -153,7 +150,7 @@ func jsBlock(t agent.Turn, w int, js JSOpts) []Line {
 	return out
 }
 
-func outputLines(t agent.Turn, w int) []Line {
+func outputLines(t Turn, w int) []Line {
 	if t.Err != "" {
 		return WrapLines("error: "+t.Err, w, func(s string) Line {
 			return Plain("  "+s, Red, BgTerm)

@@ -163,6 +163,40 @@ type Turn struct {
 	Content   string     `json:"content,omitempty"`
 	Parts     []TurnPart `json:"parts,omitempty"`
 	CreatedAt string     `json:"created_at,omitempty"`
+	// Fields a client needs to draw the turn.
+	Kind        string           `json:"kind,omitempty"` // "" , "event" or "view"
+	Mode        string           `json:"mode,omitempty"` // mode tags the request started with
+	Thinking    string           `json:"thinking,omitempty"`
+	Err         string           `json:"err,omitempty"`
+	ElapsedMS   int64            `json:"elapsed_ms,omitempty"`
+	LimitMS     int64            `json:"limit_ms,omitempty"`
+	TimedOut    bool             `json:"timed_out,omitempty"`
+	Attachments []TurnAttachment `json:"attachments,omitempty"`
+	Run         *RunStats        `json:"run,omitempty"`
+}
+
+// TurnAttachment is an image a message refers to; the bytes live in the
+// attachment store of the daemon, named by SHA.
+type TurnAttachment struct {
+	N    int    `json:"n"`
+	Mime string `json:"mime"`
+	SHA  string `json:"sha"`
+	W    int    `json:"w"`
+	H    int    `json:"h"`
+}
+
+// RunStats closes a run: what it took and cost.
+type RunStats struct {
+	Status    string   `json:"status"`
+	ElapsedMS int64    `json:"elapsed_ms"`
+	Turns     int      `json:"turns"`
+	ToolCalls int      `json:"tool_calls"`
+	ToolMS    int64    `json:"tool_ms"`
+	In        int      `json:"in"`
+	Out       int      `json:"out"`
+	Cached    int      `json:"cached"`
+	Cost      *float64 `json:"cost,omitempty"`
+	Err       string   `json:"err,omitempty"`
 }
 
 // TurnPart is declared in history.go.

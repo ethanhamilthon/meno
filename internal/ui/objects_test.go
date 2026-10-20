@@ -3,15 +3,12 @@ package ui
 import (
 	"strings"
 	"testing"
-
-	"meno/internal/agent"
-	"meno/internal/llm"
 )
 
 func TestSentMessageShowsObjectLabelsAndKeepsOldTextAlone(t *testing.T) {
-	turns := []agent.Turn{
-		{Role: llm.RoleUser, Text: "look at <file-link>/proj/main.go</file-link> and /not/a/tag.go then <skill>review</skill>"},
-		{Role: llm.RoleUser, Text: "legacy path /proj/old.go stays plain, <file-link>relative.go</file-link> too"},
+	turns := []Turn{
+		{Role: RoleUser, Text: "look at <file-link>/proj/main.go</file-link> and /not/a/tag.go then <skill>review</skill>"},
+		{Role: RoleUser, Text: "legacy path /proj/old.go stays plain, <file-link>relative.go</file-link> too"},
 	}
 	lines := BuildLines(turns, 100, JSOpts{})
 	var all []string
@@ -42,7 +39,7 @@ func TestSentMessageShowsObjectLabelsAndKeepsOldTextAlone(t *testing.T) {
 }
 
 func TestLabelStaysOneHighlightedUnitWhenItWraps(t *testing.T) {
-	turns := []agent.Turn{{Role: llm.RoleUser, Text: "x <file-link>/proj/a-very-long-file-name-that-wraps.go</file-link> y"}}
+	turns := []Turn{{Role: RoleUser, Text: "x <file-link>/proj/a-very-long-file-name-that-wraps.go</file-link> y"}}
 	lines := BuildLines(turns, 24, JSOpts{})
 	var blue []string
 	for _, l := range lines {

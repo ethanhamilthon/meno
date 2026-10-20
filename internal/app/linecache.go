@@ -3,7 +3,6 @@ package app
 import (
 	"fmt"
 
-	"meno/internal/agent"
 	"meno/internal/ui"
 )
 
@@ -12,7 +11,7 @@ import (
 // covers, so the layout can be reused until the width or a display setting
 // changes.
 type lineKey struct {
-	hid   int64
+	id    string
 	width int
 	opts  string
 	sig   string
@@ -26,7 +25,7 @@ type lineCache struct {
 
 const lineCacheMax = 6000
 
-func turnSig(t agent.Turn) string {
+func turnSig(t ui.Turn) string {
 	return fmt.Sprintf("%d/%d/%d/%d/%d/%v/%d/%d", len(t.Text), len(t.Code), len(t.Output), len(t.Err), t.ElapsedMs, t.Run != nil, len(t.Attachments), len(t.Title))
 }
 
@@ -38,18 +37,18 @@ func optsKey(js ui.JSOpts) string {
 
 // turnLines returns the layout of turn t, from the cache when possible. Turns
 // without a history ID (legacy or synthetic) are laid out every time.
-func (c *lineCache) turnLines(t agent.Turn, w int, js ui.JSOpts) []ui.Line {
-	if t.HID == 0 {
-		return ui.BuildLines([]agent.Turn{t}, w, js)
+func (c *lineCache) turnLines(t ui.Turn, w int, js ui.JSOpts) []ui.Line {
+	if t.ID == "" {
+		return ui.BuildLines([]ui.Turn{t}, w, js)
 	}
-	k := lineKey{t.HID, w, optsKey(js), turnSig(t)}
+	k := lineKey{t.ID, w, optsKey(js), turnSig(t)}
 	if lines, ok := c.m[k]; ok {
 		return lines
 	}
 	if c.m == nil || len(c.m) > lineCacheMax {
 		c.m = map[lineKey][]ui.Line{}
 	}
-	lines := ui.BuildLines([]agent.Turn{t}, w, js)
+	lines := ui.BuildLines([]ui.Turn{t}, w, js)
 	c.m[k] = lines
 	return lines
 }

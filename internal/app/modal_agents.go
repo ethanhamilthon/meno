@@ -150,7 +150,7 @@ func (a *App) drawAgentChat(c ui.Canvas, w, h int) {
 	a.kids.mu.Unlock()
 	room := max(0, b.h-5)
 	if run != nil {
-		lines := ui.BuildLines(run.sess.Snapshot(), b.w, a.jsOpts())
+		lines := ui.BuildLines(viewTurns(run.sess.Snapshot()), b.w, a.jsOpts())
 		if len(lines) > room {
 			lines = lines[len(lines)-room:]
 		}

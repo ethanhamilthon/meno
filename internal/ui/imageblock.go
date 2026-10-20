@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"meno/internal/agent"
 	"meno/internal/termimg"
 )
 
@@ -27,7 +26,7 @@ type ImageOpts struct {
 // imageBlock is the caption of an attachment and, when graphics are on, the
 // rows its picture covers. The caption always stays: it names the number,
 // size and type, and it is all there is without graphics.
-func imageBlock(at agent.Attachment, source string, wrapW int, o ImageOpts) []Line {
+func imageBlock(at Attachment, source string, wrapW int, o ImageOpts) []Line {
 	kind := strings.TrimPrefix(at.Mime, "image/")
 	caption := fmt.Sprintf("▣ Image #%d · %d×%d · %s · %s", at.N, at.W, at.H, kind, source)
 	out := WrapLines(caption, wrapW-2, func(s string) Line { return Plain("  "+s, FgDim, BgTerm) })

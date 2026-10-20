@@ -7,5 +7,3 @@ app meno/internal/jsvm
 app meno/internal/llm
 app meno/internal/mcp
 app meno/internal/proc
-ui meno/internal/agent
-ui meno/internal/llm

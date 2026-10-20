@@ -41,7 +41,7 @@ func turnWire(t agent.Turn) proto.Turn {
 		parts = append(parts, proto.TurnPart{Type: "thinking", Text: t.Thinking})
 	}
 	if t.Code != "" || t.CallID != "" {
-		c := &proto.CallState{CallID: t.CallID, Command: t.Code, Title: t.Title, Output: t.Output}
+		c := &proto.CallState{CallID: t.CallID, Command: t.Code, Title: t.Title, Output: t.Output, ElapsedMS: t.ElapsedMs, LimitMS: t.LimitMs, TimedOut: t.TimedOut}
 		parts = append(parts, proto.TurnPart{Type: "call", Call: c})
 	}
 	if t.Err != "" {
@@ -54,7 +54,16 @@ func turnWire(t agent.Turn) proto.Turn {
 	if !t.Time.IsZero() {
 		created = t.Time.UTC().Format(time.RFC3339Nano)
 	}
-	return proto.Turn{ID: fmt.Sprint(t.HID), Role: role, Content: content, Parts: parts, CreatedAt: created}
+	out := proto.Turn{ID: fmt.Sprint(t.HID), Role: role, Content: content, Parts: parts, CreatedAt: created,
+		Kind: t.Kind, Mode: t.Mode, Thinking: thinkingOf(t), Err: t.Err, ElapsedMS: t.ElapsedMs, LimitMS: t.LimitMs, TimedOut: t.TimedOut}
+	for _, a := range t.Attachments {
+		out.Attachments = append(out.Attachments, proto.TurnAttachment{N: a.N, Mime: a.Mime, SHA: a.SHA, W: a.W, H: a.H})
+	}
+	if t.Run != nil {
+		r := t.Run
+		out.Run = &proto.RunStats{Status: r.Status, ElapsedMS: r.ElapsedMs, Turns: r.Turns, ToolCalls: r.ToolCalls, ToolMS: r.ToolMs, In: r.Usage.In, Out: r.Usage.Out, Cached: r.Usage.Cached, Cost: r.Cost, Err: r.Err}
+	}
+	return out
 }
 func taskWire(t proc.Task) proto.Task {
 	return proto.Task{ID: t.ID, Name: t.Name, Status: t.Status, Command: t.Command, StartedAt: t.Started.UTC().Format(time.RFC3339Nano), Exit: t.ExitCode}

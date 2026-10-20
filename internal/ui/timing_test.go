@@ -4,9 +4,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"meno/internal/agent"
-	"meno/internal/llm"
 )
 
 func TestFmtDur(t *testing.T) {
@@ -42,11 +39,11 @@ func TestFmtTokensAndCost(t *testing.T) {
 	}
 }
 
-func turnOf(ms, limit int64, err string, timedOut bool) agent.Turn {
-	return agent.Turn{Role: llm.RoleAssistant, CallID: "c", Code: "x", Err: err, ElapsedMs: ms, LimitMs: limit, TimedOut: timedOut}
+func turnOf(ms, limit int64, err string, timedOut bool) Turn {
+	return Turn{Role: RoleAssistant, CallID: "c", Code: "x", Err: err, ElapsedMs: ms, LimitMs: limit, TimedOut: timedOut}
 }
 
-func footerText(t agent.Turn, js JSOpts) (string, []Seg, bool) {
+func footerText(t Turn, js JSOpts) (string, []Seg, bool) {
 	segs, ok := timingBadge(t, js)
 	return joinText(segs), segs, ok
 }
@@ -87,10 +84,10 @@ func TestTimingModes(t *testing.T) {
 	fast, slow := turnOf(300, 30000, "", false), turnOf(20000, 30000, "", false)
 	failedFast := turnOf(300, 30000, "boom", false)
 	timeout := turnOf(30000, 30000, "x", true)
-	legacy := agent.Turn{Role: llm.RoleAssistant, CallID: "c", Code: "x", Output: "old session"}
-	notRun := agent.Turn{Role: llm.RoleAssistant, CallID: "c", Code: "x", Err: "execution canceled"}
+	legacy := Turn{Role: RoleAssistant, CallID: "c", Code: "x", Output: "old session"}
+	notRun := Turn{Role: RoleAssistant, CallID: "c", Code: "x", Err: "execution canceled"}
 	type row struct {
-		turn      agent.Turn
+		turn      Turn
 		all, slow bool
 	}
 	for name, r := range map[string]row{"fast": {fast, true, false}, "slow": {slow, true, true}, "failed fast": {failedFast, true, false},
@@ -106,7 +103,7 @@ func TestTimingModes(t *testing.T) {
 		}
 	}
 	// A timeout with nothing measured is still news.
-	if _, _, ok := footerText(agent.Turn{CallID: "c", TimedOut: true}, JSOpts{}); !ok {
+	if _, _, ok := footerText(Turn{CallID: "c", TimedOut: true}, JSOpts{}); !ok {
 		t.Fatal("timeout without a duration hidden")
 	}
 	// A very long call is slow even with no limit.
@@ -120,18 +117,18 @@ func TestTimingModes(t *testing.T) {
 
 func TestTimingBadgeOfRunningCall(t *testing.T) {
 	js := JSOpts{Exec: true, Elapsed: 2300 * time.Millisecond, Limit: 120 * time.Second, Spin: 2}
-	got, segs, ok := footerText(agent.Turn{}, js)
+	got, segs, ok := footerText(Turn{}, js)
 	if !ok || got != "⠹ 2.3s/120s" || segs[0].FG != Yellow {
 		t.Fatalf("%q", got)
 	}
-	if got, _, _ := footerText(agent.Turn{}, JSOpts{Exec: true, Elapsed: 2 * time.Second}); got != "⠋ 2.0s" {
+	if got, _, _ := footerText(Turn{}, JSOpts{Exec: true, Elapsed: 2 * time.Second}); got != "⠋ 2.0s" {
 		t.Fatalf("no limit: %q", got)
 	}
-	if _, _, ok := footerText(agent.Turn{}, JSOpts{Exec: true, Timing: TimingOff}); ok {
+	if _, _, ok := footerText(Turn{}, JSOpts{Exec: true, Timing: TimingOff}); ok {
 		t.Fatal("running badge shown with timing off")
 	}
 	// Streaming code is not executing yet: no badge.
-	if _, _, ok := footerText(agent.Turn{}, JSOpts{Running: true}); ok {
+	if _, _, ok := footerText(Turn{}, JSOpts{Running: true}); ok {
 		t.Fatal("badge while the code is still streaming")
 	}
 	frames := map[string]bool{}
@@ -143,8 +140,8 @@ func TestTimingBadgeOfRunningCall(t *testing.T) {
 	}
 }
 
-func jsTurn(code string, mods func(*agent.Turn)) agent.Turn {
-	t := agent.Turn{Role: llm.RoleAssistant, Text: "step", CallID: "c1", Code: code, Output: "out", ElapsedMs: 3200, LimitMs: 30000}
+func jsTurn(code string, mods func(*Turn)) Turn {
+	t := Turn{Role: RoleAssistant, Text: "step", CallID: "c1", Code: code, Output: "out", ElapsedMs: 3200, LimitMs: 30000}
 	if mods != nil {
 		mods(&t)
 	}
@@ -163,7 +160,7 @@ func asideTexts(lines []Line) []string {
 }
 
 func TestBuildLinesPutsBadgeInTopRightOfCode(t *testing.T) {
-	lines := BuildLines([]agent.Turn{jsTurn("run()\nnext()", nil)}, 80, JSOpts{})
+	lines := BuildLines([]Turn{jsTurn("run()\nnext()", nil)}, 80, JSOpts{})
 	texts := lineTexts(lines)
 	i := -1
 	for k, s := range texts {
@@ -178,11 +175,11 @@ func TestBuildLinesPutsBadgeInTopRightOfCode(t *testing.T) {
 		t.Fatalf("one badge per call: %v", got)
 	}
 	// Failed and timed out calls sit on the error background, code and badge alike.
-	for _, mod := range []func(*agent.Turn){
-		func(t *agent.Turn) { t.Err = "boom" },
-		func(t *agent.Turn) { t.Err, t.TimedOut = "js timeout after 30s", true },
+	for _, mod := range []func(*Turn){
+		func(t *Turn) { t.Err = "boom" },
+		func(t *Turn) { t.Err, t.TimedOut = "js timeout after 30s", true },
 	} {
-		ls := BuildLines([]agent.Turn{jsTurn("run()", mod)}, 80, JSOpts{})
+		ls := BuildLines([]Turn{jsTurn("run()", mod)}, 80, JSOpts{})
 		for k, l := range ls {
 			if strings.Contains(l.Text(), "run()") || len(l.Aside) > 0 {
 				if l.BG != BgJSErr {
@@ -195,7 +192,7 @@ func TestBuildLinesPutsBadgeInTopRightOfCode(t *testing.T) {
 		}
 	}
 	// A running call keeps the running background and counts up.
-	live := BuildLines([]agent.Turn{{Role: llm.RoleAssistant, Code: "run()"}}, 80, JSOpts{Running: true, Exec: true, Elapsed: time.Second, Limit: time.Minute})
+	live := BuildLines([]Turn{{Role: RoleAssistant, Code: "run()"}}, 80, JSOpts{Running: true, Exec: true, Elapsed: time.Second, Limit: time.Minute})
 	if got := asideTexts(live); len(got) != 1 || got[0] != "⠋ 1.0s/60s" {
 		t.Fatalf("live badge: %v", got)
 	}
@@ -208,7 +205,7 @@ func TestBuildLinesPutsBadgeInTopRightOfCode(t *testing.T) {
 
 func TestBadgeGetsOwnRowWhenCodeIsLong(t *testing.T) {
 	code := strings.Repeat("x", 60)
-	lines := BuildLines([]agent.Turn{jsTurn(code, nil)}, 40, JSOpts{})
+	lines := BuildLines([]Turn{jsTurn(code, nil)}, 40, JSOpts{})
 	texts := lineTexts(lines)
 	for k, l := range lines {
 		if len(l.Aside) > 0 && (l.Text() != "" || k+1 >= len(texts) || !strings.Contains(texts[k+1], "xxxx")) {

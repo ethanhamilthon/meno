@@ -3,8 +3,6 @@ package ui
 import (
 	"fmt"
 	"time"
-
-	"meno/internal/agent"
 )
 
 // badgeDur is the short duration of a js badge: 0.4s, 2.3s, 17s, 120s. Very
@@ -27,7 +25,7 @@ func badgeDur(d time.Duration) string {
 // with the elapsed time and the limit while the call runs ("⠹ 2.3s/120s"), then
 // a check ("✓ 2.3s") or a cross ("✕ 2.3s") with the time it took. ok is false
 // when nothing should be shown.
-func timingBadge(t agent.Turn, js JSOpts) (segs []Seg, ok bool) {
+func timingBadge(t Turn, js JSOpts) (segs []Seg, ok bool) {
 	if js.Exec {
 		segs = []Seg{{Text: spinFrame(js.Spin) + " ", FG: Yellow}, {Text: badgeDur(js.Elapsed), FG: Yellow}}
 		if js.Limit > 0 {

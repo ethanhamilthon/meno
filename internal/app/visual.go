@@ -3,8 +3,6 @@ package app
 import (
 	"time"
 
-	"meno/internal/agent"
-	"meno/internal/llm"
 	"meno/internal/ui"
 )
 
@@ -14,7 +12,7 @@ func (a *App) transcriptWithSelection(w int) []ui.Line {
 	if a.st.Session == nil {
 		return nil
 	}
-	turns := a.st.Session.Snapshot()
+	turns := viewTurns(a.st.Session.Snapshot())
 	js := a.jsOpts()
 	var out []ui.Line
 	appendLines := func(lines []ui.Line) {
@@ -49,16 +47,16 @@ func (a *App) transcriptWithSelection(w int) []ui.Line {
 	// event. Hide its live copy as soon as the saved response is visible.
 	persisted := false
 	for i := max(0, a.st.LiveBase); i < len(turns); i++ {
-		if turns[i].Role == llm.RoleAssistant {
+		if turns[i].Role == ui.RoleAssistant {
 			persisted = true
 			break
 		}
 	}
-	live := agent.Turn{Role: llm.RoleAssistant}
+	live := ui.Turn{Role: ui.RoleAssistant}
 	if !persisted {
 		live.Text = a.st.LiveText
 		if a.st.LiveThink != "" {
-			live.Replay = &llm.Msg{Thought: a.st.LiveThink}
+			live.Thinking = a.st.LiveThink
 		}
 	}
 	for _, call := range a.st.LiveCalls {
@@ -82,10 +80,10 @@ func (a *App) transcriptWithSelection(w int) []ui.Line {
 			liveJS.Limit = call.Limit
 			liveJS.Spin = int(time.Now().UnixMilli() / 100)
 		}
-		appendLines(ui.BuildLines([]agent.Turn{live}, w, liveJS))
-		live = agent.Turn{Role: llm.RoleAssistant}
+		appendLines(ui.BuildLines([]ui.Turn{live}, w, liveJS))
+		live = ui.Turn{Role: ui.RoleAssistant}
 	}
-	appendLines(ui.BuildLines([]agent.Turn{live}, w, js))
+	appendLines(ui.BuildLines([]ui.Turn{live}, w, js))
 	return out
 }
 

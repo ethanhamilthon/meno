@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"strings"
 	"time"
-
-	"meno/internal/agent"
 )
 
 // TimingMode says which tool calls show how long they took.
@@ -73,7 +71,7 @@ func spinFrame(i int) string {
 }
 
 // slowCall is a call that took at least half of its limit, or ten seconds.
-func slowCall(t agent.Turn) bool {
+func slowCall(t Turn) bool {
 	return t.TimedOut || t.ElapsedMs >= 10000 || t.LimitMs > 0 && t.ElapsedMs*2 >= t.LimitMs
 }
 
@@ -88,13 +86,13 @@ func plural(n int, one string) string {
 // requests and tool calls it took, and on the right the tokens, cache hits and
 // cost, all on one line. Parts that do not fit are dropped, the right side
 // first. A failed run says why in a line above.
-func SummaryLines(run *agent.RunStats, w int) []Line {
+func SummaryLines(run *RunStats, w int) []Line {
 	took := time.Duration(run.ElapsedMs) * time.Millisecond
 	glyph, color, head := "✓", Green, FmtDur(took)
 	switch run.Status {
-	case agent.RunFail:
+	case RunFail:
 		glyph, color, head = "✕", Red, "failed after "+head
-	case agent.RunStop:
+	case RunStop:
 		glyph, color, head = "■", Yellow, "stopped after "+head
 	}
 	rest := []string{}
@@ -108,7 +106,7 @@ func SummaryLines(run *agent.RunStats, w int) []Line {
 		rest = append(rest, FmtDur(time.Duration(run.ToolMs)*time.Millisecond)+" in tools")
 	}
 	var right []string
-	if u := run.Usage; u.In > 0 || u.Out > 0 {
+	if u := run; u.In > 0 || u.Out > 0 {
 		right = append(right, "↓"+FmtTokens(u.In), "↑"+FmtTokens(u.Out))
 		if u.In > 0 {
 			right = append(right, fmt.Sprintf("↺%.0f%%", 100*float64(min(max(0, u.Cached), u.In))/float64(u.In)))
@@ -119,7 +117,7 @@ func SummaryLines(run *agent.RunStats, w int) []Line {
 	}
 	rightText := strings.Join(right, " ")
 	var out []Line
-	if run.Status == agent.RunFail && run.Err != "" {
+	if run.Status == RunFail && run.Err != "" {
 		for i, l := range Wrap(run.Err, max(1, w-4)) {
 			mark := "  "
 			if i == 0 {
