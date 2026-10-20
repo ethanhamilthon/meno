@@ -79,7 +79,7 @@ func (responsesClient) Stream(ctx context.Context, req Request, emit func(Event)
 		body["reasoning"] = map[string]any{"effort": req.Effort, "summary": "auto"}
 	}
 	if req.Tools {
-		body["tools"] = []any{ToolSchema(req.ToolDescription, req.ModelTimeout)}
+		body["tools"] = []any{req.toolSchema()}
 	}
 	applyCache(body, req)
 	resp, err := post(ctx, req.Provider, "/responses", body, nil)
@@ -271,11 +271,6 @@ func (s *responsesStream) handle(e SSEEvent, emit func(Event)) error {
 }
 
 func parseCode(args string) string {
-	var a struct {
-		Code string `json:"code"`
-	}
-	if json.Unmarshal([]byte(args), &a) != nil {
-		return args
-	}
-	return a.Code
+	code, _ := ToolArgs(args)
+	return code
 }

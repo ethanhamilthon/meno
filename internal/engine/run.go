@@ -7,10 +7,7 @@ import (
 	"fmt"
 	"meno/internal/agent"
 	"meno/internal/attach"
-	"meno/internal/jsvm"
 	"meno/internal/llm"
-	"meno/internal/mcp"
-	"meno/internal/prompt"
 	"meno/internal/proto"
 	"meno/internal/safe"
 	"os"
@@ -156,25 +153,18 @@ func (e *Engine) run(ctx context.Context, s *runState, text string, cont bool) {
 		}
 	}
 	s.prompt = ps
-	vm := jsvm.New(jsvm.Options{Root: s.cwd, Timeout: e.settings.BashTimeoutDuration()})
-	vm.SetPolicy(jsvm.Policy{Only: s.modes.Only})
-	vm.SetSessionHost(sessionHost{e, s})
-	vm.SetWebSearch(webHost{e, s})
-	vm.SetAsker(asker{e, s})
-	vm.SetViewer(viewer{e, s})
-	vm.SetTasks(taskHost{e, s})
-	vm.SetMCP(mcpHost{e, s, mcp.ResultStore{Dir: e.paths.File("mcp-results")}})
-	vm.SetMCPAdmin(mcpAdmin{e})
-	vm.SetAgents(childHost{e, s, vm}, s.session.Kind == agent.KindChild)
-	if s.goal != nil {
-		vm.SetGoal(goalHost{s})
+	spec := e.toolSpecFor(s)
+	var tool agent.ToolRunner
+	if isBash(s) {
+		tool = e.newBashRunner(s, e.bashTimeout())
+	} else {
+		tool = e.newVM(s)
 	}
-	toolDesc := prompt.ToolDescriptionFor(s.session.Kind == agent.KindChild, s.modes.Only)
 	auto := agent.AutoCompact{}
 	if info, ok := p.Lookup(e.catalog, model); ok {
 		auto = agent.AutoCompact{Window: info.Context, Percent: e.settings.CompactPercent, Keep: e.settings.CompactKeep, SummaryTokens: e.settings.CompactSummaryTokens}
 	}
-	deps := agent.Deps{Client: e.client(p), Provider: p, Model: model, Effort: effort, System: system, Tool: vm, Thinking: e.settings.Thinking != "off", ModelTimeout: e.settings.BashModelTimeout(), ToolDesc: toolDesc, Goal: s.goal, Queue: &s.queue, AutoCompact: auto,
+	deps := agent.Deps{Client: e.client(p), Provider: p, Model: model, Effort: effort, System: system, Tool: tool, Thinking: e.settings.Thinking != "off", ModelTimeout: spec.modelTimeout, ToolDesc: spec.desc, ToolName: spec.name, DefaultTimeout: e.bashTimeout(), Goal: s.goal, Queue: &s.queue, AutoCompact: auto,
 		Cost: func(u llm.Usage) (float64, bool) {
 			mi, ok := p.Lookup(e.catalog, model)
 			if !ok || !mi.CanPrice(u) {

@@ -24,11 +24,14 @@ type Image struct {
 }
 
 type Msg struct {
-	Role      string
-	Text      string
-	Images    []Image `json:"images,omitempty"`
-	CallID    string
-	Code      string
+	Role   string
+	Text   string
+	Images []Image `json:"images,omitempty"`
+	CallID string
+	Code   string
+	// ToolName names the tool of a legacy call (CallID and Code, no ToolCalls):
+	// "" is js, BashToolName is the shell tool.
+	ToolName  string `json:"tool_name,omitempty"`
 	Thought   string
 	ToolCalls []ToolCall `json:"tool_calls,omitempty"`
 	// Responses holds complete output items, including opaque reasoning state.
@@ -88,6 +91,8 @@ type Request struct {
 	// ToolDescription is the description of the js tool: the rules of the runtime
 	// and its globals. Empty means DefaultToolDescription.
 	ToolDescription string
+	// ToolName selects the tool: "" is js (ToolName const), "bash" is the shell tool.
+	ToolName string
 	// ModelTimeout adds a timeout argument to the js tool: the model picks how
 	// long each call may run.
 	ModelTimeout bool
@@ -104,6 +109,9 @@ func (m Msg) Calls() []ToolCall {
 		return m.ToolCalls
 	}
 	if m.Role == RoleAssistant && (m.CallID != "" || m.Code != "") {
+		if m.ToolName == BashToolName {
+			return []ToolCall{{ID: m.CallID, Name: BashToolName, Arguments: mustJSON(map[string]string{"command": m.Code})}}
+		}
 		return []ToolCall{{ID: m.CallID, Name: ToolName, Arguments: mustJSON(map[string]string{"code": m.Code})}}
 	}
 	return nil
@@ -166,10 +174,14 @@ func ToolTitle(args string) string {
 func ToolArgs(args string) (code string, timeout *float64) {
 	var a struct {
 		Code    string   `json:"code"`
+		Command string   `json:"command"`
 		Timeout *float64 `json:"timeout"`
 	}
 	if json.Unmarshal([]byte(args), &a) != nil {
 		return args, nil
+	}
+	if a.Code == "" {
+		a.Code = a.Command
 	}
 	return a.Code, a.Timeout
 }

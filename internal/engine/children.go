@@ -8,6 +8,7 @@ import (
 	"meno/internal/jsvm"
 	"meno/internal/llm"
 	"meno/internal/proto"
+	"meno/internal/tools"
 	"strings"
 	"sync"
 	"time"
@@ -79,7 +80,7 @@ func (h childHost) Spawn(call jsvm.TaskCall, spec map[string]any) (any, error) {
 	sess := agent.NewSession(cwd, model)
 	sess.Kind, sess.ParentID, sess.Provider, sess.Effort = agent.KindChild, parentID, pr, effort
 	sess.AttachDir = h.e.paths.File("attachments")
-	childState := &runState{session: sess, cwd: cwd, env: cloneMap(h.parent.env), changed: time.Now(), token: tokenState{groups: groupsFor(nil)}}
+	childState := &runState{calls: map[string]*tools.Call{}, session: sess, cwd: cwd, env: cloneMap(h.parent.env), changed: time.Now(), token: tokenState{groups: groupsFor(nil)}}
 	tok, err := newToken()
 	if err != nil {
 		return nil, err

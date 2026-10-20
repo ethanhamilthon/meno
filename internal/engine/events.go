@@ -37,6 +37,9 @@ func (e *Engine) agentEvent(s *runState, ev agent.Ev) {
 	case agent.EvJSEnd:
 		c := findCall(&s.live, ev.CallID)
 		c.Output = ev.Output
+		if s.session.Tool == "bash" {
+			c.Exit = exitFromOutput(ev.Output)
+		}
 		c.ElapsedMS = ev.Elapsed.Milliseconds()
 		c.TimedOut = ev.TimedOut
 		if ev.Err != "" {
@@ -138,6 +141,9 @@ func (e *Engine) translate(id string, ev agent.Ev) {
 		exit := 0
 		if ev.Err != "" {
 			exit = 1
+		}
+		if code, ok := e.bashExit(id, ev.Output); ok {
+			exit = code
 		}
 		e.publish(id, proto.EventCallEnd, proto.CallEndData{CallID: ev.CallID, Output: ev.Output, Exit: exit, ElapsedMS: ev.Elapsed.Milliseconds(), TimedOut: ev.TimedOut})
 	case agent.EvRequest:

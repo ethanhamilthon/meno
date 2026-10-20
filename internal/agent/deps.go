@@ -74,6 +74,11 @@ type Deps struct {
 	ModelTimeout bool
 	// ToolDesc is the description of the js tool (prompt.ToolDescription).
 	ToolDesc string
+	// ToolName is the name of the tool: "" or "js" for the js tool, "bash" for the shell tool.
+	ToolName string
+	// DefaultTimeout is the limit of a call whose model named none, in model-timeout
+	// mode (0 means 30 s).
+	DefaultTimeout time.Duration
 	// Goal, when set, keeps the run going until the agent gives a verdict.
 	Goal *Goal
 	// Waiting, when set, reports that the run waits for something outside the

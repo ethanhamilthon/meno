@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"io"
+	"meno/internal/agent"
 	"meno/internal/config"
 	"meno/internal/prompt"
 	"os"
@@ -31,7 +32,7 @@ func (e *Engine) prepare(ctx context.Context, s *runState, effort string, first 
 	paths := e.paths
 	paths.Cwd = s.cwd
 	skills, _ := config.NewStore(paths).LoadSkills()
-	in := prompt.Input{Cwd: s.cwd, Now: time.Now(), OS: prompt.DescribeOS(), Shell: "/bin/sh", Provider: s.session.Provider, Model: s.session.Model, Effort: effort, Only: s.modes.Only}
+	in := prompt.Input{Cwd: s.cwd, Now: time.Now(), OS: prompt.DescribeOS(), Shell: "/bin/sh", Provider: s.session.Provider, Model: s.session.Model, Effort: effort, Only: s.modes.Only, Tool: s.session.Tool, Allow: groupsOf(s), Subagent: s.session.Kind == agent.KindChild}
 	base := baseline{cwd: s.cwd, date: time.Now().Format("2006-01-02"), model: modelSig{s.session.Provider, s.session.Model, effort}, files: map[string]string{}, skills: map[string]string{}}
 	for _, sk := range skills {
 		if sk.Enabled {
