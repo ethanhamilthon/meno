@@ -20,21 +20,26 @@ func startTestServer(t *testing.T, home string, opts Options) (*Server, *http.Cl
 		t.Fatal(e)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
-	t.Cleanup(func() { s.Stop("test") })
-	go func() { _ = s.Serve(ctx) }()
+	done := make(chan error, 1)
+	go func() { done <- s.Serve(ctx) }()
+	t.Cleanup(func() { cancel(); s.Stop("test"); <-done })
 	tr := &http.Transport{DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
 		return (&net.Dialer{}).DialContext(ctx, "unix", s.Socket())
 	}}
 	c := &http.Client{Transport: tr}
-	deadline := time.Now().Add(time.Second)
+	deadline := time.Now().Add(10 * time.Second)
 	for time.Now().Before(deadline) {
 		resp, e := c.Get("http://unix/v1/hello")
 		if e == nil {
 			resp.Body.Close()
 			return s, c
 		}
-		time.Sleep(5 * time.Millisecond)
+		select {
+		case err := <-done:
+			done <- err
+			t.Fatalf("server exited before readiness: %v", err)
+		case <-time.After(5 * time.Millisecond):
+		}
 	}
 	t.Fatal("server did not start")
 	return nil, nil
