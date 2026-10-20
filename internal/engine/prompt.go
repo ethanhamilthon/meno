@@ -4,9 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
 	"io"
-	"meno/internal/agent"
 	"meno/internal/config"
 	"meno/internal/prompt"
 	"os"
@@ -33,7 +31,7 @@ type promptState struct {
 
 // policyKey names the tool policy of a prompt: what it may and may not use.
 func policyKey(in prompt.Input) string {
-	return strings.Join(in.Allow, ",") + "|" + fmt.Sprint(in.Subagent)
+	return strings.Join(in.Allow, ",")
 }
 
 // prepare looks at the world and returns the system prompt for the next request,
@@ -49,7 +47,7 @@ func (e *Engine) prepare(ctx context.Context, s *runState, effort string, first 
 	paths := e.paths
 	paths.Cwd = cwd
 	skills, _ := config.NewStore(paths).LoadSkills()
-	in := prompt.Input{Cwd: cwd, Now: time.Now(), OS: prompt.DescribeOS(), Shell: "/bin/sh", Provider: provider, Model: model, Effort: effort, Only: only, Tool: "bash", Allow: allow, Subagent: s.session.Kind == agent.KindChild}
+	in := prompt.Input{Cwd: cwd, Now: time.Now(), OS: prompt.DescribeOS(), Shell: "/bin/sh", Provider: provider, Model: model, Effort: effort, Only: only, Tool: "bash", Allow: allow}
 	base := baseline{cwd: cwd, date: time.Now().Format("2006-01-02"), model: modelSig{provider, model, effort}, files: map[string]string{}, skills: map[string]string{}, skillPaths: map[string]string{}}
 	for _, sk := range skills {
 		if sk.Enabled {

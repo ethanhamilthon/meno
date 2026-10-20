@@ -84,8 +84,10 @@ type DoneData struct {
 
 // InjectedData reports a message added to an active request.
 type InjectedData struct {
-	Text string `json:"text"`
-	By   string `json:"by,omitempty"`
+	Queued []string `json:"queued"`
+	Kind   string   `json:"kind,omitempty"`
+	Text   string   `json:"text,omitempty"`
+	By     string   `json:"by,omitempty"`
 }
 
 // ChangedData lists resource identifiers that changed.

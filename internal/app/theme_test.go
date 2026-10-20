@@ -56,7 +56,7 @@ func TestThemeLoadedAtStartupWithFallback(t *testing.T) {
 	dir := t.TempDir()
 	st := config.NewStore(config.Paths{Home: dir, Cwd: dir})
 	set := config.DefaultSettings()
-	set.Theme = "nord"
+	set.Theme = "catppuccin-mocha"
 	if err := st.SaveSettings(set); err != nil {
 		t.Fatal(err)
 	}
@@ -68,7 +68,7 @@ func TestThemeLoadedAtStartupWithFallback(t *testing.T) {
 	}
 	defer scr.Fini()
 	a, err := New(scr, config.Paths{Home: dir, Cwd: dir}, r.cl)
-	if err != nil || ui.CurrentTheme() != "nord" {
+	if err != nil || ui.CurrentTheme() != "catppuccin-mocha" {
 		t.Fatalf("startup theme %q err %v", ui.CurrentTheme(), err)
 	}
 	a.Close()

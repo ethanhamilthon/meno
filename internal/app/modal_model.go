@@ -141,7 +141,7 @@ func (a *App) drawModel(c ui.Canvas, w, h int) {
 		}
 	}
 	if len(list) == 0 {
-		b.put(c, 4, y, "no models match", ui.FgDim, ui.BgPopup)
+		b.put(c, 4, y, ui.Truncate(a.emptyModelText(), max(0, b.w-8)), ui.FgDim, ui.BgPopup)
 		y++
 	}
 	b.fill(c, y+1, ui.BgPopup)

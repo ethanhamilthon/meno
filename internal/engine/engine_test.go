@@ -199,7 +199,7 @@ func TestAskPausesThenResumes(t *testing.T) {
 		t.Fatalf("ask events open=%v close=%v", opened, closed)
 	}
 }
-func TestCrashRecoveryMarksChildrenAndTasksInterrupted(t *testing.T) {
+func TestCrashRecoveryMarksTasksInterrupted(t *testing.T) {
 	home := t.TempDir()
 	store := config.NewStore(config.Paths{Home: home})
 	if err := store.SaveSettings(config.DefaultSettings()); err != nil {
@@ -218,13 +218,6 @@ func TestCrashRecoveryMarksChildrenAndTasksInterrupted(t *testing.T) {
 	if _, err = d.Exec("INSERT INTO tasks(id,session_id,owner,name,command,cwd,status,notify,timeout_ms,started_at) VALUES('t1',?,'','','sleep','/tmp','running',0,0,'')", sess.ID); err != nil {
 		t.Fatal(err)
 	}
-	cs, err := agent.OpenChildren(home)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err = cs.Save(agent.ChildRecord{ID: "child-1", Parent: sess.ID, Task: "work", Status: agent.ChildRunning}); err != nil {
-		t.Fatal(err)
-	}
 	e, err := New(Options{Home: home})
 	if err != nil {
 		t.Fatal(err)
@@ -233,10 +226,6 @@ func TestCrashRecoveryMarksChildrenAndTasksInterrupted(t *testing.T) {
 	var status string
 	if err = d.QueryRow("SELECT status FROM tasks WHERE id='t1'").Scan(&status); err != nil || status != "interrupted" {
 		t.Fatalf("task status=%q err=%v", status, err)
-	}
-	rec, err := cs.Get(sess.ID, "child-1")
-	if err != nil || rec.Status != agent.ChildInterrupted {
-		t.Fatalf("child %+v %v", rec, err)
 	}
 }
 
@@ -256,7 +245,7 @@ func TestTokenIsEphemeralAndModeScoped(t *testing.T) {
 	if _, err = e.Resource(context.Background(), "GET", path, "", proto.ResourceRequest{Token: token}); err != nil {
 		t.Fatal(err)
 	}
-	modes := []string{"subagents"}
+	modes := []string{"brainstorm"}
 	if _, err = e.PatchSession(context.Background(), id, proto.PatchSessionRequest{Modes: &modes}); err != nil {
 		t.Fatal(err)
 	}
@@ -267,8 +256,8 @@ func TestTokenIsEphemeralAndModeScoped(t *testing.T) {
 	if next.AgentToken == token {
 		t.Fatal("token did not rotate on mode change")
 	}
-	if _, err = e.Resource(context.Background(), "GET", path, "", proto.ResourceRequest{Token: next.AgentToken}); err == nil {
-		t.Fatal("restricted mode allowed tasks")
+	if _, err = e.Resource(context.Background(), "GET", path, "", proto.ResourceRequest{Token: token}); err == nil {
+		t.Fatal("old token remained valid")
 	}
 	e.mu.Lock()
 	s := e.sessions[id]
@@ -283,7 +272,7 @@ func TestTokenIsEphemeralAndModeScoped(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(loaded.Modes) != 1 || loaded.Modes[0] != "subagents" {
+	if len(loaded.Modes) != 1 || loaded.Modes[0] != "brainstorm" {
 		t.Fatalf("modes persisted: %v", loaded.Modes)
 	}
 }

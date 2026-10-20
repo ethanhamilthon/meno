@@ -11,14 +11,12 @@ import (
 	"meno/internal/websearch"
 )
 
-// webSearchHost implements jsvm.WebSearcher. The order is fixed: the
+// webSearchHost searches the web for the TUI. The order is fixed: the
 // provider's own search, then the backend chosen in settings, then the keyless
 // DuckDuckGo fallback.
 type webSearchHost struct {
-	a        *App
-	sid      string
-	provider string // set for a subagent; empty: use the session's values
-	model    string
+	a   *App
+	sid string
 }
 
 func (h webSearchHost) Search(ctx context.Context, query string, opts map[string]any) (any, error) {
@@ -37,13 +35,11 @@ func (h webSearchHost) Search(ctx context.Context, query string, opts map[string
 
 	var st config.Settings
 	var providers []llm.Provider
-	provider, model := h.provider, h.model
+	var provider, model string
 	h.a.onUI(func() {
 		st, providers = h.a.st.Settings, append([]llm.Provider(nil), h.a.st.Providers...)
-		if provider == "" {
-			if rt := h.a.rts[h.sid]; rt != nil {
-				provider, model = rt.Session.Provider, rt.Session.Model
-			}
+		if rt := h.a.rts[h.sid]; rt != nil {
+			provider, model = rt.Session.Provider, rt.Session.Model
 		}
 	})
 	backend := st.WebSearch

@@ -9,22 +9,21 @@ import (
 )
 
 var choices = map[string][]string{
-	"images":          {"auto", "off", "kitty", "sixel", "iterm"},
-	"thinking":        {"all", "lines", "off"},
-	"turn_summary":    {"on", "off"},
-	"effort":          {"low", "medium", "high", "max"},
-	"effort_router":   {"off", "auto"},
-	"notify":          {"off", "question", "done"},
-	"websearch":       {"auto", "brave", "tavily", "duckduckgo", "off"},
-	"notify_volume":   {"20", "40", "60", "80", "100"},
-	"subagent_effort": {"", "low", "medium", "high", "xhigh"},
+	"images":        {"auto", "off", "kitty", "sixel", "iterm"},
+	"thinking":      {"all", "lines", "off"},
+	"turn_summary":  {"on", "off"},
+	"effort":        {"low", "medium", "high", "max"},
+	"effort_router": {"off", "auto"},
+	"notify":        {"off", "question", "done"},
+	"websearch":     {"auto", "brave", "tavily", "duckduckgo", "off"},
+	"notify_volume": {"20", "40", "60", "80", "100"},
 	// One choice: the row only carries the number (the threshold in percent).
 	"compact_percent": {"percent"},
 	"notify_sound":    append([]string{"default", "bell"}, notify.Names()...),
 }
 
 func SettingKeys() []string {
-	return append([]string{"theme", "images", "thinking", "turn_summary", "notify", "notify_sound", "notify_volume", "notify_command", "websearch", "websearch_key", "subagent_provider", "subagent_model", "subagent_effort", "effort_router", "effort_router_model", "effort_router_provider", "compact_percent"}, bashKeys...)
+	return append([]string{"theme", "images", "thinking", "turn_summary", "notify", "notify_sound", "notify_volume", "notify_command", "websearch", "websearch_key", "effort_router", "effort_router_model", "effort_router_provider", "compact_percent"}, bashKeys...)
 }
 
 func Choices(key string) []string {
@@ -70,12 +69,6 @@ func (s *Settings) Get(key string) string {
 		return s.WebSearchKey
 	case "notify_command":
 		return s.NotifyCommand
-	case "subagent_provider":
-		return s.SubagentProvider
-	case "subagent_model":
-		return s.SubagentModel
-	case "subagent_effort":
-		return s.SubagentEffort
 	case "compact_percent":
 		return "percent"
 	}
@@ -105,16 +98,6 @@ func (s *Settings) Set(key, val string) error {
 	case "notify_command":
 		s.NotifyCommand = strings.TrimSpace(val)
 		return nil
-	case "subagent_provider", "subagent_model":
-		if val == "inherit" {
-			val = ""
-		}
-		s.setRaw(key, val)
-		return nil
-	case "subagent_effort":
-		if val == "inherit" {
-			val = ""
-		}
 	case "notify_volume":
 		val = strings.TrimSuffix(val, "%")
 	}
@@ -161,12 +144,6 @@ func (s *Settings) setRaw(key, val string) {
 		s.WebSearch = val
 	case "websearch_key":
 		s.WebSearchKey = val
-	case "subagent_provider":
-		s.SubagentProvider = val
-	case "subagent_model":
-		s.SubagentModel = val
-	case "subagent_effort":
-		s.SubagentEffort = val
 	}
 }
 

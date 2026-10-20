@@ -1,20 +1,13 @@
 package app
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
-	"meno/internal/client"
 	"meno/internal/llm"
 	"meno/internal/proto"
 	"meno/internal/ui"
 )
-
-type metadataLoaded struct {
-	pricing map[string]llm.ModelInfo
-	err     error
-}
 
 func (a *App) postEvent(e any) {
 	select {
@@ -26,17 +19,6 @@ func (a *App) postEvent(e any) {
 	case a.events <- e:
 	case <-a.done:
 	}
-}
-func (a *App) fetchMetadata() {
-	a.spawn(func() {
-		var out proto.ModelsResponse
-		err := a.rpc(func(ctx context.Context, c *client.Client) error {
-			var e error
-			out, e = c.Models(ctx, proto.ModelsRequest{})
-			return e
-		})
-		a.postEvent(metadataLoaded{pricing: infoFromModels(out.Models), err: err})
-	})
 }
 
 // infoFromModels turns the daemon's model list into the catalog the status
@@ -54,6 +36,7 @@ func infoFromModels(ms []proto.ConfigModel) map[string]llm.ModelInfo {
 			info.MissingPricing = true
 		}
 		out[m.Provider+"/"+m.ID] = info
+		out["custom:"+strings.ToLower(m.Provider)+"/"+m.ID] = info
 		if _, ok := out[m.ID]; !ok {
 			out[m.ID] = info
 		}

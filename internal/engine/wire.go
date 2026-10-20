@@ -68,13 +68,6 @@ func turnWire(t agent.Turn) proto.Turn {
 func taskWire(t proc.Task) proto.Task {
 	return proto.Task{ID: t.ID, Name: t.Name, Status: t.Status, Command: t.Command, StartedAt: t.Started.UTC().Format(time.RFC3339Nano), Exit: t.ExitCode}
 }
-func childWire(c agent.ChildRecord) proto.Agent {
-	res := ""
-	if c.Result != nil {
-		res = *c.Result
-	}
-	return proto.Agent{ID: c.ID, Name: c.Task, Status: c.Status, Task: c.Task, Result: res}
-}
 func askWire(a *askState) *proto.AskForm {
 	if a == nil {
 		return nil

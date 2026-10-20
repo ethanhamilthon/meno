@@ -20,14 +20,14 @@ const goodTheme = `{"name":"mine","dark":true,"bg":"101010","fg":"#EEEEEE","dim"
 func TestThemeFileAddsThemesWithoutPanicking(t *testing.T) {
 	defer SetExtraThemes(nil)
 	got, warns := ThemesFromJSON(rawThemes(t, `[`+goodTheme+`,
-		{"name":"nord","bg":"000000"},
+		{"name":"meno","bg":"000000"},
 		{"name":"broken","bg":"zzzzzz","fg":"111111","dim":"111111","blue":"111111","purple":"111111","green":"111111","yellow":"111111","red":"111111","orange":"111111"},
 		{"bg":"000000"},
 		42]`))
 	if len(got) != 1 || got[0].Name != "mine" || len(warns) != 4 {
 		t.Fatalf("%d themes, warnings: %v", len(got), warns)
 	}
-	if !strings.Contains(strings.Join(warns, "|"), "nord is ignored") {
+	if !strings.Contains(strings.Join(warns, "|"), "meno is ignored") {
 		t.Fatalf("a built-in name must be refused: %v", warns)
 	}
 	SetExtraThemes(got)

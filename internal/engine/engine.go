@@ -81,7 +81,6 @@ type runState struct {
 	pinModel         string
 	pinEffort        string
 	cancelled        map[string]bool        // root requests that were stopped; their events never wake the session
-	block            string                 // a child asked to be blocked in the current tool batch
 	calls            map[string]*tools.Call // running bash calls by id (ask pauses their timer)
 	published        int
 	mu               sync.Mutex
@@ -101,7 +100,6 @@ type Engine struct {
 	catalog   map[string]llm.ModelInfo
 	mcp       *mcp.Manager
 	tasks     *proc.Supervisor
-	children  *agent.ChildStore
 	events    EventHub
 	global    GlobalEventHub
 	mcpCtx    context.Context
@@ -157,14 +155,6 @@ func New(o Options) (*Engine, error) {
 		return nil, err
 	}
 	evStore, _ := agent.OpenEvents(o.Home)
-	children, err := agent.OpenChildren(o.Home)
-	if err != nil {
-		return nil, err
-	}
-	if err = children.MarkInterrupted(); err != nil {
-		tasks.Shutdown()
-		return nil, err
-	}
 	if err = recoverInterrupted(o.Home, d); err != nil {
 		tasks.Shutdown()
 		return nil, err
@@ -181,11 +171,11 @@ func New(o Options) (*Engine, error) {
 			go func() { _ = mcpManager.Start(mcpCtx, server) }()
 		}
 	}
-	*eng = Engine{events2: evStore, sock: o.Socket, home: o.Home, paths: paths, store: st, settings: settings, providers: providers, servers: servers, catalog: catalog, mcp: mcpManager, tasks: tasks, children: children, events: o.EventHub, global: o.GlobalHub, resources: o.Resources, client: client, mcpCtx: mcpCtx, mcpStop: mcpStop, sessions: map[string]*runState{}, ids: map[string]idResult{}}
+	*eng = Engine{events2: evStore, sock: o.Socket, home: o.Home, paths: paths, store: st, settings: settings, providers: providers, servers: servers, catalog: catalog, mcp: mcpManager, tasks: tasks, events: o.EventHub, global: o.GlobalHub, resources: o.Resources, client: client, mcpCtx: mcpCtx, mcpStop: mcpStop, sessions: map[string]*runState{}, ids: map[string]idResult{}}
 	return eng, nil
 }
 
-// Close stops owned child/task/MCP services but does not react to client disconnects.
+// Close stops owned task and MCP services but does not react to client disconnects.
 // Close cancels and joins active runs and stops tasks and MCP processes.
 func (e *Engine) Close() {
 	e.mu.Lock()
@@ -284,14 +274,8 @@ func newToken() (string, error) {
 }
 func groupsFor(names []string) map[string]bool {
 	m := map[string]bool{}
-	for _, g := range []string{"tasks", "agents", "mcp", "web", "view", "goal", "models", "ask", "help"} {
+	for _, g := range []string{"tasks", "mcp", "web", "view", "goal", "models", "ask", "help"} {
 		m[g] = true
-	}
-	for _, n := range names {
-		if n == "subagents" {
-			m = map[string]bool{"agents": true, "ask": true, "goal": true, "help": true}
-			break
-		}
 	}
 	return m
 }

@@ -32,12 +32,6 @@ func (a *App) backOverlay() {
 		a.st.Over, a.st.Sel = OverLogin, 0
 	case OverMCPEdit:
 		a.st.Over, a.st.Sel, a.st.Field = OverMCP, max(a.st.EditIdx, 0), 0
-	case OverAgents:
-		if a.st.AgentsUI.OpenID != "" {
-			a.st.AgentsUI.OpenID = ""
-		} else {
-			a.closeOverlay()
-		}
 	case OverTasks:
 		if a.st.TasksUI.LogID != "" {
 			a.st.TasksUI.LogID = ""
@@ -85,8 +79,6 @@ func (a *App) onOverlayKey(k *tcell.EventKey) {
 		a.forkKey(k)
 	case OverTasks:
 		a.tasksKey(k)
-	case OverAgents:
-		a.agentsKey(k)
 	case OverSnippets:
 		a.snippetsKey(k)
 	}
@@ -118,8 +110,6 @@ func (a *App) drawOverlay(c ui.Canvas, w, h int) {
 		a.drawFork(c, w, h)
 	case OverTasks:
 		a.drawTasks(c, w, h)
-	case OverAgents:
-		a.drawAgents(c, w, h)
 	case OverSnippets:
 		a.drawSnippets(c, w, h)
 	}

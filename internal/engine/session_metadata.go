@@ -16,7 +16,7 @@ func (e *Engine) Snapshot(ctx context.Context, id string) (proto.Snapshot, error
 	}
 	s.mu.Lock()
 	turns := s.session.Snapshot()
-	out := proto.Snapshot{Session: item(s), AgentToken: s.token.value, Cwd: s.cwd, Model: s.session.Model, Modes: append([]string(nil), s.session.Modes...), Running: s.running, Phase: s.phase, RequestID: s.requestID, TurnCount: len(turns), Live: s.live, Ask: askWire(s.ask), Retry: s.retry, Metrics: s.metrics, Seq: 0, Tasks: []proto.Task{}, Agents: []proto.Agent{},
+	out := proto.Snapshot{Session: item(s), AgentToken: s.token.value, Cwd: s.cwd, Model: s.session.Model, Modes: append([]string(nil), s.session.Modes...), Running: s.running, Phase: s.phase, RequestID: s.requestID, TurnCount: len(turns), Live: s.live, Ask: askWire(s.ask), Retry: s.retry, Metrics: s.metrics, Seq: 0, Tasks: []proto.Task{},
 		Spent: s.session.Metrics.Spent, Context: s.session.Metrics.Context, Unpriced: s.session.Metrics.Unpriced, Provider: s.session.Provider, Effort: s.session.Effort}
 	for _, m := range s.queue.Items() {
 		out.Queued = append(out.Queued, m.Text)
@@ -32,12 +32,7 @@ func (e *Engine) Snapshot(ctx context.Context, id string) (proto.Snapshot, error
 	for _, t := range tasks {
 		out.Tasks = append(out.Tasks, taskWire(t))
 	}
-	children, _ := e.children.List(id, false)
-	for _, c := range children {
-		out.Agents = append(out.Agents, childWire(c))
-	}
 	out.TaskCount = len(out.Tasks)
-	out.AgentCount = len(out.Agents)
 	return out, nil
 }
 func (e *Engine) PatchSession(ctx context.Context, id string, q proto.PatchSessionRequest) (proto.SessionItem, error) {

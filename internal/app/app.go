@@ -88,7 +88,7 @@ func New(scr tcell.Screen, paths config.Paths, cl *client.Client) (*App, error) 
 }
 
 // Close stops the TUI. Work in the daemon goes on: closing a client never
-// stops a run, a task or a subagent.
+// stops a run or a task.
 func (a *App) Close() {
 	a.closing = true
 	a.cancelFlow()
@@ -105,7 +105,7 @@ func (a *App) Close() {
 
 func (a *App) Run(ctx context.Context) error {
 	a.scr.EnablePaste()
-	a.fetchMetadata()
+	a.fetchModels()
 	a.startUpdateCheck()
 	a.refreshConfig()
 	a.enforceProvider()
@@ -163,14 +163,6 @@ func (a *App) handle(msg any) {
 		a.notifyErr("internal error, meno keeps running: " + strings.SplitN(m.err.Error(), "\n", 2)[0])
 	case imageReady:
 		a.onImageReady(m)
-	case metadataLoaded:
-		if m.err != nil {
-			if len(a.st.Pricing) == 0 && len(a.st.Notices) == 0 {
-				a.notifyErr("model metadata: " + m.err.Error())
-			}
-		} else {
-			a.st.Pricing = m.pricing
-		}
 	case *tcell.EventMouse:
 		a.onMouse(m)
 	case *tcell.EventResize:
@@ -200,10 +192,6 @@ func (a *App) handle(msg any) {
 		a.onLoginEvent(m)
 	case forked:
 		a.onForked(m)
-	case childTurns:
-		if m.id == a.st.AgentsUI.OpenID {
-			a.st.AgentsUI.Turns = m.turns
-		}
 	case tasksLoaded:
 		a.onTasksLoaded(m)
 	case skillsLoaded:

@@ -21,7 +21,7 @@ Usage:
   meno sessions    list sessions
   meno send        write to a session and print the answer
   meno tail        show the events of a session
-  meno <group>     agent commands: mcp tasks agents ask goal web view models read edit write search
+  meno <group>     agent commands: mcp tasks ask goal web view models read edit write search
   meno update      update meno to the latest GitHub release
   meno -v          print the version
   meno -h          print this help

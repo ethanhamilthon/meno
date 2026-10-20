@@ -35,13 +35,6 @@ func (a *App) statsText() string {
 	}
 	out := fmt.Sprintf("last in %d · out %d · cache %s · session in %d · out %d · cache %s · spent %s · ctx %s",
 		u.In, u.Out, cacheText(u), a.st.Usage.In, a.st.Usage.Out, cacheText(a.st.Usage), cost, ctx)
-	if a.st.Delegated > 0 || a.st.DelegatedUnpriced {
-		d := fmt.Sprintf("~$%.4f", a.st.Delegated)
-		if a.st.DelegatedUnpriced {
-			d += "+?" // some delegated requests have no known price
-		}
-		out += " · delegated " + d
-	}
 	return out
 }
 
@@ -123,7 +116,6 @@ var commandList = []cmdDef{
 	{":fork", "fork at a message"},
 	{":rename", "rename this session"},
 	{":tasks", "background processes"},
-	{":agents", "working subagents"},
 	{":sessions", "switch session"},
 	{":cd", "change directory"},
 	{":model", "model & effort"},

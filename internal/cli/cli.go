@@ -103,8 +103,6 @@ func Run(args []string, streams IO, api API) int {
 		}
 	case "tasks":
 		code, err = runTasks(args, streams, api, jsonOut)
-	case "agents":
-		code, err = runAgents(args, streams, api, jsonOut)
 	case "ask":
 		code, err = runAsk(args, streams, api, jsonOut)
 	case "goal":

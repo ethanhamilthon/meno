@@ -47,8 +47,6 @@ func (a *App) runCommand(raw string) {
 		a.openFork()
 	case "rename":
 		a.renameSession(strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(raw), name)))
-	case "agents":
-		a.openAgents()
 	case "tasks":
 		a.openTasks()
 	case "compact":

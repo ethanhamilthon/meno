@@ -63,13 +63,13 @@ func (a *App) send(msg msgDraft) {
 	for _, at := range msg.Attachments {
 		req.Attachments = append(req.Attachments, proto.Attachment{Name: "image", MIME: at.Mime, Data: base64Of(msg.data[at.SHA])})
 	}
+	// Queue entries come from ordered injected events, not optimistic sends or
+	// HTTP acknowledgments, which can arrive after a message was consumed.
 	rt.sending++
 	if rt.Session.Title == "" && rt.Session.Len() == 0 {
 		rt.Session.Title = firstLine(msg.Text, 60) // the daemon names it the same way
 	}
-	if rt.Running {
-		rt.Queued = append(rt.Queued, msg.Text)
-	} else {
+	if !rt.Running {
 		rt.Running, rt.Phase, rt.LastErr = true, "preparing", false
 		rt.RunStart, rt.RunTurns, rt.RunJS, rt.RunUsage0 = nowFn(), 0, 0, rt.Usage
 		rt.Title, rt.Scroll = "", 0

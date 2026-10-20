@@ -7,7 +7,7 @@ import (
 	"meno/internal/objtag"
 )
 
-// A message can name modes (#subagents, #goal, ...), chosen from the menu like
+// A message can name modes (#brainstorm, #goal, ...), chosen from the menu like
 // a skill. The names of a message replace the modes of its session; a message
 // without modes keeps them, and #none clears them. The daemon applies them.
 

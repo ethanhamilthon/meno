@@ -39,6 +39,7 @@ func (e *Engine) Message(ctx context.Context, id string, q proto.MessageRequest)
 			s.queue.Push(agent.Message{Text: q.Text})
 		}
 		rid := s.requestID
+		e.publishQueue(s, proto.InjectedData{Text: q.Text, By: "user"})
 		s.mu.Unlock()
 		if len(q.Attachments) > 0 {
 			s.mu.Lock()
@@ -48,7 +49,6 @@ func (e *Engine) Message(ctx context.Context, id string, q proto.MessageRequest)
 			s.mu.Unlock()
 			e.publish(id, proto.EventTurnAdded, proto.TurnAddedData{Turn: turnWire(turns[len(turns)-1])})
 		}
-		e.publish(id, proto.EventInjected, proto.InjectedData{Text: q.Text, By: "user"})
 		return proto.MessageResponse{RequestID: rid, Queued: true}, nil
 	}
 	if len(q.Modes) > 0 {
@@ -169,7 +169,7 @@ func (e *Engine) run(ctx context.Context, s *runState, text string, cont bool) {
 	if info, ok := p.Lookup(e.catalogView(), model); ok {
 		auto = agent.AutoCompact{Window: info.Context, Percent: e.cfg().CompactPercent, Keep: e.cfg().CompactKeep, SummaryTokens: e.cfg().CompactSummaryTokens}
 	}
-	deps := agent.Deps{Client: e.client(p), Provider: p, Model: model, Effort: effort, System: system, Tool: tool, Thinking: e.cfg().Thinking != "off", ModelTimeout: spec.modelTimeout, ToolDesc: spec.desc, ToolName: spec.name, DefaultTimeout: e.bashTimeout(), Goal: s.goal, Queue: &s.queue, AutoCompact: auto, Events: e.eventSource(s.session.ID), Waiting: func() bool { return e.waitingSubagents(s.session.ID) }, Halt: e.haltFor(s),
+	deps := agent.Deps{Client: e.client(p), Provider: p, Model: model, Effort: effort, System: system, Tool: tool, Thinking: e.cfg().Thinking != "off", ModelTimeout: spec.modelTimeout, ToolDesc: spec.desc, ToolName: spec.name, DefaultTimeout: e.bashTimeout(), Goal: s.goal, Queue: &s.queue, AutoCompact: auto, Events: e.eventSource(s.session.ID),
 		Cost: func(u llm.Usage) (float64, bool) {
 			mi, ok := p.Lookup(e.catalogView(), model)
 			if !ok || !mi.CanPrice(u) {
@@ -192,9 +192,6 @@ func (e *Engine) run(ctx context.Context, s *runState, text string, cont bool) {
 }
 
 func (e *Engine) finish(s *runState, err error) {
-	if s.session.Kind == agent.KindChild {
-		defer e.childFinished(s, err)
-	}
 	id := s.session.ID
 	s.mu.Lock()
 	s.running = false

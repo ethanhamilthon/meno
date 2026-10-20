@@ -31,7 +31,6 @@ type MirrorState struct {
 	Context                      int
 	Unpriced                     bool
 	Tasks                        []proto.Task
-	Agents                       []proto.Agent
 	NeedsResync                  bool
 }
 
@@ -39,7 +38,7 @@ type MirrorState struct {
 func (m *Mirror) Load(s proto.Snapshot) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.State = MirrorState{Session: s.Session, Cwd: s.Cwd, Model: s.Model, Modes: append([]string(nil), s.Modes...), Phase: s.Phase, RequestID: s.RequestID, Running: s.Running, Seq: s.Seq, Turns: append([]proto.Turn(nil), s.Turns...), Live: s.Live, Ask: s.Ask, Retry: s.Retry, Metrics: s.Metrics, Queued: append([]string(nil), s.Queued...), Provider: s.Provider, Effort: s.Effort, Spent: s.Spent, Context: s.Context, Unpriced: s.Unpriced, Tasks: append([]proto.Task(nil), s.Tasks...), Agents: append([]proto.Agent(nil), s.Agents...)}
+	m.State = MirrorState{Session: s.Session, Cwd: s.Cwd, Model: s.Model, Modes: append([]string(nil), s.Modes...), Phase: s.Phase, RequestID: s.RequestID, Running: s.Running, Seq: s.Seq, Turns: append([]proto.Turn(nil), s.Turns...), Live: s.Live, Ask: s.Ask, Retry: s.Retry, Metrics: s.Metrics, Queued: append([]string(nil), s.Queued...), Provider: s.Provider, Effort: s.Effort, Spent: s.Spent, Context: s.Context, Unpriced: s.Unpriced, Tasks: append([]proto.Task(nil), s.Tasks...)}
 }
 
 // Snapshot returns an isolated copy of the current view state.
@@ -60,7 +59,6 @@ func (m *Mirror) Snapshot() MirrorState {
 		s.Retry = &retry
 	}
 	s.Tasks = append([]proto.Task(nil), s.Tasks...)
-	s.Agents = append([]proto.Agent(nil), s.Agents...)
 	s.Live.Calls = append([]proto.CallState(nil), s.Live.Calls...)
 	return s
 }
@@ -154,8 +152,13 @@ func (m *Mirror) Apply(e proto.Event) {
 				s.Unpriced = true
 			}
 		}
-	case proto.EventTasksChanged, proto.EventAgentsChanged:
+	case proto.EventTasksChanged:
 		s.NeedsResync = true
+	case proto.EventInjected:
+		var d proto.InjectedData
+		if json.Unmarshal(e.Data, &d) == nil {
+			s.Queued = append([]string(nil), d.Queued...)
+		}
 	case proto.EventDone, proto.EventAborted:
 		s.Running = false
 		s.Phase = ""

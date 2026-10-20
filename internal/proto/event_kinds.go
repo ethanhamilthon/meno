@@ -21,7 +21,6 @@ const (
 	EventAskClosed      = "ask_closed"
 	EventSessionChanged = "session_changed"
 	EventTasksChanged   = "tasks_changed"
-	EventAgentsChanged  = "agents_changed"
 	EventMCPChanged     = "mcp_changed"
 	EventResync         = "resync"
 	EventBye            = "bye"

@@ -5,8 +5,6 @@ import (
 	"strconv"
 	"time"
 
-	"meno/internal/agent"
-	"meno/internal/modes"
 	"meno/internal/prompt"
 )
 
@@ -18,12 +16,8 @@ type toolSpec struct {
 	allow        []string // command groups of the bash prompt; nil = all
 }
 
-// groupsOf returns the command groups the session may use: a child gets the
-// child set, a main agent what its modes allow (nil = every group).
+// groupsOf returns the command groups allowed by the session modes.
 func groupsOf(s *runState) []string {
-	if s.session.Kind == agent.KindChild {
-		return modes.ChildAllow()
-	}
 	return s.modes.AllowedGroups()
 }
 

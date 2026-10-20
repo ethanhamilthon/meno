@@ -39,7 +39,7 @@ type Turn struct {
 	// System is the <system-event> block sent in front of a user message. It is
 	// part of the request history but never shown to the user.
 	System string `json:"system,omitempty"`
-	// Mode is the mode the user started the request with (#subagents, #goal...).
+	// Mode is the mode the user started the request with (#brainstorm, #goal...).
 	Mode string `json:"mode,omitempty"`
 	// Attachments are the images the user message refers to.
 	Attachments []Attachment `json:"attachments,omitempty"`
@@ -112,7 +112,7 @@ type Session struct {
 	Tool     string `json:"tool,omitempty"`
 	Model    string `json:"model"`
 	Effort   string `json:"effort,omitempty"`
-	// Modes are the modes the messages of this session are sent in (#subagents,
+	// Modes are the modes the messages of this session are sent in (#brainstorm,
 	// #goal...). A message that names modes replaces the set; #none empties it.
 	Modes     []string  `json:"modes,omitempty"`
 	UpdatedAt time.Time `json:"updated_at"`

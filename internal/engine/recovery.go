@@ -7,7 +7,7 @@ import (
 )
 
 func recoverInterrupted(home string, d *sql.DB) error {
-	rows, err := d.Query("SELECT id FROM sessions WHERE id IN (SELECT session_id FROM tasks WHERE status='interrupted') AND id NOT IN (SELECT id FROM agents)")
+	rows, err := d.Query("SELECT id FROM sessions WHERE id IN (SELECT session_id FROM tasks WHERE status='interrupted') AND kind = 'main'")
 	if err != nil {
 		return err
 	}

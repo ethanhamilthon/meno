@@ -39,7 +39,6 @@ func (a *App) saveProviderEdit() {
 		a.st.EditIdx = len(a.st.Providers) - 1
 	}
 	a.persistProviders()
-	a.fetchModels()
 	a.afterProvidersChanged()
 }
 

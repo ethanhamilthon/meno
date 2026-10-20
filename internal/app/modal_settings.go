@@ -55,11 +55,8 @@ var settingTabs = []settingTab{
 		},
 	},
 	{
-		name: "Agents",
+		name: "Routing",
 		rows: []settingRow{
-			{"subagent provider", "subagent_provider"},
-			{"subagent model", "subagent_model"},
-			{"subagent effort", "subagent_effort"},
 			{"effort routing", "effort_router"},
 			{"effort router model", "effort_router_model"},
 			{"effort router provider", "effort_router_provider"},
@@ -181,43 +178,6 @@ func (a *App) settingChoices(key string) []string {
 		for i, t := range themes {
 			out[i] = t.Name
 		}
-		return out
-	case "subagent_provider":
-		out := []string{""}
-		seen := map[string]bool{"": true}
-		for _, p := range a.st.Providers {
-			if p.Name != "" && !seen[p.Name] {
-				out = append(out, p.Name)
-				seen[p.Name] = true
-			}
-		}
-		if cur := a.st.Settings.SubagentProvider; !seen[cur] {
-			out = append(out, cur)
-		}
-		return out
-	case "subagent_model":
-		out := []string{""}
-		seen := map[string]bool{"": true}
-		add := func(id string) {
-			if id != "" && !seen[id] {
-				out = append(out, id)
-				seen[id] = true
-			}
-		}
-		targetProv := a.st.Settings.SubagentProvider
-		if targetProv != "" {
-			for _, m := range a.st.Models[targetProv] {
-				add(m.ID)
-			}
-		} else {
-			for _, m := range a.modelList() {
-				add(m.ID)
-			}
-		}
-		if a.st.Session != nil {
-			add(a.st.Session.Model)
-		}
-		add(a.st.Settings.SubagentModel)
 		return out
 	default:
 		return config.Choices(key)

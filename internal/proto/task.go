@@ -12,15 +12,6 @@ type Task struct {
 	Exit      *int   `json:"exit,omitempty"`
 }
 
-// Agent is a subagent list item.
-type Agent struct {
-	ID     string `json:"id"`
-	Name   string `json:"name,omitempty"`
-	Status string `json:"status"`
-	Task   string `json:"task,omitempty"`
-	Result string `json:"result,omitempty"`
-}
-
 // TaskStartRequest starts one background process.
 type TaskStartRequest struct {
 	Command        string            `json:"command"`
@@ -56,42 +47,6 @@ type TaskWaitRequest struct {
 }
 type TaskCancelRequest struct {
 	ID string `json:"id"`
-}
-type AgentSpawnRequest struct {
-	Task     string `json:"task"`
-	Cwd      string `json:"cwd,omitempty"`
-	Provider string `json:"provider,omitempty"`
-	Model    string `json:"model,omitempty"`
-	Effort   string `json:"effort,omitempty"`
-}
-
-// AgentListResponse contains all parent-owned children.
-type AgentListResponse struct {
-	Agents []Agent `json:"agents"`
-}
-
-// AgentWaitResponse combines the child result and timeout result.
-type AgentWaitResponse struct {
-	Agent        Agent `json:"agent"`
-	WaitTimedOut bool  `json:"waitTimedOut,omitempty"`
-}
-
-type AgentIDRequest struct {
-	ID string `json:"id"`
-}
-type AgentMessageRequest struct {
-	ID   string `json:"id"`
-	Text string `json:"text"`
-}
-type AgentWaitRequest struct {
-	ID             string `json:"id"`
-	TimeoutSeconds int    `json:"timeout_seconds,omitempty"`
-}
-type AgentReportRequest struct {
-	Text string `json:"text"`
-}
-type AgentBlockRequest struct {
-	Reason string `json:"reason"`
 }
 
 // MCPServer describes configured and active server state.

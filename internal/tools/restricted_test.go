@@ -6,18 +6,18 @@ import (
 )
 
 func TestParseRestrictedCommand(t *testing.T) {
-	allowed := []string{"agents", "ask", "goal", "help"}
+	allowed := []string{"models", "ask", "goal", "help"}
 	quote := string(rune(34))
 	tests := []struct {
 		name, input string
 		accepted    bool
 		args        []string
 	}{
-		{"simple", "meno agents list", true, []string{"agents", "list"}},
+		{"simple", "meno models", true, []string{"models"}},
 		{"single quoted", "meno ask 'one two'", true, []string{"ask", "one two"}},
 		{"double quoted", "meno help " + quote + "topic name" + quote, true, []string{"help", "topic name"}},
-		{"joined parts", "meno help ag'ents'", true, []string{"help", "agents"}},
-		{"empty quote", "meno agents ''", true, []string{"agents", ""}},
+		{"joined parts", "meno help mo'dels'", true, []string{"help", "models"}},
+		{"empty quote", "meno models ''", true, []string{"models", ""}},
 		{"newline quoted", "meno ask 'line1\nline2'", true, []string{"ask", "line1\nline2"}},
 		{"bare punctuation", "meno goal done summary:=@%+,-", true, []string{"goal", "done", "summary:=@%+,-"}},
 		{"semicolon", "meno help; touch pwned", false, nil},
@@ -61,8 +61,8 @@ func TestRestrictedErrorText(t *testing.T) {
 	if err == nil || err.Error() != RestrictedCommandError {
 		t.Fatalf("error = %v; want %q", err, RestrictedCommandError)
 	}
-	_, err = ParseRestrictedCommand("meno tasks list", "/meno", []string{"agents", "help"})
-	if err == nil || err.Error() != "restricted mode: group \"tasks\" is not allowed (allowed: agents, help)" {
+	_, err = ParseRestrictedCommand("meno tasks list", "/meno", []string{"models", "help"})
+	if err == nil || err.Error() != "restricted mode: group \"tasks\" is not allowed (allowed: models, help)" {
 		t.Fatalf("unexpected group error: %v", err)
 	}
 }
@@ -73,7 +73,7 @@ func FuzzParseRestrictedCommandNeverChangesExecutable(f *testing.F) {
 	}
 	const executable = "/daemon/path/meno"
 	f.Fuzz(func(t *testing.T, input string) {
-		parsed, err := ParseRestrictedCommand(input, executable, []string{"agents", "ask", "goal", "help"})
+		parsed, err := ParseRestrictedCommand(input, executable, []string{"models", "ask", "goal", "help"})
 		if err != nil {
 			return
 		}

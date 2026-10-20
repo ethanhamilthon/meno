@@ -11,7 +11,7 @@ import (
 func countGlyph(n int) string { return itoa(n) + "x◆" }
 
 // badgeText is the text of the colored badge: the mode label and, after it,
-// the modes of the session in order, for example "NORMAL #subagents #goal".
+// the modes of the session in order, for example "NORMAL #brainstorm #goal".
 func badgeText(label string, modes []string) string {
 	for _, m := range modes {
 		label += " #" + m
@@ -24,7 +24,7 @@ var overlayLabels = map[Overlay]string{
 	OverModel: "MODEL", OverSettings: "SETTINGS", OverLogin: "LOGIN", OverLoginFlow: "LOGIN",
 	OverProviderEdit: "PROVIDER", OverSkills: "SKILLS", OverMCP: "MCP", OverMCPEdit: "MCP",
 	OverSessions: "SESSIONS", OverHelp: "HELP", OverFork: "FORK", OverTasks: "TASKS",
-	OverAgents: "AGENTS", OverSnippets: "SNIPPETS",
+	OverSnippets: "SNIPPETS",
 }
 
 // statusLabel is the plain mode label, or the name of the open overlay.

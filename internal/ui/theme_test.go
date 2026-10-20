@@ -29,8 +29,8 @@ func contrast(a, b tcell.Color) float64 {
 
 func TestThemeCatalog(t *testing.T) {
 	list := Themes()
-	if len(list) != 20 {
-		t.Fatalf("%d themes, want 20", len(list))
+	if len(list) != 3 {
+		t.Fatalf("%d themes, want 3", len(list))
 	}
 	seen := map[string]bool{}
 	dark, light := 0, 0
@@ -45,7 +45,7 @@ func TestThemeCatalog(t *testing.T) {
 			light++
 		}
 	}
-	if !seen[DefaultTheme] || dark < 8 || light < 4 {
+	if !seen[DefaultTheme] || !seen["pure-black"] || !seen["catppuccin-mocha"] || dark != 3 || light != 0 {
 		t.Fatalf("default %v, dark %d, light %d", seen[DefaultTheme], dark, light)
 	}
 }
@@ -85,8 +85,8 @@ func TestSetTheme(t *testing.T) {
 		t.Fatal("unknown theme accepted")
 	}
 	def := BgTerm
-	if !SetTheme("dracula") || CurrentTheme() != "dracula" || BgTerm == def || BgTerm != tcell.NewRGBColor(0x28, 0x2A, 0x36) {
-		t.Fatalf("dracula not applied: %v", BgTerm)
+	if !SetTheme("pure-black") || CurrentTheme() != "pure-black" || BgTerm == def || BgTerm != tcell.NewRGBColor(0, 0, 0) {
+		t.Fatalf("pure-black not applied: %v", BgTerm)
 	}
 	if !SetTheme(DefaultTheme) || BgTerm != def || Blue != tcell.NewRGBColor(0x87, 0xAF, 0xFF) {
 		t.Fatal("default not restored")

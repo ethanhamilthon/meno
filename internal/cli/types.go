@@ -73,30 +73,6 @@ type TaskWait struct {
 	TimedOut bool `json:"waitTimedOut,omitempty"`
 }
 
-// AgentSpawnRequest contains subagent parameters.
-type AgentSpawnRequest struct {
-	Task     string `json:"task"`
-	CWD      string `json:"cwd,omitempty"`
-	Provider string `json:"provider,omitempty"`
-	Model    string `json:"model,omitempty"`
-	Effort   string `json:"effort,omitempty"`
-}
-
-// Agent describes a subagent.
-type Agent struct {
-	ID     string `json:"id"`
-	Status string `json:"status"`
-	Task   string `json:"task,omitempty"`
-	Result string `json:"result,omitempty"`
-	Error  string `json:"error,omitempty"`
-}
-
-// AgentWait reports the result of waiting for a subagent.
-type AgentWait struct {
-	Agent    Agent `json:"agent"`
-	TimedOut bool  `json:"waitTimedOut,omitempty"`
-}
-
 // WebItem is one web search result.
 type WebItem struct {
 	Title       string `json:"title"`

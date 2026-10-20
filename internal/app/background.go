@@ -15,20 +15,9 @@ func (a *App) setTasks(rt *Runtime, ts []proto.Task) {
 	}
 }
 
-// setKids keeps the subagents of a session as the daemon listed them.
-func (a *App) setKids(rt *Runtime, as []proto.Agent) {
-	rt.Kids = rt.Kids[:0]
-	for _, k := range as {
-		rt.Kids = append(rt.Kids, kidRow{ID: k.ID, Task: k.Task, Status: k.Status, Result: k.Result})
-	}
-}
-
 func taskRunning(s string) bool { return s == "starting" || s == "running" }
 
-func kidWorking(s string) bool { return s == "starting" || s == "running" || s == "blocked" }
-
-// bgCount is the number of running background tasks and working subagents of a
-// session, as last reported.
+// bgCount is the number of running background tasks of a session, as last reported.
 func (a *App) bgCount(sid string) int {
 	rt := a.rts[sid]
 	if rt == nil {
@@ -37,11 +26,6 @@ func (a *App) bgCount(sid string) int {
 	n := 0
 	for _, t := range rt.Tasks {
 		if taskRunning(t.Status) {
-			n++
-		}
-	}
-	for _, k := range rt.Kids {
-		if kidWorking(k.Status) {
 			n++
 		}
 	}

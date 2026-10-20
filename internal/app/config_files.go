@@ -60,6 +60,7 @@ func (a *App) onSettingsLoaded(m settingsLoaded) {
 	}
 	a.cfgSeen = m.seq
 	a.applyConfig(m)
+	a.fetchModels()
 	a.afterProvidersChanged()
 }
 

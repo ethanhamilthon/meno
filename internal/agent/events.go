@@ -17,9 +17,6 @@ const KindEvent = "event"
 // Event sources. Provenance is set by application wiring, never taken from
 // text a tool produced.
 const (
-	SourceUser   = "user"   // the user wrote to a child agent
-	SourceParent = "parent" // a parent agent wrote to its child
-	SourceChild  = "child"  // a child agent reported, blocked or finished
 	SourceTask   = "task"   // a background process finished
 	SourceSystem = "system" // meno itself
 )
@@ -29,8 +26,8 @@ type Event struct {
 	ID      string
 	Session string
 	Source  string
-	From    string // child or task ID
-	Kind    string // message, report, blocked, completed, failed, task_done...
+	From    string // task ID
+	Kind    string // message, completed, failed, task_done...
 	Owner   string // root request that owns the work the event is about
 	Text    string
 	Refs    []string // result, log or artifact references
@@ -40,8 +37,8 @@ type Event struct {
 // Render is the wrapper the model sees. Every field is escaped, so event
 // content can never forge another event or a system block.
 func (e Event) Render() string {
-	if e.Source == SourceUser {
-		// The user speaking to a child directly; the wrapper is the provenance.
+	if e.Source == "user" {
+		// Preserve the wrapper of historical user events.
 		return "<user-message id=\"" + html.EscapeString(e.ID) + "\">\n" + html.EscapeString(e.Text) + "\n</user-message>"
 	}
 	var b strings.Builder

@@ -74,7 +74,7 @@ func (a *App) openSession(id string) {
 }
 
 // refreshSession re-reads a session after the daemon said something about it
-// changed (title, directory, tasks, agents).
+// changed (title, directory, tasks).
 func (a *App) refreshSession(sid string) {
 	a.spawn(func() {
 		var sn proto.Snapshot
@@ -105,7 +105,6 @@ func (a *App) onSessionRefreshed(m sessionRefreshed) {
 		rt.Cwd = sn.Cwd
 	}
 	a.setTasks(rt, sn.Tasks)
-	a.setKids(rt, sn.Agents)
 }
 
 // patchSession changes metadata of the current session in the daemon.

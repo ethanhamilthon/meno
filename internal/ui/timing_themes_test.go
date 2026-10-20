@@ -25,7 +25,7 @@ func TestErrorBackgroundExistsInEveryTheme(t *testing.T) {
 		}
 	}
 	defer SetTheme(DefaultTheme)
-	SetTheme("dracula")
+	SetTheme("pure-black")
 	if BgJSErr == 0 || BgJSErr == BgTerm {
 		t.Fatal("theme switch did not set the error background")
 	}

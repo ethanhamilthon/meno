@@ -91,7 +91,7 @@ func (r *Runner) loop(ctx context.Context, s *Session) error {
 			if r.D.Queue != nil && r.D.Queue.Len() > 0 {
 				continue // the user spoke meanwhile: answer without ending the turn
 			}
-			if r.D.Goal != nil && (r.D.Waiting == nil || !r.D.Waiting()) {
+			if r.D.Goal != nil {
 				if text, ok := r.D.Goal.Nudge(); ok {
 					s.Append(goalEvent(text))
 					r.emit(s, Ev{Kind: EvInjected})
@@ -116,14 +116,8 @@ func (r *Runner) loop(ctx context.Context, s *Session) error {
 			}
 			text = ""
 		}
-		if r.D.Halt != nil && r.D.Halt(batchFailed(s, len(calls))) {
-			return ErrHalted
-		}
 	}
 }
-
-// ErrHalted is returned by Continue when Deps.Halt stopped the run.
-var ErrHalted = errors.New("halted")
 
 // batchFailed reports whether any of the last n tool results holds an error.
 func batchFailed(s *Session, n int) bool {
@@ -165,7 +159,7 @@ func (r *Runner) finish(s *Session, err error) {
 		Turns: c.turns, ToolCalls: c.jsCalls, ToolMs: c.jsTime.Milliseconds(), Usage: c.usage,
 	}
 	switch {
-	case err == nil, errors.Is(err, ErrHalted):
+	case err == nil:
 	case errors.Is(err, context.Canceled):
 		st.Status = RunStop
 	default:

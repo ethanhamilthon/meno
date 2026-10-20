@@ -18,8 +18,6 @@ func optLabel(s *config.Settings, key, opt string) string {
 		return "at " + strconv.Itoa(s.CompactPercent) + "%"
 	case key == "notify_volume":
 		return opt + "%"
-	case (key == "subagent_provider" || key == "subagent_model" || key == "subagent_effort") && opt == "":
-		return "inherit"
 	case key == "bash_timeout" && opt == "seconds":
 		if _, err := strconv.Atoi(s.BashTimeout); err == nil {
 			return s.BashTimeout + " sec"

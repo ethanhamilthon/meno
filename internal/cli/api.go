@@ -20,15 +20,6 @@ type API interface {
 	TaskLogs(id string, from, limit int) (TaskLogs, error)
 	TaskWait(id string, timeout time.Duration) (TaskWait, error)
 	TaskCancel(id string) (Task, error)
-	AgentsSpawn(AgentSpawnRequest) (Agent, error)
-	AgentsList() ([]Agent, error)
-	AgentStatus(id string) (Agent, error)
-	AgentSend(id, text string) (Agent, error)
-	AgentWait(id string, timeout time.Duration) (AgentWait, error)
-	AgentResult(id string) (Agent, error)
-	AgentCancel(id string) (Agent, error)
-	AgentReport(text string) error
-	AgentBlock(reason string) error
 	Ask(form []byte) (map[string]any, error)
 	GoalDone(summary string) error
 	GoalBlocked(reason string) error

@@ -80,6 +80,9 @@ func (e *Engine) agentEvent(s *runState, ev agent.Ev) {
 	if ev.Kind == agent.EvJSEnd {
 		s.live.Calls = removeCall(s.live.Calls, ev.CallID)
 	}
+	if ev.Kind == agent.EvInjected {
+		e.publishQueue(s, proto.InjectedData{})
+	}
 	_ = e.save(s)
 	turns := s.session.Snapshot()
 	s.mu.Unlock()
@@ -155,8 +158,6 @@ func (e *Engine) translate(id string, ev agent.Ev) {
 		e.publish(id, proto.EventRetry, proto.RetryData{Attempt: ev.Attempt, Max: ev.Max, InMS: ev.Delay.Milliseconds(), Reason: ev.Err})
 	case agent.EvUsage:
 		e.publish(id, proto.EventUsage, e.usageData(id, ev))
-	case agent.EvInjected:
-		e.publish(id, proto.EventInjected, map[string]any{})
 	case agent.EvAborted:
 		e.publish(id, proto.EventAborted, map[string]any{})
 	case agent.EvError:

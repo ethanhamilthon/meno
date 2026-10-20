@@ -35,7 +35,6 @@ func (a *App) onSnapshot(m snapshotEv) {
 	rt.Spent, rt.Context, rt.Unpriced = sn.Spent, sn.Context, sn.Unpriced
 	rt.Saved = true
 	a.setTasks(rt, sn.Tasks)
-	a.setKids(rt, sn.Agents)
 	a.setAsk(rt, sn.Ask)
 	rt.Retry = retryFromWire(sn.Retry)
 }
@@ -130,6 +129,9 @@ func (a *App) applyWire(rt *Runtime, e proto.Event) {
 			a.notify("retry " + itoa(d.Attempt) + "/" + itoa(d.Max) + " in " + fmtWait(time.Duration(d.InMS)*time.Millisecond) + " — " + rt.Retry.Reason)
 		}
 	case proto.EventInjected:
+		if d, ok := decode[proto.InjectedData](e.Data); ok {
+			rt.Queued = append([]string(nil), d.Queued...)
+		}
 		a.clearLive()
 		rt.Phase = "thinking"
 	case proto.EventError:
@@ -156,7 +158,7 @@ func (a *App) applyWire(rt *Runtime, e proto.Event) {
 		if d, ok := decode[proto.AskClosedData](e.Data); ok && rt.Ask != nil && rt.Ask.ID == d.AskID {
 			a.closeAsk(rt.Ask)
 		}
-	case proto.EventSessionChanged, proto.EventTasksChanged, proto.EventAgentsChanged:
+	case proto.EventSessionChanged, proto.EventTasksChanged:
 		a.refreshSession(rt.ID())
 	}
 }

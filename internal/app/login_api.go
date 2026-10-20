@@ -98,7 +98,6 @@ func (a *App) toggleProvider(i int) {
 	}
 	p.Disabled = !p.Disabled
 	a.persistProviders()
-	a.fetchModels()
 	a.notify(p.Name + map[bool]string{true: " is off", false: " is on"}[p.Disabled])
 	a.afterProvidersChanged()
 }

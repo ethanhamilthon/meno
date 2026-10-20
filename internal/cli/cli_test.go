@@ -14,7 +14,6 @@ type fakeAPI struct {
 	tools     []Tool
 	args      map[string]any
 	start     TaskStartRequest
-	spawn     AgentSpawnRequest
 	wait      TaskWait
 	forbidden bool
 }
@@ -44,20 +43,6 @@ func (f *fakeAPI) TaskStatus(id string) (Task, error)               { return Tas
 func (f *fakeAPI) TaskLogs(string, int, int) (TaskLogs, error)      { return TaskLogs{}, f.check() }
 func (f *fakeAPI) TaskWait(string, time.Duration) (TaskWait, error) { return f.wait, f.check() }
 func (f *fakeAPI) TaskCancel(id string) (Task, error)               { return Task{ID: id}, f.check() }
-func (f *fakeAPI) AgentsSpawn(r AgentSpawnRequest) (Agent, error) {
-	f.spawn = r
-	return Agent{ID: "a1"}, f.check()
-}
-func (f *fakeAPI) AgentsList() ([]Agent, error)             { return nil, f.check() }
-func (f *fakeAPI) AgentStatus(id string) (Agent, error)     { return Agent{ID: id}, f.check() }
-func (f *fakeAPI) AgentSend(id, text string) (Agent, error) { return Agent{ID: id}, f.check() }
-func (f *fakeAPI) AgentWait(id string, d time.Duration) (AgentWait, error) {
-	return AgentWait{}, f.check()
-}
-func (f *fakeAPI) AgentResult(id string) (Agent, error) { return Agent{ID: id}, f.check() }
-func (f *fakeAPI) AgentCancel(id string) (Agent, error) { return Agent{ID: id}, f.check() }
-func (f *fakeAPI) AgentReport(string) error             { return f.check() }
-func (f *fakeAPI) AgentBlock(string) error              { return f.check() }
 func (f *fakeAPI) Ask([]byte) (map[string]any, error) {
 	return map[string]any{"answer": "yes"}, f.check()
 }
@@ -156,16 +141,12 @@ func TestSearchAndMCPArgumentForms(t *testing.T) {
 		t.Fatalf("%d %s", c, e)
 	}
 }
-func TestTasksAgentsAndExitCodes(t *testing.T) {
+func TestTasksAndExitCodes(t *testing.T) {
 	var e string
 	a := &fakeAPI{wait: TaskWait{Task: Task{ID: "t1"}, TimedOut: true}}
 	c, _, _ := run([]string{"tasks", "start", "echo", "hi", "--cwd", "/tmp", "--env", "A=2", "--env", "B=3", "--timeout", "10"}, a, "")
 	if c != 0 || a.start.Command != "echo hi" || a.start.Env["A"] != "2" || a.start.Env["B"] != "3" {
 		t.Fatalf("%d %#v", c, a.start)
-	}
-	c, _, _ = run([]string{"agents", "spawn", "--model", "m", "-"}, a, "build it")
-	if c != 0 || a.spawn.Task != "build it" || a.spawn.Model != "m" {
-		t.Fatalf("%d %#v", c, a.spawn)
 	}
 	c, _, _ = run([]string{"tasks", "wait", "t1"}, a, "")
 	if c != 124 {
@@ -173,10 +154,6 @@ func TestTasksAgentsAndExitCodes(t *testing.T) {
 	}
 	a.wait.TimedOut = false
 	a.forbidden = true
-	c, _, e = run([]string{"agents", "report", "ready"}, a, "")
-	if c != 3 || !strings.Contains(e, "not allowed") {
-		t.Fatalf("child forbidden: %d %s", c, e)
-	}
 	a.forbidden = false
 	for _, tc := range []struct {
 		args []string
@@ -189,13 +166,13 @@ func TestTasksAgentsAndExitCodes(t *testing.T) {
 		}
 	}
 	a.forbidden = true
-	c, _, e = run([]string{"agents", "list"}, a, "")
+	c, _, e = run([]string{"tasks", "list"}, a, "")
 	if c != 3 || !strings.Contains(e, "not allowed") {
 		t.Fatalf("%d %s", c, e)
 	}
 }
 func TestHelpGroupsAndLocalHelp(t *testing.T) {
-	for _, name := range []string{"mcp", "tasks", "agents", "ask", "goal", "web", "view", "models", "daemon", "sessions", "send", "tail", "read", "edit", "write", "search"} {
+	for _, name := range []string{"mcp", "tasks", "ask", "goal", "web", "view", "models", "daemon", "sessions", "send", "tail", "read", "edit", "write", "search"} {
 		c, out, e := run([]string{name, "--help"}, nil, "")
 		if c != 0 || e != "" || out == "" {
 			t.Errorf("%s: %d %q", name, c, e)

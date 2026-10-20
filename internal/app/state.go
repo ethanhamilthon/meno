@@ -32,7 +32,6 @@ const (
 	OverHelp
 	OverFork
 	OverTasks
-	OverAgents
 	OverSnippets
 )
 
@@ -66,7 +65,6 @@ type State struct {
 	// UpdateTag is the newer release the background check found ("" if none).
 	UpdateTag string
 	TasksUI   tasksView
-	AgentsUI  agentsView
 	CmdSel    int
 	Pricing   map[string]llm.ModelInfo
 	Cmd       []rune

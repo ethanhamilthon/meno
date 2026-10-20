@@ -136,10 +136,8 @@ type Snapshot struct {
 	Provider   string      `json:"provider,omitempty"`
 	Effort     string      `json:"effort,omitempty"`
 	TaskCount  int         `json:"task_count"`
-	AgentCount int         `json:"agent_count"`
 	Turns      []Turn      `json:"turns,omitempty"`
 	Tasks      []Task      `json:"tasks,omitempty"`
-	Agents     []Agent     `json:"agents,omitempty"`
 }
 
 // PatchSessionRequest updates session metadata.

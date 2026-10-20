@@ -38,19 +38,16 @@ const MaxInstructions = 256 << 10
 
 // Input is everything the system prompt depends on.
 type Input struct {
-	Cwd string
-	// Subagent builds the prompt of a child agent: no askUser, tasks or
-	// agents.spawn, and the child's own instructions.
-	Subagent      bool
+	Cwd           string
 	Skills        []Skill
 	GlobalAgents  Instructions
 	ProjectAgents Instructions
 	Tools         []Tool
 	Now           time.Time
 	OS, Shell     string
-	// Only lists the tool globals this prompt keeps; nil keeps them all.
+	// Only lists the tool groups this prompt keeps; nil keeps them all.
 	Only []string
-	// Tool selects the bash prompt when set to bash; empty preserves js.
+	// Tool names the tool of the session; the prompt is always the bash one.
 	Tool string
 	// Allow lists bash command groups; nil allows every group.
 	Allow []string

@@ -126,22 +126,6 @@ func TestTasksThroughTheDaemon(t *testing.T) {
 	}
 }
 
-func TestSubagentsModeForbidsTasks(t *testing.T) {
-	home, eng, sess, _, sock := startRig(t, &scripted{})
-	if _, err := eng.PatchSession(context.Background(), sess.Session.ID, proto.PatchSessionRequest{Modes: &[]string{"subagents"}}); err != nil {
-		t.Fatal(err)
-	}
-	snap, _ := eng.Snapshot(context.Background(), sess.Session.ID)
-	api := daemonapi.New(home, sock, sess.Session.ID, snap.AgentToken, "c")
-	code, _, errs := run(t, api, "tasks", "list")
-	if code != cli.ExitForbidden {
-		t.Fatalf("tasks in #subagents: exit %d %s", code, errs)
-	}
-	if _, err := api.AgentsList(); err != nil {
-		t.Fatalf("agents are allowed in #subagents: %v", err)
-	}
-}
-
 func TestWrongTokenIsForbidden(t *testing.T) {
 	home, _, sess, _, sock := startRig(t, &scripted{})
 	api := daemonapi.New(home, sock, sess.Session.ID, "not-the-token", "c")

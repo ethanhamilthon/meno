@@ -81,20 +81,13 @@ type Deps struct {
 	DefaultTimeout time.Duration
 	// Goal, when set, keeps the run going until the agent gives a verdict.
 	Goal *Goal
-	// Waiting, when set, reports that the run waits for something outside the
-	// model's answer (subagents still working). A goal does not nudge then: the
-	// run ends and the event of the subagent wakes it again.
-	Waiting func() bool
 	// Retry is the policy for failed model requests (zero value: defaults).
 	Retry RetryPolicy
 	// Queue, when set, delivers messages the user wrote during the turn; they
 	// join the conversation between steps (never between a call and its result).
 	Queue *Queue
-	// Events delivers steering events (child and task messages, completions).
+	// Events delivers steering events (task messages and completions).
 	Events EventSource
-	// Halt is asked after every tool batch (failed: some call of the batch
-	// failed). Returning true ends the run without another model request.
-	Halt func(failed bool) bool
 	// AutoCompact is the safety net against overflowing the context window.
 	AutoCompact AutoCompact
 	// DebugPayload, when set, receives every request before it is sent. Opt-in

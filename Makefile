@@ -48,7 +48,7 @@ term:
 
 # Deterministic benchmarks; compare runs with benchstat.
 bench:
-	$(GO) test -run '^$' -bench . -benchmem ./internal/ui ./internal/agent ./internal/jsvm
+	$(GO) test -run '^$' -bench . -benchmem ./internal/ui ./internal/agent ./internal/tools
 
 clean:
 	rm -f $(BIN)

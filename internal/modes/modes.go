@@ -1,5 +1,4 @@
-// Package modes defines the modes a message can name: #subagents, #brainstorm
-// and #goal. A mode is a prompt, a set of tool globals the run keeps, and
+// Package modes defines #brainstorm and #goal. A mode is a prompt, a set of tool globals the run keeps, and
 // optionally a goal that keeps the agent working. Several modes combine (see
 // Compose). A mode set in a message stays until another message sets it.
 package modes
@@ -13,7 +12,6 @@ const (
 	GroupFiles  = "files"
 	GroupMCP    = "mcp"
 	GroupTasks  = "tasks"
-	GroupAgents = "agents"
 	GroupAsk    = "ask"
 	GroupGoal   = "goal"
 	GroupWeb    = "web"
@@ -45,18 +43,7 @@ func Catalog() []Mode {
 	return []Mode{
 		{Name: "brainstorm", Description: "explore ideas, compare options and write a design spec", Text: brainstormText},
 		{Name: "goal", Description: "work until the goal is met", Goal: true, Rounds: DefaultRounds, Text: goalText},
-		{Name: "subagents", Description: "orchestrate: delegate all work to subagents", Only: subagentGlobals, Allow: []string{GroupAgents, GroupAsk, GroupGoal, GroupHelp}, Text: subagentsText},
 	}
-}
-
-// subagentGlobals are what the orchestrator keeps: it reads and writes nothing
-// itself. The pure helpers stay, they change nothing.
-var subagentGlobals = []string{"agents", "goal", "askUser", "help", "hash", "path", "base64", "btoa", "atob"}
-
-// ChildAllow lists the groups available to a child agent. Child agents cannot
-// ask, start tasks, or manage other agents, but can report and block.
-func ChildAllow() []string {
-	return []string{GroupFiles, GroupMCP, GroupAgents, GroupWeb, GroupView, GroupModels, GroupHelp}
 }
 
 // Find returns the mode called name.

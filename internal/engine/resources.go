@@ -38,8 +38,6 @@ func (e *Engine) sessionResource(ctx context.Context, method, path, query string
 	switch group {
 	case "tasks":
 		out, err = e.taskResource(ctx, s, parts[2:], method, data, query)
-	case "agents":
-		out, err = e.agentResource(ctx, s, parts[2:], method, data, query)
 	case "mcp":
 		out, err = e.mcpResource(ctx, s, parts[2:], method, data, query)
 	case "web":

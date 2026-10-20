@@ -7,11 +7,10 @@ import (
 	"meno/internal/tools"
 )
 
-const bashDescription = `Run one shell command in the session working directory. The meno groups are files, mcp, tasks, agents, ask, goal, web, view, models and help.
+const bashDescription = `Run one shell command in the session working directory. The meno groups are files, mcp, tasks, ask, goal, web, view, models and help.
 - files: read FILE, edit FILE OLD NEW, write FILE, search PATTERN [DIR]; local files only.
 - mcp: servers, tools SERVER, call SERVER TOOL [ARGS], results ID, add/remove/restart.
 - tasks: start CMD, list, status ID, logs ID, wait ID, cancel ID.
-- agents: spawn TASK, list, status, send ID TEXT, wait, result, cancel; child: report TEXT, block REASON.
 - ask: ask FILE|-; goal: done SUMMARY|blocked REASON.
 - web: search QUERY; view: IMAGE; models: [--provider --refresh]; help: [TOPIC].
 Use meno --help or meno <group> --help for details. Read skills with cat or meno read.
@@ -36,7 +35,7 @@ func bashToolDescription(allowed []string, modelTimeout bool) string {
 		return text
 	}
 	var lines []string
-	for _, group := range []string{modes.GroupFiles, modes.GroupMCP, modes.GroupTasks, modes.GroupAgents, modes.GroupAsk, modes.GroupGoal, modes.GroupWeb, modes.GroupView, modes.GroupModels, modes.GroupHelp} {
+	for _, group := range []string{modes.GroupFiles, modes.GroupMCP, modes.GroupTasks, modes.GroupAsk, modes.GroupGoal, modes.GroupWeb, modes.GroupView, modes.GroupModels, modes.GroupHelp} {
 		if modes.Allows(allowed, group) {
 			lines = append(lines, group)
 		}

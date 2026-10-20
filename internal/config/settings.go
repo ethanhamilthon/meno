@@ -6,10 +6,6 @@ import (
 	"strings"
 )
 
-// DefaultMaxSpawn is how many subagents one request may start before the run
-// refuses more; the limit is subagent_max_spawn in the settings.
-const DefaultMaxSpawn = 50
-
 type Settings struct {
 	Provider          string `json:"provider"`
 	Model             string `json:"model"`
@@ -48,13 +44,6 @@ type Settings struct {
 	// brave, tavily, duckduckgo or off. WebSearchKey is the Brave or Tavily key.
 	WebSearch    string `json:"websearch"`
 	WebSearchKey string `json:"websearch_key"`
-	// Subagent defaults when agents.spawn omits provider, model, or effort.
-	SubagentProvider string `json:"subagent_provider,omitempty"`
-	SubagentModel    string `json:"subagent_model,omitempty"`
-	SubagentEffort   string `json:"subagent_effort,omitempty"`
-	// SubagentMaxSpawn is how many subagents one request may start. Zero or less
-	// means the default (see DefaultMaxSpawn).
-	SubagentMaxSpawn int `json:"subagent_max_spawn,omitempty"`
 	// CompactPercent is the share of the context window at which meno compacts
 	// before a request; CompactKeep the recent messages that always stay;
 	// CompactSummaryTokens the target size of the summary.
@@ -163,9 +152,6 @@ func (s *Settings) UnmarshalJSON(data []byte) error {
 	if st.Tool != "js" && st.Tool != "bash" {
 		st.Tool = defaults.Tool
 	}
-	if st.SubagentMaxSpawn < 1 {
-		st.SubagentMaxSpawn = DefaultMaxSpawn
-	}
 	*s = st
 	return nil
 }
@@ -181,10 +167,9 @@ func DefaultSettings() Settings {
 		ThinkLines:     5,
 		Theme:          "meno",
 		CompactPercent: 80, CompactKeep: 8, CompactSummaryTokens: 4000,
-		Notify:           "off",
-		NotifySound:      "default",
-		NotifyVolume:     100,
-		WebSearch:        "auto",
-		SubagentMaxSpawn: DefaultMaxSpawn,
+		Notify:       "off",
+		NotifySound:  "default",
+		NotifyVolume: 100,
+		WebSearch:    "auto",
 	}
 }

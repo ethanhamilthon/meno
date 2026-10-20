@@ -66,35 +66,3 @@ func (e *Engine) taskResource(ctx context.Context, s *runState, tail []string, m
 	}
 	return nil, api(proto.CodeNotFound, "unknown task operation")
 }
-func (e *Engine) agentResource(ctx context.Context, s *runState, tail []string, method string, data map[string]any, query string) (any, error) {
-	op := "list"
-	if len(tail) > 0 {
-		op = tail[0]
-	}
-	id := stringValue(data, "id")
-	if len(tail) > 1 {
-		id = tail[1]
-	}
-	host := childHost{e: e, parent: s}
-	switch op {
-	case "", "list":
-		return host.List(callOpts{})
-	case "spawn":
-		return host.Spawn(callOpts{Ctx: ctx, Cwd: s.cwd, Env: envSlice(s.env), Opts: data}, data)
-	case "status":
-		return host.Status(callOpts{}, id)
-	case "send":
-		return host.Send(callOpts{}, id, stringValue(data, "text"))
-	case "wait":
-		return host.Wait(callOpts{Ctx: ctx}, id, time.Duration(number(data["timeout"]))*time.Second)
-	case "result":
-		return host.Result(callOpts{}, id)
-	case "cancel":
-		return host.Cancel(callOpts{}, id)
-	case "report":
-		return nil, host.Report(callOpts{}, stringValue(data, "text"))
-	case "block":
-		return nil, host.Block(callOpts{}, stringValue(data, "reason"))
-	}
-	return nil, api(proto.CodeNotFound, "unknown agent operation")
-}

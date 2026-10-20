@@ -25,12 +25,8 @@ type Runtime struct {
 	RequestID string // the request being worked on
 	lines     lineCache
 	Pick      *pickState // the @ picker, nil when closed
-	// Kids and Tasks are the background work of the session, as the daemon last said.
-	Kids  []kidRow
+	// Tasks are the background work of the session, as the daemon last said.
 	Tasks []taskRow
-	// Delegated is the spend of the subagents, kept apart from this session's own.
-	Delegated         float64
-	DelegatedUnpriced bool
 
 	Running   bool
 	sending   int         // messages sent to the daemon and not yet acknowledged
@@ -85,11 +81,6 @@ type Runtime struct {
 	Saved   bool // the session is in the database (the daemon has it)
 
 	watch func() // stops the event stream of this session
-}
-
-// kidRow is a subagent of the session in the :agents list.
-type kidRow struct {
-	ID, Task, Status, Result string
 }
 
 // taskRow is a background task of the session in the :tasks list.

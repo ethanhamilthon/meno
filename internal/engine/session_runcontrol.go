@@ -23,13 +23,9 @@ func (e *Engine) Stop(ctx context.Context, id string, q proto.StopRequest) error
 		}
 		e.tasks.CancelOwner(id, s.requestID)
 	}
-	owner := s.requestID
 	if s.cancel != nil {
 		s.cancel()
 	}
-	s.mu.Unlock()
-	e.cancelChildren(id, owner)
-	s.mu.Lock()
 	return nil
 }
 func (e *Engine) Compact(ctx context.Context, id string, q proto.CompactRequest) (proto.CompactResponse, error) {
@@ -59,10 +55,11 @@ func (e *Engine) Compact(ctx context.Context, id string, q proto.CompactRequest)
 	err = e.save(s)
 	after := s.session.Len()
 	summary := s.session.Summary
+	queued := queuedText(s)
 	s.mu.Unlock()
 	if err != nil {
 		return proto.CompactResponse{}, err
 	}
-	e.publish(id, proto.EventInjected, map[string]any{"kind": "compact"})
+	e.publish(id, proto.EventInjected, proto.InjectedData{Kind: "compact", Queued: queued})
 	return proto.CompactResponse{Removed: before - after, Summary: summary}, nil
 }

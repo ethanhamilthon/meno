@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"meno/internal/agent"
 	"meno/internal/llm"
 	"meno/internal/proto"
 )
@@ -62,22 +61,3 @@ func TestBashCallSeesMenoEnvironment(t *testing.T) {
 		t.Fatalf("env missing in %q", out)
 	}
 }
-
-func TestSubagentsModeRefusesAShell(t *testing.T) {
-	f := &fakeProvider{steps: [][]llm.Event{
-		{bashCall("c3", "echo hi && echo again"), {Kind: llm.EvDone}},
-		{{Kind: llm.EvText, Text: "ok"}, {Kind: llm.EvDone}},
-	}}
-	e, _ := fixture(t, f)
-	id := newSession(t, e)
-	_, _ = e.Message(context.Background(), id, proto.MessageRequest{Text: "go", Modes: []string{"subagents"}, ClientID: "m"})
-	waitFor(t, e, id, func(s *runState) bool { return !s.running && s.session.Len() >= 3 })
-	s, _ := e.load(context.Background(), id)
-	for _, tr := range s.session.Snapshot() {
-		if tr.CallID == "c3" && !strings.Contains(tr.Err+tr.Output, "restricted mode") {
-			t.Fatalf("not refused: %+v", tr)
-		}
-	}
-}
-
-var _ = agent.NewID

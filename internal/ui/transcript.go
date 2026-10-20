@@ -50,14 +50,18 @@ type JSOpts struct {
 func BuildLines(turns []Turn, w int, js JSOpts) []Line {
 	var out []Line
 	wrapW := w - padX*2
+	separate := false
 	for _, t := range turns {
 		think := ""
 		if js.ThinkMode != JSOff && t.Thinking != "" {
 			think = strings.TrimSpace(t.Thinking)
 		}
 		visible := t.Role == RoleUser || t.Code != "" || t.Role == RoleAssistant && (t.Text != "" || think != "")
-		if visible && len(out) > 0 {
+		if visible && len(out) > 0 && separate {
 			out = append(out, Band(BgTerm))
+		}
+		if visible {
+			separate = TurnHasMessage(t, js)
 		}
 		if think != "" && t.Role == RoleAssistant {
 			out = append(out, thinkingLines(think, wrapW-2, js)...)

@@ -15,14 +15,16 @@ func (a *App) transcriptWithSelection(w int) []ui.Line {
 	turns := a.st.Session.Turns()
 	js := a.jsOpts()
 	var out []ui.Line
-	appendLines := func(lines []ui.Line) {
+	separate := false
+	appendLines := func(lines []ui.Line, message bool) {
 		if len(lines) == 0 {
 			return
 		}
-		if len(out) > 0 {
+		if len(out) > 0 && separate {
 			out = append(out, ui.Band(ui.BgTerm))
 		}
 		out = append(out, lines...)
+		separate = message
 	}
 	notices := a.currentNotices()
 	for i := 0; i <= len(turns); i++ {
@@ -36,10 +38,10 @@ func (a *App) transcriptWithSelection(w int) []ui.Line {
 			}
 			appendLines(ui.WrapLines(n.Text, max(1, w-2*ui.PadX-2), func(s string) ui.Line {
 				return ui.Plain("  "+s, fg, ui.BgTerm)
-			}))
+			}), true)
 		}
 		if i < len(turns) {
-			appendLines(a.st.lines.turnLines(turns[i], w, js))
+			appendLines(a.st.lines.turnLines(turns[i], w, js), ui.TurnHasMessage(turns[i], js))
 		}
 	}
 
@@ -80,10 +82,10 @@ func (a *App) transcriptWithSelection(w int) []ui.Line {
 			liveJS.Limit = call.Limit
 			liveJS.Spin = int(time.Now().UnixMilli() / 100)
 		}
-		appendLines(ui.BuildLines([]ui.Turn{live}, w, liveJS))
+		appendLines(ui.BuildLines([]ui.Turn{live}, w, liveJS), ui.TurnHasMessage(live, liveJS))
 		live = ui.Turn{Role: ui.RoleAssistant}
 	}
-	appendLines(ui.BuildLines([]ui.Turn{live}, w, js))
+	appendLines(ui.BuildLines([]ui.Turn{live}, w, js), ui.TurnHasMessage(live, js))
 	return out
 }
 
