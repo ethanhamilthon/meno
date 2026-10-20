@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
+	menocli "meno/internal/cli"
 	"meno/internal/update"
 )
 
@@ -17,6 +18,7 @@ const usage = `meno: a terminal coding agent
 Usage:
   meno             open the terminal UI
   meno daemon      manage the background daemon
+  meno daemon      manage the background daemon
   meno update      update meno to the latest GitHub release
   meno -v          print the version
   meno -h          print this help
@@ -24,12 +26,19 @@ Usage:
 
 // cli runs a command line other than the bare "meno" and returns the exit code.
 func cli(args []string, out, errOut io.Writer) int {
+	if len(args) == 0 {
+		return 0
+	}
+	if args[0] == "read" || args[0] == "edit" || args[0] == "write" || args[0] == "search" || args[0] == "files" || isCLIHelp(args) {
+		return menocli.Run(args, menocli.IO{In: os.Stdin, Out: out, Err: errOut}, nil)
+	}
 	switch args[0] {
 	case "daemon":
 		return daemonCLI(args[1:], out, errOut)
-	case "-h", "--help", "help":
-		fmt.Fprint(out, usage)
-		return 0
+	case "-h", "--help":
+		return menocli.Run([]string{"--help"}, menocli.IO{In: os.Stdin, Out: out, Err: errOut}, nil)
+	case "help":
+		return menocli.Run(args, menocli.IO{In: os.Stdin, Out: out, Err: errOut}, nil)
 	case "-v", "--version", "version":
 		fmt.Fprintln(out, "meno", version)
 		return 0

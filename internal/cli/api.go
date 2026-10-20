@@ -1,0 +1,47 @@
+// Package cli parses meno command-line requests and delegates daemon work to an API.
+//
+// Call Run with process arguments excluding the program name. Local file commands
+// do not require an API. Daemon commands use the small API interface in api.go.
+package cli
+
+import "time"
+
+// API is the daemon-facing contract used by CLI commands. Implementations keep transport details outside this package.
+// Every returned struct is a plain CLI-owned value, independent of the wire client.
+type API interface {
+	MCPServers() ([]Server, error)
+	MCPTools(server string) ([]Tool, error)
+	MCPCall(server, tool string, args map[string]any) (MCPResult, error)
+	MCPResults(id string, offset, limit int) (MCPPage, error)
+	MCPAdmin(action, server string) (Server, error)
+	TasksStart(TaskStartRequest) (Task, error)
+	TasksList(includeFinished bool) ([]Task, error)
+	TaskStatus(id string) (Task, error)
+	TaskLogs(id string, from, limit int) (TaskLogs, error)
+	TaskWait(id string, timeout time.Duration) (TaskWait, error)
+	TaskCancel(id string) (Task, error)
+	AgentsSpawn(AgentSpawnRequest) (Agent, error)
+	AgentsList() ([]Agent, error)
+	AgentStatus(id string) (Agent, error)
+	AgentSend(id, text string) (Agent, error)
+	AgentWait(id string, timeout time.Duration) (AgentWait, error)
+	AgentResult(id string) (Agent, error)
+	AgentCancel(id string) (Agent, error)
+	AgentReport(text string) error
+	AgentBlock(reason string) error
+	Ask(form []byte) (map[string]any, error)
+	GoalDone(summary string) error
+	GoalBlocked(reason string) error
+	WebSearch(query string, count int) (WebResult, error)
+	View(path string) (ViewResult, error)
+	Models(provider string, refresh bool) ([]Model, error)
+	Daemon(action string, force bool) (DaemonStatus, error)
+	Sessions(cwd string) ([]Session, error)
+	Send(SendRequest) (SendResult, error)
+	Tail(id string) ([]Event, error)
+}
+
+// APIError identifies a daemon error that maps to a CLI exit code.
+type APIError struct{ Code, Message string }
+
+func (e *APIError) Error() string { return e.Message }
