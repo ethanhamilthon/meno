@@ -18,7 +18,10 @@ const usage = `meno: a terminal coding agent
 Usage:
   meno             open the terminal UI
   meno daemon      manage the background daemon
-  meno daemon      manage the background daemon
+  meno sessions    list sessions
+  meno send        write to a session and print the answer
+  meno tail        show the events of a session
+  meno <group>     agent commands: mcp tasks agents ask goal web view models read edit write search
   meno update      update meno to the latest GitHub release
   meno -v          print the version
   meno -h          print this help
@@ -28,6 +31,9 @@ Usage:
 func cli(args []string, out, errOut io.Writer) int {
 	if len(args) == 0 {
 		return 0
+	}
+	if isDaemonGroup(args[0]) && !isCLIHelp(args) {
+		return runWithDaemon(args, out, errOut)
 	}
 	if args[0] == "read" || args[0] == "edit" || args[0] == "write" || args[0] == "search" || args[0] == "files" || isCLIHelp(args) {
 		return menocli.Run(args, menocli.IO{In: os.Stdin, Out: out, Err: errOut}, nil)

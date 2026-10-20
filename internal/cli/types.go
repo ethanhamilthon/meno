@@ -62,7 +62,7 @@ type TaskLog struct {
 // TaskLogs is a page of task output.
 type TaskLogs struct {
 	Records    []TaskLog `json:"records"`
-	NextCursor string    `json:"nextCursor,omitempty"`
+	NextCursor int64     `json:"nextCursor,omitempty"`
 	Lost       int       `json:"lost,omitempty"`
 	Truncated  bool      `json:"truncated,omitempty"`
 }
