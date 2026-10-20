@@ -25,6 +25,11 @@ type MirrorState struct {
 	Ask                          *proto.AskForm
 	Retry                        *proto.RetryState
 	Metrics                      proto.Metrics
+	Queued                       []string
+	Provider, Effort             string
+	Spent                        float64
+	Context                      int
+	Unpriced                     bool
 	Tasks                        []proto.Task
 	Agents                       []proto.Agent
 	NeedsResync                  bool
@@ -34,7 +39,7 @@ type MirrorState struct {
 func (m *Mirror) Load(s proto.Snapshot) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.State = MirrorState{Session: s.Session, Cwd: s.Cwd, Model: s.Model, Modes: append([]string(nil), s.Modes...), Phase: s.Phase, RequestID: s.RequestID, Running: s.Running, Seq: s.Seq, Turns: append([]proto.Turn(nil), s.Turns...), Live: s.Live, Ask: s.Ask, Retry: s.Retry, Metrics: s.Metrics, Tasks: append([]proto.Task(nil), s.Tasks...), Agents: append([]proto.Agent(nil), s.Agents...)}
+	m.State = MirrorState{Session: s.Session, Cwd: s.Cwd, Model: s.Model, Modes: append([]string(nil), s.Modes...), Phase: s.Phase, RequestID: s.RequestID, Running: s.Running, Seq: s.Seq, Turns: append([]proto.Turn(nil), s.Turns...), Live: s.Live, Ask: s.Ask, Retry: s.Retry, Metrics: s.Metrics, Queued: append([]string(nil), s.Queued...), Provider: s.Provider, Effort: s.Effort, Spent: s.Spent, Context: s.Context, Unpriced: s.Unpriced, Tasks: append([]proto.Task(nil), s.Tasks...), Agents: append([]proto.Agent(nil), s.Agents...)}
 }
 
 // Snapshot returns an isolated copy of the current view state.
@@ -42,6 +47,7 @@ func (m *Mirror) Snapshot() MirrorState {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	s := m.State
+	s.Queued = append([]string(nil), s.Queued...)
 	s.Modes = append([]string(nil), s.Modes...)
 	s.Turns = append([]proto.Turn(nil), s.Turns...)
 	if s.Ask != nil {
@@ -141,6 +147,12 @@ func (m *Mirror) Apply(e proto.Event) {
 			s.Metrics.InputTokens += d.InputTokens
 			s.Metrics.OutputTokens += d.OutputTokens
 			s.Metrics.Cost += d.Cost
+			s.Context = int(d.InputTokens + d.OutputTokens)
+			if d.Priced {
+				s.Spent += d.Cost
+			} else if d.InputTokens+d.OutputTokens > 0 {
+				s.Unpriced = true
+			}
 		}
 	case proto.EventTasksChanged, proto.EventAgentsChanged:
 		s.NeedsResync = true

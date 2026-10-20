@@ -16,7 +16,11 @@ func (e *Engine) Snapshot(ctx context.Context, id string) (proto.Snapshot, error
 	}
 	s.mu.Lock()
 	turns := s.session.Snapshot()
-	out := proto.Snapshot{Session: item(s), AgentToken: s.token.value, Cwd: s.cwd, Model: s.session.Model, Modes: append([]string(nil), s.session.Modes...), Running: s.running, Phase: s.phase, RequestID: s.requestID, TurnCount: len(turns), Live: s.live, Ask: askWire(s.ask), Retry: s.retry, Metrics: s.metrics, Seq: 0, Tasks: []proto.Task{}, Agents: []proto.Agent{}}
+	out := proto.Snapshot{Session: item(s), AgentToken: s.token.value, Cwd: s.cwd, Model: s.session.Model, Modes: append([]string(nil), s.session.Modes...), Running: s.running, Phase: s.phase, RequestID: s.requestID, TurnCount: len(turns), Live: s.live, Ask: askWire(s.ask), Retry: s.retry, Metrics: s.metrics, Seq: 0, Tasks: []proto.Task{}, Agents: []proto.Agent{},
+		Spent: s.session.Metrics.Spent, Context: s.session.Metrics.Context, Unpriced: s.session.Metrics.Unpriced, Provider: s.session.Provider, Effort: s.session.Effort}
+	for _, m := range s.queue.Items() {
+		out.Queued = append(out.Queued, m.Text)
+	}
 	s.mu.Unlock()
 	if e.events != nil {
 		out.Seq = e.events.Sequence(id)
@@ -63,6 +67,10 @@ func (e *Engine) PatchSession(ctx context.Context, id string, q proto.PatchSessi
 		s.prevCwd = s.cwd
 		s.cwd = cwd
 		s.session.Cwd = cwd
+	}
+	if q.Provider != nil {
+		s.session.Provider = *q.Provider
+		s.sticky = nil
 	}
 	if q.Model != nil {
 		s.session.Model = *q.Model

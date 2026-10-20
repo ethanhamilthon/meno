@@ -16,9 +16,20 @@ func (e *Engine) Stop(ctx context.Context, id string, q proto.StopRequest) error
 	if q.RequestID != "" && s.requestID != q.RequestID {
 		return api(proto.CodeConflict, "request id does not match active request")
 	}
+	if s.requestID != "" {
+		s.cancelled[s.requestID] = true
+		if e.events2 != nil {
+			_ = e.events2.CancelOwner(id, s.requestID)
+		}
+		e.tasks.CancelOwner(id, s.requestID)
+	}
+	owner := s.requestID
 	if s.cancel != nil {
 		s.cancel()
 	}
+	s.mu.Unlock()
+	e.cancelChildren(id, owner)
+	s.mu.Lock()
 	return nil
 }
 func (e *Engine) Compact(ctx context.Context, id string, q proto.CompactRequest) (proto.CompactResponse, error) {

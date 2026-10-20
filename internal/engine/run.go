@@ -164,7 +164,7 @@ func (e *Engine) run(ctx context.Context, s *runState, text string, cont bool) {
 	if info, ok := p.Lookup(e.catalog, model); ok {
 		auto = agent.AutoCompact{Window: info.Context, Percent: e.settings.CompactPercent, Keep: e.settings.CompactKeep, SummaryTokens: e.settings.CompactSummaryTokens}
 	}
-	deps := agent.Deps{Client: e.client(p), Provider: p, Model: model, Effort: effort, System: system, Tool: tool, Thinking: e.settings.Thinking != "off", ModelTimeout: spec.modelTimeout, ToolDesc: spec.desc, ToolName: spec.name, DefaultTimeout: e.bashTimeout(), Goal: s.goal, Queue: &s.queue, AutoCompact: auto,
+	deps := agent.Deps{Client: e.client(p), Provider: p, Model: model, Effort: effort, System: system, Tool: tool, Thinking: e.settings.Thinking != "off", ModelTimeout: spec.modelTimeout, ToolDesc: spec.desc, ToolName: spec.name, DefaultTimeout: e.bashTimeout(), Goal: s.goal, Queue: &s.queue, AutoCompact: auto, Events: e.eventSource(s.session.ID), Waiting: func() bool { return e.waitingSubagents(s.session.ID) }, Halt: e.haltFor(s),
 		Cost: func(u llm.Usage) (float64, bool) {
 			mi, ok := p.Lookup(e.catalog, model)
 			if !ok || !mi.CanPrice(u) {
@@ -184,6 +184,9 @@ func (e *Engine) run(ctx context.Context, s *runState, text string, cont bool) {
 }
 
 func (e *Engine) finish(s *runState, err error) {
+	if s.session.Kind == agent.KindChild {
+		defer e.childFinished(s, err)
+	}
 	id := s.session.ID
 	s.mu.Lock()
 	s.running = false

@@ -50,6 +50,8 @@ func (e *Engine) sessionResource(ctx context.Context, method, path, query string
 		out, err = e.goalResource(s, parts[2:], data)
 	case "models":
 		out = e.modelResource(query)
+	case "queue":
+		out = e.queueResource(s, method)
 	case "ask":
 		out, err = e.askResource(ctx, s, q.Call, data)
 	default:
@@ -67,7 +69,10 @@ func (e *Engine) sessionResource(ctx context.Context, method, path, query string
 func (e *Engine) authorized(s *runState, token, group string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return token != "" && token == s.token.value && s.token.groups[group]
+	if token == "" {
+		return true // a human client (the TUI, meno send) has no token and full access
+	}
+	return token == s.token.value && s.token.groups[group]
 }
 func resourceError(err error) error {
 	var apiErr *daemon.APIError

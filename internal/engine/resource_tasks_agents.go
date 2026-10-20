@@ -51,6 +51,9 @@ func (e *Engine) taskResource(ctx context.Context, s *runState, tail []string, m
 	case "wait":
 		timeout := time.Duration(number(data["timeout"])) * time.Second
 		t, to, err := e.tasks.Wait(ctx, s.session.ID, id, timeout)
+		if err == nil && t.Terminal() && !to {
+			e.ackTask(s.session.ID, id)
+		}
 		return map[string]any{"task": t, "waitTimedOut": to}, err
 	case "cancel":
 		t, err := e.tasks.Cancel(s.session.ID, id)

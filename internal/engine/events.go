@@ -153,9 +153,9 @@ func (e *Engine) translate(id string, ev agent.Ev) {
 		}
 		e.publish(id, proto.EventRequest, d)
 	case agent.EvRetry:
-		e.publish(id, proto.EventRetry, proto.RetryData{Attempt: ev.Attempt, InMS: ev.Delay.Milliseconds(), Reason: ev.Err})
+		e.publish(id, proto.EventRetry, proto.RetryData{Attempt: ev.Attempt, Max: ev.Max, InMS: ev.Delay.Milliseconds(), Reason: ev.Err})
 	case agent.EvUsage:
-		e.publish(id, proto.EventUsage, proto.UsageData{InputTokens: int64(ev.Usage.In), OutputTokens: int64(ev.Usage.Out)})
+		e.publish(id, proto.EventUsage, e.usageData(id, ev))
 	case agent.EvInjected:
 		e.publish(id, proto.EventInjected, map[string]any{})
 	case agent.EvAborted:

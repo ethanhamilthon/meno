@@ -3,6 +3,8 @@ package engine
 import (
 	"encoding/json"
 	"fmt"
+	"meno/internal/agent"
+	"meno/internal/attach"
 	"meno/internal/proto"
 	"net/url"
 	"os"
@@ -18,10 +20,26 @@ func (e *Engine) viewResource(s *runState, data map[string]any) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	if _, err = os.Stat(abs); err != nil {
+	raw, err := os.ReadFile(abs)
+	if err != nil {
 		return nil, err
 	}
-	return map[string]any{"path": abs, "displayed": false}, nil
+	img, err := attach.Prepare(raw)
+	if err != nil {
+		return nil, api(proto.CodeBadRequest, "view: "+err.Error())
+	}
+	if s.queue.Viewed() >= attach.MaxImages {
+		return nil, api(proto.CodeConflict, "view: at most "+fmt.Sprint(attach.MaxImages)+" images per step")
+	}
+	if err = (attach.Store{Dir: e.paths.File("attachments")}).Put(img); err != nil {
+		return nil, err
+	}
+	s.queue.Push(agent.Message{
+		Text:        "Image from view(\"" + path + "\"): " + agent.ImageToken(1),
+		Attachments: []agent.Attachment{{N: 1, Mime: img.Mime, SHA: img.SHA, W: img.W, H: img.H}},
+		Viewed:      true,
+	})
+	return map[string]any{"path": abs, "displayed": true}, nil
 }
 func (e *Engine) goalResource(s *runState, tail []string, data map[string]any) (any, error) {
 	if s.goal == nil {

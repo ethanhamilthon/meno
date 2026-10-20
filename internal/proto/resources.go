@@ -52,11 +52,18 @@ type UsageData struct {
 	InputTokens  int64   `json:"input_tokens,omitempty"`
 	OutputTokens int64   `json:"output_tokens,omitempty"`
 	Cost         float64 `json:"cost,omitempty"`
+	Cached       int64   `json:"cached,omitempty"`
+	CacheWrite   int64   `json:"cache_write,omitempty"`
+	CacheKnown   bool    `json:"cache_known,omitempty"`
+	Priced       bool    `json:"priced,omitempty"`
+	Provider     string  `json:"provider,omitempty"`
+	Model        string  `json:"model,omitempty"`
 }
 
 // RetryData carries retry delay and reason information.
 type RetryData struct {
 	Attempt int    `json:"attempt"`
+	Max     int    `json:"max,omitempty"`
 	InMS    int64  `json:"in_ms"`
 	Reason  string `json:"reason,omitempty"`
 }

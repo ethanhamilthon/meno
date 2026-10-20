@@ -129,6 +129,12 @@ type Snapshot struct {
 	Ask        *AskForm    `json:"ask,omitempty"`
 	Retry      *RetryState `json:"retry,omitempty"`
 	Metrics    Metrics     `json:"metrics"`
+	Queued     []string    `json:"queued,omitempty"` // messages waiting for the next step
+	Spent      float64     `json:"spent,omitempty"`
+	Context    int         `json:"context,omitempty"`
+	Unpriced   bool        `json:"unpriced,omitempty"`
+	Provider   string      `json:"provider,omitempty"`
+	Effort     string      `json:"effort,omitempty"`
 	TaskCount  int         `json:"task_count"`
 	AgentCount int         `json:"agent_count"`
 	Turns      []Turn      `json:"turns,omitempty"`
@@ -138,11 +144,12 @@ type Snapshot struct {
 
 // PatchSessionRequest updates session metadata.
 type PatchSessionRequest struct {
-	Name   *string   `json:"name,omitempty"`
-	Cwd    *string   `json:"cwd,omitempty"`
-	Model  *string   `json:"model,omitempty"`
-	Effort *string   `json:"effort,omitempty"`
-	Modes  *[]string `json:"modes,omitempty"`
+	Name     *string   `json:"name,omitempty"`
+	Cwd      *string   `json:"cwd,omitempty"`
+	Provider *string   `json:"provider,omitempty"`
+	Model    *string   `json:"model,omitempty"`
+	Effort   *string   `json:"effort,omitempty"`
+	Modes    *[]string `json:"modes,omitempty"`
 }
 
 // ForkRequest creates a session from an existing session.

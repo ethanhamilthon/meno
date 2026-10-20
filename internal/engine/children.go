@@ -80,7 +80,7 @@ func (h childHost) Spawn(call jsvm.TaskCall, spec map[string]any) (any, error) {
 	sess := agent.NewSession(cwd, model)
 	sess.Kind, sess.ParentID, sess.Provider, sess.Effort = agent.KindChild, parentID, pr, effort
 	sess.AttachDir = h.e.paths.File("attachments")
-	childState := &runState{calls: map[string]*tools.Call{}, session: sess, cwd: cwd, env: cloneMap(h.parent.env), changed: time.Now(), token: tokenState{groups: groupsFor(nil)}}
+	childState := &runState{cancelled: map[string]bool{}, calls: map[string]*tools.Call{}, session: sess, cwd: cwd, env: cloneMap(h.parent.env), changed: time.Now(), token: tokenState{groups: groupsFor(nil)}}
 	tok, err := newToken()
 	if err != nil {
 		return nil, err
@@ -211,12 +211,17 @@ func (h childHost) Report(_ jsvm.TaskCall, text string) error {
 	if strings.TrimSpace(text) == "" {
 		return errors.New("agents.report: text is empty")
 	}
-	h.e.publish(h.parent.session.ParentID, proto.EventAgentsChanged, map[string]any{"id": h.parent.session.ID, "report": text})
+	rec, err := h.e.children.Get(h.parent.session.ParentID, h.parent.session.ID)
+	if err != nil {
+		return err
+	}
+	h.e.enqueueEvent(agent.Event{ID: "report-" + agent.NewID(), Session: rec.Parent, Source: agent.SourceChild, From: rec.ID, Kind: "report",
+		Owner: rec.Owner, Text: "Agent " + rec.ID + " reports: " + eventSnippet(text, 3000), Refs: []string{"child:" + rec.ID}}, false)
 	return nil
 }
 func (h childHost) Block(_ jsvm.TaskCall, reason string) error {
 	h.parent.mu.Lock()
-	h.parent.lastErr = "blocked: " + reason
+	h.parent.block = reason
 	h.parent.mu.Unlock()
 	return nil
 }
