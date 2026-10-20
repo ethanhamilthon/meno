@@ -22,16 +22,12 @@ func (s *Session) userMsg(t Turn) llm.Msg {
 
 func (s *Session) ToMsgs() []llm.Msg {
 	all := s.Snapshot()
-	return s.msgsOf(all, len(all))
+	return s.msgsOf(all)
 }
 
-// msgsOf renders the first n of all turns the way ToMsgs does: the summary
-// first, then the turns. What a turn becomes depends on the turns after it only
-// through spent (a big output is cut once the model has answered it), and that
-// is read from all, so the messages of a head are the messages of the full
-// request and a request built from a head shares the cache of the full one.
-func (s *Session) msgsOf(all []Turn, n int) []llm.Msg {
-	turns := all[:n]
+// msgsOf renders the supplied turns after the summary. Each tool result depends
+// only on its own turn, so later turns never change an already-sent result.
+func (s *Session) msgsOf(turns []Turn) []llm.Msg {
 	var out []llm.Msg
 	if s.Summary != "" {
 		out = append(out, llm.Msg{Role: llm.RoleUser, Text: "Summary of earlier conversation:\n" + s.Summary})
@@ -45,12 +41,12 @@ func (s *Session) msgsOf(all []Turn, n int) []llm.Msg {
 		if t.Replay != nil {
 			out = append(out, *t.Replay)
 			if t.CallID != "" {
-				out = append(out, resultMsg(all, i))
+				out = append(out, toolResult(turns[i]))
 			}
 			for i+1 < len(turns) && t.ReplayGroup != "" && turns[i+1].ReplayGroup == t.ReplayGroup {
 				i++
 				if turns[i].CallID != "" {
-					out = append(out, resultMsg(all, i))
+					out = append(out, toolResult(turns[i]))
 				}
 			}
 			continue
@@ -60,7 +56,7 @@ func (s *Session) msgsOf(all []Turn, n int) []llm.Msg {
 			out = append(out, s.userMsg(t))
 		case t.Code != "" || t.CallID != "":
 			out = append(out, llm.Msg{Role: llm.RoleAssistant, Text: t.Text, CallID: t.CallID, Code: t.Code, ToolName: s.legacyToolName()})
-			out = append(out, resultMsg(all, i))
+			out = append(out, toolResult(turns[i]))
 		case t.Role == llm.RoleAssistant:
 			out = append(out, llm.Msg{Role: llm.RoleAssistant, Text: t.Text})
 		}

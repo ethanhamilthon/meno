@@ -1,8 +1,10 @@
 # Upgrading, data and privacy
 
-## Unreleased: no execution timeouts, parallel bash calls
+## 0.4.1: stable history, no execution timeouts, parallel bash calls
 
 The settings `bash timeout`, `bash strings` and `bash string lines` are gone; old settings files that hold them still load and the keys disappear on the next save. A bash call or a task runs until it ends, you stop it, or it is cancelled. `meno tasks start --timeout` now fails; `meno tasks wait --timeout` is unchanged. Old turns that timed out still show as they did.
+
+Already-sent tool results are no longer shortened on later requests, preserving provider prefix-cache reuse. The 56 KB source output cap and automatic compaction are unchanged. No data migration is needed; existing stored outputs are used as-is. The Bash prompt now makes clear that each call starts in the session working directory, so a redundant `cd` is unnecessary.
 
 ## 0.4.0: bash tool and daemon
 

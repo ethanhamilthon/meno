@@ -67,9 +67,9 @@ func bashEditingSection() string {
 }
 
 func bashGuidelines(groups []string) string {
-	first := "- Your only tool is bash. Each call starts a fresh shell; use files for state."
+	first := "- Your only tool is bash. Each Bash call starts a fresh shell in the working directory shown in the environment section. Use relative paths; do not prefix commands with cd to that directory. Use cd only when a command needs a different directory. Directory changes do not persist between calls; use files for state."
 	if allows(groups, "tasks") {
-		first = "- Your only tool is bash. Each call starts a fresh shell; use files for state and meno tasks start for background work."
+		first += " Use meno tasks start for background work."
 	}
 	lines := []string{first, "- Read skills with cat. python3 and jq may be missing; check with command -v.", "- Use a quoted heredoc for multi-line file edits.", "- Results end with [exit N] or [cancelled]. Calls of one response run in parallel; put dependent steps in one call. A call has no time limit; if the user writes meanwhile it moves to a background task."}
 	if allows(groups, "ask") {

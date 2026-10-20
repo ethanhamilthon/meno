@@ -64,7 +64,7 @@ func CompactWith(ctx context.Context, cl llm.Client, p llm.Provider, model strin
 	var summary string
 	if o.System != "" {
 		req := llm.Request{Provider: p, Model: model, Effort: o.Effort, System: o.System, Tools: true, ToolDescription: o.ToolDesc, ToolName: o.ToolName,
-			Msgs: append(s.msgsOf(all, cut), llm.Msg{Role: llm.RoleUser, Text: instruction + "\nThe last " + strconv.Itoa(len(tail)) + " messages stay as they are and are not part of this summary. Answer with the summary as text; do not call any tool."})}
+			Msgs: append(s.msgsOf(all[:cut]), llm.Msg{Role: llm.RoleUser, Text: instruction + "\nThe last " + strconv.Itoa(len(tail)) + " messages stay as they are and are not part of this summary. Answer with the summary as text; do not call any tool."})}
 		summary, err = askSummary(ctx, cl, req, reportUsage)
 		if err != nil && ctx.Err() != nil {
 			return before, before, ctx.Err()

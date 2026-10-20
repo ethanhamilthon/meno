@@ -3,7 +3,10 @@
 The model has one tool, `bash`. Each call runs one command in a fresh `/bin/sh` in the
 session's working directory. Nothing is shared between calls: durable state lives in files
 and in background tasks. The result ends with `[exit N]` or
-`[cancelled]`. Output is bounded and the full text is kept on disk.
+`[cancelled]`. Output is capped once at the source (32 KB of head and 24 KB of
+tail), and the full text is kept on disk. Already-sent tool results are not
+shortened on later requests; automatic compaction still summarizes older
+conversation when needed.
 
 Calls have no time limit. All calls of one model response run in parallel and start after the
 response is complete; results are stored in call order, and a failing call does not stop the
