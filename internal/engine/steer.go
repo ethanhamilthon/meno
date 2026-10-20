@@ -44,6 +44,8 @@ func (e *Engine) wakeIfPending(sid string) {
 	if err != nil || e.events2 == nil {
 		return
 	}
+	reloadErr := e.reloadConfig()
+	in := e.selectionInput()
 	s.mu.Lock()
 	if s.running || s.ask != nil || e.isClosed() {
 		s.mu.Unlock()
@@ -73,12 +75,26 @@ func (e *Engine) wakeIfPending(sid string) {
 	} else {
 		s.requestID = agent.NewID()
 	}
+	// A continuation needs a usable model like a message does. Without one the
+	// events stay pending and the next message or :model repairs the session.
+	repaired := false
+	if reloadErr == nil {
+		repaired, reloadErr = resolveSelection(s, in)
+	}
+	if reloadErr != nil {
+		s.mu.Unlock()
+		e.publish(sid, proto.EventError, proto.ErrorData{Message: reloadErr.Error()})
+		return
+	}
 	s.running, s.phase = true, "preparing"
 	ctx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
 	s.live = proto.LiveState{Calls: []proto.CallState{}}
 	s.mu.Unlock()
 	e.publish(sid, proto.EventStatus, proto.StatusData{Running: true, Phase: "preparing"})
+	if repaired {
+		e.publish(sid, proto.EventSessionChanged, proto.ChangedData{Fields: []string{"provider", "model", "effort"}})
+	}
 	e.launch(ctx, s, "", true)
 }
 

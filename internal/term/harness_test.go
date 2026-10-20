@@ -61,6 +61,9 @@ type options struct {
 	proto      string
 	home       string // reuse a home directory (for :resume across runs)
 	firstRun   bool   // no provider yet: meno opens the login list that cannot be closed
+	// jsonDefaults keeps the default provider and model only in settings.json and
+	// leaves the SQLite settings table empty, like a home the daemon has written.
+	jsonDefaults bool
 }
 
 // start launches meno. With opts.fake set, the provider and model are already
@@ -85,7 +88,11 @@ func start(t *testing.T, o options) *session {
 		}
 		s := config.DefaultSettings()
 		s.Provider, s.Model = "fake", "fake-model"
-		if err := st.SaveSettings(s); err != nil {
+		if o.jsonDefaults {
+			if err := config.SaveSettingsFile(st.P.SettingsFile(), s); err != nil {
+				t.Fatal(err)
+			}
+		} else if err := st.SaveSettings(s); err != nil {
 			t.Fatal(err)
 		}
 		// Release meno.db in this process before meno opens it.

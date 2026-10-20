@@ -154,7 +154,9 @@ func (a *App) switchTo(rt *Runtime) {
 // reasoning effort. A session that never had one uses the default from the
 // settings, which is the last model picked with :model.
 func (a *App) selection() (provider, model, effort string) {
-	if s := a.st.Session; s != nil && s.Provider != "" && s.Model != "" {
+	// Only a wholly unset session previews the defaults, as the daemon will
+	// resolve it. A partial pair is shown as it is: the user must pick a model.
+	if s := a.st.Session; s != nil && (s.Provider != "" || s.Model != "") {
 		return s.Provider, s.Model, s.Effort
 	}
 	st := a.st.Settings

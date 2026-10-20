@@ -125,7 +125,7 @@ func New(o Options) (*Engine, error) {
 	}
 	paths := config.Paths{Home: o.Home}
 	st := config.NewStore(paths)
-	settings, err := st.LoadSettings()
+	settings, err := loadSettings(o.Resources, st)
 	if err != nil {
 		return nil, err
 	}

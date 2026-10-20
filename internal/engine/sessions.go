@@ -43,7 +43,9 @@ func (e *Engine) ListSessions(ctx context.Context, q proto.SessionsListRequest) 
 	return out, nil
 }
 func (e *Engine) CreateSession(ctx context.Context, q proto.SessionCreateRequest) (proto.SessionCreateResponse, error) {
-	e.reloadConfig()
+	if err := e.reloadConfig(); err != nil {
+		return proto.SessionCreateResponse{}, api(proto.CodeInternal, err.Error())
+	}
 	cwd := q.Cwd
 	if cwd == "" {
 		cwd, _ = os.Getwd()

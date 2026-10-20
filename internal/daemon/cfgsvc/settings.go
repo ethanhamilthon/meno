@@ -2,7 +2,6 @@ package cfgsvc
 
 import (
 	"encoding/json"
-	"os"
 
 	"meno/internal/config"
 	"meno/internal/proto"
@@ -20,25 +19,17 @@ func (s *Service) readSettings() (config.Settings, error) {
 	if changed && s.settingsLoaded {
 		s.changed("settings_changed")
 	}
-	var settings config.Settings
-	if stamp.exists {
-		b, err := os.ReadFile(path)
-		if err != nil {
-			return settings, err
-		}
-		if err := json.Unmarshal(b, &settings); err != nil {
-			return settings, err
-		}
-	} else {
-		var err error
-		settings, err = s.store.LoadSettings()
-		if err != nil {
-			return settings, err
-		}
+	settings, err := s.store.LoadCurrentSettings()
+	if err != nil {
+		return settings, err
 	}
 	s.settings, s.settingsLoaded = settings, true
 	return settings, nil
 }
+
+// Settings is the current settings snapshot for the engine inside the daemon
+// process. It is the same snapshot the settings route serves.
+func (s *Service) Settings() (config.Settings, error) { return s.readSettings() }
 
 func (s *Service) settingsResource(method string, req proto.ResourceRequest) (any, error) {
 	if err := checkMethod(method, "GET", "PUT"); err != nil {

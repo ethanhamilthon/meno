@@ -24,6 +24,10 @@ func (e *Engine) Message(ctx context.Context, id string, q proto.MessageRequest)
 	if strings.TrimSpace(q.Text) == "" && len(q.Attachments) == 0 {
 		return proto.MessageResponse{}, api(proto.CodeBadRequest, "message is empty")
 	}
+	// Read the current settings before the session lock; a failed read must not
+	// start a run with stale or empty defaults.
+	reloadErr := e.reloadConfig()
+	in := e.selectionInput()
 	s.mu.Lock()
 	if s.ask != nil {
 		s.mu.Unlock()
@@ -50,6 +54,15 @@ func (e *Engine) Message(ctx context.Context, id string, q proto.MessageRequest)
 			e.publish(id, proto.EventTurnAdded, proto.TurnAddedData{Turn: turnWire(turns[len(turns)-1])})
 		}
 		return proto.MessageResponse{RequestID: rid, Queued: true}, nil
+	}
+	if reloadErr != nil {
+		s.mu.Unlock()
+		return proto.MessageResponse{}, api(proto.CodeInternal, reloadErr.Error())
+	}
+	repaired, err := resolveSelection(s, in)
+	if err != nil {
+		s.mu.Unlock()
+		return proto.MessageResponse{}, err
 	}
 	if len(q.Modes) > 0 {
 		oldModes := strings.Join(s.session.Modes, " ")
@@ -88,6 +101,9 @@ func (e *Engine) Message(ctx context.Context, id string, q proto.MessageRequest)
 	s.mu.Unlock()
 	e.publish(id, proto.EventTurnAdded, proto.TurnAddedData{Turn: turnWire(turns[len(turns)-1])})
 	e.publish(id, proto.EventStatus, proto.StatusData{Running: true, Phase: "preparing"})
+	if repaired {
+		e.publish(id, proto.EventSessionChanged, proto.ChangedData{Fields: []string{"provider", "model", "effort"}})
+	}
 	e.launch(runCtx, s, q.Text, false)
 	return proto.MessageResponse{RequestID: rid}, nil
 }
@@ -128,7 +144,10 @@ func (e *Engine) appendMessage(s *runState, q proto.MessageRequest) error {
 }
 
 func (e *Engine) run(ctx context.Context, s *runState, text string, cont bool) {
-	e.reloadConfig()
+	if err := e.reloadConfig(); err != nil {
+		e.finish(s, err)
+		return
+	}
 	s.mu.Lock()
 	providerName := s.pinProvider
 	s.mu.Unlock()
