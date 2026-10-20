@@ -52,8 +52,6 @@ func (a *App) jsOpts() ui.JSOpts {
 	}
 	js.Summary = a.st.Settings.TurnSummary != "off"
 	js.Images = a.imageOpts()
-	js.FoldStrings = a.st.Settings.BashStrings == "lines"
-	js.FoldLines = a.st.Settings.BashStringLines
 	return js
 }
 

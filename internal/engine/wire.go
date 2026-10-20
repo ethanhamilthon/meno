@@ -41,7 +41,7 @@ func turnWire(t agent.Turn) proto.Turn {
 		parts = append(parts, proto.TurnPart{Type: "thinking", Text: t.Thinking})
 	}
 	if t.Code != "" || t.CallID != "" {
-		c := &proto.CallState{CallID: t.CallID, Command: t.Code, Title: t.Title, Output: t.Output, ElapsedMS: t.ElapsedMs, LimitMS: t.LimitMs, TimedOut: t.TimedOut}
+		c := &proto.CallState{CallID: t.CallID, Command: t.Code, Title: t.Title, Output: t.Output, ElapsedMS: t.ElapsedMs}
 		parts = append(parts, proto.TurnPart{Type: "call", Call: c})
 	}
 	if t.Err != "" {

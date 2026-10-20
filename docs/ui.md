@@ -65,7 +65,7 @@ each run (time, requests, tool calls, tokens, cache hit rate, cost).
 ## Tool-call display
 
 The timeline shows the command of each bash call once the whole call has arrived; while it
-streams, it stays plain. The settings `bash code`, `bash output`, `bash strings` and
+streams, it stays plain. The settings `bash code`, `bash output` and
 `bash timing` (see [settings](settings.md)) choose how much of the command, its output and its
 duration you see. Display settings never change what is executed or what the model sees.
 

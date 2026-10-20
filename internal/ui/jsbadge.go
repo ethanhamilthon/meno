@@ -22,15 +22,12 @@ func badgeDur(d time.Duration) string {
 }
 
 // timingBadge is the small mark in the top right corner of a js block: a spinner
-// with the elapsed time and the limit while the call runs ("⠹ 2.3s/120s"), then
+// with the elapsed time while the call runs ("⠹ 2.3s"), then
 // a check ("✓ 2.3s") or a cross ("✕ 2.3s") with the time it took. ok is false
 // when nothing should be shown.
 func timingBadge(t Turn, js JSOpts) (segs []Seg, ok bool) {
 	if js.Exec {
 		segs = []Seg{{Text: spinFrame(js.Spin) + " ", FG: Yellow}, {Text: badgeDur(js.Elapsed), FG: Yellow}}
-		if js.Limit > 0 {
-			segs = append(segs, Seg{Text: "/" + badgeDur(js.Limit), FG: FgDim})
-		}
 		return segs, js.Timing != TimingOff
 	}
 	if js.Timing == TimingOff || t.ElapsedMs <= 0 && !t.TimedOut {
@@ -40,9 +37,6 @@ func timingBadge(t Turn, js JSOpts) (segs []Seg, ok bool) {
 		return nil, false
 	}
 	took := time.Duration(t.ElapsedMs) * time.Millisecond
-	if t.TimedOut && took <= 0 {
-		took = time.Duration(t.LimitMs) * time.Millisecond
-	}
 	switch {
 	case t.TimedOut || t.Err != "":
 		segs = []Seg{{Text: "✕ ", FG: Red}, {Text: badgeDur(took), FG: Red}}

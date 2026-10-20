@@ -180,12 +180,12 @@ func (e *Engine) run(ctx context.Context, s *runState, text string, cont bool) {
 	}
 	s.prompt = ps
 	spec := e.toolSpecFor(s)
-	tool := e.newBashRunner(s, e.bashTimeout())
+	tool := e.newBashRunner(s)
 	auto := agent.AutoCompact{}
 	if info, ok := p.Lookup(e.catalogView(), model); ok {
 		auto = agent.AutoCompact{Window: info.Context, Percent: e.cfg().CompactPercent, Keep: e.cfg().CompactKeep, SummaryTokens: e.cfg().CompactSummaryTokens}
 	}
-	deps := agent.Deps{Client: e.client(p), Provider: p, Model: model, Effort: effort, System: system, Tool: tool, Thinking: e.cfg().Thinking != "off", ModelTimeout: spec.modelTimeout, ToolDesc: spec.desc, ToolName: spec.name, DefaultTimeout: e.bashTimeout(), Goal: s.goal, Queue: &s.queue, AutoCompact: auto, Events: e.eventSource(s.session.ID),
+	deps := agent.Deps{Client: e.client(p), Provider: p, Model: model, Effort: effort, System: system, Tool: tool, Thinking: e.cfg().Thinking != "off", ToolDesc: spec.desc, ToolName: spec.name, Goal: s.goal, Queue: &s.queue, AutoCompact: auto, Events: e.eventSource(s.session.ID),
 		Cost: func(u llm.Usage) (float64, bool) {
 			mi, ok := p.Lookup(e.catalogView(), model)
 			if !ok || !mi.CanPrice(u) {
@@ -198,12 +198,6 @@ func (e *Engine) run(ctx context.Context, s *runState, text string, cont bool) {
 	err = safe.Call(func() { err = (&agent.Runner{D: deps}).Continue(ctx, s.session) })
 	if err == nil {
 		err = ctx.Err()
-	}
-	if errors.Is(err, context.Canceled) {
-		s.mu.Lock()
-		rid := s.requestID
-		s.mu.Unlock()
-		e.tasks.CancelOwner(s.session.ID, rid)
 	}
 	e.finish(s, err)
 }

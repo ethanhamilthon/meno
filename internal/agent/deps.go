@@ -1,7 +1,6 @@
 package agent
 
 import (
-	"context"
 	"time"
 
 	"meno/internal/llm"
@@ -21,12 +20,11 @@ type Ev struct {
 	// starts after Delay; Err is why the previous one failed.
 	Attempt, Max int
 	Delay        time.Duration
-	// Limit is the timeout of the js call an EvJSStart announces (0 = none);
-	// Elapsed and TimedOut report how an EvJSEnd call went.
-	Limit    time.Duration
-	Elapsed  time.Duration
-	TimedOut bool
-	Usage    llm.Usage
+	// Elapsed reports how long an EvJSEnd call ran; TaskID is set when the call
+	// was moved to a background task (the call then has its synthetic result).
+	Elapsed time.Duration
+	TaskID  string
+	Usage   llm.Usage
 	// Req is the request an EvRequest announces. Fingerprinting it costs a pass
 	// over the whole history, so the consumer does that only when it needs to.
 	Req      *llm.Request
@@ -56,11 +54,32 @@ const (
 	EvRetry = "retry"
 )
 
-// Deps is everything a Runner needs.
-type ToolRunner interface {
-	Run(context.Context, string, time.Duration) (string, string, string, bool, time.Duration)
-	Timeout() time.Duration
+// ToolResult is what a finished tool call produced.
+type ToolResult struct {
+	Output string
+	// Err is a failure to run the call at all (not a non-zero exit).
+	Err string
 }
+
+// RunningCall is a tool call that has been started.
+type RunningCall interface {
+	// Done is closed when the call has finished.
+	Done() <-chan struct{}
+	// Result is valid once Done is closed.
+	Result() ToolResult
+	// Cancel stops the call unless it was promoted.
+	Cancel()
+	// Promote turns the unfinished call into a background task and returns its
+	// ID. ok is false when the call finished first; its normal result stands.
+	Promote() (taskID string, ok bool)
+}
+
+// ToolRunner starts tool calls. Start returns at once; the call runs on its own.
+type ToolRunner interface {
+	Start(callID, code string) (RunningCall, error)
+}
+
+// Deps is everything a Runner needs.
 
 type Deps struct {
 	Client   llm.Client
@@ -70,15 +89,10 @@ type Deps struct {
 	System   string
 	Tool     ToolRunner
 	Thinking bool
-	// ModelTimeout lets the model pass a timeout with every js call.
-	ModelTimeout bool
 	// ToolDesc is the description of the js tool (prompt.ToolDescription).
 	ToolDesc string
 	// ToolName is the name of the tool: "" or "js" for the js tool, "bash" for the shell tool.
 	ToolName string
-	// DefaultTimeout is the limit of a call whose model named none, in model-timeout
-	// mode (0 means 30 s).
-	DefaultTimeout time.Duration
 	// Goal, when set, keeps the run going until the agent gives a verdict.
 	Goal *Goal
 	// Retry is the policy for failed model requests (zero value: defaults).

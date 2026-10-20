@@ -86,9 +86,12 @@ func TestMCPArgumentForms(t *testing.T) {
 func TestTasksAndExitCodes(t *testing.T) {
 	var e string
 	a := &fakeAPI{wait: TaskWait{Task: Task{ID: "t1"}, TimedOut: true}}
-	c, _, _ := run([]string{"tasks", "start", "echo", "hi", "--cwd", "/tmp", "--env", "A=2", "--env", "B=3", "--timeout", "10"}, a, "")
+	c, _, _ := run([]string{"tasks", "start", "echo", "hi", "--cwd", "/tmp", "--env", "A=2", "--env", "B=3"}, a, "")
 	if c != 0 || a.start.Command != "echo hi" || a.start.Env["A"] != "2" || a.start.Env["B"] != "3" {
 		t.Fatalf("%d %#v", c, a.start)
+	}
+	if c, _, e := run([]string{"tasks", "start", "echo", "--timeout", "10"}, a, ""); c != 2 || !strings.Contains(e, "no --timeout") {
+		t.Fatalf("an obsolete timeout must fail clearly: %d %s", c, e)
 	}
 	c, _, _ = run([]string{"tasks", "wait", "t1"}, a, "")
 	if c != 124 {

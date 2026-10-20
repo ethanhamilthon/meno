@@ -6,6 +6,8 @@
 - **Removed web search.** `meno web`, the Web settings tab and the `websearch` and `websearch_key` settings are gone; the agent reaches the web with `curl` or an MCP server.
 - **Removed effort routing.** The Routing settings tab and the `effort_router*` settings are gone; a run keeps the effort of its session. Old settings files that still hold the removed keys load, and the keys disappear on the next save.
 - **Fixed the error `provider "" is not configured`.** The UI and the engine now read one settings source (`settings.json` first, SQLite only when the file is absent). A session with no provider and model takes the current defaults before its next message; a partial pair or a removed provider is reported and never replaced silently.
+- **Bash calls run in parallel and have no time limit.** All calls of one model response start together; results keep call order and a failing call does not stop the others. The `bash timeout`, `bash strings` and `bash string lines` settings, the model `timeout` argument and `meno tasks start --timeout` (now an error) are removed.
+- **Your message moves running calls to background tasks.** The model gets one result per call with the task ID and answers at once; task notices and goal events never interrupt a call. Stop cancels foreground calls only: tasks, started or moved, keep running.
 - Removed dead code and trimmed the real-terminal suite and the benchmarks.
 
 ## 0.4.0

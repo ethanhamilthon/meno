@@ -33,13 +33,15 @@ func (e *Engine) taskResource(ctx context.Context, s *runState, tail []string, m
 		if cwd == "" {
 			cwd = s.cwd
 		}
-		timeout := time.Duration(number(data["timeout"])) * time.Second
+		if _, ok := data["timeout"]; ok {
+			return nil, api(proto.CodeBadRequest, "tasks start has no timeout; a task runs until it ends or is cancelled (meno tasks cancel ID)")
+		}
 		notify := boolValue(data, "notify", true)
 		s.mu.Lock()
 		owner, base := s.requestID, envSlice(s.env)
 		s.mu.Unlock()
 		env := append(base, mapEnv(data["env"])...)
-		t, err := e.tasks.Start(proc.StartOptions{Session: s.session.ID, Owner: owner, Name: stringValue(data, "name"), Command: cmd, Cwd: cwd, Env: env, Timeout: timeout, Notify: notify})
+		t, err := e.tasks.Start(proc.StartOptions{Session: s.session.ID, Owner: owner, Name: stringValue(data, "name"), Command: cmd, Cwd: cwd, Env: env, Notify: notify})
 		if err == nil {
 			e.publish(s.session.ID, proto.EventTasksChanged, []string{t.ID})
 		}

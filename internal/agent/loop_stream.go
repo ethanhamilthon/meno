@@ -3,7 +3,6 @@ package agent
 import (
 	"context"
 	"errors"
-	"time"
 
 	"meno/internal/llm"
 )
@@ -14,7 +13,7 @@ func (r *Runner) streamAttempt(ctx context.Context, s *Session) ([]call, llm.Msg
 	var streamErr error
 	req := llm.Request{
 		Provider: r.D.Provider, Model: r.D.Model, Effort: r.D.Effort,
-		System: r.D.System, Msgs: s.ToMsgs(), Tools: true, ToolDescription: r.D.ToolDesc, ToolName: r.D.ToolName, ModelTimeout: r.D.ModelTimeout,
+		System: r.D.System, Msgs: s.ToMsgs(), Tools: true, ToolDescription: r.D.ToolDesc, ToolName: r.D.ToolName,
 	}
 	r.sent = req.Msgs
 	r.emit(s, Ev{Kind: EvRequest, Req: &req})
@@ -48,9 +47,6 @@ func (r *Runner) streamAttempt(ctx context.Context, s *Session) ([]call, llm.Msg
 				args = legacy.Calls()[0].Arguments
 			}
 			c := call{ID: id, Code: e.Code, Title: llm.ToolTitle(e.Arguments)}
-			if r.D.ModelTimeout && e.Arguments != "" {
-				_, c.Timeout = llm.ToolArgs(e.Arguments)
-			}
 			calls = append(calls, c)
 			replay.ToolCalls = append(replay.ToolCalls, llm.ToolCall{ID: id, Name: name, Arguments: args})
 			if len(e.Item) != 0 {
@@ -72,63 +68,6 @@ func (r *Runner) streamAttempt(ctx context.Context, s *Session) ([]call, llm.Msg
 	}
 	return calls, replay, err
 }
-
-func (r *Runner) runJS(ctx context.Context, s *Session, text string, c call, replay *llm.Msg, group string) error {
-	if c.ID == "" {
-		c.ID = NewID()
-	}
-	limit := r.limit(c)
-	r.emit(s, Ev{Kind: EvJSStart, Code: c.Code, Title: c.Title, CallID: c.ID, Limit: limit})
-	output, value, toolErr, timedOut, elapsed := r.exec(ctx, c)
-	turn := Turn{Replay: replay, ReplayGroup: group, Role: llm.RoleAssistant, Text: text, CallID: c.ID, Code: c.Code, Title: c.Title, Output: output, Err: toolErr, Time: nowUTC()}
-	if elapsed > 0 {
-		turn.ElapsedMs = max(1, elapsed.Milliseconds())
-		turn.LimitMs = limit.Milliseconds()
-		turn.TimedOut = timedOut
-		if r.cur != nil {
-			r.cur.jsCalls++
-			r.cur.jsTime += elapsed
-		}
-	}
-	if toolErr == "" && value != "" {
-		turn.Output += value
-	}
-	s.Append(turn)
-	r.emit(s, Ev{Kind: EvJSEnd, CallID: c.ID, Output: turn.Output, Err: toolErr, Elapsed: elapsed, TimedOut: timedOut})
-	return ctx.Err()
-}
-
-// exec runs one call. With ModelTimeout the call's own timeout wins; a model
-// that names none gets the default, and 0 or less means no limit.
-func (r *Runner) exec(ctx context.Context, c call) (string, string, string, bool, time.Duration) {
-	if r.D.Tool == nil {
-		return "", "", "tool runner is not configured", false, 0
-	}
-	return r.D.Tool.Run(WithCallID(ctx, c.ID), c.Code, r.limit(c))
-}
-
-// limit is the timeout the call runs under (0 = none), as exec applies it.
-func (r *Runner) limit(c call) time.Duration {
-	if !r.D.ModelTimeout {
-		if r.D.Tool == nil {
-			return 0
-		}
-		return r.D.Tool.Timeout()
-	}
-	d := defaultModelTimeout
-	if r.D.DefaultTimeout > 0 {
-		d = r.D.DefaultTimeout
-	}
-	if c.Timeout != nil {
-		d = time.Duration(*c.Timeout * float64(time.Second))
-		if d < 0 {
-			d = 0
-		}
-	}
-	return d
-}
-
-const defaultModelTimeout = 30 * time.Second
 
 // calibrate compares the estimate of the request just answered with the input
 // tokens the provider reported, so the next estimate is closer.

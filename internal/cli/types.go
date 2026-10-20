@@ -37,7 +37,6 @@ type TaskStartRequest struct {
 	CWD     string            `json:"cwd,omitempty"`
 	Env     map[string]string `json:"env,omitempty"`
 	Name    string            `json:"name,omitempty"`
-	Timeout int               `json:"timeout,omitempty"`
 	Notify  bool              `json:"notify"`
 }
 

@@ -105,7 +105,7 @@ func (r *Runner) maybeCompact(ctx context.Context, s *Session) error {
 		}
 		return nil
 	}
-	_, _, err := CompactWith(ctx, r.D.Client, r.D.Provider, r.D.Model, s, CompactOptions{Keep: ac.keep(), SummaryTokens: ac.summary(), System: r.D.System, Effort: r.D.Effort, ModelTimeout: r.D.ModelTimeout, ToolDesc: r.D.ToolDesc},
+	_, _, err := CompactWith(ctx, r.D.Client, r.D.Provider, r.D.Model, s, CompactOptions{Keep: ac.keep(), SummaryTokens: ac.summary(), System: r.D.System, Effort: r.D.Effort, ToolDesc: r.D.ToolDesc},
 		func(u llm.Usage) { r.emit(s, Ev{Kind: EvUsage, Usage: u, Provider: r.D.Provider, Model: r.D.Model}) })
 	if err != nil {
 		if ctx.Err() != nil {

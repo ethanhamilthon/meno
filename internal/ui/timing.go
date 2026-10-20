@@ -72,7 +72,7 @@ func spinFrame(i int) string {
 
 // slowCall is a call that took at least half of its limit, or ten seconds.
 func slowCall(t Turn) bool {
-	return t.TimedOut || t.ElapsedMs >= 10000 || t.LimitMs > 0 && t.ElapsedMs*2 >= t.LimitMs
+	return t.TimedOut || t.ElapsedMs >= 10000
 }
 
 func plural(n int, one string) string {

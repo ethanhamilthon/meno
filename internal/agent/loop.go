@@ -96,20 +96,8 @@ func (r *Runner) loop(ctx context.Context, s *Session) error {
 			r.emit(s, Ev{Kind: EvDone})
 			return nil
 		}
-		group := NewID()
-		for i, c := range calls {
-			var history *llm.Msg
-			if i == 0 {
-				history = &replay
-			}
-			if err := r.runJS(ctx, s, text, c, history, group); err != nil {
-				// Every announced call needs an output, including unexecuted calls.
-				for _, pending := range calls[i+1:] {
-					s.Append(Turn{Role: llm.RoleAssistant, CallID: pending.ID, Code: pending.Code, Err: "execution canceled", ReplayGroup: group})
-				}
-				return r.abort(s)
-			}
-			text = ""
+		if err := r.runBatch(ctx, s, text, calls, &replay); err != nil {
+			return r.abort(s)
 		}
 	}
 }
@@ -173,10 +161,9 @@ func (r *Runner) abort(s *Session) error {
 }
 
 type call struct {
-	ID      string
-	Code    string
-	Title   string
-	Timeout *float64 // seconds, when the model asked for one
+	ID    string
+	Code  string
+	Title string
 }
 
 // streamOnce asks the model once (with retries) and returns the calls it made.

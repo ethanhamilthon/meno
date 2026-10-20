@@ -19,11 +19,10 @@ type CompactOptions struct {
 	// asked for with that system prompt, the tool schema and the messages of
 	// the part being summarized, so the provider's prefix cache serves almost
 	// all of it. If that fails, the transcript is sent as a single message.
-	System       string
-	Effort       string
-	ModelTimeout bool
-	ToolDesc     string
-	ToolName     string
+	System   string
+	Effort   string
+	ToolDesc string
+	ToolName string
 }
 
 // CompactWith is Compact with options.
@@ -64,7 +63,7 @@ func CompactWith(ctx context.Context, cl llm.Client, p llm.Provider, model strin
 	instruction := summaryInstruction(o.SummaryTokens)
 	var summary string
 	if o.System != "" {
-		req := llm.Request{Provider: p, Model: model, Effort: o.Effort, System: o.System, Tools: true, ToolDescription: o.ToolDesc, ToolName: o.ToolName, ModelTimeout: o.ModelTimeout,
+		req := llm.Request{Provider: p, Model: model, Effort: o.Effort, System: o.System, Tools: true, ToolDescription: o.ToolDesc, ToolName: o.ToolName,
 			Msgs: append(s.msgsOf(all, cut), llm.Msg{Role: llm.RoleUser, Text: instruction + "\nThe last " + strconv.Itoa(len(tail)) + " messages stay as they are and are not part of this summary. Answer with the summary as text; do not call any tool."})}
 		summary, err = askSummary(ctx, cl, req, reportUsage)
 		if err != nil && ctx.Err() != nil {

@@ -68,7 +68,7 @@ func (s *sessView) add(t proto.Turn) { s.turns = append(s.turns, turnFromWire(t)
 // turnFromWire converts a wire turn into what the transcript draws.
 func turnFromWire(t proto.Turn) ui.Turn {
 	v := ui.Turn{ID: t.ID, Role: t.Role, Kind: t.Kind, Text: t.Content, Mode: t.Mode, Thinking: t.Thinking, Err: t.Err,
-		ElapsedMs: t.ElapsedMS, LimitMs: t.LimitMS, TimedOut: t.TimedOut}
+		ElapsedMs: t.ElapsedMS, TimedOut: t.TimedOut}
 	if v.ID == "0" {
 		v.ID = ""
 	}
@@ -76,7 +76,7 @@ func turnFromWire(t proto.Turn) ui.Turn {
 		if p.Type == "call" && p.Call != nil {
 			v.CallID, v.Code, v.Title, v.Output = p.Call.CallID, p.Call.Command, p.Call.Title, p.Call.Output
 			if v.ElapsedMs == 0 {
-				v.ElapsedMs, v.LimitMs, v.TimedOut = p.Call.ElapsedMS, p.Call.LimitMS, p.Call.TimedOut
+				v.ElapsedMs = p.Call.ElapsedMS
 			}
 		}
 		if p.Type == "thinking" && v.Thinking == "" {

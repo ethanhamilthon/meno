@@ -3,9 +3,7 @@ package config
 import (
 	"path/filepath"
 	"reflect"
-	"strconv"
 	"testing"
-	"time"
 
 	"meno/internal/llm"
 	"meno/internal/mcp"
@@ -27,10 +25,10 @@ func TestSettingsCycleWraps(t *testing.T) {
 
 func TestSettingsSetValidates(t *testing.T) {
 	s := DefaultSettings()
-	if err := s.Set("bash_timeout", "model"); err != nil || s.BashTimeout != "model" || !s.BashModelTimeout() {
-		t.Fatalf("valid set failed: %v", err)
-	}
 	if err := s.Set("bash_timeout", "1h"); err == nil {
+		t.Fatal("an obsolete key must be rejected")
+	}
+	if err := s.Set("bash_code", "typo"); err == nil {
 		t.Fatal("invalid value accepted")
 	}
 	if err := s.Set("nope", "x"); err == nil {
@@ -104,55 +102,6 @@ func TestAdjustNumClamps(t *testing.T) {
 	}
 	if s.AdjustNum("thinking", 3) != 8 || s.ThinkLines != 8 {
 		t.Fatal("thinking limit")
-	}
-}
-
-func TestAdjustTimeoutSteps(t *testing.T) {
-	s := DefaultSettings()
-	var up []int
-	for i := 0; i < 5; i++ {
-		up = append(up, s.AdjustNum("bash_timeout", 1))
-	}
-	if want := []int{150, 180, 210, 240, 270}; !reflect.DeepEqual(up, want) {
-		t.Fatalf("up %v want %v", up, want)
-	}
-	s.BashTimeout = "10"
-	if s.AdjustNum("bash_timeout", -1) != 9 || s.AdjustNum("bash_timeout", 1) != 10 {
-		t.Fatal("step is not symmetric around 10")
-	}
-	s.BashTimeout = "60"
-	if s.AdjustNum("bash_timeout", 1) != 90 || s.AdjustNum("bash_timeout", -1) != 60 {
-		t.Fatal("step is not symmetric around 60")
-	}
-	s.BashTimeout = "1"
-	if s.AdjustNum("bash_timeout", -1) != 1 {
-		t.Fatal("below 1 second")
-	}
-	s.BashTimeout = strconv.Itoa(MaxTimeoutSec)
-	if s.AdjustNum("bash_timeout", 1) != MaxTimeoutSec {
-		t.Fatal("above max")
-	}
-	if NumOption("bash_timeout") != "seconds" || NumOption("thinking") != "lines" || NumOption("effort") != "" {
-		t.Fatal("NumOption")
-	}
-}
-
-func TestBashTimeoutDuration(t *testing.T) {
-	s := DefaultSettings()
-	if s.BashTimeoutDuration() != DefaultBashTimeout {
-		t.Fatal("default 120s")
-	}
-	s.BashTimeout = "7"
-	if s.BashTimeoutDuration() != 7*time.Second {
-		t.Fatal("7s")
-	}
-	s.BashTimeout = "off"
-	if s.BashTimeoutDuration() != 0 {
-		t.Fatal("off")
-	}
-	s.BashTimeout = "model"
-	if s.BashTimeoutDuration() != DefaultTimeout {
-		t.Fatal("model default")
 	}
 }
 

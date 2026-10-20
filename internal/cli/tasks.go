@@ -25,11 +25,10 @@ func runTasks(args []string, streams IO, api API, jsonOut bool) (int, error) {
 			return 0, err
 		}
 		if len(pos) == 0 {
-			return 0, usageError("usage: meno tasks start CMD [--cwd DIR --env K=V --name NAME --timeout SECONDS --no-notify]")
+			return 0, usageError("usage: meno tasks start CMD [--cwd DIR --env K=V --name NAME --no-notify]")
 		}
-		timeout, err := intFlag("timeout", values["timeout"], 0, 1)
-		if err != nil {
-			return 0, err
+		if _, ok := values["timeout"]; ok {
+			return 0, usageError("tasks start has no --timeout: a task runs until it ends or you cancel it (meno tasks cancel ID)")
 		}
 		env := map[string]string{}
 		for _, pair := range strings.Split(values["env"], "\x00") {
@@ -42,7 +41,7 @@ func runTasks(args []string, streams IO, api API, jsonOut bool) (int, error) {
 			}
 			env[k] = v
 		}
-		task, err := api.TasksStart(TaskStartRequest{Command: strings.Join(pos, " "), CWD: values["cwd"], Name: values["name"], Timeout: timeout, Env: env, Notify: !switches["no-notify"]})
+		task, err := api.TasksStart(TaskStartRequest{Command: strings.Join(pos, " "), CWD: values["cwd"], Name: values["name"], Env: env, Notify: !switches["no-notify"]})
 		if err != nil {
 			return 0, err
 		}

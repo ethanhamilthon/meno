@@ -26,9 +26,12 @@ func (a *App) onSnapshot(m snapshotEv) {
 	rt.LiveText, rt.LiveThink, rt.LiveCalls = sn.Live.Text, sn.Live.Thinking, nil
 	rt.LiveBase = len(rt.Session.turns)
 	for _, c := range sn.Live.Calls {
-		lc := liveCall{ID: c.CallID, Code: c.Command, Title: c.Title, Running: c.LimitMS > 0 || c.ElapsedMS > 0}
+		lc := liveCall{ID: c.CallID, Code: c.Command, Title: c.Title, Running: c.Exit == nil}
 		if c.Delta != "" && lc.Code == "" {
 			lc.Code = c.Delta
+		}
+		if c.TaskID != "" {
+			continue // moved to a task: it no longer runs in the foreground
 		}
 		rt.LiveCalls = append(rt.LiveCalls, lc)
 	}
@@ -90,7 +93,7 @@ func (a *App) applyWire(rt *Runtime, e proto.Event) {
 			if d.Title != "" {
 				rt.Title = d.Title
 			}
-			lc.Started, lc.Limit = time.Now(), time.Duration(d.LimitMS)*time.Millisecond
+			lc.Started = time.Now()
 			rt.Phase = "running"
 		}
 	case proto.EventCallEnd:
@@ -98,7 +101,9 @@ func (a *App) applyWire(rt *Runtime, e proto.Event) {
 			a.dropLiveCall(d.CallID)
 			rt.RunJS++
 			rt.LiveText, rt.LiveThink = "", ""
-			rt.Phase = "thinking"
+			if len(a.st.LiveCalls) == 0 {
+				rt.Phase = "thinking"
+			}
 		}
 	case proto.EventTurnAdded:
 		if d, ok := decode[proto.TurnAddedData](e.Data); ok {

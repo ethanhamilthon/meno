@@ -145,7 +145,7 @@ func TestCancelDuringBackoffAborts(t *testing.T) {
 	cl := &flaky{steps: []func(func(llm.Event)) error{failWith(&llm.HTTPError{Status: 503}), okText("never")}}
 	ctx, cancel := context.WithCancel(context.Background())
 	var evs []Ev
-	vm := newShellTool(".", 0)
+	vm := newShellTool(".")
 	r := &Runner{D: Deps{Client: cl, Tool: vm, Retry: RetryPolicy{Base: time.Hour, Cap: time.Hour}, Emit: func(e Ev) {
 		evs = append(evs, e)
 		if e.Kind == EvRetry {

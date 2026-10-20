@@ -38,7 +38,7 @@ func (s *Supervisor) save(t Task) error {
 	_, err := s.d.Exec(`INSERT INTO tasks(id,session_id,owner,name,command,cwd,status,exit_code,reason,notify,timeout_ms,started_at,ended_at)
 		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)
 		ON CONFLICT(id) DO UPDATE SET status=excluded.status, exit_code=excluded.exit_code, reason=excluded.reason, ended_at=excluded.ended_at`,
-		t.ID, t.Session, t.Owner, t.Name, t.Command, t.Cwd, t.Status, code, t.Reason, b2i(t.Notify), t.Timeout.Milliseconds(), ts(t.Started), ts(t.Ended))
+		t.ID, t.Session, t.Owner, t.Name, t.Command, t.Cwd, t.Status, code, t.Reason, b2i(t.Notify), 0, ts(t.Started), ts(t.Ended))
 	return err
 }
 
@@ -64,7 +64,8 @@ func scanTask(sc interface{ Scan(...any) error }) (Task, error) {
 		c := int(code.Int64)
 		t.ExitCode = &c
 	}
-	t.Notify, t.Timeout = notify != 0, time.Duration(ms)*time.Millisecond
+	t.Notify = notify != 0
+	_ = ms
 	t.Started, t.Ended = parse(started), parse(ended)
 	return t, nil
 }

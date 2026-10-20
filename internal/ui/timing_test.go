@@ -65,10 +65,6 @@ func TestTimingBadgeOfFinishedCalls(t *testing.T) {
 	if got, segs, _ := footerText(turnOf(30012, 30000, "js timeout after 30s", true), all); got != "✕ 30s" || segs[0].FG != Red {
 		t.Fatalf("timeout: %q", got)
 	}
-	// A timeout whose duration was not recorded shows the limit.
-	if got, _, _ := footerText(turnOf(0, 5000, "x", true), all); got != "✕ 5.0s" {
-		t.Fatalf("%q", got)
-	}
 }
 
 func TestBadgeDur(t *testing.T) {
@@ -116,9 +112,9 @@ func TestTimingModes(t *testing.T) {
 }
 
 func TestTimingBadgeOfRunningCall(t *testing.T) {
-	js := JSOpts{Exec: true, Elapsed: 2300 * time.Millisecond, Limit: 120 * time.Second, Spin: 2}
+	js := JSOpts{Exec: true, Elapsed: 2300 * time.Millisecond, Spin: 2}
 	got, segs, ok := footerText(Turn{}, js)
-	if !ok || got != "⠹ 2.3s/120s" || segs[0].FG != Yellow {
+	if !ok || got != "⠹ 2.3s" || segs[0].FG != Yellow {
 		t.Fatalf("%q", got)
 	}
 	if got, _, _ := footerText(Turn{}, JSOpts{Exec: true, Elapsed: 2 * time.Second}); got != "⠋ 2.0s" {
@@ -192,8 +188,8 @@ func TestBuildLinesPutsBadgeInTopRightOfCode(t *testing.T) {
 		}
 	}
 	// A running call keeps the running background and counts up.
-	live := BuildLines([]Turn{{Role: RoleAssistant, Code: "run()"}}, 80, JSOpts{Running: true, Exec: true, Elapsed: time.Second, Limit: time.Minute})
-	if got := asideTexts(live); len(got) != 1 || got[0] != "⠋ 1.0s/60s" {
+	live := BuildLines([]Turn{{Role: RoleAssistant, Code: "run()"}}, 80, JSOpts{Running: true, Exec: true, Elapsed: time.Second})
+	if got := asideTexts(live); len(got) != 1 || got[0] != "⠋ 1.0s" {
 		t.Fatalf("live badge: %v", got)
 	}
 	for _, l := range live {

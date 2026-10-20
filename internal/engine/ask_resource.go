@@ -24,8 +24,6 @@ func (e *Engine) askResource(ctx context.Context, s *runState, call string, data
 	if err != nil {
 		return nil, api(proto.CodeBadRequest, err.Error())
 	}
-	s.pauseCall(call, true)
-	defer s.pauseCall(call, false)
 	answers, err := asker{e, s}.Ask(ctx, f)
 	switch {
 	case errors.Is(err, form.ErrCancelled):

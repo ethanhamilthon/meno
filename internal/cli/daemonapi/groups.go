@@ -69,7 +69,7 @@ func (a *API) MCPAdmin(action, server string) (cli.Server, error) {
 // TasksStart starts a background task.
 func (a *API) TasksStart(r cli.TaskStartRequest) (cli.Task, error) {
 	var out cli.Task
-	in := map[string]any{"command": r.Command, "cwd": r.CWD, "name": r.Name, "timeout": r.Timeout, "notify": r.Notify}
+	in := map[string]any{"command": r.Command, "cwd": r.CWD, "name": r.Name, "notify": r.Notify}
 	if len(r.Env) > 0 {
 		in["env"] = r.Env
 	}

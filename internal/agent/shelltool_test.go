@@ -1,46 +1,88 @@
 package agent
 
 import (
-	"context"
+	"bytes"
 	"os/exec"
 	"strings"
-	"time"
+	"sync"
+	"syscall"
 )
 
 // shellTool is a small ToolRunner for tests: each call runs /bin/sh -c and the
 // output is what the shell printed. It stands in for the engine's bash runner.
 type shellTool struct {
-	dir     string
-	timeout time.Duration
-	calls   int
+	dir      string
+	mu       sync.Mutex
+	calls    int
+	started  map[string]*shellCall
+	promoted []string
 }
 
-func newShellTool(dir string, timeout time.Duration) *shellTool {
-	return &shellTool{dir: dir, timeout: timeout}
+func newShellTool(dir string) *shellTool {
+	return &shellTool{dir: dir, started: map[string]*shellCall{}}
 }
 
-func (s *shellTool) Timeout() time.Duration { return s.timeout }
+type shellCall struct {
+	t        *shellTool
+	cmd      *exec.Cmd
+	done     chan struct{}
+	out      []byte
+	err      error
+	mu       sync.Mutex
+	promoted bool
+	finished bool
+}
 
-func (s *shellTool) Run(ctx context.Context, code string, limit time.Duration) (string, string, string, bool, time.Duration) {
-	s.calls++
-	start := time.Now()
-	if limit > 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, limit)
-		defer cancel()
-	}
-	cmd := exec.CommandContext(ctx, "/bin/sh", "-c", code)
+func (s *shellTool) Start(id, code string) (RunningCall, error) {
+	cmd := exec.Command("/bin/sh", "-c", code)
 	cmd.Dir = s.dir
-	out, err := cmd.CombinedOutput()
-	text := strings.TrimRight(string(out), "\n")
-	if ctx.Err() == context.DeadlineExceeded {
-		return text, "", "timeout after " + limit.String(), true, time.Since(start)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	c := &shellCall{t: s, cmd: cmd, done: make(chan struct{})}
+	s.mu.Lock()
+	s.calls++
+	s.started[id] = c
+	s.mu.Unlock()
+	var buf bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &buf, &buf
+	if err := cmd.Start(); err != nil {
+		return nil, err
 	}
-	if err != nil {
-		if ctx.Err() != nil {
-			return text, "", "execution canceled", false, time.Since(start)
-		}
-		return text, "", "", false, time.Since(start)
+	go func() {
+		c.err = cmd.Wait()
+		c.out = buf.Bytes()
+		c.mu.Lock()
+		c.finished = true
+		c.mu.Unlock()
+		close(c.done)
+	}()
+	return c, nil
+}
+
+func (c *shellCall) Done() <-chan struct{} { return c.done }
+
+func (c *shellCall) Result() ToolResult {
+	return ToolResult{Output: strings.TrimRight(string(c.out), "\n")}
+}
+
+func (c *shellCall) Cancel() {
+	c.mu.Lock()
+	keep := c.promoted
+	c.mu.Unlock()
+	if !keep && c.cmd.Process != nil {
+		_ = syscall.Kill(-c.cmd.Process.Pid, syscall.SIGKILL)
 	}
-	return text, "", "", false, time.Since(start)
+}
+
+func (c *shellCall) Promote() (string, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.finished {
+		return "", false
+	}
+	c.promoted = true
+	c.t.mu.Lock()
+	id := "t" + string(rune('a'+len(c.t.promoted)))
+	c.t.promoted = append(c.t.promoted, id)
+	c.t.mu.Unlock()
+	return id, true
 }

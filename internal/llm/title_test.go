@@ -19,14 +19,15 @@ func TestToolTitle(t *testing.T) {
 }
 
 func TestToolSchemaAsksForATitle(t *testing.T) {
-	for _, m := range []bool{false, true} {
-		p := ToolSchema("", m)["parameters"].(map[string]any)
-		if _, ok := p["properties"].(map[string]any)["title"]; !ok {
-			t.Fatalf("modelTimeout=%v: no title property", m)
-		}
-		req := p["required"].([]string)
-		if len(req) != 2 || req[1] != "title" {
-			t.Fatalf("required: %v", req)
-		}
+	p := ToolSchema("")["parameters"].(map[string]any)
+	if _, ok := p["properties"].(map[string]any)["title"]; !ok {
+		t.Fatal("no title property")
+	}
+	if _, ok := p["properties"].(map[string]any)["timeout"]; ok {
+		t.Fatal("the tool must not offer a timeout")
+	}
+	req := p["required"].([]string)
+	if len(req) != 2 || req[1] != "title" {
+		t.Fatalf("required: %v", req)
 	}
 }

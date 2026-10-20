@@ -23,21 +23,6 @@ func (s *Supervisor) Cancel(session, id string) (Task, error) {
 	return t, nil
 }
 
-// CancelOwner cancels the running tasks a root request started.
-func (s *Supervisor) CancelOwner(session, owner string) {
-	s.mu.Lock()
-	var rs []*running
-	for _, r := range s.live {
-		if r.task.Session == session && r.task.Owner == owner {
-			rs = append(rs, r)
-		}
-	}
-	s.mu.Unlock()
-	for _, r := range rs {
-		_, _ = s.Cancel(session, r.task.ID)
-	}
-}
-
 // Wait blocks until the task ends or the timeout passes (0 waits as long as
 // it takes, or until ctx ends). A timeout never cancels the task. waitTimedOut
 // is true when the task was still running.

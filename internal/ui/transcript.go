@@ -33,18 +33,14 @@ type JSOpts struct {
 	Timing  TimingMode
 	Summary bool
 	// Exec marks a call that is executing now (not only streaming): its footer
-	// counts Elapsed up towards Limit (0 = no limit); Spin picks the spinner frame.
+	// counts Elapsed up; Spin picks the spinner frame.
 	Exec    bool
 	Elapsed time.Duration
-	Limit   time.Duration
 	Spin    int
 	// Images configures inline pictures for attachments and view().
 	Images ImageOpts
 	// Streaming: the call's source is still arriving, so it is shown plain.
 	Streaming bool
-	// FoldStrings hides string-literal content beyond FoldLines lines.
-	FoldStrings bool
-	FoldLines   int
 }
 
 func BuildLines(turns []Turn, w int, js JSOpts) []Line {
@@ -128,7 +124,7 @@ func jsBlock(t Turn, w int, js JSOpts) []Line {
 		case t.Err != "" || t.TimedOut:
 			bg = BgJSErr
 		}
-		lines := CodeLinesOpt(t.Code, bg, w-2, max, CodeOpts{Plain: js.Streaming, FoldStrings: js.FoldStrings, FoldLines: js.FoldLines})
+		lines := CodeLinesOpt(t.Code, bg, w-2, max, CodeOpts{Plain: js.Streaming})
 		for i := range lines {
 			lines[i].Segs = append([]Seg{{Text: "  ", FG: FgDim}}, lines[i].Segs...)
 		}

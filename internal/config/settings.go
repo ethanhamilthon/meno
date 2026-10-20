@@ -2,8 +2,6 @@ package config
 
 import (
 	"encoding/json"
-	"strconv"
-	"strings"
 )
 
 type Settings struct {
@@ -15,11 +13,7 @@ type Settings struct {
 	BashLines         int    `json:"bash_lines"`
 	BashOutput        string `json:"bash_output"`
 	BashOutputLines   int    `json:"bash_output_lines"`
-	BashStrings       string `json:"bash_strings"`
-	BashStringLines   int    `json:"bash_string_lines"`
 	BashTiming        string `json:"bash_timing"`
-	BashTimeout       string `json:"bash_timeout"`
-	bashSeconds       int    // last number of seconds, kept while the timeout is off or model
 	DaemonIdleExitMin int    `json:"daemon_idle_exit_min"`
 	// Thinking is all/lines/off; ThinkLines is its row limit.
 	TurnSummary string `json:"turn_summary"`
@@ -83,29 +77,13 @@ func (s *Settings) UnmarshalJSON(data []byte) error {
 	if _, hasBash := raw["bash_output_lines"]; !hasBash {
 		st.BashOutputLines = defaults.BashOutputLines
 	}
-	if _, hasBash := raw["bash_strings"]; !hasBash {
-		st.BashStrings = defaults.BashStrings
-	}
-	if _, hasBash := raw["bash_string_lines"]; !hasBash {
-		st.BashStringLines = defaults.BashStringLines
-	}
 	if _, hasBash := raw["bash_timing"]; !hasBash {
 		st.BashTiming = defaults.BashTiming
-	}
-	if _, hasBash := raw["bash_timeout"]; !hasBash {
-		st.BashTimeout = defaults.BashTimeout
 	}
 	if _, hasBash := raw["daemon_idle_exit_min"]; !hasBash {
 		st.DaemonIdleExitMin = defaults.DaemonIdleExitMin
 	}
 	applyJSAliases(raw, &st)
-	if seconds, err := strconv.Atoi(st.BashTimeout); err == nil && seconds > 0 {
-		st.BashTimeout = strconv.Itoa(min(seconds, MaxTimeoutSec))
-	} else if seconds, err := strconv.Atoi(strings.TrimSuffix(st.BashTimeout, "s")); err == nil && strings.HasSuffix(st.BashTimeout, "s") && seconds > 0 {
-		st.BashTimeout = strconv.Itoa(min(seconds, MaxTimeoutSec))
-	} else if st.BashTimeout == "none" {
-		st.BashTimeout = "off"
-	}
 	if st.BashCode == "full" {
 		st.BashCode = "all"
 	}
@@ -121,7 +99,7 @@ func (s *Settings) UnmarshalJSON(data []byte) error {
 			st.setRaw(key, defaults.Get(key))
 		}
 	}
-	for key, value := range map[string]string{"bash_code": st.BashCode, "bash_output": st.BashOutput, "bash_strings": st.BashStrings, "bash_timing": st.BashTiming} {
+	for key, value := range map[string]string{"bash_code": st.BashCode, "bash_output": st.BashOutput, "bash_timing": st.BashTiming} {
 		if !contains(bashChoices[key], value) {
 			setBash(&st, key, defaults.Get(key))
 		}
@@ -152,7 +130,7 @@ func (s *Settings) UnmarshalJSON(data []byte) error {
 func DefaultSettings() Settings {
 	return Settings{
 		Tool: "bash", BashCode: "all", BashLines: 5, BashOutput: "all", BashOutputLines: 5,
-		BashStrings: "off", BashStringLines: 3, BashTiming: "all", BashTimeout: "120", DaemonIdleExitMin: 30,
+		BashTiming: "all", DaemonIdleExitMin: 30,
 		Effort:         "high",
 		Thinking:       "all",
 		TurnSummary:    "on",

@@ -152,9 +152,9 @@ func TestRunCountersFollowAgentEvents(t *testing.T) {
 		t.Fatalf("a call that is only streaming has not started: %+v", a.st.LiveCalls)
 	}
 	before := time.Now()
-	a.applyWire(rt, wireEvent(proto.EventCallStart, proto.CallStartData{CallID: "c1", Command: "x", LimitMS: 30000}))
+	a.applyWire(rt, wireEvent(proto.EventCallStart, proto.CallStartData{CallID: "c1", Command: "x"}))
 	c := a.st.LiveCalls[0]
-	if !c.Running || c.Limit != 30*time.Second || c.Started.Before(before) || time.Since(c.Started) > time.Second {
+	if !c.Running || c.Started.Before(before) || time.Since(c.Started) > time.Second {
 		t.Fatalf("%+v", c)
 	}
 	a.applyWire(rt, wireEvent(proto.EventCallEnd, proto.CallEndData{CallID: "c1", ElapsedMS: 1000}))
@@ -172,10 +172,10 @@ func TestLiveCallShowsItsTimer(t *testing.T) {
 	a, s := visualFixture(t, 112, 36)
 	a.st.Session.Append(agent.Turn{Role: llm.RoleUser, Text: "go"})
 	a.st.Running, a.st.Phase = true, "running"
-	a.st.LiveCalls = []liveCall{{ID: "c1", Code: "sh('sleep 9')", Running: true, Started: time.Now().Add(-12 * time.Second), Limit: 30 * time.Second}}
+	a.st.LiveCalls = []liveCall{{ID: "c1", Code: "sh('sleep 9')", Running: true, Started: time.Now().Add(-12 * time.Second)}}
 	a.draw()
 	text := screenText(s)
-	if !strings.Contains(text, "12s/30s") {
+	if !strings.Contains(text, "12s") {
 		t.Fatalf("%s", text)
 	}
 	// A call still being written has no timer; one with no limit has no limit.

@@ -18,15 +18,8 @@ func optLabel(s *config.Settings, key, opt string) string {
 		return "at " + strconv.Itoa(s.CompactPercent) + "%"
 	case key == "notify_volume":
 		return opt + "%"
-	case key == "bash_timeout" && opt == "seconds":
-		if _, err := strconv.Atoi(s.BashTimeout); err == nil {
-			return s.BashTimeout + " sec"
-		}
-		return "seconds"
 	case opt != config.NumOption(key):
 		return opt
-	case opt == "sec":
-		return strconv.Itoa(s.NumFor(key)) + " sec"
 	default:
 		return opt + " " + strconv.Itoa(s.NumFor(key))
 	}

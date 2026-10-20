@@ -2,11 +2,12 @@
 
 The model has one tool, `bash`. Each call runs one command in a fresh `/bin/sh` in the
 session's working directory. Nothing is shared between calls: durable state lives in files
-and in background tasks. The result ends with `[exit N]`, `[timed out after Ns]` or
+and in background tasks. The result ends with `[exit N]` or
 `[cancelled]`. Output is bounded and the full text is kept on disk.
 
-The `bash timeout` setting (default 120 seconds, `off` or `model`) limits a call; with
-`model` the tool gets a `timeout` argument in seconds.
+Calls have no time limit. All calls of one model response run in parallel and start after the
+response is complete; results are stored in call order, and a failing call does not stop the
+others. A message you write moves unfinished calls to background tasks (see [sessions](sessions.md)).
 
 ## The `meno` command
 
@@ -32,7 +33,7 @@ valid for that session only. See [the daemon](daemon.md).
 ## Background tasks
 
 `meno tasks start CMD` runs a command under the process supervisor. A task outlives the call
-and the client. `meno tasks wait ID` exits with 124 when its wait times out. See
+and the client. `meno tasks start` has no timeout (an old `--timeout` fails with an error). `meno tasks wait ID --timeout S` exits with 124 when its wait times out and does not cancel the task. See
 [sessions](sessions.md) for what stop does to tasks.
 
 ## MCP

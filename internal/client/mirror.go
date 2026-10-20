@@ -93,7 +93,7 @@ func (m *Mirror) Apply(e proto.Event) {
 	case proto.EventCallStart:
 		var d proto.CallStartData
 		if json.Unmarshal(e.Data, &d) == nil {
-			s.Live.Calls = append(s.Live.Calls, proto.CallState{CallID: d.CallID, Command: d.Command, Title: d.Title, LimitMS: d.LimitMS})
+			s.Live.Calls = append(s.Live.Calls, proto.CallState{CallID: d.CallID, Command: d.Command, Title: d.Title})
 		}
 	case proto.EventCallDelta:
 		var d proto.CallDeltaData
@@ -109,7 +109,7 @@ func (m *Mirror) Apply(e proto.Event) {
 				c.Output = d.Output
 				c.Exit = &d.Exit
 				c.ElapsedMS = d.ElapsedMS
-				c.TimedOut = d.TimedOut
+				c.TaskID = d.TaskID
 			}
 		}
 	case proto.EventTurnAdded:

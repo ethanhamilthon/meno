@@ -88,33 +88,6 @@ func TestStringsStayStringsWhateverTheyContain(t *testing.T) {
 	}
 }
 
-func TestFoldStringsByLinesKeepsDelimitersAndInterpolation(t *testing.T) {
-	src := "const s = `one\ntwo\n${name}\nthree\nfour`;\nrun('abc', \"x\")"
-	full := CodeLinesOpt(src, BgJSDone, 0, 0, CodeOpts{})
-	if segText(full) != src {
-		t.Fatalf("unfolded must equal the source:\n%s", segText(full))
-	}
-	got := segText(CodeLinesOpt(src, BgJSDone, 0, 0, CodeOpts{FoldStrings: true, FoldLines: 2}))
-	if !strings.Contains(got, "one\ntwo…") || !strings.Contains(got, "name") || strings.Contains(got, "four") {
-		t.Fatalf("lines 2:\n%s", got)
-	}
-	if !strings.HasPrefix(got, "const s = `") || !strings.Contains(got, "run('abc', \"x\")") {
-		t.Fatalf("surrounding JS and short strings stay:\n%s", got)
-	}
-	zeroLines := CodeLinesOpt(src, BgJSDone, 0, 0, CodeOpts{FoldStrings: true, FoldLines: 0})
-	zero := segText(zeroLines)
-	if !strings.Contains(zero, "run('…', \"…\")") || strings.Contains(zero, "one") || !strings.Contains(zero, "name") {
-		t.Fatalf("lines 0 shows only the marker:\n%s", zero)
-	}
-	for _, l := range zeroLines {
-		for _, s := range l.Segs {
-			if s.Text == "…" && s.FG != FgDim {
-				t.Fatalf("marker colour %v", s.FG)
-			}
-		}
-	}
-}
-
 func TestStreamingCodeIsPlain(t *testing.T) {
 	plain := CodeLinesOpt("const a = 'x'", BgJSDone, 0, 0, CodeOpts{Plain: true})
 	if len(plain[0].Segs) != 1 || plain[0].Segs[0].FG != FgWhite {

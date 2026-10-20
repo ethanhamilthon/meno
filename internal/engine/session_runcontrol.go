@@ -21,7 +21,6 @@ func (e *Engine) Stop(ctx context.Context, id string, q proto.StopRequest) error
 		if e.events2 != nil {
 			_ = e.events2.CancelOwner(id, s.requestID)
 		}
-		e.tasks.CancelOwner(id, s.requestID)
 	}
 	if s.cancel != nil {
 		s.cancel()
@@ -46,7 +45,7 @@ func (e *Engine) Compact(ctx context.Context, id string, q proto.CompactRequest)
 	}
 	system, _, _ := e.prepare(ctx, s, effort, false)
 	before := s.session.Len()
-	_, _, err = agent.CompactWith(ctx, e.client(p), p, model, s.session, agent.CompactOptions{Keep: q.Keep, SummaryTokens: e.cfg().CompactSummaryTokens, Effort: effort, ModelTimeout: e.cfg().BashModelTimeout(), System: system, ToolDesc: ""}, nil)
+	_, _, err = agent.CompactWith(ctx, e.client(p), p, model, s.session, agent.CompactOptions{Keep: q.Keep, SummaryTokens: e.cfg().CompactSummaryTokens, Effort: effort, System: system, ToolDesc: ""}, nil)
 	if err != nil {
 		return proto.CompactResponse{}, err
 	}

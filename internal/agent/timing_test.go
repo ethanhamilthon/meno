@@ -14,7 +14,7 @@ func lastTurn(s *Session) Turn {
 	return t[len(t)-1]
 }
 
-func TestJSCallRecordsDurationAndLimit(t *testing.T) {
+func TestJSCallRecordsDuration(t *testing.T) {
 	cl := &scripted{steps: [][]llm.Event{
 		{{Kind: llm.EvTool, CallID: "c1", Code: "sleep 0.1"}, {Kind: llm.EvDone}},
 		{{Kind: llm.EvText, Text: "ok"}, {Kind: llm.EvDone}},
@@ -29,9 +29,6 @@ func TestJSCallRecordsDurationAndLimit(t *testing.T) {
 	if call.ElapsedMs < 90 || call.ElapsedMs > 1500 {
 		t.Fatalf("elapsed %dms", call.ElapsedMs)
 	}
-	if call.LimitMs != 2000 || call.TimedOut {
-		t.Fatalf("limit %d timedOut %v", call.LimitMs, call.TimedOut)
-	}
 	var start, end *Ev
 	for i := range evs {
 		switch evs[i].Kind {
@@ -41,7 +38,7 @@ func TestJSCallRecordsDurationAndLimit(t *testing.T) {
 			end = &evs[i]
 		}
 	}
-	if start == nil || end == nil || start.Limit != 2*time.Second || end.Elapsed < 90*time.Millisecond || end.TimedOut {
+	if start == nil || end == nil || end.Elapsed < 90*time.Millisecond {
 		t.Fatalf("events: %+v %+v", start, end)
 	}
 }
@@ -59,55 +56,6 @@ func TestFastCallIsStillTimed(t *testing.T) {
 	// 0 means "not timed" (old sessions); a call that took microseconds still counts.
 	if got := s.Snapshot()[1].ElapsedMs; got < 1 {
 		t.Fatalf("elapsed %d", got)
-	}
-}
-
-func TestTimeoutIsRecorded(t *testing.T) {
-	vm := newShellTool(".", 200*time.Millisecond)
-	cl := &scripted{steps: [][]llm.Event{
-		{{Kind: llm.EvTool, CallID: "c1", Code: "while :; do :; done"}, {Kind: llm.EvDone}},
-		{{Kind: llm.EvText, Text: "ok"}, {Kind: llm.EvDone}},
-	}}
-	var evs []Ev
-	r := newRunner(cl, &evs)
-	r.D.Tool = vm
-	s := NewSession(".", "m")
-	if err := r.Turn(context.Background(), s, "q"); err != nil {
-		t.Fatal(err)
-	}
-	call := s.Snapshot()[1]
-	if !call.TimedOut || call.LimitMs != 200 || call.ElapsedMs < 150 || call.Err == "" {
-		t.Fatalf("%+v", call)
-	}
-}
-
-func TestModelTimeoutLimitIsReported(t *testing.T) {
-	for _, tc := range []struct {
-		name string
-		args string
-		want time.Duration
-	}{
-		{"named", `{"code":"1","timeout":7}`, 7 * time.Second},
-		{"default", `{"code":"1"}`, defaultModelTimeout},
-		{"none", `{"code":"1","timeout":0}`, 0},
-		{"negative", `{"code":"1","timeout":-3}`, 0},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			cl := &scripted{steps: [][]llm.Event{
-				{{Kind: llm.EvTool, CallID: "c1", Code: "true", Arguments: tc.args}, {Kind: llm.EvDone}},
-				{{Kind: llm.EvText, Text: "ok"}, {Kind: llm.EvDone}},
-			}}
-			var evs []Ev
-			r := newRunner(cl, &evs)
-			r.D.ModelTimeout = true
-			s := NewSession(".", "m")
-			if err := r.Turn(context.Background(), s, "q"); err != nil {
-				t.Fatal(err)
-			}
-			if got := time.Duration(s.Snapshot()[1].LimitMs) * time.Millisecond; got != tc.want {
-				t.Fatalf("limit %v, want %v", got, tc.want)
-			}
-		})
 	}
 }
 

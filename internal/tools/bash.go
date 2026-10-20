@@ -6,9 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-	"sync"
 	"syscall"
-	"time"
 )
 
 // RunOptions contains the inputs for one fresh bash process.
@@ -23,8 +21,6 @@ type RunOptions struct {
 	// OutputDir is the per-session directory below $MENO_HOME/outputs.
 	OutputDir string
 	CallID    string
-	// Timeout is zero for no timeout; positive values start the call timer.
-	Timeout time.Duration
 	// Stream receives raw output deltas in pipe order.
 	Stream func(delta string)
 }
@@ -41,54 +37,35 @@ type Result struct {
 	LogPath   string
 	Omitted   int64
 	Leftovers int
-	TimedOut  bool
 	Cancelled bool
 }
 
-type pauseChange struct {
-	paused bool
-	at     time.Time
-}
-
-// Call is a running bash call. Pause and Resume control only its timer.
+// Call is a running bash call. Its context is its own: nothing but Cancel stops
+// it, so a call that is promoted to a task outlives the request that began it.
 type Call struct {
 	cmd       *exec.Cmd
 	options   RunOptions
 	cancel    context.CancelFunc
-	paused    bool
-	mu        sync.Mutex
-	changed   chan pauseChange
 	finished  chan struct{}
 	collected chan struct{}
 	result    Result
 	err       error
 }
 
-// Start starts /bin/sh -c in a new process group. A zero timeout disables the
-// call timer. The returned handle lets an open ask pause the timer.
-func Start(ctx context.Context, options RunOptions) (*Call, error) {
-	if ctx == nil {
-		return nil, fmt.Errorf("context is required")
-	}
+// Start starts /bin/sh -c in a new process group. There is no timeout.
+func Start(options RunOptions) (*Call, error) {
 	if options.Dir == "" {
 		return nil, fmt.Errorf("working directory is required")
 	}
 	if options.Command == "" {
 		return nil, fmt.Errorf("command is required")
 	}
-	if options.Timeout < 0 {
-		return nil, fmt.Errorf("timeout cannot be negative")
-	}
-	cmd := exec.Command("/bin/sh", "-c", options.Command)
-	return start(ctx, options, cmd)
+	return start(options, exec.Command("/bin/sh", "-c", options.Command))
 }
 
-func start(ctx context.Context, options RunOptions, cmd *exec.Cmd) (*Call, error) {
+func start(options RunOptions, cmd *exec.Cmd) (*Call, error) {
 	if options.Dir == "" {
 		return nil, fmt.Errorf("working directory is required")
-	}
-	if options.Timeout < 0 {
-		return nil, fmt.Errorf("timeout cannot be negative")
 	}
 	log, path, err := createLog(options.OutputDir, options.CallID)
 	if err != nil {
@@ -110,8 +87,8 @@ func start(ctx context.Context, options RunOptions, cmd *exec.Cmd) (*Call, error
 		return nil, err
 	}
 	writer.Close()
-	callCtx, cancel := context.WithCancel(ctx)
-	call := &Call{cmd: cmd, options: options, cancel: cancel, changed: make(chan pauseChange, 256), finished: make(chan struct{}), collected: make(chan struct{})}
+	callCtx, cancel := context.WithCancel(context.Background())
+	call := &Call{cmd: cmd, options: options, cancel: cancel, finished: make(chan struct{}), collected: make(chan struct{})}
 	go call.collect(reader, log, path)
 	go call.wait(callCtx)
 	return call, nil
@@ -134,35 +111,17 @@ func commandEnv(extra []string) []string {
 	return out
 }
 
-// Pause stops the call timer until Resume. It returns false after completion.
-func (c *Call) Pause() bool { return c.setPaused(true) }
-
-// Resume restarts the call timer after Pause. It returns false after completion.
-func (c *Call) Resume() bool { return c.setPaused(false) }
-
 // Cancel stops the process group and its descendants.
 func (c *Call) Cancel() { c.cancel() }
 
-func (c *Call) setPaused(paused bool) bool {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	select {
-	case <-c.finished:
-		return false
-	default:
-	}
-	if c.paused == paused {
-		return true
-	}
-	change := pauseChange{paused: paused, at: time.Now()}
-	select {
-	case c.changed <- change:
-		c.paused = paused
-		return true
-	case <-c.finished:
-		return false
-	}
-}
+// Done is closed when the shell has exited and its process group is stopped.
+func (c *Call) Done() <-chan struct{} { return c.finished }
+
+// Pid is the process ID of the shell, which is also its process group ID.
+func (c *Call) Pid() int { return c.cmd.Process.Pid }
+
+// ExitCode is the exit code of the shell; it is valid once Done is closed.
+func (c *Call) ExitCode() int { <-c.finished; return c.result.ExitCode }
 
 // Wait blocks until the shell exits and its process group is stopped.
 func (c *Call) Wait() (Result, error) { <-c.finished; return c.result, c.err }

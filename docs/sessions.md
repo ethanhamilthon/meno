@@ -26,11 +26,17 @@ providers, MCP servers and settings are shared.
   `compact_keep` (8) messages, aims for a `compact_summary_tokens` (4000) summary, never
   compacts the same unchanged context twice, and fails with an actionable error when a
   request cannot fit.
-- `:stop` / `Ctrl+C` cancel the active root request: its running turn, the tasks
-  it started, and its pending events. Work from earlier requests keeps
-  running. `:q` refuses while anything runs; `:q!` cancels everything.
+- `:stop` / `Ctrl+C` cancel the active root request: its running turn, the bash calls
+  still running in the foreground, and its pending events. Background tasks
+  (`meno tasks start`, or a call moved to a task by your message) keep running;
+  cancel one with `meno tasks cancel ID`. `:q` refuses while anything runs; `:q!` cancels everything.
 
 ## Steering and events
+
+A message you write while bash calls run moves the unfinished calls to background tasks and
+the model answers at once. Each moved call gets one result with its task ID; the model reads
+it with `meno tasks status|logs|wait|cancel`. Task-finished notices and other events never
+interrupt a running call; they arrive after it ends.
 
 One durable queue carries what happens while the agent works: your messages and
 finished tasks. Each event has an ID, a source, an

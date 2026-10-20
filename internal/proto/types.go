@@ -99,9 +99,8 @@ type CallState struct {
 	Delta     string `json:"delta,omitempty"`
 	Output    string `json:"output,omitempty"`
 	Exit      *int   `json:"exit,omitempty"`
-	LimitMS   int64  `json:"limit_ms,omitempty"`
 	ElapsedMS int64  `json:"elapsed_ms,omitempty"`
-	TimedOut  bool   `json:"timed_out,omitempty"`
+	TaskID    string `json:"task_id,omitempty"`
 }
 
 // Metrics contains current run usage counters.

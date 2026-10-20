@@ -266,6 +266,5 @@ func (s *responsesStream) handle(e SSEEvent, emit func(Event)) error {
 }
 
 func parseCode(args string) string {
-	code, _ := ToolArgs(args)
-	return code
+	return ToolArgs(args)
 }

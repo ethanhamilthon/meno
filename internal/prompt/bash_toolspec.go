@@ -14,18 +14,16 @@ const bashDescription = `Run one shell command in the session working directory.
 Use meno --help or meno <group> --help for details. Read skills with cat.
 python3 and jq may be missing; check with command -v. Use a quoted heredoc for multi-line edits. Find with rg (check command -v rg) or grep -rn.
 Each call is a fresh shell with no shared state; use files or meno tasks start for background work.
-Results end with [exit N], [timed out after Ns] or [cancelled].`
+Calls of one response run in parallel, so put dependent steps in one call. A call has no time limit. If the user writes while a call runs, it moves to a background task and you get its task ID.
+Results end with [exit N] or [cancelled].`
 
-// BashToolDescriptionFor lists allowed groups and documents per-call timeouts when enabled.
-func BashToolDescriptionFor(allowed []string, modelTimeout bool) string {
-	return bashToolDescription(allowed, modelTimeout)
+// BashToolDescriptionFor lists the allowed groups.
+func BashToolDescriptionFor(allowed []string) string {
+	return bashToolDescription(allowed)
 }
 
-func bashToolDescription(allowed []string, modelTimeout bool) string {
+func bashToolDescription(allowed []string) string {
 	text := bashDescription
-	if modelTimeout {
-		text += "\nThe optional timeout argument is in seconds."
-	}
 	if allowed == nil {
 		return text
 	}

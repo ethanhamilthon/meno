@@ -16,7 +16,7 @@ func TestStoppedInsideJSStillCountsTheCall(t *testing.T) {
 		{{Kind: llm.EvTool, CallID: "c1", Code: "while :; do :; done"}, usageEv(1, 1, 0)},
 	}}
 	var evs []Ev
-	vm := newShellTool(".", 0)
+	vm := newShellTool(".")
 	r := newRunner(cl, &evs)
 	r.D.Tool = vm
 	ctx, cancel := context.WithCancel(context.Background())

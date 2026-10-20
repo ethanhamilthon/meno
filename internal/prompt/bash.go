@@ -71,7 +71,7 @@ func bashGuidelines(groups []string) string {
 	if allows(groups, "tasks") {
 		first = "- Your only tool is bash. Each call starts a fresh shell; use files for state and meno tasks start for background work."
 	}
-	lines := []string{first, "- Read skills with cat. python3 and jq may be missing; check with command -v.", "- Use a quoted heredoc for multi-line file edits. The TUI folds heredoc bodies for display.", "- Results end with [exit N], [timed out after Ns] or [cancelled]."}
+	lines := []string{first, "- Read skills with cat. python3 and jq may be missing; check with command -v.", "- Use a quoted heredoc for multi-line file edits.", "- Results end with [exit N] or [cancelled]. Calls of one response run in parallel; put dependent steps in one call. A call has no time limit; if the user writes meanwhile it moves to a background task."}
 	if allows(groups, "ask") {
 		lines = append(lines, "- Ask the user with meno ask when a decision is theirs to make.")
 	}

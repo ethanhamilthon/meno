@@ -1,5 +1,9 @@
 # Upgrading, data and privacy
 
+## Unreleased: no execution timeouts, parallel bash calls
+
+The settings `bash timeout`, `bash strings` and `bash string lines` are gone; old settings files that hold them still load and the keys disappear on the next save. A bash call or a task runs until it ends, you stop it, or it is cancelled. `meno tasks start --timeout` now fails; `meno tasks wait --timeout` is unchanged. Old turns that timed out still show as they did.
+
 ## 0.4.0: bash tool and daemon
 
 The `js` tool and its JavaScript runtime are gone. The model has one `bash` tool and the `meno` command (see [the agent's tool](tools.md)). The TUI is a client of the background daemon, which starts when you start meno and keeps running after you close the terminal; `meno daemon stop` ends it. Old sessions open as before: their `js` calls are sent to the model as plain text ("ran js: …") and are never run again. Schema version 12 adds `sessions.tool`; the column is kept for old rows and every new session uses `bash`. The `js_*` settings are read as aliases of `bash_*` and are removed from the settings file on its next write. The `tool` setting no longer selects anything. `meno agents` and the `:agents` dialog are gone.

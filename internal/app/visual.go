@@ -79,7 +79,6 @@ func (a *App) transcriptWithSelection(w int) []ui.Line {
 		if call.Running && !call.Started.IsZero() {
 			liveJS.Exec = true
 			liveJS.Elapsed = time.Since(call.Started)
-			liveJS.Limit = call.Limit
 			liveJS.Spin = int(time.Now().UnixMilli() / 100)
 		}
 		appendLines(ui.BuildLines([]ui.Turn{live}, w, liveJS), ui.TurnHasMessage(live, liveJS))

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"meno/internal/safe"
+	"meno/internal/tools"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -34,19 +35,18 @@ func init() { graceTime.Store(int64(5 * time.Second)) }
 
 // Task is a process and its outcome.
 type Task struct {
-	ID       string        `json:"id"`
-	Session  string        `json:"session"`
-	Owner    string        `json:"owner"` // root request that started it
-	Name     string        `json:"name"`
-	Command  string        `json:"command"`
-	Cwd      string        `json:"cwd"`
-	Status   string        `json:"status"`
-	ExitCode *int          `json:"exitCode"`
-	Reason   string        `json:"reason"`
-	Notify   bool          `json:"notify"`
-	Timeout  time.Duration `json:"-"`
-	Started  time.Time     `json:"started"`
-	Ended    time.Time     `json:"ended"`
+	ID       string    `json:"id"`
+	Session  string    `json:"session"`
+	Owner    string    `json:"owner"` // root request that started it
+	Name     string    `json:"name"`
+	Command  string    `json:"command"`
+	Cwd      string    `json:"cwd"`
+	Status   string    `json:"status"`
+	ExitCode *int      `json:"exitCode"`
+	Reason   string    `json:"reason"`
+	Notify   bool      `json:"notify"`
+	Started  time.Time `json:"started"`
+	Ended    time.Time `json:"ended"`
 }
 
 // Terminal reports whether the task is over.
@@ -57,7 +57,6 @@ func (t Task) Terminal() bool { return t.Status != Starting && t.Status != Runni
 type StartOptions struct {
 	Session, Owner, Name, Command, Cwd string
 	Env                                []string
-	Timeout                            time.Duration // 0: no limit
 	Notify                             bool
 }
 
@@ -87,7 +86,9 @@ type running struct {
 	cmd       *exec.Cmd
 	done      chan struct{}
 	cancelled bool
-	timedOut  bool
+	call      *tools.Call // set for a launched (foreground) process
+	promoted  bool
+	finished  bool
 	log       *logWriter
 }
 
@@ -117,9 +118,6 @@ func (s *Supervisor) Start(o StartOptions) (Task, error) {
 	if st, err := os.Stat(o.Cwd); err != nil || !st.IsDir() {
 		return Task{}, fmt.Errorf("tasks.start: cwd %q is not a directory", o.Cwd)
 	}
-	if o.Timeout < 0 {
-		return Task{}, errors.New("tasks.start: timeout must not be negative")
-	}
 	s.mu.Lock()
 	if s.closing {
 		s.mu.Unlock()
@@ -127,7 +125,7 @@ func (s *Supervisor) Start(o StartOptions) (Task, error) {
 	}
 	s.mu.Unlock()
 	t := Task{ID: "t" + newID(), Session: o.Session, Owner: o.Owner, Name: o.Name, Command: o.Command, Cwd: o.Cwd,
-		Status: Starting, Notify: o.Notify, Timeout: o.Timeout, Started: time.Now().UTC()}
+		Status: Starting, Notify: o.Notify, Started: time.Now().UTC()}
 	lw, err := newLogWriter(s.logPath(t.Session, t.ID), s.limit)
 	if err != nil {
 		return Task{}, err
@@ -174,20 +172,8 @@ func (s *Supervisor) Start(o StartOptions) (Task, error) {
 
 func (s *Supervisor) supervise(r *running, pumps *sync.WaitGroup) {
 	defer s.wg.Done()
-	var timer *time.Timer
-	if r.task.Timeout > 0 {
-		timer = time.AfterFunc(r.task.Timeout, func() {
-			s.mu.Lock()
-			r.timedOut = true
-			s.mu.Unlock()
-			s.terminate(r)
-		})
-	}
 	pumps.Wait() // output is drained before Wait closes the pipes
 	err := r.cmd.Wait()
-	if timer != nil {
-		timer.Stop()
-	}
 	r.log.close()
 	s.mu.Lock()
 	t := r.task
@@ -196,8 +182,6 @@ func (s *Supervisor) supervise(r *running, pumps *sync.WaitGroup) {
 	switch {
 	case r.cancelled:
 		t.Status, t.Reason = Cancelled, "cancelled"
-	case r.timedOut:
-		t.Status, t.Reason = TimedOut, fmt.Sprintf("exceeded the timeout of %s", r.task.Timeout)
 	case err == nil:
 		t.Status, t.ExitCode = Succeeded, &code
 	default:
@@ -206,7 +190,7 @@ func (s *Supervisor) supervise(r *running, pumps *sync.WaitGroup) {
 			t.ExitCode, t.Reason = nil, "terminated by a signal: "+err.Error()
 		}
 	}
-	if r.cancelled || r.timedOut {
+	if r.cancelled {
 		if code >= 0 {
 			t.ExitCode = &code
 		}
@@ -225,6 +209,10 @@ func (s *Supervisor) supervise(r *running, pumps *sync.WaitGroup) {
 
 // terminate sends SIGTERM to the process group and SIGKILL after GraceTime.
 func (s *Supervisor) terminate(r *running) {
+	if r.call != nil {
+		r.call.Cancel()
+		return
+	}
 	pgid := r.cmd.Process.Pid
 	_ = syscall.Kill(-pgid, syscall.SIGTERM)
 	go func() {

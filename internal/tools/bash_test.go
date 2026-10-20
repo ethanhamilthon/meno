@@ -1,7 +1,6 @@
 package tools
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,7 +11,7 @@ import (
 
 func runOptions(t *testing.T, command string) RunOptions {
 	t.Helper()
-	return RunOptions{Command: command, Dir: t.TempDir(), OutputDir: t.TempDir(), CallID: "call", Timeout: 3 * time.Second}
+	return RunOptions{Command: command, Dir: t.TempDir(), OutputDir: t.TempDir(), CallID: "call"}
 }
 
 func TestRunStreamsEnvironmentAndUnifiedOutput(t *testing.T) {
@@ -21,7 +20,7 @@ func TestRunStreamsEnvironmentAndUnifiedOutput(t *testing.T) {
 	var mu sync.Mutex
 	var streamed strings.Builder
 	options.Stream = func(delta string) { mu.Lock(); defer mu.Unlock(); streamed.WriteString(delta) }
-	result, err := Run(context.Background(), options)
+	result, err := Run(options)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,8 +41,8 @@ func TestRunStreamsEnvironmentAndUnifiedOutput(t *testing.T) {
 
 func TestRunExitCodeAndWorkingDirectory(t *testing.T) {
 	dir := t.TempDir()
-	options := RunOptions{Command: "pwd; exit 7", Dir: dir, OutputDir: t.TempDir(), CallID: "exit", Timeout: time.Second}
-	result, err := Run(context.Background(), options)
+	options := RunOptions{Command: "pwd; exit 7", Dir: dir, OutputDir: t.TempDir(), CallID: "exit"}
+	result, err := Run(options)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,43 +54,28 @@ func TestRunExitCodeAndWorkingDirectory(t *testing.T) {
 	}
 }
 
-func TestRunTimeoutAndCancel(t *testing.T) {
-	t.Run("timeout", func(t *testing.T) {
-		options := runOptions(t, "trap '' TERM; sleep 10")
-		options.Timeout = 80 * time.Millisecond
-		started := time.Now()
-		result, err := Run(context.Background(), options)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !result.TimedOut || result.Status != "[timed out after 1s]" {
-			t.Fatalf("result = %#v", result)
-		}
-		if time.Since(started) > 7*time.Second {
-			t.Fatal("timeout did not kill process group promptly")
-		}
-	})
-	t.Run("cancel", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		options := runOptions(t, "sleep 10")
-		call, err := Start(ctx, options)
-		if err != nil {
-			t.Fatal(err)
-		}
-		cancel()
-		result, err := call.Wait()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !result.Cancelled || result.Status != "[cancelled]" {
-			t.Fatalf("result = %#v", result)
-		}
-	})
+func TestCancelStopsTheProcessGroup(t *testing.T) {
+	call, err := Start(runOptions(t, "trap '' TERM; sleep 10"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	started := time.Now()
+	call.Cancel()
+	result, err := call.Wait()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.Cancelled || result.Status != "[cancelled]" {
+		t.Fatalf("result = %#v", result)
+	}
+	if time.Since(started) > 7*time.Second {
+		t.Fatal("cancel did not kill the process group promptly")
+	}
 }
 
 func TestRunKillsLeftoverProcess(t *testing.T) {
 	options := runOptions(t, "sleep 10 >/dev/null 2>&1 & exit 0")
-	result, err := Run(context.Background(), options)
+	result, err := Run(options)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,33 +84,9 @@ func TestRunKillsLeftoverProcess(t *testing.T) {
 	}
 }
 
-func TestCallPauseResumesTimeout(t *testing.T) {
-	options := runOptions(t, "sleep 1.2")
-	options.Timeout = 700 * time.Millisecond
-	call, err := Start(context.Background(), options)
-	if err != nil {
-		t.Fatal(err)
-	}
-	time.Sleep(50 * time.Millisecond)
-	if !call.Pause() {
-		t.Fatal("Pause failed")
-	}
-	time.Sleep(800 * time.Millisecond)
-	if !call.Resume() {
-		t.Fatal("Resume failed")
-	}
-	result, err := call.Wait()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if result.TimedOut {
-		t.Fatalf("paused timer expired: %#v", result)
-	}
-}
-
 func TestRunLargeOutputKeepsHeadTailAndLog(t *testing.T) {
 	options := runOptions(t, "yes x | head -c 70000")
-	result, err := Run(context.Background(), options)
+	result, err := Run(options)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -147,7 +107,7 @@ func TestRunLargeOutputKeepsHeadTailAndLog(t *testing.T) {
 
 func TestRunLogIsBounded(t *testing.T) {
 	options := runOptions(t, "yes z | head -c 12000000")
-	result, err := Run(context.Background(), options)
+	result, err := Run(options)
 	if err != nil {
 		t.Fatal(err)
 	}

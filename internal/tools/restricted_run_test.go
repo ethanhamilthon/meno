@@ -1,11 +1,9 @@
 package tools
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 )
 
 func TestRunRestrictedUsesExecutableAndNeverRunsSecondProgram(t *testing.T) {
@@ -15,9 +13,8 @@ func TestRunRestrictedUsesExecutableAndNeverRunsSecondProgram(t *testing.T) {
 		t.Fatal(err)
 	}
 	marker := filepath.Join(dir, "second-ran")
-	ctx := context.Background()
-	options := RunOptions{Dir: dir, OutputDir: filepath.Join(dir, "outputs"), CallID: "valid", Timeout: time.Second, Env: []string{"PATH=" + dir}}
-	call, err := RunRestricted(ctx, "meno help", binary, []string{"help"}, options)
+	options := RunOptions{Dir: dir, OutputDir: filepath.Join(dir, "outputs"), CallID: "valid", Env: []string{"PATH=" + dir}}
+	call, err := RunRestricted("meno help", binary, []string{"help"}, options)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -30,7 +27,7 @@ func TestRunRestrictedUsesExecutableAndNeverRunsSecondProgram(t *testing.T) {
 	}
 	options.CallID = "denied"
 	command := "meno help; touch " + marker
-	if _, err := RunRestricted(ctx, command, binary, []string{"help"}, options); err == nil || err.Error() != RestrictedCommandError {
+	if _, err := RunRestricted(command, binary, []string{"help"}, options); err == nil || err.Error() != RestrictedCommandError {
 		t.Fatalf("error = %v", err)
 	}
 	if _, err := os.Stat(marker); !os.IsNotExist(err) {

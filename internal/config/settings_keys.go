@@ -21,9 +21,6 @@ var choices = map[string][]string{
 }
 
 func Choices(key string) []string {
-	if key == "bash_timeout" {
-		return []string{"seconds", "off", "model"}
-	}
 	if c, ok := bashChoices[key]; ok {
 		return c
 	}
@@ -131,30 +128,6 @@ func (s *Settings) Cycle(key string, step int) string {
 			s.setRaw(key, opts[index])
 			return opts[index]
 		}
-	}
-	if key == "bash_timeout" {
-		choices := []string{"seconds", "off", "model"}
-		index := 0
-		if n, err := strconv.Atoi(s.BashTimeout); err == nil {
-			s.bashSeconds = n // remembered while the mode is off or model
-		}
-		if s.BashTimeout == "off" {
-			index = 1
-		} else if s.BashTimeout == "model" {
-			index = 2
-		}
-		index = ((index+step)%len(choices) + len(choices)) % len(choices)
-		if choices[index] == "seconds" {
-			if _, err := strconv.Atoi(s.BashTimeout); err != nil {
-				s.BashTimeout = "120"
-				if s.bashSeconds > 0 {
-					s.BashTimeout = strconv.Itoa(s.bashSeconds)
-				}
-			}
-		} else {
-			s.BashTimeout = choices[index]
-		}
-		return choices[index]
 	}
 	if _, ok := bashChoices[key]; ok {
 		opts := bashChoices[key]

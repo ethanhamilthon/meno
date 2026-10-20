@@ -93,10 +93,7 @@ type Request struct {
 	ToolDescription string
 	// ToolName selects the tool: "" is js (ToolName const), "bash" is the shell tool.
 	ToolName string
-	// ModelTimeout adds a timeout argument to the js tool: the model picks how
-	// long each call may run.
-	ModelTimeout bool
-	Cache        *CacheOptions
+	Cache    *CacheOptions
 }
 
 type Client interface {
@@ -118,7 +115,7 @@ func (m Msg) Calls() []ToolCall {
 }
 
 // ToolSchema is the definition of the js tool. An empty desc gives the default.
-func ToolSchema(desc string, modelTimeout bool) map[string]any {
+func ToolSchema(desc string) map[string]any {
 	if desc == "" {
 		desc = DefaultToolDescription
 	}
@@ -128,12 +125,6 @@ func ToolSchema(desc string, modelTimeout bool) map[string]any {
 			"type":        "string",
 			"description": "What this code does, in at most 6 words (for example \"Read the config files\"). Shown to the user.",
 		},
-	}
-	if modelTimeout {
-		props["timeout"] = map[string]any{
-			"type":        "number",
-			"description": "Seconds this call may run before it is stopped (default 30; 0 means no limit). Raise it for slow commands such as builds or test suites.",
-		}
 	}
 	return map[string]any{
 		"type":        "function",
@@ -169,19 +160,18 @@ func ToolTitle(args string) string {
 	return t
 }
 
-// ToolArgs decodes the arguments of a js tool call. timeout is nil unless the
-// model passed one (seconds).
-func ToolArgs(args string) (code string, timeout *float64) {
+// ToolArgs decodes the code of a tool call (a bash command, or js code).
+// Arguments it does not know, such as an obsolete timeout, are ignored.
+func ToolArgs(args string) string {
 	var a struct {
-		Code    string   `json:"code"`
-		Command string   `json:"command"`
-		Timeout *float64 `json:"timeout"`
+		Code    string `json:"code"`
+		Command string `json:"command"`
 	}
 	if json.Unmarshal([]byte(args), &a) != nil {
-		return args, nil
+		return args
 	}
 	if a.Code == "" {
 		a.Code = a.Command
 	}
-	return a.Code, a.Timeout
+	return a.Code
 }

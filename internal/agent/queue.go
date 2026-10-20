@@ -8,11 +8,32 @@ import "sync"
 type Queue struct {
 	mu    sync.Mutex
 	items []Message
+	sig   chan struct{}
+}
+
+// Human returns a channel that receives a value after the user writes a
+// message. It is separate from task and goal events, which never use it.
+func (q *Queue) Human() <-chan struct{} {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	if q.sig == nil {
+		q.sig = make(chan struct{}, 1)
+	}
+	return q.sig
 }
 
 func (q *Queue) Push(m Message) {
 	q.mu.Lock()
 	q.items = append(q.items, m)
+	if q.sig == nil {
+		q.sig = make(chan struct{}, 1)
+	}
+	if !m.Viewed {
+		select {
+		case q.sig <- struct{}{}:
+		default:
+		}
+	}
 	q.mu.Unlock()
 }
 

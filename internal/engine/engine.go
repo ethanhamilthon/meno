@@ -14,7 +14,6 @@ import (
 	"meno/internal/modes"
 	"meno/internal/proc"
 	"meno/internal/proto"
-	"meno/internal/tools"
 	"os"
 	"sync"
 	"time"
@@ -71,8 +70,7 @@ type runState struct {
 	pinProvider      string // provider, model and effort the running request started with
 	pinModel         string
 	pinEffort        string
-	cancelled        map[string]bool        // root requests that were stopped; their events never wake the session
-	calls            map[string]*tools.Call // running bash calls by id (ask pauses their timer)
+	cancelled        map[string]bool // root requests that were stopped; their events never wake the session
 	published        int
 	mu               sync.Mutex
 }
@@ -244,7 +242,7 @@ func (e *Engine) load(ctx context.Context, id string) (*runState, error) {
 	if err != nil {
 		return nil, err
 	}
-	st := &runState{cancelled: map[string]bool{}, calls: map[string]*tools.Call{}, session: sess, cwd: sess.Cwd, env: map[string]string{}, changed: time.Now(), token: tokenState{value: tok, groups: groupsFor(sess.Modes)}}
+	st := &runState{cancelled: map[string]bool{}, session: sess, cwd: sess.Cwd, env: map[string]string{}, changed: time.Now(), token: tokenState{value: tok, groups: groupsFor(sess.Modes)}}
 	st.modes = compose(sess.Modes)
 	st.published = len(sess.Snapshot())
 	e.mu.Lock()

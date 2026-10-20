@@ -27,7 +27,6 @@ type CallStartData struct {
 	CallID  string `json:"call_id"`
 	Command string `json:"command"`
 	Title   string `json:"title,omitempty"`
-	LimitMS int64  `json:"limit_ms,omitempty"`
 }
 
 // CallEndData completes a tool call.
@@ -36,7 +35,8 @@ type CallEndData struct {
 	Output    string `json:"output,omitempty"`
 	Exit      int    `json:"exit"`
 	ElapsedMS int64  `json:"elapsed_ms,omitempty"`
-	TimedOut  bool   `json:"timed_out,omitempty"`
+	// TaskID is set when the call moved to a background task.
+	TaskID string `json:"task_id,omitempty"`
 }
 
 // TurnAddedData announces a persisted turn.

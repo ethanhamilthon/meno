@@ -32,7 +32,6 @@ var settingTabs = []settingTab{
 		rows: []settingRow{
 			{"bash code", "bash_code"},
 			{"bash output", "bash_output"},
-			{"bash strings", "bash_strings"},
 			{"bash timing", "bash_timing"},
 			{"thinking", "thinking"},
 			{"turn summary", "turn_summary"},
@@ -51,7 +50,6 @@ var settingTabs = []settingTab{
 		name: "Context",
 		rows: []settingRow{
 			{"auto compact", "compact_percent"},
-			{"bash timeout", "bash_timeout"},
 		},
 	},
 }
@@ -122,7 +120,7 @@ func (a *App) settingsKey(k *tcell.EventKey) {
 		a.cycleSetting(1)
 	case k.Rune() == '+' || k.Rune() == '=' || k.Rune() == '-':
 		key := settingRows[clampSel(a.st.Sel, len(settingRows))].key
-		if config.NumOption(key) == "" || key == "bash_timeout" && (a.st.Settings.BashTimeout == "off" || a.st.Settings.BashTimeout == "model") {
+		if config.NumOption(key) == "" {
 			return
 		}
 		delta := 1
@@ -176,15 +174,6 @@ func (a *App) cycleSetting(step int) {
 		return
 	}
 	cur := a.st.Settings.Get(key)
-	if key == "bash_timeout" {
-		if a.st.Settings.BashTimeout == "off" {
-			cur = "off"
-		} else if a.st.Settings.BashTimeout == "model" {
-			cur = "model"
-		} else {
-			cur = "seconds"
-		}
-	}
 	idx := 0
 	for i, o := range opts {
 		if o == cur {

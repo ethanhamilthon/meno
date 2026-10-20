@@ -33,13 +33,12 @@ func (e *Engine) agentEvent(s *runState, ev agent.Ev) {
 		c := findCall(&s.live, ev.CallID)
 		c.Command = ev.Code
 		c.Title = ev.Title
-		c.LimitMS = ev.Limit.Milliseconds()
 	case agent.EvJSEnd:
 		c := findCall(&s.live, ev.CallID)
 		c.Output = ev.Output
 		c.Exit = exitFromOutput(ev.Output)
 		c.ElapsedMS = ev.Elapsed.Milliseconds()
-		c.TimedOut = ev.TimedOut
+		c.TaskID = ev.TaskID
 		if ev.Err != "" {
 			c.Exit = exitCode(ev.Err)
 		}
@@ -137,16 +136,16 @@ func (e *Engine) translate(id string, ev agent.Ev) {
 	case agent.EvThink:
 		e.publish(id, proto.EventThinkDelta, proto.TextDeltaData{Text: ev.Thinking})
 	case agent.EvJSStart:
-		e.publish(id, proto.EventCallStart, proto.CallStartData{CallID: ev.CallID, Command: ev.Code, Title: ev.Title, LimitMS: ev.Limit.Milliseconds()})
+		e.publish(id, proto.EventCallStart, proto.CallStartData{CallID: ev.CallID, Command: ev.Code, Title: ev.Title})
 	case agent.EvJSEnd:
 		exit := 0
 		if ev.Err != "" {
 			exit = 1
 		}
-		if code, ok := e.bashExit(id, ev.Output); ok {
+		if code, ok := e.bashExit(id, ev.Output); ok && ev.TaskID == "" {
 			exit = code
 		}
-		e.publish(id, proto.EventCallEnd, proto.CallEndData{CallID: ev.CallID, Output: ev.Output, Exit: exit, ElapsedMS: ev.Elapsed.Milliseconds(), TimedOut: ev.TimedOut})
+		e.publish(id, proto.EventCallEnd, proto.CallEndData{CallID: ev.CallID, Output: ev.Output, Exit: exit, ElapsedMS: ev.Elapsed.Milliseconds(), TaskID: ev.TaskID})
 	case agent.EvRequest:
 		d := proto.RequestData{Provider: ev.Provider.Name, Model: ev.Model}
 		if ev.Req != nil {

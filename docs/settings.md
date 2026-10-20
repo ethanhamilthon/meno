@@ -12,7 +12,6 @@ notify command), Enter saves it and Esc cancels. Every change is saved at once.
 | General | images | `auto`, `off`, `kitty`, `sixel`, `iterm` — see [terminal graphics](graphics.md) |
 | Display | bash code | `all`, `lines <n>`, `off` — how much command text the timeline shows |
 | Display | bash output | `all`, `lines <n>`, `off` |
-| Display | bash strings | `off`, `lines <n>` — fold heredoc bodies for display only |
 | Display | bash timing | `all`, `slow only`, `off` — which finished bash calls show their duration |
 | Display | thinking | `all`, `lines <n>` (the newest rows), `off` |
 | Display | turn summary | `on`, `off` — the line that closes a run |
@@ -21,7 +20,6 @@ notify command), Enter saves it and Esc cancels. Every change is saved at once.
 | Notify | notify volume | `20`…`100` percent; previews on change; ignored for a custom command |
 | Notify | notify command | optional shell command that replaces the sound |
 | Context | auto compact | the percentage of the context window at which meno compacts before a request |
-| Context | bash timeout | `<seconds>` (default `120`), `off`, `model` — maximum run time of a bash call; with `model` the tool gets a `timeout` argument |
 | Context | daemon idle exit | minutes (default 30); 0 means never |
 
 ## Files that add to the app

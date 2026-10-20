@@ -10,10 +10,7 @@ type ConfigSettings struct {
 	BashLines            int    `json:"bash_lines"`
 	BashOutput           string `json:"bash_output"`
 	BashOutputLines      int    `json:"bash_output_lines"`
-	BashStrings          string `json:"bash_strings"`
-	BashStringLines      int    `json:"bash_string_lines"`
 	BashTiming           string `json:"bash_timing"`
-	BashTimeout          string `json:"bash_timeout"`
 	TurnSummary          string `json:"turn_summary"`
 	Thinking             string `json:"thinking"`
 	ThinkLines           int    `json:"thinking_lines"`

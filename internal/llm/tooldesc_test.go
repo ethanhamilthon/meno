@@ -10,7 +10,7 @@ import (
 )
 
 func schemaDescription(desc string) string {
-	return ToolSchema(desc, false)["description"].(string)
+	return ToolSchema(desc)["description"].(string)
 }
 
 func TestToolSchemaCarriesTheDescription(t *testing.T) {
