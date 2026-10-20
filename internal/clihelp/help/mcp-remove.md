@@ -2,4 +2,4 @@
 
 Usage: meno mcp remove SERVER
 
-Remove an MCP server when the user asks.
+Remove a saved MCP server after human confirmation.

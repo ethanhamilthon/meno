@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"meno/internal/agent"
+	"meno/internal/mcp"
 	"meno/internal/proto"
 	"os"
 	"path/filepath"
@@ -101,6 +102,7 @@ func (e *Engine) DeleteSession(ctx context.Context, id string) error {
 		e.mu.Lock()
 		delete(e.sessions, id)
 		e.mu.Unlock()
+		err = (mcp.ResultStore{Dir: e.paths.File("mcp-results")}).DeleteSession(id)
 	}
 	return err
 }

@@ -12,9 +12,11 @@ import (
 	"meno/internal/cli/daemonapi"
 	"meno/internal/config"
 	"meno/internal/daemon"
+	"meno/internal/daemon/cfgsvc"
 	"meno/internal/db"
 	"meno/internal/engine"
 	"meno/internal/llm"
+	"meno/internal/mcp"
 	"meno/internal/proto"
 )
 
@@ -56,11 +58,16 @@ func startRig(t *testing.T, f llm.Client) (home string, eng *engine.Engine, sess
 		t.Fatal(err)
 	}
 	hub, global := daemon.NewHub("b", 2000), daemon.NewGlobalHub("b", 100)
-	eng, err := engine.New(engine.Options{Home: home, EventHub: hub, GlobalHub: global, ProviderClient: func(llm.Provider) llm.Client { return f }})
+	manager := mcp.NewManager()
+	svc, err := cfgsvc.New(cfgsvc.Options{Paths: config.Paths{Home: home}, MCP: manager, FetchMetadata: func(context.Context) (map[string]llm.ModelInfo, error) { return nil, nil }, FetchModels: func(context.Context, llm.Provider) ([]llm.Model, error) { return nil, nil }})
 	if err != nil {
 		t.Fatal(err)
 	}
-	srv, err := daemon.New(daemon.Options{Home: home, Backend: eng, Hub: hub, Global: global, Version: "test"})
+	eng, err = engine.New(engine.Options{Resources: svc, MCP: manager, Home: home, EventHub: hub, GlobalHub: global, ProviderClient: func(llm.Provider) llm.Client { return f }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv, err := daemon.New(daemon.Options{Home: home, Backend: eng, Hub: hub, Global: global, Version: "test", OnStart: svc.Start, OnStop: func() { eng.Close(); svc.Close() }})
 	if err != nil {
 		t.Fatal(err)
 	}

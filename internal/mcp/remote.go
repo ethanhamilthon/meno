@@ -9,7 +9,6 @@ import (
 	"io"
 	"meno/internal/safe"
 	"net/http"
-	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -62,7 +61,8 @@ type remote struct {
 	mu      sync.Mutex
 	target  string // where messages are posted
 	session string // Mcp-Session-Id of a streamable-http session
-	legacy  bool   // sse transport: answers come back on the event stream
+	version string
+	legacy  bool // sse transport: answers come back on the event stream
 }
 
 func (r *remote) newRequest(method, target string, body []byte) (*http.Request, error) {
@@ -93,19 +93,29 @@ func (r *remote) Write(b []byte) (int, error) {
 	return len(b), nil
 }
 
-func (r *remote) post(body []byte) error {
+func (r *remote) post(body []byte) error { return r.postContext(r.ctx, body) }
+
+func (r *remote) postContext(ctx context.Context, body []byte) error {
 	r.mu.Lock()
-	target, session := r.target, r.session
+	target, session, version := r.target, r.session, r.version
 	r.mu.Unlock()
 	req, err := r.newRequest(http.MethodPost, target, body)
 	if err != nil {
 		return err
 	}
+	req = req.WithContext(ctx)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json, text/event-stream")
 	if session != "" {
 		req.Header.Set("Mcp-Session-Id", session)
-		req.Header.Set("MCP-Protocol-Version", protocolVersion)
+	}
+	var request struct {
+		ID     json.RawMessage `json:"id"`
+		Method string          `json:"method"`
+	}
+	_ = json.Unmarshal(body, &request)
+	if request.Method != "initialize" {
+		req.Header.Set("MCP-Protocol-Version", version)
 	}
 	resp, err := r.client.Do(req)
 	if err != nil {
@@ -117,11 +127,17 @@ func (r *remote) post(body []byte) error {
 		r.session = id
 		r.mu.Unlock()
 	}
-	if resp.StatusCode >= 400 {
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		msg, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
 		return fmt.Errorf("http %d: %s", resp.StatusCode, strings.TrimSpace(string(msg)))
 	}
-	if r.legacy || resp.StatusCode == http.StatusAccepted || resp.StatusCode == http.StatusNoContent {
+	if r.legacy {
+		return nil
+	}
+	if resp.StatusCode == 202 || resp.StatusCode == 204 {
+		if len(request.ID) > 0 && request.Method != "" {
+			return fmt.Errorf("mcp: HTTP response has no RPC result")
+		}
 		return nil
 	}
 	ct := resp.Header.Get("Content-Type")
@@ -129,9 +145,15 @@ func (r *remote) post(body []byte) error {
 	case strings.HasPrefix(ct, "text/event-stream"):
 		return readSSE(resp.Body, func(_, data string) { r.conn.handle([]byte(data)) })
 	default:
-		raw, err := io.ReadAll(io.LimitReader(resp.Body, 32<<20))
+		raw, err := io.ReadAll(io.LimitReader(resp.Body, (32<<20)+1))
 		if err != nil {
 			return err
+		}
+		if len(raw) > 32<<20 {
+			return fmt.Errorf("mcp: HTTP result exceeds 32 MiB")
+		}
+		if !json.Valid(raw) {
+			return fmt.Errorf("mcp: malformed HTTP JSON response")
 		}
 		raw = bytes.TrimSpace(raw)
 		if bytes.HasPrefix(raw, []byte("[")) {
@@ -151,17 +173,26 @@ func (r *remote) post(body []byte) error {
 
 func newRemote(ctx context.Context, s Server) (*remote, *Client) {
 	ctx, cancel := context.WithCancel(ctx)
-	r := &remote{ctx: ctx, cancel: cancel, client: &http.Client{}, headers: s.Headers, target: s.URL}
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.ResponseHeaderTimeout = 10 * time.Second
+	r := &remote{ctx: ctx, cancel: cancel, client: &http.Client{Transport: transport, CheckRedirect: func(req *http.Request, via []*http.Request) error { return http.ErrUseLastResponse }}, headers: s.Headers, target: s.URL, version: protocolVersion}
 	r.conn = newConn(r)
-	c := &Client{Server: s, conn: r.conn, done: make(chan struct{})}
-	c.closer = func() {
-		r.cancel()
-		select {
-		case <-c.done:
-		default:
-			close(c.done)
+	c := &Client{Server: s, conn: r.conn, done: make(chan struct{}), ctx: ctx, cancel: cancel}
+	c.sendRemote = func(call context.Context, msg any) error {
+		body, err := json.Marshal(msg)
+		if err != nil {
+			return err
 		}
+		request, cancel := context.WithCancel(call)
+		stop := context.AfterFunc(ctx, cancel)
+		defer stop()
+		defer cancel()
+		return r.postContext(request, body)
 	}
+	c.setVersion = func(version string) { r.mu.Lock(); r.version = version; r.mu.Unlock() }
+	c.conn.notify = c.notification
+	c.closer = func() { r.cancel(); transport.CloseIdleConnections() }
+	go func() { <-ctx.Done(); c.markDone() }()
 	return r, c
 }
 
@@ -169,83 +200,6 @@ func newRemote(ctx context.Context, s Server) (*remote, *Client) {
 // initialize request, so there is nothing to open beforehand.
 func startHTTP(ctx context.Context, s Server) (*Client, error) {
 	_, c := newRemote(ctx, s)
-	if err := c.initialize(ctx); err != nil {
-		c.Close()
-		return nil, err
-	}
-	return c, nil
-}
-
-// startSSE connects to a server using the older HTTP+SSE transport: a GET opens
-// the event stream, whose first event names the endpoint to post requests to.
-func startSSE(ctx context.Context, s Server) (*Client, error) {
-	r, c := newRemote(ctx, s)
-	r.legacy = true
-	req, err := r.newRequest(http.MethodGet, s.URL, nil)
-	if err != nil {
-		c.Close()
-		return nil, err
-	}
-	req.Header.Set("Accept", "text/event-stream")
-	resp, err := r.client.Do(req)
-	if err != nil {
-		c.Close()
-		return nil, err
-	}
-	if resp.StatusCode != http.StatusOK {
-		resp.Body.Close()
-		c.Close()
-		return nil, fmt.Errorf("sse: http %d", resp.StatusCode)
-	}
-	ready := make(chan error, 1)
-	go func() {
-		defer safe.Recover(nil)
-		defer resp.Body.Close()
-		announced := false
-		err := readSSE(resp.Body, func(event, data string) {
-			switch event {
-			case "endpoint":
-				base, perr := url.Parse(s.URL)
-				ref, rerr := url.Parse(strings.TrimSpace(data))
-				if perr != nil || rerr != nil {
-					return
-				}
-				r.mu.Lock()
-				r.target = base.ResolveReference(ref).String()
-				r.mu.Unlock()
-				if !announced {
-					announced = true
-					ready <- nil
-				}
-			case "message":
-				r.conn.handle([]byte(data))
-			}
-		})
-		if !announced {
-			if err == nil {
-				err = fmt.Errorf("sse: stream ended before the endpoint event")
-			}
-			ready <- err
-		}
-		select {
-		case <-c.done:
-		default:
-			close(c.done)
-		}
-	}()
-	select {
-	case err := <-ready:
-		if err != nil {
-			c.Close()
-			return nil, err
-		}
-	case <-time.After(10 * time.Second):
-		c.Close()
-		return nil, fmt.Errorf("sse: no endpoint event after 10s")
-	case <-ctx.Done():
-		c.Close()
-		return nil, ctx.Err()
-	}
 	if err := c.initialize(ctx); err != nil {
 		c.Close()
 		return nil, err

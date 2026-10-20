@@ -1,5 +1,20 @@
 # Upgrading, data and privacy
 
+## 0.5.4: shared MCP runtime and compact footer
+
+MCP configuration and agent calls now share one runtime. Restart the daemon after
+upgrading so existing sessions use it. Tool calls return a JSON envelope, including
+`isError`, `resultId`, structured data and artifact paths. Tool-reported errors no
+longer fail the CLI command. Existing empty stored results cannot be recovered.
+MCP administration asks for approval. Env/headers use lossless JSON-object editing.
+
+The footer shows `model | effort`, gray daemon counts, and right-aligned context.
+Mode/dialog badges and bottom composer padding are removed. Esc in INPUT preserves
+the draft; use `:edit` to enter EDIT. Header and footer share the activity wave.
+Words wrap without dropping source text. Partial Bash arguments stay hidden until
+execution starts. Identical frames no longer repeat terminal repaint sequences.
+No database reset or migration is required.
+
 ## 0.5.2: commands inside the input
 
 COMMAND mode is gone: type `:` at the start of a word in INPUT and pick a command

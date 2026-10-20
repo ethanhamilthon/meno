@@ -2,4 +2,4 @@
 
 Usage: meno mcp restart SERVER
 
-Restart an MCP server when the user asks.
+Restart an enabled MCP server after human confirmation, including file-defined servers.

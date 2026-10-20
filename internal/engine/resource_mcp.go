@@ -14,8 +14,13 @@ func (e *Engine) mcpResource(ctx context.Context, s *runState, tail []string, me
 	op := tail[0]
 	if op == "servers" {
 		out := []map[string]any{}
-		for _, srv := range e.serverList() {
-			out = append(out, map[string]any{"name": srv.Name, "enabled": srv.Enabled, "running": e.mcp.Running(srv.Name), "error": e.mcp.Err(srv.Name)})
+		servers, err := e.mcpServers(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, srv := range servers {
+			status := e.mcp.Snapshot(srv.Name)
+			out = append(out, map[string]any{"name": srv.Name, "enabled": srv.Enabled, "running": status.Running, "starting": status.Starting, "error": status.Error})
 		}
 		return out, nil
 	}
@@ -50,7 +55,7 @@ func (e *Engine) mcpResource(ctx context.Context, s *runState, tail []string, me
 		return store.Read(s.session.ID, id, off, lim)
 	}
 	if op == "add" || op == "remove" || op == "restart" {
-		return nil, api(proto.CodeForbidden, "MCP server administration requires user confirmation")
+		return e.adminMCP(ctx, s, op, stringValue(data, "server"))
 	}
 	return nil, api(proto.CodeNotFound, "unknown MCP operation")
 }

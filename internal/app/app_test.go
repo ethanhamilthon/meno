@@ -25,8 +25,8 @@ func TestMainScreenRenders(t *testing.T) {
 	defer scr.Fini()
 	a.draw()
 	out := screenText(scr)
-	if !strings.Contains(out, "INPUT") {
-		t.Fatalf("status badge missing:\n%s", out)
+	if strings.Contains(out, "INPUT") {
+		t.Fatalf("obsolete status badge visible:\n%s", out)
 	}
 	if !strings.Contains(out, "gpt-5.5") {
 		t.Fatalf("model in the status bar missing:\n%s", out)
@@ -51,7 +51,7 @@ func TestTypeAndSendPlaceholder(t *testing.T) {
 func TestEditModeEnterAndEscape(t *testing.T) {
 	a, scr := newTestApp(t)
 	defer scr.Fini()
-	a.onKey(tcell.NewEventKey(tcell.KeyEsc, 0, tcell.ModNone))
+	a.runCommand("edit")
 	if a.st.Mode.Label() != "EDIT" {
 		t.Fatalf("mode %s", a.st.Mode.Label())
 	}

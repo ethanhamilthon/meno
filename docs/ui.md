@@ -5,17 +5,19 @@ draft, or after a space or a newline) opens the command list above the composer,
 anywhere in the text. Arrows pick a row, Tab completes it, Enter runs it and
 removes the `:command` from the draft; the rest of the draft stays. Esc closes the
 list and keeps the text. A command that fails keeps its text for correction.
-A colon inside a word (`http://x`, `a:b`) is ordinary text. Esc without a list
+A colon inside a word (`http://x`, `a:b`) is ordinary text. Esc without a list keeps INPUT, the draft, and the cursor. Only `:edit`
 enters EDIT. There is no NORMAL or COMMAND mode.
 
 An empty composer shows one of three hints: `Type to start building anything` (new
 session), `Tell the working agent something` (an agent is running) and
 `Type your next task here` (the agent has answered). While an agent works, a green
-wave runs along the composer's top line and the session name.
+wave runs in phase across the composer header and footer, including their text.
+The compact composer has no blank row between its input and footer.
 
 Text keeps two free columns on the left and on the right of every row: the
 timeline, the composer, the status bar and the lists. Backgrounds, rules and icons
-may use them.
+may use them. Ordinary words wrap as units; only overlong tokens split at
+grapheme boundaries. Visual wrapping does not change stored text.
 
 | Key or command | Action |
 | --- | --- |
@@ -26,7 +28,7 @@ may use them.
 | :edit | Vim-style navigation and editing of the draft (history when the draft is empty); no selection until `v` |
 | v / V / Ctrl+V in EDIT | Start a selection; Esc returns to EDIT |
 | Esc in EDIT | Return to INPUT |
-| Esc in INPUT (no command list) | Enter EDIT |
+| Esc in INPUT (no command list) | Keep typing without changing the draft |
 | :new :sessions :fork :rename :cd :compact :export | Session actions |
 | :model :settings :skills :mcp :login :tasks | Model and management dialogs |
 | :context | ctx/max, spent, in/out and cache hit for the last turn, the session and the current request |
@@ -44,13 +46,15 @@ replace file/folder/skill tags with readable labels before truncating.
 
 ## Status bar
 
-Left: INPUT, EDIT or VISUAL (or an open dialog's name). Center:
-`N running | N tasks | N Asking | N done`. Right: model, effort and `ctx/max` where space allows.
+Left: `model | effort` (effort is omitted when unavailable). Center:
+`N running | N tasks | N Asking | N done`. Right: `ctx/max`, retained before
+optional labels on narrow terminals. There are no mode or dialog badges.
+Labels and counts use dim gray; rules use a darker gray. Typed input stays bright.
 
-- running is green: active sessions, excluding those waiting for an answer.
-- tasks is purple: live background Bash processes.
-- Asking is orange: sessions waiting for an agent question form.
-- done is blue: sessions with unread completed runs, including failures/stops.
+- running: active sessions, excluding those waiting for an answer.
+- tasks: live background Bash processes.
+- Asking: sessions waiting for an agent question form.
+- done: sessions with unread completed runs, including failures/stops.
 
 Counts cover the whole daemon, not only the current project. Zero counts are hidden.
 A session may have a new running request and an older unread completion. Blue
@@ -67,11 +71,12 @@ usage/pricing stays unknown; partial costs are identified as partial.
 Answers render as Markdown. Each Bash call has a full-width dark gray header:
 short action title on the left, live/final duration on the right. This timing is
 always visible. Only the source region changes background: dark green while
-streaming/running, terminal background on success, dark red on error/timeout/stop.
+running, terminal background on success, dark red on error/timeout/stop.
 Output remains on its ordinary background. Stderr alone does not imply failure.
 
-Finalized Bash source uses Bash-aware highlighting. Streaming/incomplete or very
-large source may remain plain. This does not change Markdown or highlight arbitrary
+Bash source stays hidden while arguments arrive. The complete command and title
+appear when execution starts, with Bash-aware highlighting. Very large source
+may remain plain. Assistant text and thinking still stream. This does not change Markdown or highlight arbitrary
 stdout/stderr as shell code. Copying code excludes title, rules and timing.
 
 Every run ends with input/output, cache read/write and cost on the left, and total

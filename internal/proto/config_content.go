@@ -33,7 +33,8 @@ type ConfigMCPServer struct {
 	Error     string            `json:"error,omitempty"`
 }
 type McpServersResponse struct {
-	Servers []ConfigMCPServer `json:"servers"`
+	Servers  []ConfigMCPServer `json:"servers"`
+	Warnings []string          `json:"warnings,omitempty"`
 }
 type McpServerRequest struct {
 	Server ConfigMCPServer `json:"server"`

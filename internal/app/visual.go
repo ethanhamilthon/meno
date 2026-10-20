@@ -62,6 +62,9 @@ func (a *App) transcriptWithSelection(w int) []ui.Line {
 		}
 	}
 	for _, call := range a.st.LiveCalls {
+		if !call.Running {
+			continue
+		}
 		saved := false
 		for _, t := range turns {
 			if call.ID != "" && t.CallID == call.ID {

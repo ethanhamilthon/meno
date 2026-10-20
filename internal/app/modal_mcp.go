@@ -60,8 +60,7 @@ func (a *App) mcpKey(k *tcell.EventKey) {
 	case k.Rune() == ' ' && a.st.Sel < n:
 		s := &a.st.Servers[a.st.Sel]
 		s.Enabled = !s.Enabled
-		a.persistServers()
-		a.startMCP(a.st.Sel)
+		a.saveMCPServer(*s, false)
 	case isKey(k, 'r') && a.st.Sel < n:
 		a.startMCP(a.st.Sel)
 	}
@@ -113,8 +112,8 @@ func (a *App) mcpFields() []field {
 		{label: "transport", opts: mcpTransports, get: func() string { return s.Transport }, set: func(v string) error { s.Transport = v; return nil }},
 		{label: "command", get: func() string { return s.Command }, set: func(v string) error { s.Command = v; return nil }},
 		{label: "url", get: func() string { return s.URL }, set: func(v string) error { s.URL = v; return nil }},
-		{label: "headers", get: func() string { return envString(s.Headers) }, set: func(v string) error {
-			m, err := parseEnv(v)
+		{label: "headers", get: func() string { return mapJSON(s.Headers) }, set: func(v string) error {
+			m, err := parseMapJSON(v)
 			if err != nil {
 				return err
 			}
@@ -124,8 +123,8 @@ func (a *App) mcpFields() []field {
 			s.Headers = m
 			return nil
 		}},
-		{label: "env", get: func() string { return envString(s.Env) }, set: func(v string) error {
-			m, err := parseEnv(v)
+		{label: "env", get: func() string { return mapJSON(s.Env) }, set: func(v string) error {
+			m, err := parseMapJSON(v)
 			if err != nil {
 				return err
 			}
@@ -142,12 +141,13 @@ func (a *App) mcpEditKey(k *tcell.EventKey) {
 		a.startMCP(a.st.EditIdx)
 	case isKey(k, 'd') && !a.st.Editing && a.st.EditIdx >= 0:
 		a.st.Servers = append(a.st.Servers[:a.st.EditIdx], a.st.Servers[a.st.EditIdx+1:]...)
-		a.persistServers()
+		a.deleteMCPServer(a.st.EditMCP.Name)
 		a.openOverlay(OverMCP)
 	}
 }
 
 func (a *App) saveMCPEdit() {
+	isNew := a.st.EditIdx < 0 || a.st.EditIdx >= len(a.st.Servers)
 	s := a.st.EditMCP
 	if err := mcp.ValidateServer(s); err != nil {
 		a.st.FormNote = err.Error()
@@ -164,14 +164,16 @@ func (a *App) saveMCPEdit() {
 		if reflect.DeepEqual(a.st.Servers[a.st.EditIdx], s) {
 			return // nothing changed: do not restart the server
 		}
+		if a.st.Servers[a.st.EditIdx].Name != s.Name {
+			a.st.FormNote = "Server names cannot change; create a new server instead"
+			return
+		}
 		a.st.Servers[a.st.EditIdx] = s
 	} else {
 		a.st.Servers = append(a.st.Servers, s)
 		a.st.EditIdx = len(a.st.Servers) - 1
 	}
-	a.persistServers()
-	a.startMCP(a.st.EditIdx)
-	a.notify("mcp saved")
+	a.saveMCPServer(s, isNew)
 }
 
 func (a *App) drawMCPEdit(c ui.Canvas, w, h int) {

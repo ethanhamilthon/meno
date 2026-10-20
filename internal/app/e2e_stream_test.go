@@ -11,7 +11,7 @@ import (
 )
 
 // TestE2EStreamingFrames drives a whole turn and inspects every frame: thinking,
-// text and the tool call code must appear while they stream, and nothing may be
+// text must stream, and tool code must appear only during execution, and nothing may be
 // duplicated once the turn is persisted.
 func TestE2EStreamingFrames(t *testing.T) {
 	cl := &scriptedClient{turns: [][]llm.Event{
@@ -37,6 +37,11 @@ func TestE2EStreamingFrames(t *testing.T) {
 			a.handle(msg)
 			a.draw()
 			frame := screenText(scr)
+			for _, call := range a.st.LiveCalls {
+				if !call.Running && call.Code != "" && strings.Contains(frame, call.Code) {
+					t.Fatalf("partial source visible: %q", call.Code)
+				}
+			}
 			for _, want := range []string{"weighing options", "checking the sum", "echo total", "20 + 22"} {
 				if strings.Contains(frame, want) {
 					seen[want] = true

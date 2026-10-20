@@ -40,14 +40,14 @@ func TestFirstRunSetupThroughDialogs(t *testing.T) {
 	s.Send(Esc)
 	time.Sleep(150 * time.Millisecond)
 	s.Send(Esc)
-	s.WaitGone("LOGIN")
+	s.WaitGone("add a provider to start")
 
 	s.Cmd("model")
 	s.WaitFor("fake-model")
 	s.WaitFor("other-model")
 	s.Send(Enter)
 	s.WaitGone("search models")
-	s.WaitFor("fake-model (")
+	s.WaitFor("fake-model |")
 
 	s.Say("hello again")
 	s.WaitFor("first answer")

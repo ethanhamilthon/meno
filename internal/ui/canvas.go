@@ -3,6 +3,7 @@ package ui
 import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/uniseg"
+	"strings"
 )
 
 type Canvas struct {
@@ -40,6 +41,7 @@ func (c Canvas) Fill(x, y, w, h int, bg tcell.Color) {
 }
 
 func (c Canvas) Text(x, y, maxW int, s string, st tcell.Style) int {
+	s = strings.ReplaceAll(s, "\t", "    ")
 	col := 0
 	g := uniseg.NewGraphemes(s)
 	for g.Next() {

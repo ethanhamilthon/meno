@@ -9,37 +9,21 @@ import (
 )
 
 type Manager struct {
-	mu       sync.Mutex
-	clients  map[string]*Client
-	errs     map[string]string
-	starting map[string]int // servers being started now (a count: BeginStart and Start both mark)
-	cond     *sync.Cond
+	mu         sync.Mutex
+	clients    map[string]*Client
+	errs       map[string]string
+	starting   map[string]int // servers being started now (a count: BeginStart and Start both mark)
+	cancels    map[string]context.CancelFunc
+	generation map[string]uint64
+	onChange   func(string)
+	closed     bool
+	cond       *sync.Cond
 }
 
 func NewManager() *Manager {
-	m := &Manager{clients: map[string]*Client{}, errs: map[string]string{}, starting: map[string]int{}}
+	m := &Manager{clients: map[string]*Client{}, errs: map[string]string{}, starting: map[string]int{}, cancels: map[string]context.CancelFunc{}, generation: map[string]uint64{}}
 	m.cond = sync.NewCond(&m.mu)
 	return m
-}
-
-func (m *Manager) Start(ctx context.Context, s Server) error {
-	m.Stop(s.Name)
-	m.setStarting(s.Name, true)
-	defer m.setStarting(s.Name, false)
-	if err := ValidateServer(s); err != nil {
-		m.setErr(s.Name, err.Error())
-		return err
-	}
-	c, err := Start(ctx, s)
-	if err != nil {
-		m.setErr(s.Name, err.Error())
-		return err
-	}
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.clients[s.Name] = c
-	delete(m.errs, s.Name)
-	return nil
 }
 
 func (m *Manager) setStarting(name string, on bool) {
@@ -109,7 +93,7 @@ func (m *Manager) ToolsOf(name string) []Tool {
 	if !ok {
 		return nil
 	}
-	return c.Tools
+	return c.ToolSnapshot()
 }
 
 func (m *Manager) setErr(name, msg string) {
@@ -120,12 +104,19 @@ func (m *Manager) setErr(name, msg string) {
 
 func (m *Manager) Stop(name string) {
 	m.mu.Lock()
+	m.generation[name]++
+	if cancel := m.cancels[name]; cancel != nil {
+		cancel()
+		delete(m.cancels, name)
+	}
 	c := m.clients[name]
 	delete(m.clients, name)
+	delete(m.errs, name)
 	m.mu.Unlock()
 	if c != nil {
 		c.Close()
 	}
+	m.changed(name)
 }
 
 func (m *Manager) Running(name string) bool {
@@ -135,11 +126,7 @@ func (m *Manager) Running(name string) bool {
 	return c != nil && c.Alive()
 }
 
-func (m *Manager) Err(name string) string {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	return m.errs[name]
-}
+func (m *Manager) Err(name string) string { return m.Snapshot(name).Error }
 
 func (m *Manager) Client(name string) (*Client, bool) {
 	m.mu.Lock()
@@ -153,7 +140,9 @@ func (m *Manager) Names() []string {
 	defer m.mu.Unlock()
 	out := make([]string, 0, len(m.clients))
 	for n := range m.clients {
-		out = append(out, n)
+		if m.clients[n].Alive() {
+			out = append(out, n)
+		}
 	}
 	sort.Strings(out)
 	return out
@@ -164,13 +153,22 @@ func (m *Manager) ToolCount() int {
 	defer m.mu.Unlock()
 	n := 0
 	for _, c := range m.clients {
-		n += len(c.Tools)
+		if c.Alive() {
+			n += len(c.ToolSnapshot())
+		}
 	}
 	return n
 }
 
 func (m *Manager) StopAll() {
-	for _, n := range m.Names() {
+	m.mu.Lock()
+	m.closed = true
+	names := make([]string, 0, len(m.cancels))
+	for n := range m.cancels {
+		names = append(names, n)
+	}
+	m.mu.Unlock()
+	for _, n := range names {
 		m.Stop(n)
 	}
 }

@@ -23,8 +23,8 @@ func visualRow(s tcell.SimulationScreen, y int) string {
 func TestVisualReferenceBottom(t *testing.T) {
 	a, s := visualFixture(t, 112, 36)
 	a.draw()
-	if a.bottomHeight() != 4 {
-		t.Fatalf("bottom = %d, want 3 composer + 1 status", a.bottomHeight())
+	if a.bottomHeight() != 3 {
+		t.Fatalf("bottom = %d, want 2 composer + 1 status", a.bottomHeight())
 	}
 	for y := 32; y < 35; y++ {
 		for x := 0; x < 112; x++ {
@@ -37,7 +37,7 @@ func TestVisualReferenceBottom(t *testing.T) {
 	}
 	_, _, style, _ := s.GetContent(2, 35)
 	fg, bg, attrs := style.Decompose()
-	if fg != ui.FgBlack || bg != ui.Green || attrs&tcell.AttrReverse != 0 {
+	if fg != chromeText() || bg != ui.BgTerm || attrs&tcell.AttrReverse != 0 {
 		t.Fatalf("badge fg=%v bg=%v attrs=%v", fg, bg, attrs)
 	}
 	a.globalTasks = 1

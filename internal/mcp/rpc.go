@@ -32,6 +32,7 @@ type conn struct {
 	mu      sync.Mutex
 	nextID  atomic.Int64
 	pending sync.Map
+	notify  func(string)
 }
 
 func newConn(w io.Writer) *conn { return &conn{w: w} }
@@ -63,14 +64,33 @@ func (c *conn) call(method string, params any) (json.RawMessage, chan rpcMsg, in
 }
 
 // handle routes one JSON-RPC message from the server: a response goes to the
-// call waiting for it, a ping is answered, everything else is ignored.
+// call waiting for it; notifications are forwarded and requests receive replies.
 func (c *conn) handle(line []byte) {
 	var m rpcMsg
-	if json.Unmarshal(line, &m) != nil || m.ID == nil {
+	var head struct {
+		ID     json.RawMessage `json:"id"`
+		Method string          `json:"method"`
+	}
+	if json.Unmarshal(line, &head) != nil {
 		return
 	}
-	if m.Method == "ping" {
-		_ = c.send(map[string]any{"jsonrpc": "2.0", "id": *m.ID, "result": map[string]any{}})
+	if len(head.ID) == 0 || string(head.ID) == "null" {
+		if c.notify != nil && head.Method != "" {
+			c.notify(head.Method)
+		}
+		return
+	}
+	if head.Method != "" {
+		reply := map[string]any{"jsonrpc": "2.0", "id": head.ID}
+		if head.Method == "ping" {
+			reply["result"] = map[string]any{}
+		} else {
+			reply["error"] = map[string]any{"code": -32601, "message": "method not supported"}
+		}
+		_ = c.send(reply)
+		return
+	}
+	if json.Unmarshal(line, &m) != nil || m.ID == nil {
 		return
 	}
 	if m.Result == nil && m.Error == nil {

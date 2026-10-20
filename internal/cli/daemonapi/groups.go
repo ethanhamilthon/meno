@@ -11,10 +11,11 @@ import (
 // MCPServers lists the configured MCP servers.
 func (a *API) MCPServers() ([]cli.Server, error) {
 	var raw []struct {
-		Name    string `json:"name"`
-		Enabled bool   `json:"enabled"`
-		Running bool   `json:"running"`
-		Error   string `json:"error"`
+		Name     string `json:"name"`
+		Enabled  bool   `json:"enabled"`
+		Running  bool   `json:"running"`
+		Starting bool   `json:"starting"`
+		Error    string `json:"error"`
 	}
 	if err := a.get("mcp", "servers", "", &raw); err != nil {
 		return nil, err
@@ -23,6 +24,8 @@ func (a *API) MCPServers() ([]cli.Server, error) {
 	for _, s := range raw {
 		status := "stopped"
 		switch {
+		case s.Starting:
+			status = "starting"
 		case s.Error != "":
 			status = "error: " + s.Error
 		case s.Running:
@@ -43,14 +46,9 @@ func (a *API) MCPTools(server string) ([]cli.Tool, error) {
 
 // MCPCall calls one MCP tool.
 func (a *API) MCPCall(server, tool string, args map[string]any) (cli.MCPResult, error) {
-	var res struct {
-		Text       string `json:"Text"`
-		Structured any    `json:"Structured"`
-		ResultID   string `json:"ResultID"`
-		IsError    bool   `json:"IsError"`
-	}
+	var res cli.MCPResult
 	err := a.post("mcp", "call", map[string]any{"server": server, "tool": tool, "args": args}, &res)
-	return cli.MCPResult{Text: res.Text, StructuredContent: res.Structured, ResultID: res.ResultID, IsError: res.IsError}, err
+	return res, err
 }
 
 // MCPResults reads a stored result.

@@ -46,14 +46,14 @@ func TestStdioHandshakeAndCall(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer c.Close()
-	if len(c.Tools) != 1 || c.Tools[0].Name != "echo" {
-		t.Fatalf("tools: %+v", c.Tools)
+	if len(c.ToolSnapshot()) != 1 || c.ToolSnapshot()[0].Name != "echo" {
+		t.Fatalf("tools: %+v", c.ToolSnapshot())
 	}
-	out, err := c.Call(context.Background(), "echo", map[string]any{"msg": "hi"})
-	if err != nil || out != "echo:hi" {
-		t.Fatalf("call: %q %v", out, err)
+	out, err := c.CallResult(context.Background(), "echo", map[string]any{"msg": "hi"})
+	if err != nil || out.Text != "echo:hi" {
+		t.Fatalf("call: %+v %v", out, err)
 	}
-	if _, err := c.Call(context.Background(), "fail", nil); err == nil || !strings.Contains(err.Error(), "boom") {
+	if out, err := c.CallResult(context.Background(), "fail", nil); err != nil || !out.IsError || out.Text != "boom" {
 		t.Fatalf("isError not surfaced: %v", err)
 	}
 }
@@ -101,12 +101,5 @@ func TestValidateServer(t *testing.T) {
 		if ValidateServer(s) == nil {
 			t.Errorf("case %d accepted", i)
 		}
-	}
-}
-
-func TestExtractTextIgnoresNonText(t *testing.T) {
-	s, err := ExtractText([]byte(`{"content":[{"type":"image","text":"x"},{"type":"text","text":"ok"}]}`))
-	if err != nil || s != "ok" {
-		t.Fatalf("%q %v", s, err)
 	}
 }

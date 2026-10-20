@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/uniseg"
 
 	"meno/internal/ui"
@@ -62,27 +61,25 @@ func (a *App) drawComposerHeader(c ui.Canvas, x, y, w int) {
 			}
 		}
 	}
-	cols := a.headerColors(w)
+	textColors := a.chromeColors(w, chromeText())
+	cols := a.chromeColors(w, ui.FgFaint)
 	for i, s := range cells {
 		if s == "" {
 			continue
 		}
-		fg := ui.FgDim
-		if cols != nil {
-			fg = cols[i]
+		fg := ui.FgFaint
+		if s != "─" {
+			fg = chromeText()
 		}
-		c.Text(x+i, y, 1, s, ui.Style{FG: fg, BG: ui.BgTerm}.TCell())
+		if cols != nil {
+			if s == "─" {
+				fg = cols[i]
+			} else {
+				fg = textColors[i]
+			}
+		}
+		c.Text(x+i, y, max(1, ui.TextWidth(s)), s, ui.Style{FG: fg, BG: ui.BgTerm}.TCell())
 	}
-}
-
-// headerColors is the per-column color of the header while the wave runs, nil
-// when the header is plain.
-func (a *App) headerColors(w int) []tcell.Color {
-	if !a.st.Running {
-		return nil
-	}
-	a.waveOn.Store(true) // keep frames coming; draw() clears it each frame
-	return ui.WaveColors(w, a.clock().Sub(a.waveEpoch).Seconds(), ui.FgDim, ui.Green)
 }
 
 // clock is the time source of animations.

@@ -50,7 +50,7 @@ func (s *Service) Start(ctx context.Context) error {
 	for _, x := range servers {
 		if x.Enabled {
 			server := x
-			go func() { _ = s.mcp.Start(runCtx, server) }()
+			s.mcp.StartAsync(runCtx, server)
 		}
 	}
 	st := s.oauth.State()

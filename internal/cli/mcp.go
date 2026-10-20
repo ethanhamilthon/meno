@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"fmt"
 	"strings"
 )
 
@@ -133,17 +132,7 @@ func mcpCall(args []string, streams IO, api API, jsonOut bool) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	if res.IsError {
-		return 0, fmt.Errorf("MCP tool returned an error: %s", res.Text)
-	}
-	if jsonOut {
-		return 0, emit(streams, true, res, "")
-	}
-	if res.StructuredContent != nil {
-		return 0, emit(streams, false, res.StructuredContent, "")
-	}
-	_, err = fmt.Fprintln(streams.Out, res.Text)
-	return 0, err
+	return 0, emit(streams, true, res, "")
 }
 
 func checkServer(api API, name string) error {

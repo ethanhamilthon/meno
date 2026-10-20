@@ -29,7 +29,7 @@ func TestHeaderWaveRunsOnlyWhileWorking(t *testing.T) {
 	a.draw()
 	idle := headerFG(s, y, 80)
 	for x, c := range idle {
-		if c != ui.FgDim && c != tcell.ColorDefault {
+		if c != ui.FgFaint && c != chromeText() && c != tcell.ColorDefault {
 			t.Fatalf("idle header col %d has color %v", x, c)
 		}
 	}
@@ -38,7 +38,7 @@ func TestHeaderWaveRunsOnlyWhileWorking(t *testing.T) {
 	r1 := headerFG(s, y, 80)
 	lit := 0
 	for _, c := range r1 {
-		if c != ui.FgDim {
+		if c != ui.FgFaint && c != chromeText() {
 			lit++
 		}
 	}
@@ -58,7 +58,7 @@ func TestHeaderWaveRunsOnlyWhileWorking(t *testing.T) {
 	a.st.Running = false
 	a.draw()
 	for x, c := range headerFG(s, y, 80) {
-		if c != ui.FgDim && c != tcell.ColorDefault {
+		if c != ui.FgFaint && c != chromeText() && c != tcell.ColorDefault {
 			t.Fatalf("after run col %d has color %v", x, c)
 		}
 	}

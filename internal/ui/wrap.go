@@ -18,7 +18,11 @@ type wcell struct {
 // cellsOf splits segments into cells. A newline becomes a hard break, a tab one
 // space; other control characters are dropped so that model output can never
 // send escape sequences to the terminal.
-func cellsOf(segs []Seg) []wcell {
+func cellsOf(segs []Seg) []wcell { return styledCells(segs, false) }
+
+func sourceCells(segs []Seg) []wcell { return styledCells(segs, true) }
+
+func styledCells(segs []Seg, preserveTabs bool) []wcell {
 	var out []wcell
 	for _, s := range segs {
 		style := s
@@ -33,6 +37,10 @@ func cellsOf(segs []Seg) []wcell {
 			r := firstRune(gr)
 			switch {
 			case r == '\t':
+				if preserveTabs {
+					out = append(out, wcell{g: gr, w: 4, seg: style, space: true})
+					continue
+				}
 				gr = " "
 			case r < ' ' || r == 0x7f || (r >= 0x80 && r < 0xa0):
 				continue
@@ -125,26 +133,6 @@ func breakCells(cells []wcell, width int) [][]wcell {
 	}
 	if len(cur) > 0 {
 		lines = append(lines, cur)
-	}
-	return lines
-}
-
-// hardWrap splits cells every width columns without looking at spaces: code
-// keeps its spacing. An empty input gives one empty line.
-func hardWrap(cells []wcell, width int) [][]wcell {
-	width = max(1, width)
-	lines := [][]wcell{nil}
-	col := 0
-	for _, c := range cells {
-		if c.nl {
-			continue
-		}
-		if col+c.w > width && col > 0 {
-			lines = append(lines, nil)
-			col = 0
-		}
-		lines[len(lines)-1] = append(lines[len(lines)-1], c)
-		col += c.w
 	}
 	return lines
 }

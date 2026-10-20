@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/url"
+	"reflect"
 	"strings"
 
 	"meno/internal/config"
@@ -12,23 +13,27 @@ import (
 )
 
 func (s *Service) servers() ([]mcp.Server, error) {
+	all, _, err := s.serverDefinitions()
+	return all, err
+}
+func (s *Service) serverDefinitions() ([]mcp.Server, []string, error) {
 	own, err := s.store.LoadServers()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	files, _ := config.LoadMCPFile(s.paths.MCPFile())
-	stamp := s.stamp(s.paths.MCPFile())
-	if s.updateStamp(s.paths.MCPFile(), stamp) {
-		s.changed("mcp_changed")
-	}
-	all, _ := config.MergeServers(own, files)
-	return all, nil
+	files, warnings := config.LoadMCPFile(s.paths.MCPFile())
+	all, more := config.MergeServers(own, files)
+	return all, append(warnings, more...), nil
 }
 func (s *Service) mcpResource(ctx context.Context, method, path string, req proto.ResourceRequest) (any, error) {
+	if method != "GET" {
+		s.mcpMu.Lock()
+		defer s.mcpMu.Unlock()
+	}
 	parts := splitResource(strings.TrimPrefix(path, "/mcp/servers"))
 	if len(parts) == 0 {
 		if method == "GET" {
-			list, e := s.servers()
+			list, warnings, e := s.serverDefinitions()
 			if e != nil {
 				return nil, e
 			}
@@ -36,7 +41,7 @@ func (s *Service) mcpResource(ctx context.Context, method, path string, req prot
 			for _, x := range list {
 				out = append(out, s.mcpWire(x))
 			}
-			return proto.McpServersResponse{Servers: out}, nil
+			return proto.McpServersResponse{Servers: out, Warnings: warnings}, nil
 		}
 		if method == "POST" {
 			request, e := decode[proto.McpServerRequest](req.Data)
@@ -83,7 +88,14 @@ func (s *Service) mcpResource(ctx context.Context, method, path string, req prot
 		return nil, notFound("no MCP server named " + name)
 	}
 	x := list[i]
-	if x.FromFile() {
+	if req.ExpectedMCP != nil {
+		current := s.mcpWire(x)
+		current.Running, current.Starting, current.Error = false, false, ""
+		if !reflect.DeepEqual(current, *req.ExpectedMCP) {
+			return nil, conflict("MCP definition changed after approval")
+		}
+	}
+	if x.FromFile() && method != "GET" && !(len(parts) == 2 && parts[1] == "restart" && method == "POST") {
 		return nil, apiErr(proto.CodeForbidden, "MCP server is defined in mcp.json and is read only")
 	}
 	if len(parts) == 1 {
@@ -111,6 +123,9 @@ func (s *Service) mcpResource(ctx context.Context, method, path string, req prot
 			j := serverIndex(own, name)
 			if j < 0 {
 				return nil, notFound("no MCP server named " + name)
+			}
+			if reflect.DeepEqual(own[j], next) {
+				return proto.McpServerResponse{Server: s.mcpWire(next)}, nil
 			}
 			own[j] = next
 			if e = s.store.SaveServers(own); e != nil {
@@ -176,7 +191,8 @@ func (s *Service) mcpWire(x mcp.Server) proto.ConfigMCPServer {
 	var out proto.ConfigMCPServer
 	_ = json.Unmarshal(b, &out)
 	out.Source = x.Source
-	out.Running, out.Starting, out.Error = s.mcp.Running(x.Name), s.mcp.Starting(x.Name), s.mcp.Err(x.Name)
+	status := s.mcp.Snapshot(x.Name)
+	out.Running, out.Starting, out.Error = status.Running, status.Starting, status.Error
 	return out
 }
 func mcpValue(x proto.ConfigMCPServer) mcp.Server {

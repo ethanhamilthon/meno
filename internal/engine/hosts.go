@@ -21,6 +21,10 @@ func (h asker) Ask(ctx context.Context, f form.Form) ([]form.Answer, error) {
 	}
 	st := h.s
 	st.mu.Lock()
+	if st.ask != nil {
+		st.mu.Unlock()
+		return nil, api(proto.CodeConflict, "another question is already open")
+	}
 	a := &askState{id: id, form: f, answer: make(chan askReply, 1), by: st.session.ID, deadline: time.Time{}}
 	if f.Timeout > 0 {
 		a.deadline = time.Now().Add(f.Timeout)
@@ -33,6 +37,7 @@ func (h asker) Ask(ctx context.Context, f form.Form) ([]form.Answer, error) {
 		st.mu.Lock()
 		if st.ask == a {
 			st.ask = nil
+			st.phase = "thinking"
 		}
 		st.mu.Unlock()
 		h.e.publish(st.session.ID, proto.EventAskClosed, protoAskClosed(id, ""))

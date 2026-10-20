@@ -65,8 +65,8 @@ func TestEscClosesPopupKeepsText(t *testing.T) {
 		t.Fatal("typing on must not reopen a dismissed popup")
 	}
 	a.onKey(keyK(tcell.KeyEsc))
-	if a.st.Mode != ui.ModeEdit {
-		t.Fatal("Esc without popup enters EDIT")
+	if a.st.Mode != ui.ModeInput {
+		t.Fatal("Esc without popup must keep INPUT")
 	}
 }
 

@@ -61,10 +61,12 @@ The service uses the existing SQLite stores and validators.
 - `internal/proto` defines JSON request, response, event, and error types.
 - `internal/daemon` owns the HTTP server, SSE event hub, and lifecycle.
   Session operations use a `Backend` interface. `internal/engine` implements
-  the backend, owns session runs, queues, tasks and MCP services, and
+  the backend, owns session runs, queues and tasks, and
   publishes agent events through the session hub. Session resource routes use
   ephemeral bearer tokens. Configuration routes delegate to an injected handler.
-- `internal/daemon/cfgsvc` owns daemon configuration resources.
+- `internal/daemon/cfgsvc` owns daemon configuration resources and the shared
+  MCP runtime lifecycle. The engine receives the same MCP manager for discovery
+  and tool calls; it does not start a second server process.
 - `internal/client` provides typed HTTP calls, daemon startup, SSE resume, and a
   view-state mirror.
 

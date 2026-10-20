@@ -73,12 +73,12 @@ func TestStreamableHTTP(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer c.Close()
-	if len(c.Tools) != 1 || c.Tools[0].Name != "echo" {
-		t.Fatalf("tools: %+v", c.Tools)
+	if len(c.ToolSnapshot()) != 1 || c.ToolSnapshot()[0].Name != "echo" {
+		t.Fatalf("tools: %+v", c.ToolSnapshot())
 	}
-	out, err := c.Call(context.Background(), "echo", map[string]any{"msg": "hi"})
-	if err != nil || out != "echo:hi" {
-		t.Fatalf("call: %q %v", out, err)
+	out, err := c.CallResult(context.Background(), "echo", map[string]any{"msg": "hi"})
+	if err != nil || out.Text != "echo:hi" {
+		t.Fatalf("call: %+v %v", out, err)
 	}
 	mu.Lock()
 	defer mu.Unlock()
@@ -141,12 +141,12 @@ func TestLegacySSE(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(c.Tools) != 1 {
-		t.Fatalf("tools: %+v", c.Tools)
+	if len(c.ToolSnapshot()) != 1 {
+		t.Fatalf("tools: %+v", c.ToolSnapshot())
 	}
-	out, err := c.Call(context.Background(), "echo", map[string]any{"msg": "sse"})
-	if err != nil || out != "echo:sse" {
-		t.Fatalf("call: %q %v", out, err)
+	out, err := c.CallResult(context.Background(), "echo", map[string]any{"msg": "sse"})
+	if err != nil || out.Text != "echo:sse" {
+		t.Fatalf("call: %+v %v", out, err)
 	}
 	if !c.Alive() {
 		t.Fatal("client should be alive")

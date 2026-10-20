@@ -44,6 +44,7 @@ func (a *App) runCommand(raw string) {
 			a.notifyErr("edit takes no arguments")
 			return
 		}
+		a.endInsert()
 		a.startEdit()
 	case "new":
 		a.newSession()

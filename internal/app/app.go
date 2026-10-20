@@ -17,8 +17,12 @@ import (
 )
 
 type App struct {
+	lastFrame         frameState
 	unfocused         bool
 	globalPending     bool
+	mcpPending        bool
+	mcpRefresh        time.Time
+	mcpWarning        string
 	commandFailed     bool
 	globalRefresh     time.Time
 	globalSessions    []proto.SessionItem
@@ -241,9 +245,23 @@ func (a *App) handle(msg any) {
 	case uiCall:
 		m.fn()
 		close(m.done)
+	case mcpStatusLoaded:
+		a.mcpPending = false
+		if warnings := strings.Join(m.warnings, "\n"); warnings != a.mcpWarning {
+			a.mcpWarning = warnings
+			if warnings != "" {
+				a.notifyErr(warnings)
+			}
+		}
+		if m.err == nil {
+			for _, v := range m.servers {
+				a.st.ServerInfo[v.Name] = mcpInfo{Running: v.Running, Starting: v.Starting, Err: v.Error}
+			}
+		}
 	case waveTick:
 	case tick:
 		a.refreshGlobalState()
+		a.refreshMCPStatus()
 		a.refreshTasks()
 		if a.pruneNotices() {
 			a.idleTick = false

@@ -47,6 +47,7 @@ type Service struct {
 	fetchMetadata  func(context.Context) (map[string]llm.ModelInfo, error)
 	mu             sync.Mutex
 	settingsMu     sync.Mutex
+	mcpMu          sync.Mutex
 	helperMu       sync.Mutex
 	files          map[string]fileStamp
 	settings       config.Settings
@@ -87,9 +88,11 @@ func New(o Options) (*Service, error) {
 	if o.MCP == nil {
 		o.MCP = mcp.NewManager()
 	}
-	return &Service{paths: o.Paths, store: o.Store, oauth: o.OAuth, daemons: o.Daemons, mcp: o.MCP,
+	svc := &Service{paths: o.Paths, store: o.Store, oauth: o.OAuth, daemons: o.Daemons, mcp: o.MCP,
 		notify: o.Notify, debug: o.DebugRequests, fetchModels: o.FetchModels, fetchMetadata: o.FetchMetadata,
-		files: map[string]fileStamp{}, knownModels: map[string][]llm.Model{}, modelErrors: map[string]string{}}, nil
+		files: map[string]fileStamp{}, knownModels: map[string][]llm.Model{}, modelErrors: map[string]string{}}
+	svc.mcp.SetOnChange(func(string) { svc.changed("mcp_changed") })
+	return svc, nil
 }
 
 // Resource dispatches a daemon resource. Paths include the /v1 prefix.

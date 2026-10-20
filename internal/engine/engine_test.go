@@ -9,6 +9,7 @@ import (
 	"meno/internal/daemon"
 	"meno/internal/db"
 	"meno/internal/llm"
+	"meno/internal/mcp"
 	"meno/internal/proto"
 	"sync"
 	"testing"
@@ -63,7 +64,7 @@ func fixture(t *testing.T, f *fakeProvider) (*Engine, *daemon.Hub) {
 	}
 	hub := daemon.NewHub("boot", 2000)
 	global := daemon.NewGlobalHub("boot", 1000)
-	e, err := New(Options{Home: home, EventHub: hub, GlobalHub: global, ProviderClient: func(llm.Provider) llm.Client { return f }})
+	e, err := New(Options{MCP: mcp.NewManager(), Home: home, EventHub: hub, GlobalHub: global, ProviderClient: func(llm.Provider) llm.Client { return f }})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -218,7 +219,7 @@ func TestCrashRecoveryMarksTasksInterrupted(t *testing.T) {
 	if _, err = d.Exec("INSERT INTO tasks(id,session_id,owner,name,command,cwd,status,notify,timeout_ms,started_at) VALUES('t1',?,'','','sleep','/tmp','running',0,0,'')", sess.ID); err != nil {
 		t.Fatal(err)
 	}
-	e, err := New(Options{Home: home})
+	e, err := New(Options{MCP: mcp.NewManager(), Home: home})
 	if err != nil {
 		t.Fatal(err)
 	}

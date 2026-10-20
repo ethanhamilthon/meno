@@ -10,6 +10,7 @@ import (
 	"meno/internal/daemon/cfgsvc"
 	"meno/internal/db"
 	"meno/internal/engine"
+	"meno/internal/mcp"
 	ver "meno/internal/version"
 	"os"
 	"os/signal"
@@ -77,14 +78,15 @@ func runDaemon(home string, errOut io.Writer) int {
 	if backup != "" {
 		fmt.Fprintln(errOut, "meno 0.5.0 starts with a fresh database; previous data backed up to", backup)
 	}
-	service, e := cfgsvc.New(cfgsvc.Options{Paths: config.Paths{Home: home}})
+	manager := mcp.NewManager()
+	service, e := cfgsvc.New(cfgsvc.Options{MCP: manager, Paths: config.Paths{Home: home}})
 	if e != nil {
 		fmt.Fprintln(errOut, e)
 		return 1
 	}
 	hub := daemon.NewHub("", 20000)
 	global := daemon.NewGlobalHub("", 2000)
-	eng, e := engine.New(engine.Options{Home: home, EventHub: hub, GlobalHub: global, Resources: service, Socket: daemon.SocketPath(home)})
+	eng, e := engine.New(engine.Options{MCP: manager, Home: home, EventHub: hub, GlobalHub: global, Resources: service, Socket: daemon.SocketPath(home)})
 	if e != nil {
 		fmt.Fprintln(errOut, e)
 		return 1

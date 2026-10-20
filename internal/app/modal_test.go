@@ -102,16 +102,6 @@ func TestSessionsOverlayListsTheCurrentSession(t *testing.T) {
 	}
 }
 
-func TestParseEnv(t *testing.T) {
-	m, err := parseEnv("A=1, B=two=2 ,")
-	if err != nil || m["A"] != "1" || m["B"] != "two=2" || len(m) != 2 {
-		t.Fatalf("got %v %v", m, err)
-	}
-	if _, err := parseEnv("NOEQ"); err == nil {
-		t.Fatal("expected error for missing =")
-	}
-}
-
 func TestMCPEditRejectsInvalidServer(t *testing.T) {
 	a, scr := newTestApp(t)
 	defer scr.Fini()
@@ -158,7 +148,7 @@ func TestSkillAutocompleteEscLeavesInsert(t *testing.T) {
 	a.st.Skills = []config.Skill{{Name: "rate-limit", Desc: "x", Enabled: true}}
 	typeRunes(a, "/r")
 	a.onKey(keyK(tcell.KeyEsc))
-	if a.st.Mode != ui.ModeEdit || a.acActive() || string(a.st.Input) != "/r" {
+	if a.st.Mode != ui.ModeInput || a.acActive() || string(a.st.Input) != "/r" {
 		t.Fatalf("esc: mode=%v input=%q", a.st.Mode, string(a.st.Input))
 	}
 }
@@ -174,8 +164,8 @@ func TestVisualModeShowsHintAndSelection(t *testing.T) {
 		t.Fatalf("mode %v", a.st.Mode)
 	}
 	a.draw()
-	if !strings.Contains(screenText(scr), "VISUAL") {
-		t.Fatal("visual hint missing")
+	if strings.Contains(visualRow(scr, 19), "VISUAL") {
+		t.Fatal("obsolete visual badge visible")
 	}
 }
 
@@ -186,7 +176,7 @@ func TestInlineCommandShowsList(t *testing.T) {
 	a.draw()
 	out := screenText(scr)
 	_, h := scr.Size()
-	if !strings.Contains(out, "fix :mo") || !strings.Contains(visualRow(scr, h-1), "INPUT") {
+	if !strings.Contains(out, "fix :mo") || !strings.Contains(visualRow(scr, h-1), a.ctxLabel()) {
 		t.Fatalf("draft missing:\n%s", out)
 	}
 	if !strings.Contains(out, ":model") {

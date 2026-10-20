@@ -73,12 +73,6 @@ func (a *App) endInsert() {
 	}
 }
 
-// leaveInsert is Esc in INPUT without a popup: it enters EDIT.
-func (a *App) leaveInsert() {
-	a.endInsert()
-	a.startEdit()
-}
-
 // --- input as a vim document ---
 
 func (a *App) inputText() vtext { return splitRunes(a.st.Input) }

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"unicode"
 
 	"github.com/gdamore/tcell/v2"
@@ -74,6 +75,9 @@ func drawAcGrid(c ui.Canvas, x, y, w, limit int, cells []acCell, sel int) {
 }
 
 func (a *App) acActive() bool {
+	if a.st.AcDismiss != "" && a.st.AcDismiss == a.acIdentity() {
+		return false
+	}
 	return a.st.Ask == nil && a.st.Mode == ui.ModeInput && len(a.acMatches()) > 0
 }
 
@@ -117,6 +121,9 @@ func (a *App) acKey(k *tcell.EventKey) bool {
 	m := a.acMatches()
 	n := len(m)
 	switch k.Key() {
+	case tcell.KeyEsc:
+		a.st.AcDismiss = a.acIdentity()
+		return true
 	case tcell.KeyDown:
 		a.st.Sel = clampSel(a.st.Sel+1, n)
 		return true
@@ -169,4 +176,12 @@ func tokenColor(kind rune) tcell.Color {
 		return ui.Blue
 	}
 	return ui.Purple
+}
+
+func (a *App) acIdentity() string {
+	token, ok := a.acToken()
+	if !ok {
+		return ""
+	}
+	return fmt.Sprintf("%d:%d:%d:%s", token.start, token.end, a.st.Cursor, string(a.st.Input))
 }

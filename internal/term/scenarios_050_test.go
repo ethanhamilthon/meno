@@ -30,7 +30,7 @@ func TestCompletionWaitsUntilResultIsVisible(t *testing.T) {
 	s.Cmd("context")
 	s.WaitFor("last turn")
 	s.Send(Esc)
-	s.WaitFor("INPUT")
+	s.WaitFor("Type your next task here")
 }
 
 func TestBashHeadersUseTitlesAndFinalRunStatistics(t *testing.T) {

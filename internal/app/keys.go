@@ -61,7 +61,7 @@ func (a *App) onInsertKey(k *tcell.EventKey) {
 	word := k.Modifiers()&(tcell.ModAlt|tcell.ModCtrl) != 0
 	switch k.Key() {
 	case tcell.KeyEsc:
-		a.leaveInsert()
+		return
 	case tcell.KeyEnter:
 		// Shift+Enter needs a terminal that reports it (kitty/CSI-u protocol);
 		// Alt+Enter and Ctrl+J work everywhere.

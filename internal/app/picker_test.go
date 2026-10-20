@@ -151,7 +151,7 @@ func TestRandomEditsNeverLeavePartialObjects(t *testing.T) {
 	for round := 0; round < 60; round++ {
 		a.setInput([]rune{'a', f, ' ', d, 'b', 'c', f})
 		a.st.Mode, a.st.Cursor = 1, 0
-		a.leaveInsert()
+		a.runCommand("edit")
 		for i := 0; i < 40; i++ {
 			k := keys[rng.Intn(len(keys))]
 			for _, r := range k {

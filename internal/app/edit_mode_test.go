@@ -66,3 +66,23 @@ func TestEditModeTimelineIsReadOnlyAndVIsGone(t *testing.T) {
 		}
 	}
 }
+
+func TestEditModeExplicitUndoBoundary(t *testing.T) {
+	a, scr := newTestApp(t)
+	defer scr.Fini()
+	a.st.Session.Replace(nil)
+	typeText(a, "alpha beta")
+	a.runCommand("edit")
+	vimKeys(a, "0x")
+	if string(a.st.Input) != "lpha beta" {
+		t.Fatal(string(a.st.Input))
+	}
+	vimKeys(a, "u")
+	if string(a.st.Input) != "alpha beta" {
+		t.Fatal("edit undo lost draft")
+	}
+	vimKeys(a, "u")
+	if len(a.st.Input) != 0 {
+		t.Fatal("insert undo boundary lost")
+	}
+}

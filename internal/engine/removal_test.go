@@ -8,6 +8,7 @@ import (
 
 	"meno/internal/agent"
 	"meno/internal/db"
+	"meno/internal/mcp"
 	"meno/internal/proto"
 )
 
@@ -71,7 +72,7 @@ func TestRemovedAgentFeaturesAreUnavailableAndHistoryIsUnchanged(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	restored, err := New(Options{Home: e.home})
+	restored, err := New(Options{MCP: mcp.NewManager(), Home: e.home})
 	if err != nil {
 		t.Fatal(err)
 	}

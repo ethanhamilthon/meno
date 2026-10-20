@@ -2,4 +2,4 @@
 
 Usage: meno mcp add SERVER
 
-Add a configured MCP server when the user asks.
+Enable a configured saved MCP server after human confirmation. Create unknown servers with :mcp.

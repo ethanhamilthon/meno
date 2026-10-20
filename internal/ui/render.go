@@ -8,12 +8,14 @@ import (
 
 func DrawLine(c Canvas, x, y, w int, l Line) {
 	c.Fill(x, y, w, 1, l.BG)
-	cx := x + padX
+	g := min(Gutter, max(0, (w-1)/2))
+	cx := x + g
+	hi := x + w - g
 	if l.FullWidth {
 		cx = x
 	}
 	for _, s := range l.Segs {
-		cx += c.Text(cx, y, x+w-cx, s.Text, s.style(l.BG))
+		cx += c.Text(cx, y, max(0, hi-cx), s.Text, s.style(l.BG))
 	}
 	if aw := segsWidth(l.Aside); aw > 0 {
 		ax := x + w - padX - aw

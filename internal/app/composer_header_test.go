@@ -28,7 +28,7 @@ func TestComposerHeaderDrawsTitleAtRight(t *testing.T) {
 			t.Fatalf("header cell %d background %v", x, bg)
 		}
 		nameStart := 88 - ui.Gutter - ui.TextWidth("session title")
-		if glyph != ' ' && fg != ui.FgDim {
+		if glyph != ' ' && fg != ui.FgFaint && fg != chromeText() {
 			t.Fatalf("cell %d foreground %v", x, fg)
 		}
 		if x < nameStart-1 && glyph != '─' {
@@ -101,9 +101,9 @@ func TestComposerHeightIncludesHeaderWithoutGrowing(t *testing.T) {
 		input string
 		want  int
 	}{
-		{"", 3},
-		{"one row", 3},
-		{strings.Repeat("line\n", 7) + "line", 10},
+		{"", 2},
+		{"one row", 2},
+		{strings.Repeat("line\n", 7) + "line", 9},
 	}
 	for _, tc := range cases {
 		a.setInput([]rune(tc.input))

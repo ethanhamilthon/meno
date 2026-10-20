@@ -24,7 +24,7 @@ func (a *App) drawComposer(c ui.Canvas, x, y, w, h int) {
 			a.cur = cursorPos{textX, row, true}
 		}
 		hint := a.placeholder()
-		c.Text(textX, row, innerW, hint, ui.Style{FG: ui.FgDim, BG: bg}.TCell())
+		c.Text(textX, row, innerW, hint, ui.Style{FG: chromeText(), BG: bg}.TCell())
 		return
 	}
 	rows := layoutInput(a.st.Input, max(1, innerW))

@@ -67,7 +67,8 @@ type State struct {
 	CmdSel     int
 	CmdPicked  bool // an arrow chose the row, so Enter may run it on an empty line
 	Pricing    map[string]llm.ModelInfo
-	CmdDismiss int // start offset+1 of a command token the user closed with Esc
+	AcDismiss  string // token dismissed until its text or cursor changes
+	CmdDismiss int    // start offset+1 of a command token the user closed with Esc
 	Sel        int
 	Query      textEdit
 	Status     string

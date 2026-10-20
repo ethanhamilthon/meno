@@ -12,9 +12,9 @@ import (
 type helpRow struct{ key, desc string }
 
 var helpRows = []helpRow{
-	{"", "modes & navigation"}, {":", "commands, from any word start"}, {"Esc", "close list / enter EDIT"},
+	{"", "modes & navigation"}, {":", "commands, from any word start"}, {"Esc", "close list / keep INPUT"},
 	{":edit", "edit the draft, or history when empty"},
-	{"VISUAL Esc", "return to INPUT"}, {"Ctrl+C", "cancel active work"},
+	{"VISUAL Esc", "return to EDIT"}, {"Ctrl+C", "cancel active work"},
 	{":context", "context, tokens, cache and cost"}, {":new", "new session"},
 	{":fork", "fork from a message"}, {":sessions", "switch sessions"}, {":login", "providers and accounts"},
 }

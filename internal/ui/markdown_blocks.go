@@ -12,7 +12,7 @@ import (
 // every space.
 func wrapSegments(segs []Seg, width int) []Line {
 	var out []Line
-	for _, l := range hardWrap(cellsOf(segs), width) {
+	for _, l := range preserveWords(sourceCells(segs), width) {
 		out = append(out, Line{Segs: joinCells(l), BG: BgTerm})
 	}
 	return out
@@ -80,7 +80,7 @@ func codeBlock(info string, src []string, w int) []Line {
 		for j := range segs {
 			segs[j].BG = bg
 		}
-		for k, part := range hardWrap(cellsOf(segs), cw) {
+		for k, part := range preserveWords(sourceCells(segs), cw) {
 			margin := strings.Repeat(" ", lead)
 			if numbered {
 				n := ""

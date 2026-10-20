@@ -51,7 +51,7 @@ Bash tools, provider APIs, MCP integrations, and SQLite persistence.
 | `internal/form/` | Shape of the question form that `meno ask` shows to the user. |
 | `internal/proto/` | Shared daemon API request, response, and event types. |
 | `internal/daemon/` | Daemon lifecycle, socket, HTTP resources, event streams; configuration resources in `cfgsvc/`. |
-| `internal/mcp/` | MCP server lifecycle, transports, JSON-RPC, tool schemas, typed results and the local result/artifact store. Start with `manager.go`, `client.go`, `result.go`, `store.go`. |
+| `internal/mcp/` | MCP server lifecycle, transports, JSON-RPC, tool schemas, typed results and the local result/artifact store. Start with `manager.go`, `manager_start.go`, `client.go`, `discovery.go`, `result.go`, `store.go`. The config service owns the shared manager lifecycle; the engine only uses it. |
 | `internal/prompt/` | System prompt (identity, skills, project AGENTS.md, MCP servers, environment): `prompt.go` (inputs), `bash.go` (`Build`), `sections.go`, `xml.go`. The bash tool description with the editing, verification and output rules: `bash_toolspec.go`, `bash_rules.go`. |
 | `internal/config/` | Paths, settings, providers, skills, MCP configuration, and the read-only `provider.json`/`mcp.json` overlays (`overlay.go`). Start with `paths.go`, `settings.go`, `store.go`. |
 | `internal/db/` | Shared SQLite database; versioned migrations live in `migrations.go`, opening in `db.go`, clean 0.5 epoch backup in `epoch.go`. |

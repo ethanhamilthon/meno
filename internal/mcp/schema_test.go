@@ -20,9 +20,9 @@ func TestSignature(t *testing.T) {
 	}
 }
 
-func TestExtractTextFallsBackToStructuredContent(t *testing.T) {
-	got, err := ExtractText(json.RawMessage(`{"content":[],"structuredContent":{"n":1}}`))
-	if err != nil || got != `{"n":1}` {
-		t.Fatalf("%q %v", got, err)
+func TestStructuredContentStaysTyped(t *testing.T) {
+	got, err := ParseResult(json.RawMessage(`{"content":[],"structuredContent":{"n":1}}`))
+	if err != nil || string(got.Structured) != `{"n":1}` || got.Text != "" {
+		t.Fatalf("%+v %v", got, err)
 	}
 }

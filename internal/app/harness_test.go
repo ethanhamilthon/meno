@@ -17,6 +17,7 @@ import (
 	"meno/internal/db"
 	"meno/internal/engine"
 	"meno/internal/llm"
+	"meno/internal/mcp"
 	"meno/internal/ui"
 )
 
@@ -33,11 +34,12 @@ type rig struct {
 func startRig(t testing.TB, home string, model llm.Client) *rig {
 	t.Helper()
 	hub, global := daemon.NewHub("t", 5000), daemon.NewGlobalHub("t", 200)
-	svc, err := cfgsvc.New(cfgsvc.Options{Paths: config.Paths{Home: home}})
+	manager := mcp.NewManager()
+	svc, err := cfgsvc.New(cfgsvc.Options{MCP: manager, Paths: config.Paths{Home: home}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	eng, err := engine.New(engine.Options{Home: home, EventHub: hub, GlobalHub: global, Resources: svc,
+	eng, err := engine.New(engine.Options{MCP: manager, Home: home, EventHub: hub, GlobalHub: global, Resources: svc,
 		ProviderClient: func(llm.Provider) llm.Client { return model }})
 	if err != nil {
 		t.Fatal(err)

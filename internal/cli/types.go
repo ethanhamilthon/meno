@@ -1,5 +1,7 @@
 package cli
 
+import "meno/internal/proto"
+
 // These plain structs keep the CLI contract independent of daemon wire packages.
 // Server describes one configured MCP server.
 type Server struct {
@@ -15,12 +17,7 @@ type Tool struct {
 }
 
 // MCPResult contains the response from an MCP tool.
-type MCPResult struct {
-	Text              string `json:"text,omitempty"`
-	StructuredContent any    `json:"structuredContent,omitempty"`
-	ResultID          string `json:"resultId,omitempty"`
-	IsError           bool   `json:"isError,omitempty"`
-}
+type MCPResult = proto.MCPResult
 
 // MCPPage contains one page of a stored result.
 type MCPPage struct {

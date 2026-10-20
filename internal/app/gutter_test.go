@@ -76,8 +76,8 @@ func TestStatusBarTextStartsAfterTheGutter(t *testing.T) {
 	a, s := gutterApp(t, 80)
 	a.draw()
 	row := visualRow(s, 29)
-	if !strings.HasPrefix(row, "  INPUT") {
-		t.Fatalf("badge label must start at column 2: %q", row)
+	if !strings.Contains(row, a.footerModel()) {
+		t.Fatalf("model label missing: %q", row)
 	}
 	if !strings.HasSuffix(strings.TrimRight(row, " "), ")") && !strings.Contains(row, "400k") {
 		t.Fatalf("right side missing: %q", row)

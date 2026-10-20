@@ -21,7 +21,7 @@ func TestModelSwitchProducesSystemEvent(t *testing.T) {
 	s.WaitFor("other-model")
 	s.Send(Down + Enter)
 	s.WaitGone("search models")
-	s.WaitFor("other-model (")
+	s.WaitFor("other-model |")
 	s.Say("second message")
 	waitRequests(t, f, 2)
 	bodies := f.Bodies()

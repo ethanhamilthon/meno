@@ -25,38 +25,6 @@ func cellWidth(g string) int {
 	return uniseg.StringWidth(g)
 }
 
-// layoutInput splits the input into visual rows. One column is always kept free
-// so the cursor can sit after the last character of a full row.
-func layoutInput(in []rune, innerW int) []vrow {
-	wrap := max(1, innerW-1)
-	var rows []vrow
-	ls := 0
-	for {
-		le := ls
-		for le < len(in) && in[le] != '\n' {
-			le++
-		}
-		rs, col, off := ls, 0, ls
-		g := uniseg.NewGraphemes(string(in[ls:le]))
-		for g.Next() {
-			s := g.Str()
-			n := len([]rune(s))
-			gw := cellWidth(s)
-			if col+gw > wrap && col > 0 {
-				rows = append(rows, vrow{rs, off, true})
-				rs, col = off, 0
-			}
-			col += gw
-			off += n
-		}
-		rows = append(rows, vrow{rs, le, false})
-		if le >= len(in) {
-			return rows
-		}
-		ls = le + 1
-	}
-}
-
 // cursorRow is the row holding the cursor: the last row starting at or before it.
 func cursorRow(rows []vrow, cursor int) int {
 	r := 0

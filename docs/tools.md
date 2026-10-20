@@ -40,9 +40,23 @@ and the client. `meno tasks start` has no timeout (an old `--timeout` fails with
 
 ## MCP
 
-Configured MCP servers are listed in the system prompt with their tool signatures. A call
-returns an envelope with `isError` and the content; a tool's own error does not fail the
-command. Large results are stored and can be read again with `meno mcp results ID`.
+The daemon owns one MCP runtime shared by the interface and agent. Use `:mcp`
+to create a server. Changes apply to the agent without restarting the daemon.
+The dialog refreshes running, starting, and error status while open. Environment
+variables and HTTP headers are edited as JSON objects with string values.
+
+`meno mcp call` prints a JSON envelope with `text`, `structuredContent`, `isError`,
+`resultId`, artifact paths, retained size, and any retention notes. Text and
+structured content remain separate. A tool's own `isError` does not fail the
+command. Transport and protocol errors do fail it. Images, audio, and binary
+resources are stored as local files; use `meno view PATH` for supported images.
+Use `meno mcp results ID` to page through the retained result. Results belong
+to their session and are removed when that session is deleted.
+
+`meno mcp add SERVER` enables an existing saved definition. `remove` deletes it;
+`restart` reconnects it. Each asks for human approval. Unknown definitions must
+be created with `:mcp`. File definitions remain read-only, but an enabled one
+can be restarted. File edits require restarting the daemon.
 
 ## Files, the web and images
 

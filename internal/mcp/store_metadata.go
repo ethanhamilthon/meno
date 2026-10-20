@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,6 +13,13 @@ func (s ResultStore) Info(session, id string) (Stored, error) {
 	dir, err := s.dir(session, id)
 	if err != nil {
 		return Stored{}, err
+	}
+	if b, err := os.ReadFile(filepath.Join(dir, "metadata.json")); err == nil {
+		var out Stored
+		if err = json.Unmarshal(b, &out); err != nil {
+			return Stored{}, err
+		}
+		return out, nil
 	}
 	st, err := os.Stat(filepath.Join(dir, "result.json"))
 	if err != nil {
@@ -31,5 +39,9 @@ func (s ResultStore) Info(session, id string) (Stored, error) {
 
 // DeleteSession removes everything stored for a session.
 func (s ResultStore) DeleteSession(session string) error {
-	return os.RemoveAll(filepath.Join(s.Dir, session))
+	dir, err := s.dir(session, "placeholder")
+	if err != nil {
+		return err
+	}
+	return os.RemoveAll(filepath.Dir(dir))
 }

@@ -16,6 +16,9 @@ func (e *Engine) Resource(ctx context.Context, method, path, query string, q pro
 	if strings.HasPrefix(path, "/v1/sessions/") {
 		return e.sessionResource(ctx, method, path, query, q)
 	}
+	if q.Token != "" && strings.HasPrefix(path, "/v1/mcp/servers") {
+		return proto.ResourceResponse{}, api(proto.CodeForbidden, "use session MCP administration with confirmation")
+	}
 	if e.resources != nil {
 		return e.resources.Resource(ctx, method, path, query, q)
 	}

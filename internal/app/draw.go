@@ -22,8 +22,10 @@ func (a *App) draw() {
 	} else if a.st.Ask != nil {
 		a.drawAskForm(c, w, h)
 	}
-	a.applyCursor()
-	a.scr.Show()
+	if a.changedFrame(w, h) {
+		a.applyCursor()
+		a.scr.Show()
+	}
 	if a.completionVisible {
 		a.acknowledgeVisible()
 	}

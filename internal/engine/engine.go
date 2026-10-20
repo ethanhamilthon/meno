@@ -37,6 +37,7 @@ type GlobalEventHub interface {
 
 // Options configures the daemon engine. ProviderClient is a test seam.
 type Options struct {
+	MCP            *mcp.Manager
 	Home           string
 	EventHub       EventHub
 	GlobalHub      GlobalEventHub
@@ -88,8 +89,6 @@ type Engine struct {
 	tasks     *proc.Supervisor
 	events    EventHub
 	global    GlobalEventHub
-	mcpCtx    context.Context
-	mcpStop   context.CancelFunc
 	resources ResourceHandler
 	client    func(llm.Provider) llm.Client
 	mu        sync.Mutex
@@ -106,6 +105,9 @@ type idResult struct {
 // New opens shared SQLite-backed services and recovers interrupted work.
 // New opens daemon-owned services, performs crash recovery, and returns a Backend.
 func New(o Options) (*Engine, error) {
+	if o.MCP == nil {
+		return nil, errors.New("engine MCP manager is required")
+	}
 	if o.Home == "" {
 		return nil, errors.New("engine home is required")
 	}
@@ -145,19 +147,11 @@ func New(o Options) (*Engine, error) {
 		tasks.Shutdown()
 		return nil, err
 	}
-	mcpManager := mcp.NewManager()
 	client := o.ProviderClient
 	if client == nil {
 		client = llm.NewClient
 	}
-	mcpCtx, mcpStop := context.WithCancel(context.Background())
-	for _, server := range servers {
-		if server.Enabled {
-			server := server
-			go func() { _ = mcpManager.Start(mcpCtx, server) }()
-		}
-	}
-	*eng = Engine{events2: evStore, sock: o.Socket, home: o.Home, paths: paths, store: st, settings: settings, providers: providers, servers: servers, catalog: catalog, mcp: mcpManager, tasks: tasks, events: o.EventHub, global: o.GlobalHub, resources: o.Resources, client: client, mcpCtx: mcpCtx, mcpStop: mcpStop, sessions: map[string]*runState{}, ids: map[string]idResult{}}
+	*eng = Engine{events2: evStore, sock: o.Socket, home: o.Home, paths: paths, store: st, settings: settings, providers: providers, servers: servers, catalog: catalog, mcp: o.MCP, tasks: tasks, events: o.EventHub, global: o.GlobalHub, resources: o.Resources, client: client, sessions: map[string]*runState{}, ids: map[string]idResult{}}
 	return eng, nil
 }
 
@@ -183,9 +177,7 @@ func (e *Engine) Close() {
 		s.mu.Unlock()
 	}
 	e.runs.Wait()
-	e.mcpStop()
 	e.tasks.Shutdown()
-	e.mcp.StopAll()
 }
 
 func (e *Engine) publish(id, typ string, data any) {

@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"meno/internal/mcp"
+	"meno/internal/proto"
 )
 
 func decodeData(raw json.RawMessage, v any) error {
@@ -15,27 +16,24 @@ func decodeData(raw json.RawMessage, v any) error {
 	return json.Unmarshal(raw, v)
 }
 
-// mcpResult is what a tool call gives back to the agent's shell command.
-type mcpResult struct {
-	Text     string `json:"text"`
-	ResultID string `json:"resultId"`
-	IsError  bool   `json:"isError,omitempty"`
-}
-
 // callMCP calls one tool of a running MCP server and stores the full result
 // under an id the agent can read later with "meno mcp results".
-func (e *Engine) callMCP(ctx context.Context, s *runState, server, tool string, args map[string]any) (mcpResult, error) {
+func (e *Engine) callMCP(ctx context.Context, s *runState, server, tool string, args map[string]any) (proto.MCPResult, error) {
 	c, ok := e.mcp.Client(server)
 	if !ok {
-		return mcpResult{}, fmt.Errorf("MCP server %q is not running", server)
+		return proto.MCPResult{}, fmt.Errorf("MCP server %q is not running", server)
 	}
-	text, err := c.Call(ctx, tool, args)
+	result, err := c.CallResult(ctx, tool, args)
 	if err != nil {
-		return mcpResult{}, err
+		return proto.MCPResult{}, err
 	}
-	saved, err := (mcp.ResultStore{Dir: e.paths.File("mcp-results")}).Save(s.session.ID, server, tool, mcp.Result{Text: text})
+	saved, err := (mcp.ResultStore{Dir: e.paths.File("mcp-results")}).Save(s.session.ID, server, tool, result)
 	if err != nil {
-		return mcpResult{}, err
+		return proto.MCPResult{}, err
 	}
-	return mcpResult{Text: text, ResultID: saved.ID}, nil
+	artifacts := make([]proto.MCPArtifact, 0, len(saved.Artifacts))
+	for _, v := range saved.Artifacts {
+		artifacts = append(artifacts, proto.MCPArtifact{Index: v.Index, Kind: v.Kind, Mime: v.Mime, Size: v.Size, Path: v.Path, URI: v.URI})
+	}
+	return proto.MCPResult{Text: result.Text, StructuredContent: result.Structured, IsError: result.IsError, ResultID: saved.ID, Artifacts: artifacts, Size: saved.Size, Notes: saved.Notes}, nil
 }

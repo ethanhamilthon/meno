@@ -58,7 +58,9 @@ func (s ResultStore) dir(session, id string) (string, error) {
 // JSON keeps everything else, with the base64 payloads replaced by references.
 func (s ResultStore) Save(session, server, tool string, res Result) (Stored, error) {
 	var b [8]byte
-	_, _ = rand.Read(b[:])
+	if _, err := rand.Read(b[:]); err != nil {
+		return Stored{}, err
+	}
 	id := "r" + hex.EncodeToString(b[:])
 	dir, err := s.dir(session, id)
 	if err != nil {
@@ -68,7 +70,21 @@ func (s ResultStore) Save(session, server, tool string, res Result) (Stored, err
 		return Stored{}, err
 	}
 	st := Stored{ID: id, Server: server, Tool: tool, Mime: "application/json", Artifacts: []Artifact{}}
-	canon := map[string]any{"isError": res.IsError, "content": []any{}}
+	canon := map[string]any{}
+	if len(res.Raw) > 0 {
+		if err := json.Unmarshal(res.Raw, &canon); err != nil {
+			return st, err
+		}
+	}
+	if canon == nil {
+		return st, errors.New("mcp: result must be an object")
+	}
+	canon["isError"] = res.IsError
+	canon["content"] = []any{}
+	if len(res.Content) == 0 && res.Text != "" {
+		raw, _ := json.Marshal(map[string]any{"type": "text", "text": res.Text})
+		res.Content = []json.RawMessage{raw}
+	}
 	var blocks []any
 	for i, raw := range res.Content {
 		var m map[string]any
@@ -90,11 +106,18 @@ func (s ResultStore) Save(session, server, tool string, res Result) (Stored, err
 		return st, err
 	}
 	if len(data) > MaxResultBytes {
-		st.Notes = append(st.Notes, fmt.Sprintf("result is %d bytes; only the first %d are retained", len(data), MaxResultBytes))
-		data = []byte(cutUTF8(string(data), MaxResultBytes))
+		st.Notes = append(st.Notes, fmt.Sprintf("result is %d bytes; a bounded preview replaces it (limit %d)", len(data), MaxResultBytes))
+		data, _ = json.Marshal(map[string]any{"isError": res.IsError, "content": []any{}, "retentionError": "result exceeded retention limit", "preview": cutUTF8(string(data), MaxResultBytes/8)})
 	}
 	st.Size = len(data)
 	if err := os.WriteFile(filepath.Join(dir, "result.json"), data, 0o600); err != nil {
+		return st, err
+	}
+	meta, err := json.Marshal(st)
+	if err != nil {
+		return st, err
+	}
+	if err = os.WriteFile(filepath.Join(dir, "metadata.json"), meta, 0o600); err != nil {
 		return st, err
 	}
 	return st, nil
@@ -119,6 +142,11 @@ func (s ResultStore) extract(dir string, idx int, m map[string]any, st *Stored) 
 	key := "data"
 	if kind == "resource" {
 		key = "blob"
+	}
+	if base64.StdEncoding.DecodedLen(len(data)) > MaxArtifactBytes+2 {
+		st.Notes = append(st.Notes, fmt.Sprintf("block %d: encoded payload exceeds artifact limit; not retained", idx))
+		delete(holder, key)
+		return
 	}
 	raw, err := base64.StdEncoding.DecodeString(data)
 	if err != nil {
@@ -196,6 +224,9 @@ func (s ResultStore) Read(session, id string, offset, limit int) (Slice, error) 
 	end := min(offset+limit, len(b))
 	for end < len(b) && end > offset && !utf8.RuneStart(b[end]) {
 		end--
+	}
+	if end == offset && offset < len(b) {
+		return Slice{}, fmt.Errorf("limit %d is too small for the next UTF-8 character", limit)
 	}
 	out := Slice{Text: string(b[offset:end]), Offset: offset, End: end, Size: len(b)}
 	if end < len(b) {

@@ -1,8 +1,10 @@
 package mcp
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 )
 
@@ -18,6 +20,9 @@ type Result struct {
 
 // ParseResult splits a raw tools/call result.
 func ParseResult(raw json.RawMessage) (Result, error) {
+	if trim := bytes.TrimSpace(raw); len(trim) == 0 || trim[0] != '{' {
+		return Result{}, errors.New("mcp: tool result must be a JSON object")
+	}
 	var r struct {
 		Content    []json.RawMessage `json:"content"`
 		Structured json.RawMessage   `json:"structuredContent"`
@@ -48,11 +53,7 @@ func ParseResult(raw json.RawMessage) (Result, error) {
 // failures are errors; a tool that reports isError returns normally with
 // IsError set.
 func (c *Client) CallResult(ctx context.Context, tool string, args map[string]any) (Result, error) {
-	_, ch, id, err := c.conn.call("tools/call", map[string]any{"name": tool, "arguments": args})
-	if err != nil {
-		return Result{}, err
-	}
-	raw, err := c.wait(ctx, ch, id, callTimeout)
+	raw, err := c.request(ctx, "tools/call", map[string]any{"name": tool, "arguments": args}, callTimeout)
 	if err != nil {
 		return Result{}, err
 	}

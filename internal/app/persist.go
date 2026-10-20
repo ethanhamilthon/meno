@@ -7,7 +7,6 @@ import (
 	"meno/internal/client"
 	"meno/internal/config"
 	"meno/internal/llm"
-	"meno/internal/mcp"
 	"meno/internal/proto"
 )
 
@@ -62,50 +61,6 @@ func syncProviders(ctx context.Context, c *client.Client, own []llm.Provider) er
 	for name, p := range have {
 		if !keep[name] && p.Source != llm.SourceFile && p.Source != llm.SourceOAuth {
 			if err = c.DeleteProvider(ctx, name); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-// persistServers sends the MCP servers the user owns to the daemon.
-func (a *App) persistServers() {
-	a.cfgSeen = a.cfgSeq.Add(1)
-	own := config.OwnServers(a.st.Servers)
-	a.pushSave(func() {
-		err := a.rpc(func(ctx context.Context, c *client.Client) error { return syncServers(ctx, c, own) })
-		if err != nil {
-			a.postEvent(errNotice{text: "mcp: " + err.Error()})
-		}
-		a.postEvent(a.fetchConfig())
-	})
-}
-
-func syncServers(ctx context.Context, c *client.Client, own []mcp.Server) error {
-	cur, err := c.McpServers(ctx)
-	if err != nil {
-		return err
-	}
-	have := map[string]proto.ConfigMCPServer{}
-	for _, s := range cur.Servers {
-		have[s.Name] = s
-	}
-	keep := map[string]bool{}
-	for _, s := range own {
-		keep[s.Name] = true
-		w := serverToWire(s)
-		if _, ok := have[s.Name]; ok {
-			if _, err = c.UpdateMcpServer(ctx, s.Name, w); err != nil {
-				return err
-			}
-		} else if _, err = c.AddMcpServer(ctx, w); err != nil {
-			return err
-		}
-	}
-	for name, s := range have {
-		if !keep[name] && s.Source != mcp.SourceFile {
-			if err = c.RemoveMcpServer(ctx, name); err != nil {
 				return err
 			}
 		}

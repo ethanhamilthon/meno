@@ -45,7 +45,7 @@ func logoCellLit(ri, i int) bool {
 func TestVisualWelcomeAlignment(t *testing.T) {
 	a, s := visualFixture(t, 112, 36)
 	a.draw()
-	top := (32 - welcomeBlockH) / 2
+	top := (36 - a.bottomHeight() - welcomeBlockH) / 2
 	x := (112 - logoW) / 2
 	for ri, want := range logoRows {
 		got := []rune(visualRow(s, top+3+ri))[x : x+logoW]
@@ -96,7 +96,7 @@ func logoFrame(s tcell.SimulationScreen, top, x int) (mask, glyphs string) {
 
 func TestWelcomeLogoScramblesWithoutChangingShape(t *testing.T) {
 	a, s := visualFixture(t, 112, 36)
-	top := (32 - welcomeBlockH) / 2
+	top := (36 - a.bottomHeight() - welcomeBlockH) / 2
 	x := (112 - logoW) / 2
 	a.draw()
 	mask1, glyphs1 := logoFrame(s, top, x)
@@ -130,8 +130,8 @@ func TestVisualModalGridAndSelection(t *testing.T) {
 	if bg == ui.BgPopup {
 		t.Fatal("settings expands beyond reference width")
 	}
-	if !strings.Contains(visualRow(s, 35), "SETTINGS") {
-		t.Fatal("overlay badge missing")
+	if strings.Contains(visualRow(s, 35), "SETTINGS") {
+		t.Fatal("obsolete overlay badge visible")
 	}
 	exportVisual(t, s, "settings")
 	a.st.Models = map[string][]llm.Model{"openai": {}}

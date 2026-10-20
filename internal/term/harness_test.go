@@ -147,9 +147,9 @@ func start(t *testing.T, o options) *session {
 	// Keys sent before the program has put the terminal in raw mode would be
 	// echoed by the tty and lost, so wait for the first frame.
 	if o.firstRun {
-		s.WaitFor("LOGIN")
+		s.WaitFor("add a provider to start")
 	} else {
-		s.WaitFor("INPUT")
+		s.WaitFor("Type to start building anything")
 	}
 	return s
 }
