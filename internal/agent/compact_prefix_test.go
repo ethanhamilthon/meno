@@ -29,7 +29,7 @@ func (c *prefixClient) Stream(ctx context.Context, req llm.Request, emit func(ll
 			return errors.New("down")
 		}
 		if c.tool && req.Tools {
-			emit(llm.Event{Kind: llm.EvTool, Code: "1"})
+			emit(llm.Event{Kind: llm.EvTool, Code: "true"})
 			emit(llm.Event{Kind: llm.EvDone})
 			return nil
 		}

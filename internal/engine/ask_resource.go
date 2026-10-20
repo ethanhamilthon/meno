@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 
-	"meno/internal/jsvm"
+	"meno/internal/form"
 	"meno/internal/proto"
 )
 
@@ -20,17 +20,17 @@ func (e *Engine) askResource(ctx context.Context, s *runState, call string, data
 	if t, ok := spec["timeout"].(float64); ok {
 		spec["timeout"] = int64(t)
 	}
-	form, err := jsvm.ParseForm(spec)
+	f, err := form.Parse(spec)
 	if err != nil {
 		return nil, api(proto.CodeBadRequest, err.Error())
 	}
 	s.pauseCall(call, true)
 	defer s.pauseCall(call, false)
-	answers, err := asker{e, s}.Ask(ctx, form)
+	answers, err := asker{e, s}.Ask(ctx, f)
 	switch {
-	case errors.Is(err, jsvm.ErrCancelled):
+	case errors.Is(err, form.ErrCancelled):
 		return nil, api(proto.CodeConflict, "cancelled")
-	case errors.Is(err, jsvm.ErrTimeout):
+	case errors.Is(err, form.ErrTimeout):
 		return nil, api(proto.CodeConflict, "timeout")
 	case err != nil:
 		return nil, err

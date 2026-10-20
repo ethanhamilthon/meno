@@ -15,7 +15,7 @@ func (e *Engine) mcpResource(ctx context.Context, s *runState, tail []string, me
 	op := tail[0]
 	if op == "servers" {
 		out := []map[string]any{}
-		for _, srv := range e.servers {
+		for _, srv := range e.serverList() {
 			out = append(out, map[string]any{"name": srv.Name, "enabled": srv.Enabled, "running": e.mcp.Running(srv.Name), "error": e.mcp.Err(srv.Name)})
 		}
 		return out, nil
@@ -36,8 +36,7 @@ func (e *Engine) mcpResource(ctx context.Context, s *runState, tail []string, me
 	if op == "call" {
 		server, tool := stringValue(data, "server"), stringValue(data, "tool")
 		args, _ := data["args"].(map[string]any)
-		h := mcpHost{e: e, s: s, results: mcp.ResultStore{Dir: e.paths.File("mcp-results")}}
-		return h.Call(ctx, server, tool, args)
+		return e.callMCP(ctx, s, server, tool, args)
 	}
 	if op == "results" {
 		id := stringValue(data, "id")
@@ -65,6 +64,5 @@ func (e *Engine) webResource(ctx context.Context, s *runState, tail []string, me
 		v, _ := url.ParseQuery(query)
 		q = v.Get("q")
 	}
-	host := webHost{e, s}
-	return host.Search(ctx, q, map[string]any{"count": number(data["count"])})
+	return (toolHost{engine: e, state: s}).Search(ctx, q, map[string]any{"count": number(data["count"])})
 }

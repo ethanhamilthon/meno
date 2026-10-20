@@ -3,7 +3,7 @@ package engine
 import (
 	"context"
 	"encoding/json"
-	"meno/internal/jsvm"
+	"meno/internal/form"
 	"meno/internal/proto"
 	"strings"
 )
@@ -23,19 +23,19 @@ func (e *Engine) AnswerAsk(ctx context.Context, id, askID string, q proto.AskAns
 	s.mu.Unlock()
 	if q.Cancel {
 		select {
-		case a.answer <- askReply{err: jsvm.ErrCancelled}:
+		case a.answer <- askReply{err: form.ErrCancelled}:
 			return nil
 		default:
 			return api(proto.CodeConflict, "ask has already been answered")
 		}
 	}
-	answers := make([]jsvm.FormAnswer, 0, len(a.form.Questions))
+	answers := make([]form.Answer, 0, len(a.form.Questions))
 	for _, question := range a.form.Questions {
 		raw, ok := q.Answers[question.ID]
-		if !ok && question.Type != jsvm.TypeText {
+		if !ok && question.Type != form.TypeText {
 			return api(proto.CodeBadRequest, "missing answer for "+question.ID)
 		}
-		ans := jsvm.FormAnswer{ID: question.ID, Selected: []string{}}
+		ans := form.Answer{ID: question.ID, Selected: []string{}}
 		if len(raw) > 0 {
 			var text string
 			if json.Unmarshal(raw, &text) == nil {
@@ -65,10 +65,10 @@ func (e *Engine) AnswerAsk(ctx context.Context, id, askID string, q proto.AskAns
 				return api(proto.CodeBadRequest, "unknown option "+v+" for "+question.ID)
 			}
 		}
-		if question.Type == jsvm.TypeSingle && len(ans.Selected) > 1 {
+		if question.Type == form.TypeSingle && len(ans.Selected) > 1 {
 			return api(proto.CodeBadRequest, "single-choice answer has multiple options")
 		}
-		if question.Type == jsvm.TypeText && strings.TrimSpace(ans.Text) == "" {
+		if question.Type == form.TypeText && strings.TrimSpace(ans.Text) == "" {
 			return api(proto.CodeBadRequest, "answer text is required for "+question.ID)
 		}
 		answers = append(answers, ans)

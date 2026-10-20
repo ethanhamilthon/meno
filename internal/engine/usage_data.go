@@ -20,7 +20,7 @@ func (e *Engine) usageData(id string, ev agent.Ev) proto.UsageData {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if p, ok := e.provider(s.session.Provider); ok {
-		if mi, ok := p.Lookup(e.catalog, s.session.Model); ok && mi.CanPrice(u) {
+		if mi, ok := p.Lookup(e.catalogView(), s.session.Model); ok && mi.CanPrice(u) {
 			d.Cost, d.Priced = mi.Cost(u), true
 		}
 	}

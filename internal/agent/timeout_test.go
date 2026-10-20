@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"meno/internal/jsvm"
 	"meno/internal/llm"
 )
 
@@ -32,9 +31,9 @@ func (c *timeoutClient) Stream(ctx context.Context, req llm.Request, emit func(l
 
 func runWithTimeout(t *testing.T, model bool, args string) (string, *timeoutClient) {
 	t.Helper()
-	vm := jsvm.New(jsvm.Options{Root: t.TempDir(), Timeout: 30 * time.Second})
+	vm := newShellTool(t.TempDir(), 30*time.Second)
 	cl := &timeoutClient{calls: [][]llm.Event{{
-		{Kind: llm.EvTool, CallID: "c1", Code: "String(sh('sleep 5').timedOut)", Arguments: args},
+		{Kind: llm.EvTool, CallID: "c1", Code: "sleep 5", Arguments: args},
 		{Kind: llm.EvDone},
 	}}}
 	r := &Runner{D: Deps{Retry: RetryPolicy{Attempts: 1}, Client: cl, Tool: vm, ModelTimeout: model, Emit: func(Ev) {}}}
@@ -56,7 +55,7 @@ func runWithTimeout(t *testing.T, model bool, args string) (string, *timeoutClie
 }
 
 func TestModelChoosesTimeout(t *testing.T) {
-	out, cl := runWithTimeout(t, true, `{"code":"String(sh('sleep 5').timedOut)","timeout":0.3}`)
+	out, cl := runWithTimeout(t, true, `{"command":"sleep 5","timeout":0.3}`)
 	if !cl.reqs[0].ModelTimeout {
 		t.Fatal("request does not offer the timeout argument")
 	}
@@ -66,9 +65,9 @@ func TestModelChoosesTimeout(t *testing.T) {
 }
 
 func TestTimeoutArgumentIgnoredUnlessModelDecides(t *testing.T) {
-	vm := jsvm.New(jsvm.Options{Root: t.TempDir(), Timeout: 300 * time.Millisecond})
+	vm := newShellTool(t.TempDir(), 300*time.Millisecond)
 	cl := &timeoutClient{calls: [][]llm.Event{{
-		{Kind: llm.EvTool, CallID: "c1", Code: "String(sh('sleep 5').timedOut)", Arguments: `{"code":"String(sh('sleep 5').timedOut)","timeout":100}`},
+		{Kind: llm.EvTool, CallID: "c1", Code: "sleep 5", Arguments: `{"command":"sleep 5","timeout":100}`},
 		{Kind: llm.EvDone},
 	}}}
 	r := &Runner{D: Deps{Retry: RetryPolicy{Attempts: 1}, Client: cl, Tool: vm, Emit: func(Ev) {}}}

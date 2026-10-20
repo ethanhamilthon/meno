@@ -26,7 +26,7 @@ func cloneMap(m map[string]string) map[string]string {
 	return o
 }
 func (e *Engine) provider(name string) (llm.Provider, bool) {
-	for _, p := range e.providers {
+	for _, p := range e.providerList() {
 		if p.Name == name && !p.Disabled {
 			return p, true
 		}

@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"meno/internal/jsvm"
 	"meno/internal/llm"
 )
 
@@ -80,7 +79,7 @@ func TestRetriesTransientErrorsThenSucceeds(t *testing.T) {
 
 func TestMidStreamDropRestartsAndRunsToolOnce(t *testing.T) {
 	counter := filepath.Join(t.TempDir(), "count")
-	bump := "sh('echo x >> " + counter + "')"
+	bump := "echo x >> " + counter
 	drop := func(emit func(llm.Event)) error {
 		emit(llm.Event{Kind: llm.EvText, Text: "par"})
 		emit(llm.Event{Kind: llm.EvTool, CallID: "c1", Code: bump})
@@ -146,7 +145,7 @@ func TestCancelDuringBackoffAborts(t *testing.T) {
 	cl := &flaky{steps: []func(func(llm.Event)) error{failWith(&llm.HTTPError{Status: 503}), okText("never")}}
 	ctx, cancel := context.WithCancel(context.Background())
 	var evs []Ev
-	vm := jsvm.New(jsvm.Options{Root: "."})
+	vm := newShellTool(".", 0)
 	r := &Runner{D: Deps{Client: cl, Tool: vm, Retry: RetryPolicy{Base: time.Hour, Cap: time.Hour}, Emit: func(e Ev) {
 		evs = append(evs, e)
 		if e.Kind == EvRetry {

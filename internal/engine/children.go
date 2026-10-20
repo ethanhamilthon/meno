@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"meno/internal/agent"
-	"meno/internal/jsvm"
 	"meno/internal/llm"
 	"meno/internal/proto"
 	"meno/internal/tools"
@@ -17,7 +16,6 @@ import (
 type childHost struct {
 	e      *Engine
 	parent *runState
-	vm     *jsvm.VM
 }
 type childRun struct {
 	mu     sync.Mutex
@@ -27,10 +25,9 @@ type childRun struct {
 	cancel context.CancelFunc
 	wait   chan struct{}
 	block  string
-	vm     *jsvm.VM
 }
 
-func (h childHost) Spawn(call jsvm.TaskCall, spec map[string]any) (any, error) {
+func (h childHost) Spawn(call callOpts, spec map[string]any) (any, error) {
 	task, _ := spec["task"].(string)
 	if strings.TrimSpace(task) == "" {
 		return nil, errors.New("agents.spawn: task is required")
@@ -40,7 +37,7 @@ func (h childHost) Spawn(call jsvm.TaskCall, spec map[string]any) (any, error) {
 	spawned := h.parent.spawned
 	h.parent.spawned++
 	h.parent.mu.Unlock()
-	if spawned >= h.e.settings.SubagentMaxSpawn {
+	if spawned >= h.e.cfg().SubagentMaxSpawn {
 		return nil, errors.New("agents.spawn: subagent limit reached")
 	}
 	cwd := call.Cwd
@@ -74,7 +71,7 @@ func (h childHost) Spawn(call jsvm.TaskCall, spec map[string]any) (any, error) {
 			working++
 		}
 	}
-	if working >= h.e.settings.SubagentMaxSpawn {
+	if working >= h.e.cfg().SubagentMaxSpawn {
 		return nil, errors.New("agents.spawn: subagent limit reached")
 	}
 	sess := agent.NewSession(cwd, model)
@@ -114,7 +111,7 @@ func (h childHost) Spawn(call jsvm.TaskCall, spec map[string]any) (any, error) {
 	h.e.publish(parentID, proto.EventAgentsChanged, []string{sess.ID})
 	return map[string]any{"id": sess.ID}, nil
 }
-func (h childHost) List(jsvm.TaskCall) (any, error) {
+func (h childHost) List(callOpts) (any, error) {
 	rs, err := h.e.children.List(h.parent.session.ID, false)
 	if err != nil {
 		return nil, err
@@ -125,14 +122,14 @@ func (h childHost) List(jsvm.TaskCall) (any, error) {
 	}
 	return out, nil
 }
-func (h childHost) Status(_ jsvm.TaskCall, id string) (any, error) {
+func (h childHost) Status(_ callOpts, id string) (any, error) {
 	r, err := h.e.children.Get(h.parent.session.ID, id)
 	if err != nil {
 		return nil, err
 	}
 	return childView(r), nil
 }
-func (h childHost) Send(_ jsvm.TaskCall, id, text string) (any, error) {
+func (h childHost) Send(_ callOpts, id, text string) (any, error) {
 	r, err := h.e.children.Get(h.parent.session.ID, id)
 	if err != nil {
 		return nil, err
@@ -157,7 +154,7 @@ func (h childHost) Send(_ jsvm.TaskCall, id, text string) (any, error) {
 	h.e.safeRun(ctx, s, text, true)
 	return map[string]any{"id": r.ID, "queued": false}, nil
 }
-func (h childHost) Wait(c jsvm.TaskCall, id string, d time.Duration) (any, error) {
+func (h childHost) Wait(c callOpts, id string, d time.Duration) (any, error) {
 	deadline := time.Time{}
 	if d > 0 {
 		deadline = time.Now().Add(d)
@@ -180,14 +177,14 @@ func (h childHost) Wait(c jsvm.TaskCall, id string, d time.Duration) (any, error
 		}
 	}
 }
-func (h childHost) Result(_ jsvm.TaskCall, id string) (any, error) {
+func (h childHost) Result(_ callOpts, id string) (any, error) {
 	r, err := h.e.children.Get(h.parent.session.ID, id)
 	if err != nil {
 		return nil, err
 	}
 	return childView(r), nil
 }
-func (h childHost) Cancel(_ jsvm.TaskCall, id string) (any, error) {
+func (h childHost) Cancel(_ callOpts, id string) (any, error) {
 	r, err := h.e.children.Get(h.parent.session.ID, id)
 	if err != nil {
 		return nil, err
@@ -207,7 +204,7 @@ func (h childHost) Cancel(_ jsvm.TaskCall, id string) (any, error) {
 	h.e.publish(h.parent.session.ID, proto.EventAgentsChanged, []string{id})
 	return childView(r), nil
 }
-func (h childHost) Report(_ jsvm.TaskCall, text string) error {
+func (h childHost) Report(_ callOpts, text string) error {
 	if strings.TrimSpace(text) == "" {
 		return errors.New("agents.report: text is empty")
 	}
@@ -219,7 +216,7 @@ func (h childHost) Report(_ jsvm.TaskCall, text string) error {
 		Owner: rec.Owner, Text: "Agent " + rec.ID + " reports: " + eventSnippet(text, 3000), Refs: []string{"child:" + rec.ID}}, false)
 	return nil
 }
-func (h childHost) Block(_ jsvm.TaskCall, reason string) error {
+func (h childHost) Block(_ callOpts, reason string) error {
 	h.parent.mu.Lock()
 	h.parent.block = reason
 	h.parent.mu.Unlock()

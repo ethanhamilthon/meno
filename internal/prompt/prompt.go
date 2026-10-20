@@ -60,48 +60,7 @@ type Input struct {
 
 // Build returns the full system prompt. Sections go from the most stable to
 // the most volatile so that a change only invalidates the text after it.
-func Build(in Input) string {
-	if in.Tool == "bash" {
-		return buildBash(in)
-	}
-	return buildJS(in)
-}
-
-func buildJS(in Input) string {
-	var parts []string
-	add := func(s string) {
-		if s != "" {
-			parts = append(parts, s)
-		}
-	}
-	add(identityPrompt)
-	add(voiceSection())
-	add(methodSection(in.Only))
-	if hasGlobal(in.Only, "fs") {
-		add(editingSection())
-	}
-	if hasGlobal(in.Only, "sh") {
-		add(verificationSection())
-	}
-	if hasGlobal(in.Only, "fs") || hasGlobal(in.Only, "sh") {
-		add(outputSection())
-	}
-	add(guidelines(in.Subagent))
-	if in.Subagent {
-		add(subagentRole())
-	}
-	add(skillsSection(in.Skills))
-	add(instructionsSection("global-instructions", in.GlobalAgents))
-	add(instructionsSection("project-instructions", in.ProjectAgents))
-	add(mcpToolsSection(in.Tools))
-	add(environmentSection(in))
-	return strings.Join(parts, "\n\n")
-}
-
-// ToolSignature renders one MCP tool as a call with its parameters.
-func ToolSignature(t Tool) string {
-	return "mcp." + ident(t.Server) + "." + ident(t.Name) + "(" + t.Params + ")"
-}
+func Build(in Input) string { return buildBash(in) }
 
 // DescribeModel renders a model selection as "gpt-5.5 (openai, effort high)".
 func DescribeModel(provider, model, effort string) string {

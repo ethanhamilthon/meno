@@ -60,7 +60,7 @@ func (e *Engine) modelResource(query string) any {
 	v, _ := url.ParseQuery(query)
 	provider := v.Get("provider")
 	out := []map[string]any{}
-	for _, p := range e.providers {
+	for _, p := range e.providerList() {
 		if p.Disabled || provider != "" && provider != p.Name {
 			continue
 		}

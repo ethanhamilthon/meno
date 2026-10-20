@@ -4,7 +4,6 @@ import (
 	"strings"
 	"time"
 
-	"meno/internal/agent"
 	"meno/internal/llm"
 )
 
@@ -65,15 +64,4 @@ func pad2(n int) string {
 		return "0" + itoa(n)
 	}
 	return itoa(n)
-}
-
-// autoCompact is the safety net settings for the model of this turn. An unknown
-// context window turns it off: a window is never guessed.
-func (a *App) autoCompact(p llm.Provider, model string) agent.AutoCompact {
-	s := a.st.Settings
-	ac := agent.AutoCompact{Percent: s.CompactPercent, Keep: s.CompactKeep, SummaryTokens: s.CompactSummaryTokens}
-	if info, ok := p.Lookup(a.st.Pricing, model); ok {
-		ac.Window = info.Context
-	}
-	return ac
 }

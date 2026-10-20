@@ -18,7 +18,7 @@ type toolHost struct {
 
 func (h toolHost) Models(opts map[string]any) (any, error) {
 	var out []map[string]any
-	for _, p := range h.engine.providers {
+	for _, p := range h.engine.providerList() {
 		if p.Disabled {
 			continue
 		}
@@ -35,7 +35,7 @@ func (h toolHost) Search(ctx context.Context, q string, o map[string]any) (any, 
 	if n, ok := o["count"].(int64); ok {
 		count = int(n)
 	}
-	backend := h.engine.settings.WebSearch
+	backend := h.engine.cfg().WebSearch
 	if backend == "" || backend == "auto" || backend == "native" {
 		backend = "auto"
 	}
@@ -57,7 +57,7 @@ func (h toolHost) Search(ctx context.Context, q string, o map[string]any) (any, 
 	}
 	for _, b := range []websearch.Backend{websearch.Brave, websearch.Tavily} {
 		if backend == "auto" || backend == string(b) {
-			if v, ok := do(b, h.engine.settings.WebSearchKey); ok {
+			if v, ok := do(b, h.engine.cfg().WebSearchKey); ok {
 				return v, nil
 			}
 		}
@@ -86,31 +86,4 @@ func (h toolHost) View(display string, img attach.Image) (int, error) {
 	}
 	s.queue.Push(agent.Message{Text: "The agent asked to view " + display, Attachments: []agent.Attachment{{N: n, Mime: img.Mime, SHA: img.SHA, W: img.W, H: img.H}}, Viewed: true})
 	return n, nil
-}
-
-type sessionHost struct {
-	e *Engine
-	s *runState
-}
-
-func (h sessionHost) Models(o map[string]any) (any, error) {
-	return (toolHost{engine: h.e, state: h.s}).Models(o)
-}
-
-type webHost struct {
-	e *Engine
-	s *runState
-}
-
-func (h webHost) Search(c context.Context, q string, o map[string]any) (any, error) {
-	return (toolHost{engine: h.e, state: h.s}).Search(c, q, o)
-}
-
-type viewer struct {
-	e *Engine
-	s *runState
-}
-
-func (h viewer) View(d string, img attach.Image) (int, error) {
-	return (toolHost{engine: h.e, state: h.s}).View(d, img)
 }

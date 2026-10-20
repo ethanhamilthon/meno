@@ -23,6 +23,7 @@ import (
 
 // ResourceHandler owns config resources outside the engine's session scope.
 type ResourceHandler interface {
+	// Resource serves the config routes (settings, providers, login, ...).
 	Resource(context.Context, string, string, string, proto.ResourceRequest) (proto.ResourceResponse, error)
 }
 
@@ -76,6 +77,9 @@ type runState struct {
 	lastRequest      llm.Request
 	lastErr          string
 	spawned          int
+	pinProvider      string // provider, model and effort the running request started with
+	pinModel         string
+	pinEffort        string
 	cancelled        map[string]bool        // root requests that were stopped; their events never wake the session
 	block            string                 // a child asked to be blocked in the current tool batch
 	calls            map[string]*tools.Call // running bash calls by id (ask pauses their timer)

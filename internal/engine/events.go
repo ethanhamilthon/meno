@@ -37,9 +37,7 @@ func (e *Engine) agentEvent(s *runState, ev agent.Ev) {
 	case agent.EvJSEnd:
 		c := findCall(&s.live, ev.CallID)
 		c.Output = ev.Output
-		if s.session.Tool == "bash" {
-			c.Exit = exitFromOutput(ev.Output)
-		}
+		c.Exit = exitFromOutput(ev.Output)
 		c.ElapsedMS = ev.Elapsed.Milliseconds()
 		c.TimedOut = ev.TimedOut
 		if ev.Err != "" {
@@ -65,10 +63,10 @@ func (e *Engine) agentEvent(s *runState, ev agent.Ev) {
 		s.session.Metrics.Usage.Cached += ev.Usage.Cached
 		s.session.Metrics.Usage.CacheWrite += ev.Usage.CacheWrite
 		if p, ok := e.provider(s.session.Provider); ok {
-			if mi, ok := p.Lookup(e.catalog, s.session.Model); ok {
+			if mi, ok := p.Lookup(e.catalogView(), s.session.Model); ok {
 				s.session.Metrics.Context = mi.Context
 			}
-			if mi, ok := p.Lookup(e.catalog, s.session.Model); ok && mi.CanPrice(ev.Usage) {
+			if mi, ok := p.Lookup(e.catalogView(), s.session.Model); ok && mi.CanPrice(ev.Usage) {
 				cost := mi.Cost(ev.Usage)
 				s.metrics.Cost += cost
 				s.session.Metrics.Spent += cost
@@ -152,6 +150,7 @@ func (e *Engine) translate(id string, ev agent.Ev) {
 			d.ContextTokens = requestTokens(ev.Req)
 		}
 		e.publish(id, proto.EventRequest, d)
+		e.publish(id, proto.EventStatus, proto.StatusData{Running: true, Phase: "thinking"})
 	case agent.EvRetry:
 		e.publish(id, proto.EventRetry, proto.RetryData{Attempt: ev.Attempt, Max: ev.Max, InMS: ev.Delay.Milliseconds(), Reason: ev.Err})
 	case agent.EvUsage:

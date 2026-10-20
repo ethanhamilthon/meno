@@ -117,7 +117,7 @@ func (a *App) applyWire(rt *Runtime, e proto.Event) {
 			rt.Running, rt.Phase = d.Running, d.Phase
 		}
 	case proto.EventRequest:
-		rt.RunTurns += 0
+		rt.Phase = "thinking"
 	case proto.EventUsage:
 		if d, ok := decode[proto.UsageData](e.Data); ok {
 			a.addUsage(rt, d)

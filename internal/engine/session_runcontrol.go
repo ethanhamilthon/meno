@@ -50,7 +50,7 @@ func (e *Engine) Compact(ctx context.Context, id string, q proto.CompactRequest)
 	}
 	system, _, _ := e.prepare(ctx, s, effort, false)
 	before := s.session.Len()
-	_, _, err = agent.CompactWith(ctx, e.client(p), p, model, s.session, agent.CompactOptions{Keep: q.Keep, SummaryTokens: e.settings.CompactSummaryTokens, Effort: effort, ModelTimeout: e.settings.BashModelTimeout(), System: system, ToolDesc: ""}, nil)
+	_, _, err = agent.CompactWith(ctx, e.client(p), p, model, s.session, agent.CompactOptions{Keep: q.Keep, SummaryTokens: e.cfg().CompactSummaryTokens, Effort: effort, ModelTimeout: e.cfg().BashModelTimeout(), System: system, ToolDesc: ""}, nil)
 	if err != nil {
 		return proto.CompactResponse{}, err
 	}

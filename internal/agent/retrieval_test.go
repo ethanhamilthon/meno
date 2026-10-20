@@ -107,7 +107,7 @@ func TestReadOmitsToolOutputAndThinkingUnlessAsked(t *testing.T) {
 	home := t.TempDir()
 	t.Cleanup(CloseSessionStores)
 	s := NewSession("/w", "m")
-	s.Append(Turn{Role: llm.RoleAssistant, Text: "x", Output: "big output", Thinking: "hmm", Code: "1"})
+	s.Append(Turn{Role: llm.RoleAssistant, Text: "x", Output: "big output", Thinking: "hmm", Code: "true"})
 	if err := SaveSession(home, s); err != nil {
 		t.Fatal(err)
 	}

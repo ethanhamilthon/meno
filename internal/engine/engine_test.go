@@ -164,13 +164,17 @@ func TestPOSTClientIDRetryIsSafe(t *testing.T) {
 	}
 }
 func TestAskPausesThenResumes(t *testing.T) {
-	f := &fakeProvider{steps: [][]llm.Event{{{Kind: llm.EvTool, CallID: "a", Code: "askUser({questions:[{id:'choice',text:'Pick',type:'single',options:[{id:'x',label:'X'}]}]})"}, {Kind: llm.EvDone}}, {{Kind: llm.EvText, Text: "answered"}, {Kind: llm.EvDone}}}}
+	f := &fakeProvider{steps: [][]llm.Event{{{Kind: llm.EvText, Text: "answered"}, {Kind: llm.EvDone}}}}
 	e, h := fixture(t, f)
 	id := newSession(t, e)
-	jsSession(t, e, id)
-	if _, err := e.Message(context.Background(), id, proto.MessageRequest{Text: "choose", ClientID: "ask"}); err != nil {
-		t.Fatal(err)
-	}
+	snap0, _ := e.Snapshot(context.Background(), id)
+	// The agent's shell command "meno ask" posts the form and blocks.
+	done := make(chan error, 1)
+	go func() {
+		_, err := e.Resource(context.Background(), "POST", "/v1/sessions/"+id+"/ask", "", proto.ResourceRequest{
+			Token: snap0.AgentToken, Data: json.RawMessage(`{"form":{"questions":[{"id":"choice","text":"Pick","type":"single","options":[{"id":"x","label":"X"}]}]}}`)})
+		done <- err
+	}()
 	waitFor(t, e, id, func(s *runState) bool { return s.ask != nil })
 	snap, _ := e.Snapshot(context.Background(), id)
 	if snap.Ask == nil {
@@ -179,7 +183,10 @@ func TestAskPausesThenResumes(t *testing.T) {
 	if err := e.AnswerAsk(context.Background(), id, snap.Ask.AskID, proto.AskAnswerRequest{Answers: map[string]json.RawMessage{"choice": json.RawMessage("\"x\"")}}); err != nil {
 		t.Fatal(err)
 	}
-	waitFor(t, e, id, func(s *runState) bool { return !s.running && s.ask == nil })
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, e, id, func(s *runState) bool { return s.ask == nil })
 	ch, stop, _ := h.Subscribe(id, 0, "boot")
 	defer stop()
 	opened, closed := false, false

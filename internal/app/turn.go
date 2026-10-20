@@ -64,6 +64,9 @@ func (a *App) send(msg msgDraft) {
 		req.Attachments = append(req.Attachments, proto.Attachment{Name: "image", MIME: at.Mime, Data: base64Of(msg.data[at.SHA])})
 	}
 	rt.sending++
+	if rt.Session.Title == "" && rt.Session.Len() == 0 {
+		rt.Session.Title = firstLine(msg.Text, 60) // the daemon names it the same way
+	}
 	if rt.Running {
 		rt.Queued = append(rt.Queued, msg.Text)
 	} else {

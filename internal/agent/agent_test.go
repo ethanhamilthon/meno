@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"meno/internal/jsvm"
 	"meno/internal/llm"
 )
 
@@ -35,7 +34,7 @@ func (s *scripted) Stream(ctx context.Context, req llm.Request, emit func(llm.Ev
 }
 
 func newRunner(cl llm.Client, evs *[]Ev) *Runner {
-	vm := jsvm.New(jsvm.Options{Root: ".", Timeout: 2 * time.Second})
+	vm := newShellTool(".", 2*time.Second)
 	return &Runner{D: Deps{
 		Client: cl, Provider: llm.Provider{Name: "t"}, Model: "m", Tool: vm, Retry: RetryPolicy{Attempts: 1},
 		Thinking: true, Emit: func(e Ev) { *evs = append(*evs, e) },
@@ -44,7 +43,7 @@ func newRunner(cl llm.Client, evs *[]Ev) *Runner {
 
 func TestTurnWithJSThenAnswer(t *testing.T) {
 	cl := &scripted{steps: [][]llm.Event{
-		{{Kind: llm.EvText, Text: "checking"}, {Kind: llm.EvTool, CallID: "c1", Code: "console.log(2*21)"}, {Kind: llm.EvDone}},
+		{{Kind: llm.EvText, Text: "checking"}, {Kind: llm.EvTool, CallID: "c1", Code: "echo $((2*21))"}, {Kind: llm.EvDone}},
 		{{Kind: llm.EvText, Text: "answer 42"}, {Kind: llm.EvDone}},
 	}}
 	var evs []Ev
@@ -56,7 +55,7 @@ func TestTurnWithJSThenAnswer(t *testing.T) {
 	if len(s.Snapshot()) != 3 {
 		t.Fatalf("turns %d: %+v", len(s.Snapshot()), s.Snapshot())
 	}
-	if s.Snapshot()[1].Code != "console.log(2*21)" || !strings.Contains(s.Snapshot()[1].Output, "42") || s.Snapshot()[1].Text != "checking" {
+	if s.Snapshot()[1].Code != "echo $((2*21))" || !strings.Contains(s.Snapshot()[1].Output, "42") || s.Snapshot()[1].Text != "checking" {
 		t.Fatalf("js turn: %+v", s.Snapshot()[1])
 	}
 	if s.Snapshot()[2].Text != "answer 42" {
@@ -71,9 +70,9 @@ func TestTurnWithJSThenAnswer(t *testing.T) {
 	}
 }
 
-func TestJSErrorIsFedBack(t *testing.T) {
+func TestFailingCommandOutputIsFedBack(t *testing.T) {
 	cl := &scripted{steps: [][]llm.Event{
-		{{Kind: llm.EvTool, CallID: "c1", Code: "throw new Error('bad')"}},
+		{{Kind: llm.EvTool, CallID: "c1", Code: "echo bad >&2; exit 3"}},
 		{{Kind: llm.EvText, Text: "sorry"}, {Kind: llm.EvDone}},
 	}}
 	var evs []Ev
@@ -82,25 +81,24 @@ func TestJSErrorIsFedBack(t *testing.T) {
 	if err := r.Turn(context.Background(), s, "q"); err != nil {
 		t.Fatal(err)
 	}
-	if s.Snapshot()[1].Err == "" {
-		t.Fatalf("error not recorded: %+v", s.Snapshot()[1])
+	if !strings.Contains(s.Snapshot()[1].Output, "bad") {
+		t.Fatalf("output not recorded: %+v", s.Snapshot()[1])
 	}
-	msgs := s.ToMsgs()
 	found := false
-	for _, m := range msgs {
-		if m.Role == llm.RoleTool && strings.Contains(m.Text, "ERROR") {
+	for _, m := range s.ToMsgs() {
+		if m.Role == llm.RoleTool && strings.Contains(m.Text, "bad") {
 			found = true
 		}
 	}
 	if !found {
-		t.Fatal("tool error not passed back to model")
+		t.Fatal("tool output not passed back to model")
 	}
 }
 
 func TestNoStepLimit(t *testing.T) {
 	var steps [][]llm.Event
 	for i := 0; i < 60; i++ {
-		steps = append(steps, []llm.Event{{Kind: llm.EvTool, CallID: "c", Code: "1"}})
+		steps = append(steps, []llm.Event{{Kind: llm.EvTool, CallID: "c", Code: "true"}})
 	}
 	steps = append(steps, []llm.Event{{Kind: llm.EvText, Text: "done"}})
 	var evs []Ev
@@ -141,7 +139,7 @@ func TestStreamErrorSurfaces(t *testing.T) {
 func TestSessionSaveLoadList(t *testing.T) {
 	dir := t.TempDir()
 	s := NewSession(".", "m")
-	s.Replace([]Turn{{Role: llm.RoleUser, Text: "check routes"}, {Role: llm.RoleAssistant, Code: "1", Output: "1"}})
+	s.Replace([]Turn{{Role: llm.RoleUser, Text: "check routes"}, {Role: llm.RoleAssistant, Code: "true", Output: "1"}})
 	if err := SaveSession(dir, s); err != nil {
 		t.Fatal(err)
 	}

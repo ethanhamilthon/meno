@@ -2,7 +2,6 @@ package engine
 
 import (
 	"context"
-	"meno/internal/jsvm"
 	"meno/internal/proc"
 	"meno/internal/proto"
 	"net/url"
@@ -36,8 +35,11 @@ func (e *Engine) taskResource(ctx context.Context, s *runState, tail []string, m
 		}
 		timeout := time.Duration(number(data["timeout"])) * time.Second
 		notify := boolValue(data, "notify", true)
-		env := append(envSlice(s.env), mapEnv(data["env"])...)
-		t, err := e.tasks.Start(proc.StartOptions{Session: s.session.ID, Owner: s.requestID, Name: stringValue(data, "name"), Command: cmd, Cwd: cwd, Env: env, Timeout: timeout, Notify: notify})
+		s.mu.Lock()
+		owner, base := s.requestID, envSlice(s.env)
+		s.mu.Unlock()
+		env := append(base, mapEnv(data["env"])...)
+		t, err := e.tasks.Start(proc.StartOptions{Session: s.session.ID, Owner: owner, Name: stringValue(data, "name"), Command: cmd, Cwd: cwd, Env: env, Timeout: timeout, Notify: notify})
 		if err == nil {
 			e.publish(s.session.ID, proto.EventTasksChanged, []string{t.ID})
 		}
@@ -76,23 +78,23 @@ func (e *Engine) agentResource(ctx context.Context, s *runState, tail []string, 
 	host := childHost{e: e, parent: s}
 	switch op {
 	case "", "list":
-		return host.List(jsvm.TaskCall{})
+		return host.List(callOpts{})
 	case "spawn":
-		return host.Spawn(jsvm.TaskCall{Ctx: ctx, Cwd: s.cwd, Env: envSlice(s.env), Opts: data}, data)
+		return host.Spawn(callOpts{Ctx: ctx, Cwd: s.cwd, Env: envSlice(s.env), Opts: data}, data)
 	case "status":
-		return host.Status(jsvm.TaskCall{}, id)
+		return host.Status(callOpts{}, id)
 	case "send":
-		return host.Send(jsvm.TaskCall{}, id, stringValue(data, "text"))
+		return host.Send(callOpts{}, id, stringValue(data, "text"))
 	case "wait":
-		return host.Wait(jsvm.TaskCall{Ctx: ctx}, id, time.Duration(number(data["timeout"]))*time.Second)
+		return host.Wait(callOpts{Ctx: ctx}, id, time.Duration(number(data["timeout"]))*time.Second)
 	case "result":
-		return host.Result(jsvm.TaskCall{}, id)
+		return host.Result(callOpts{}, id)
 	case "cancel":
-		return host.Cancel(jsvm.TaskCall{}, id)
+		return host.Cancel(callOpts{}, id)
 	case "report":
-		return nil, host.Report(jsvm.TaskCall{}, stringValue(data, "text"))
+		return nil, host.Report(callOpts{}, stringValue(data, "text"))
 	case "block":
-		return nil, host.Block(jsvm.TaskCall{}, stringValue(data, "reason"))
+		return nil, host.Block(callOpts{}, stringValue(data, "reason"))
 	}
 	return nil, api(proto.CodeNotFound, "unknown agent operation")
 }

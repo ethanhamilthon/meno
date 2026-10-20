@@ -38,6 +38,10 @@ func (s *Session) msgsOf(all []Turn, n int) []llm.Msg {
 	}
 	for i := 0; i < len(turns); i++ {
 		t := turns[i]
+		if s.legacyJSTurn(t) {
+			out = append(out, ReplayJSTurns([]Turn{t})...)
+			continue
+		}
 		if t.Replay != nil {
 			out = append(out, *t.Replay)
 			if t.CallID != "" {

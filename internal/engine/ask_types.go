@@ -3,7 +3,7 @@ package engine
 import (
 	"time"
 
-	"meno/internal/jsvm"
+	"meno/internal/form"
 )
 
 type tokenState struct {
@@ -11,12 +11,12 @@ type tokenState struct {
 	groups map[string]bool
 }
 type askReply struct {
-	answers []jsvm.FormAnswer
+	answers []form.Answer
 	err     error
 }
 type askState struct {
 	id       string
-	form     jsvm.Form
+	form     form.Form
 	by       string
 	answer   chan askReply
 	deadline time.Time

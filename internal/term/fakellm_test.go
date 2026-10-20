@@ -144,23 +144,23 @@ func (q *llmReq) finish() {
 	q.sse("", js(map[string]any{"type": "response.completed", "response": map[string]any{"status": "completed", "usage": map[string]int{"input_tokens": 100, "output_tokens": 20}}}))
 }
 
-// Tool streams a call of the js tool, after optional text.
-func (q *llmReq) Tool(preface, code string) {
+// Tool streams a call of the bash tool, after optional text.
+func (q *llmReq) Tool(preface, command string) {
 	q.head()
 	if preface != "" {
 		q.TextPartial(preface)
 	}
-	args := js(map[string]string{"code": code})
+	args := js(map[string]string{"command": command, "title": "t"})
 	id := fmt.Sprintf("call_%d", q.N)
 	if q.Proto == "chat" {
-		q.sse("", js(map[string]any{"choices": []any{map[string]any{"delta": map[string]any{"tool_calls": []any{map[string]any{"index": 0, "id": id, "function": map[string]any{"name": "js", "arguments": args}}}}}}}))
+		q.sse("", js(map[string]any{"choices": []any{map[string]any{"delta": map[string]any{"tool_calls": []any{map[string]any{"index": 0, "id": id, "function": map[string]any{"name": "bash", "arguments": args}}}}}}}))
 		q.sse("", js(map[string]any{"choices": []any{map[string]any{"delta": map[string]any{}, "finish_reason": "tool_calls"}}}))
 		q.sse("", js(map[string]any{"choices": []any{}, "usage": map[string]int{"prompt_tokens": 100, "completion_tokens": 20}}))
 		q.sse("", "[DONE]")
 		return
 	}
-	item := map[string]any{"type": "function_call", "id": "fc_" + id, "call_id": id, "name": "js", "arguments": args}
-	q.sse("", js(map[string]any{"type": "response.output_item.added", "item": map[string]any{"type": "function_call", "id": "fc_" + id, "call_id": id, "name": "js"}}))
+	item := map[string]any{"type": "function_call", "id": "fc_" + id, "call_id": id, "name": "bash", "arguments": args}
+	q.sse("", js(map[string]any{"type": "response.output_item.added", "item": map[string]any{"type": "function_call", "id": "fc_" + id, "call_id": id, "name": "bash"}}))
 	q.sse("", js(map[string]any{"type": "response.function_call_arguments.delta", "item_id": "fc_" + id, "delta": args}))
 	q.sse("", js(map[string]any{"type": "response.output_item.done", "item": item}))
 	q.finish()

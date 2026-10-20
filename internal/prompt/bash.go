@@ -17,7 +17,7 @@ func buildBash(in Input) string {
 		add(verificationSection())
 		add(outputSection())
 	}
-	add(bashGuidelines(in.Subagent))
+	add(bashGuidelines(in.Subagent, in.Allow))
 	if in.Subagent {
 		add(subagentRole())
 	}
@@ -80,9 +80,17 @@ func bashEditingSection() string {
 	return element("editing", "- Use meno read before edit. Use quoted heredocs for multi-line file writes; do not overwrite unknown content.")
 }
 
-func bashGuidelines(subagent bool) string {
-	lines := []string{"- Your only tool is bash. Each call starts a fresh shell; use files for state and meno tasks start for background work.", "- Read skills with cat or meno read. python3 and jq may be missing; check with command -v.", "- Use a quoted heredoc for multi-line file edits. The TUI folds heredoc bodies for display.", "- Results end with [exit N], [timed out after Ns] or [cancelled]."}
-	if !subagent {
+func bashGuidelines(subagent bool, groups []string) string {
+	first := "- Your only tool is bash. Each call starts a fresh shell; use files for state."
+	if allows(groups, "tasks") {
+		first = "- Your only tool is bash. Each call starts a fresh shell; use files for state and meno tasks start for background work."
+	}
+	read := "- Read skills with cat. python3 and jq may be missing; check with command -v."
+	if allows(groups, "files") {
+		read = "- Read skills with cat or meno read. python3 and jq may be missing; check with command -v."
+	}
+	lines := []string{first, read, "- Use a quoted heredoc for multi-line file edits. The TUI folds heredoc bodies for display.", "- Results end with [exit N], [timed out after Ns] or [cancelled]."}
+	if !subagent && allows(groups, "ask") {
 		lines = append(lines, "- Ask the user with meno ask when a decision is theirs to make.")
 	}
 	return element("guidelines", strings.Join(lines, "\n"))

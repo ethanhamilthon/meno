@@ -43,6 +43,7 @@ func (e *Engine) ListSessions(ctx context.Context, q proto.SessionsListRequest) 
 	return out, nil
 }
 func (e *Engine) CreateSession(ctx context.Context, q proto.SessionCreateRequest) (proto.SessionCreateResponse, error) {
+	e.reloadConfig()
 	cwd := q.Cwd
 	if cwd == "" {
 		cwd, _ = os.Getwd()
@@ -56,14 +57,11 @@ func (e *Engine) CreateSession(ctx context.Context, q proto.SessionCreateRequest
 	}
 	model := q.Model
 	if model == "" {
-		model = e.settings.Model
+		model = e.cfg().Model
 	}
 	sess := agent.NewSession(abs, model)
-	sess.Provider = e.settings.Provider
-	if e.settings.Tool == "js" {
-		sess.Tool = "js"
-	}
-	sess.Effort = e.settings.Effort
+	sess.Provider = e.cfg().Provider
+	sess.Effort = e.cfg().Effort
 	sess.Modes, err = validateModes(q.Modes)
 	if err != nil {
 		return proto.SessionCreateResponse{}, err

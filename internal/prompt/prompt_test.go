@@ -1,8 +1,6 @@
 package prompt
 
 import (
-	"crypto/sha256"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -179,14 +177,6 @@ func TestDescribeOSAndDate(t *testing.T) {
 	}
 	if got := FormatDate(now); got != "2026-10-17, Saturday (UTC)" {
 		t.Fatal(got)
-	}
-}
-
-func TestDefaultJSBuildMatchesStoredBytes(t *testing.T) {
-	in := Input{Cwd: "/w", Now: now, OS: "macOS 15.1 (darwin/arm64)", Shell: "/bin/sh"}
-	const want = "5698023a708c222520a67f7141906039e2159490adb3397d79498a6435460034"
-	if got := fmt.Sprintf("%x", sha256.Sum256([]byte(Build(in)))); got != want {
-		t.Fatalf("default js prompt changed: %s", got)
 	}
 }
 

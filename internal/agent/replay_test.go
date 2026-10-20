@@ -26,7 +26,7 @@ func TestReplayGroupedCallsAndPersistence(t *testing.T) {
 	args := ` {"code":"", "extra":true} `
 	reasoning := json.RawMessage(`{"type":"reasoning","id":"r","summary":[],"encrypted_content":"secret"}`)
 	cl := &scripted{steps: [][]llm.Event{
-		{{Kind: llm.EvThinking, Text: "private"}, {Kind: llm.EvHistory, Item: reasoning}, {Kind: llm.EvText, Text: "checking"}, {Kind: llm.EvTool, CallID: "a", Name: "js", Arguments: args}, {Kind: llm.EvTool, CallID: "b", Code: "console.log(2)", Arguments: `{"code":"console.log(2)"}`}},
+		{{Kind: llm.EvThinking, Text: "private"}, {Kind: llm.EvHistory, Item: reasoning}, {Kind: llm.EvText, Text: "checking"}, {Kind: llm.EvTool, CallID: "a", Name: "js", Arguments: args}, {Kind: llm.EvTool, CallID: "b", Code: "echo 2", Arguments: `{"code":"console.log(2)"}`}},
 		{{Kind: llm.EvText, Text: "done"}},
 	}}
 	var evs []Ev
@@ -64,7 +64,8 @@ func TestLegacyEmptyCodeReplay(t *testing.T) {
 		t.Fatal(err)
 	}
 	msgs := s.ToMsgs()
-	if len(msgs) != 2 || msgs[0].Calls()[0].ID != "a" || !strings.Contains(msgs[1].Text, "ERROR: bad") {
+	// A call of the old js tool is sent as text: the model has no js tool now.
+	if len(msgs) != 2 || !strings.Contains(msgs[0].Text, "ran js") || !strings.Contains(msgs[1].Text, "ERROR: bad") {
 		t.Fatalf("legacy: %+v", msgs)
 	}
 }
@@ -111,8 +112,8 @@ func TestFailedStreamCallsHaveOutputs(t *testing.T) {
 }
 
 func TestNativeStreamToolsExecuteOnlyOnceAfterSuccess(t *testing.T) {
-	item := `data: {"type":"response.output_item.done","item":{"id":"fc_1","type":"function_call","call_id":"call_1","name":"js","arguments":"{\"code\":\"globalThis.executions = (globalThis.executions || 0) + 1; console.log(globalThis.executions)\"}"}}` + "\n\n"
-	chat := `data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_1","function":{"name":"js","arguments":"{\"code\":\"console.log(1)\"}"}}]}}]}` + "\n\n"
+	item := `data: {"type":"response.output_item.done","item":{"id":"fc_1","type":"function_call","call_id":"call_1","name":"bash","arguments":"{\"command\":\"echo 1\"}"}}` + "\n\n"
+	chat := `data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_1","function":{"name":"bash","arguments":"{\"command\":\"echo 1\"}"}}]}}]}` + "\n\n"
 	for _, tt := range []struct {
 		name, proto, stream string
 		success             bool
@@ -121,7 +122,7 @@ func TestNativeStreamToolsExecuteOnlyOnceAfterSuccess(t *testing.T) {
 		{"failed", llm.ProtoResponses, item + "data: {\"type\":\"response.failed\",\"response\":{\"error\":{\"message\":\"failed\"}}}\n\n", false},
 		{"incomplete", llm.ProtoResponses, item + "data: {\"type\":\"response.incomplete\",\"response\":{\"incomplete_details\":{\"reason\":\"max_output_tokens\"}}}\n\n", false},
 		{"truncated", llm.ProtoResponses, item, false},
-		{"conflicting", llm.ProtoResponses, item + strings.Replace(item, "console.log(globalThis.executions)", "console.log(99)", 1), false},
+		{"conflicting", llm.ProtoResponses, item + strings.Replace(item, "echo 1", "echo 99", 1), false},
 		{"chat truncated", llm.ProtoChat, chat, false},
 		{"chat failed", llm.ProtoChat, chat + "data: {\"error\":{\"message\":\"failed\"}}\n\ndata: [DONE]\n\n", false},
 	} {

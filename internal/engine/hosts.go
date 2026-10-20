@@ -4,33 +4,17 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"errors"
-	"meno/internal/jsvm"
+	"meno/internal/form"
 	"meno/internal/proto"
 	"time"
 )
-
-type goalHost struct{ s *runState }
-
-func (h goalHost) Done(x string) error {
-	if h.s.goal == nil {
-		return errors.New("goal is unavailable")
-	}
-	return h.s.goal.Done(x)
-}
-func (h goalHost) Blocked(x string) error {
-	if h.s.goal == nil {
-		return errors.New("goal is unavailable")
-	}
-	return h.s.goal.Blocked(x)
-}
 
 type asker struct {
 	e *Engine
 	s *runState
 }
 
-func (h asker) Ask(ctx context.Context, f jsvm.Form) ([]jsvm.FormAnswer, error) {
+func (h asker) Ask(ctx context.Context, f form.Form) ([]form.Answer, error) {
 	id, err := randomID()
 	if err != nil {
 		return nil, err
@@ -62,7 +46,7 @@ func (h asker) Ask(ctx context.Context, f jsvm.Form) ([]jsvm.FormAnswer, error) 
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case <-timer.C:
-			return nil, jsvm.ErrTimeout
+			return nil, form.ErrTimeout
 		}
 	}
 	select {

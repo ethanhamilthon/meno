@@ -7,10 +7,10 @@ import (
 )
 
 func (e *Engine) effort(ctx context.Context, s *runState, text string, p llm.Provider, model, current string) (string, error) {
-	if e.settings.EffortRouter != "auto" {
+	if e.cfg().EffortRouter != "auto" {
 		return llm.ClampEffort(p.EffortsFor(model, []string{"low", "medium", "high", "max"}), current), nil
 	}
-	name, routeModel := e.settings.EffortRouterProvider, e.settings.EffortRouterModel
+	name, routeModel := e.cfg().EffortRouterProvider, e.cfg().EffortRouterModel
 	if name == "" || routeModel == "" {
 		return current, nil
 	}

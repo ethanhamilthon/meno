@@ -81,7 +81,7 @@ func TestJSToolTurn(t *testing.T) {
 					q.Text("the answer is 1764")
 					return
 				}
-				q.Tool("let me compute", "const n = 42 * 42; console.log('result=' + n); n")
+				q.Tool("let me compute", "echo result=$((42 * 42))")
 			}
 			s := start(t, options{fake: f, proto: proto})
 			s.Say("what is 42 squared")

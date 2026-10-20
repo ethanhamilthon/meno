@@ -1,9 +1,6 @@
-# Temporary direct imports in the TUI. Remove entries as each layer migrates.
-app meno/internal/agent
-app meno/internal/cliproxy
+# Direct imports the TUI may still have. The data types of config, llm and mcp
+# are shared vocabulary with the daemon (settings, providers, servers, usage); the
+# TUI keeps no logic from them. Everything else must go through the client.
 app meno/internal/config
-app meno/internal/db
-app meno/internal/jsvm
 app meno/internal/llm
 app meno/internal/mcp
-app meno/internal/proc

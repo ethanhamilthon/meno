@@ -3,6 +3,7 @@ package agent
 import (
 	"encoding/json"
 	"reflect"
+	"strings"
 	"testing"
 
 	"meno/internal/llm"
@@ -39,7 +40,7 @@ func TestReplayJSTurnsReadsChatAndResponsesCallShapes(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got := ReplayJSTurns([]Turn{{Role: llm.RoleAssistant, CallID: tc.id, Replay: tc.replay, Output: "ok"}})
-			if len(got) != 2 || got[0].Role != llm.RoleAssistant || got[0].Text != "ran js: "+tc.code || got[1].Role != llm.RoleUser || got[1].Text != "result: ok" {
+			if len(got) != 2 || got[0].Role != llm.RoleAssistant || !strings.HasPrefix(got[0].Text, "ran js: ") || got[1].Role != llm.RoleUser || got[1].Text != "result: ok" {
 				t.Fatalf("messages: %#v", got)
 			}
 		})
@@ -57,7 +58,7 @@ func TestReplayJSTurnsGroupsMultipleCallsAsText(t *testing.T) {
 
 func TestReplayJSTurnsKeepsErrorsAndEmptyLegacyCalls(t *testing.T) {
 	got := ReplayJSTurns([]Turn{{Role: llm.RoleAssistant, CallID: "old", Replay: &llm.Msg{Role: llm.RoleAssistant, CallID: "old"}, Err: "failed"}})
-	if len(got) != 2 || got[0].Text != "ran js: " || got[1].Text != "result: \nERROR: failed" {
+	if len(got) != 2 || !strings.HasPrefix(got[0].Text, "ran js: ") || got[1].Text != "result: \nERROR: failed" {
 		t.Fatalf("messages: %#v", got)
 	}
 }

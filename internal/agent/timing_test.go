@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"meno/internal/jsvm"
 	"meno/internal/llm"
 )
 
@@ -17,7 +16,7 @@ func lastTurn(s *Session) Turn {
 
 func TestJSCallRecordsDurationAndLimit(t *testing.T) {
 	cl := &scripted{steps: [][]llm.Event{
-		{{Kind: llm.EvTool, CallID: "c1", Code: "sh('sleep 0.1')"}, {Kind: llm.EvDone}},
+		{{Kind: llm.EvTool, CallID: "c1", Code: "sleep 0.1"}, {Kind: llm.EvDone}},
 		{{Kind: llm.EvText, Text: "ok"}, {Kind: llm.EvDone}},
 	}}
 	var evs []Ev
@@ -49,7 +48,7 @@ func TestJSCallRecordsDurationAndLimit(t *testing.T) {
 
 func TestFastCallIsStillTimed(t *testing.T) {
 	cl := &scripted{steps: [][]llm.Event{
-		{{Kind: llm.EvTool, CallID: "c1", Code: "1"}, {Kind: llm.EvDone}},
+		{{Kind: llm.EvTool, CallID: "c1", Code: "true"}, {Kind: llm.EvDone}},
 		{{Kind: llm.EvText, Text: "ok"}, {Kind: llm.EvDone}},
 	}}
 	var evs []Ev
@@ -64,9 +63,9 @@ func TestFastCallIsStillTimed(t *testing.T) {
 }
 
 func TestTimeoutIsRecorded(t *testing.T) {
-	vm := jsvm.New(jsvm.Options{Root: ".", Timeout: 200 * time.Millisecond})
+	vm := newShellTool(".", 200*time.Millisecond)
 	cl := &scripted{steps: [][]llm.Event{
-		{{Kind: llm.EvTool, CallID: "c1", Code: "for(;;){}"}, {Kind: llm.EvDone}},
+		{{Kind: llm.EvTool, CallID: "c1", Code: "while :; do :; done"}, {Kind: llm.EvDone}},
 		{{Kind: llm.EvText, Text: "ok"}, {Kind: llm.EvDone}},
 	}}
 	var evs []Ev
@@ -95,7 +94,7 @@ func TestModelTimeoutLimitIsReported(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			cl := &scripted{steps: [][]llm.Event{
-				{{Kind: llm.EvTool, CallID: "c1", Code: "1", Arguments: tc.args}, {Kind: llm.EvDone}},
+				{{Kind: llm.EvTool, CallID: "c1", Code: "true", Arguments: tc.args}, {Kind: llm.EvDone}},
 				{{Kind: llm.EvText, Text: "ok"}, {Kind: llm.EvDone}},
 			}}
 			var evs []Ev
@@ -118,8 +117,8 @@ func usageEv(in, out, cached int) llm.Event {
 
 func TestRunStatsOfFinishedRun(t *testing.T) {
 	cl := &scripted{steps: [][]llm.Event{
-		{{Kind: llm.EvTool, CallID: "c1", Code: "sh('sleep 0.05')"}, usageEv(100, 10, 50)},
-		{{Kind: llm.EvTool, CallID: "c2", Code: "1"}, usageEv(200, 20, 150)},
+		{{Kind: llm.EvTool, CallID: "c1", Code: "sleep 0.05"}, usageEv(100, 10, 50)},
+		{{Kind: llm.EvTool, CallID: "c2", Code: "true"}, usageEv(200, 20, 150)},
 		{{Kind: llm.EvText, Text: "done"}, usageEv(300, 5, 250)},
 	}}
 	var evs []Ev
@@ -161,7 +160,7 @@ func TestRunStatsWithoutPriceHaveNoCost(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			cl := &scripted{steps: [][]llm.Event{
-				{{Kind: llm.EvTool, CallID: "c1", Code: "1"}, usageEv(10, 1, 0)},
+				{{Kind: llm.EvTool, CallID: "c1", Code: "true"}, usageEv(10, 1, 0)},
 				{{Kind: llm.EvText, Text: "done"}, usageEv(20, 1, 0)},
 			}}
 			var evs []Ev
@@ -184,7 +183,7 @@ func TestRunStatsWithoutPriceHaveNoCost(t *testing.T) {
 
 func TestRunStatsOfFailedRun(t *testing.T) {
 	cl := &scripted{steps: [][]llm.Event{
-		{{Kind: llm.EvTool, CallID: "c1", Code: "1"}, usageEv(10, 1, 0)},
+		{{Kind: llm.EvTool, CallID: "c1", Code: "true"}, usageEv(10, 1, 0)},
 		{{Kind: llm.EvError, Text: "http 503:\n  service   unavailable"}},
 	}}
 	var evs []Ev

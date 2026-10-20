@@ -199,7 +199,8 @@ func SaveSession(dir string, s *Session) error {
 	}
 	s.UpdatedAt = time.Now()
 	s.Turns = s.Snapshot()
-	if s.Title == "" {
+	if s.Title == "" || s.Title == "untitled" {
+		// A session without a name is named after its first message, as soon as there is one.
 		s.Title = deriveTitle(s)
 	}
 	db, err := openDB(dir)

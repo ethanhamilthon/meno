@@ -8,16 +8,15 @@ import (
 	"time"
 
 	"meno/internal/db"
-	"meno/internal/jsvm"
 	"meno/internal/llm"
 )
 
 func TestStoppedInsideJSStillCountsTheCall(t *testing.T) {
 	cl := &scripted{steps: [][]llm.Event{
-		{{Kind: llm.EvTool, CallID: "c1", Code: "for(;;){}"}, usageEv(1, 1, 0)},
+		{{Kind: llm.EvTool, CallID: "c1", Code: "while :; do :; done"}, usageEv(1, 1, 0)},
 	}}
 	var evs []Ev
-	vm := jsvm.New(jsvm.Options{Root: ".", Timeout: 0})
+	vm := newShellTool(".", 0)
 	r := newRunner(cl, &evs)
 	r.D.Tool = vm
 	ctx, cancel := context.WithCancel(context.Background())

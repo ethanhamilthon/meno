@@ -128,21 +128,31 @@ func (e *Engine) appendMessage(s *runState, q proto.MessageRequest) error {
 }
 
 func (e *Engine) run(ctx context.Context, s *runState, text string, cont bool) {
-	p, ok := e.provider(s.session.Provider)
+	e.reloadConfig()
+	s.mu.Lock()
+	providerName := s.pinProvider
+	s.mu.Unlock()
+	p, ok := e.provider(providerName)
 	if !ok {
-		e.finish(s, fmt.Errorf("provider %q is not configured", s.session.Provider))
+		e.finish(s, fmt.Errorf("provider %q is not configured", providerName))
 		return
 	}
-	model := s.session.Model
+	s.mu.Lock()
+	model, current := s.pinModel, s.pinEffort
+	s.mu.Unlock()
 	if model == "" {
-		model = e.settings.Model
+		model = e.cfg().Model
 	}
-	effort, err := e.effort(ctx, s, text, p, model, s.session.Effort)
+	effort, err := e.effort(ctx, s, text, p, model, current)
 	if err != nil {
-		effort = s.session.Effort
+		effort = current
 	}
-	s.session.Provider, s.session.Model, s.session.Effort = p.Name, model, effort
-	system, diff, ps := e.prepare(ctx, s, effort, !cont || s.prompt.system == "")
+	s.mu.Lock()
+	if s.session.Provider == s.pinProvider && s.session.Model == s.pinModel {
+		s.session.Provider, s.session.Model, s.session.Effort = p.Name, model, effort
+	}
+	s.mu.Unlock()
+	system, diff, ps := e.prepare(ctx, s, effort, s.prompt.system == "")
 	if !cont && s.modes.Text != "" {
 		system += "\n\n" + s.modes.Text
 	}
@@ -154,19 +164,14 @@ func (e *Engine) run(ctx context.Context, s *runState, text string, cont bool) {
 	}
 	s.prompt = ps
 	spec := e.toolSpecFor(s)
-	var tool agent.ToolRunner
-	if isBash(s) {
-		tool = e.newBashRunner(s, e.bashTimeout())
-	} else {
-		tool = e.newVM(s)
-	}
+	tool := e.newBashRunner(s, e.bashTimeout())
 	auto := agent.AutoCompact{}
-	if info, ok := p.Lookup(e.catalog, model); ok {
-		auto = agent.AutoCompact{Window: info.Context, Percent: e.settings.CompactPercent, Keep: e.settings.CompactKeep, SummaryTokens: e.settings.CompactSummaryTokens}
+	if info, ok := p.Lookup(e.catalogView(), model); ok {
+		auto = agent.AutoCompact{Window: info.Context, Percent: e.cfg().CompactPercent, Keep: e.cfg().CompactKeep, SummaryTokens: e.cfg().CompactSummaryTokens}
 	}
-	deps := agent.Deps{Client: e.client(p), Provider: p, Model: model, Effort: effort, System: system, Tool: tool, Thinking: e.settings.Thinking != "off", ModelTimeout: spec.modelTimeout, ToolDesc: spec.desc, ToolName: spec.name, DefaultTimeout: e.bashTimeout(), Goal: s.goal, Queue: &s.queue, AutoCompact: auto, Events: e.eventSource(s.session.ID), Waiting: func() bool { return e.waitingSubagents(s.session.ID) }, Halt: e.haltFor(s),
+	deps := agent.Deps{Client: e.client(p), Provider: p, Model: model, Effort: effort, System: system, Tool: tool, Thinking: e.cfg().Thinking != "off", ModelTimeout: spec.modelTimeout, ToolDesc: spec.desc, ToolName: spec.name, DefaultTimeout: e.bashTimeout(), Goal: s.goal, Queue: &s.queue, AutoCompact: auto, Events: e.eventSource(s.session.ID), Waiting: func() bool { return e.waitingSubagents(s.session.ID) }, Halt: e.haltFor(s),
 		Cost: func(u llm.Usage) (float64, bool) {
-			mi, ok := p.Lookup(e.catalog, model)
+			mi, ok := p.Lookup(e.catalogView(), model)
 			if !ok || !mi.CanPrice(u) {
 				return 0, false
 			}
@@ -178,7 +183,10 @@ func (e *Engine) run(ctx context.Context, s *runState, text string, cont bool) {
 		err = ctx.Err()
 	}
 	if errors.Is(err, context.Canceled) {
-		e.tasks.CancelOwner(s.session.ID, s.requestID)
+		s.mu.Lock()
+		rid := s.requestID
+		s.mu.Unlock()
+		e.tasks.CancelOwner(s.session.ID, rid)
 	}
 	e.finish(s, err)
 }
@@ -199,6 +207,7 @@ func (e *Engine) finish(s *runState, err error) {
 	}
 	saveErr := e.save(s)
 	queued := s.queue.Take()
+	requestID, metrics := s.requestID, s.metrics
 	s.mu.Unlock()
 	if saveErr != nil {
 		e.publish(id, proto.EventError, proto.ErrorData{Message: saveErr.Error()})
@@ -209,7 +218,7 @@ func (e *Engine) finish(s *runState, err error) {
 	} else if err != nil {
 		e.publish(id, proto.EventError, proto.ErrorData{Message: err.Error()})
 	} else {
-		e.publish(id, proto.EventDone, proto.DoneData{RequestID: s.requestID, Metrics: s.metrics})
+		e.publish(id, proto.EventDone, proto.DoneData{RequestID: requestID, Metrics: metrics})
 	}
 	if len(queued) > 0 && err == nil {
 		s.mu.Lock()
@@ -240,6 +249,11 @@ func (e *Engine) HasWork(context.Context) bool {
 }
 
 func (e *Engine) launch(ctx context.Context, s *runState, text string, cont bool) {
+	// The run keeps the model the session had when it started: a model picked
+	// a moment later applies to the next request.
+	s.mu.Lock()
+	s.pinProvider, s.pinModel, s.pinEffort = s.session.Provider, s.session.Model, s.session.Effort
+	s.mu.Unlock()
 	e.runs.Add(1)
 	safe.Go(func() { defer e.runs.Done(); e.run(ctx, s, text, cont) }, func(err error) { e.finish(s, err) })
 }

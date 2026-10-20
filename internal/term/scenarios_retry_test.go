@@ -82,16 +82,13 @@ func askHandler(code string, final string) func(q *llmReq) {
 	}
 }
 
-const askFormJS = `askUser({questions: [
-  {id: "db", text: "Which database?", type: "single", options: [{id: "sq", label: "sqlite"}, {id: "pg", label: "postgres"}], recommendation: "postgres"},
-  {id: "port", text: "Which port?", type: "text"}
-]})`
+const askFormJSON = `{"questions":[{"id":"db","text":"Which database?","type":"single","options":[{"id":"sq","label":"sqlite"},{"id":"pg","label":"postgres"}],"recommendation":"postgres"},{"id":"port","text":"Which port?","type":"text"}]}`
 
 func TestAskUserFormSubmit(t *testing.T) {
 	for _, proto := range protocols {
 		t.Run(proto, func(t *testing.T) {
 			f := newFakeLLM(t)
-			f.Handler = askHandler("const r = "+askFormJS+"; console.log('[[answered]] ' + r.answers.map(a => a.id + '=' + a.selected.join(',') + a.text).join(' '))", "great, configured")
+			f.Handler = askHandler("out=$(meno ask - <<'EOF'\n"+askFormJSON+"\nEOF\n); echo \"[[answered]] $out\"", "great, configured")
 			s := start(t, options{fake: f, proto: proto})
 			s.Say("set up storage")
 			s.Type("my unfinished draft")
@@ -115,7 +112,7 @@ func TestAskUserFormSubmit(t *testing.T) {
 			}
 			s.Send(Enter) // Esc after typing moved the focus to Next, which submits on the last question
 			scr = s.WaitFor("great, configured")
-			if !strings.Contains(scr, "db=pgport=8080") && !strings.Contains(scr, "db=pg") {
+			if !strings.Contains(scr, "pg") || !strings.Contains(scr, "8080") {
 				t.Fatalf("\n%s", scr)
 			}
 			s.WaitFor("my unfinished draft") // the draft is back
@@ -123,29 +120,28 @@ func TestAskUserFormSubmit(t *testing.T) {
 	}
 }
 
-func TestAskUserCancelThrowsAndTimeoutIsTyped(t *testing.T) {
+func TestAskUserCancelFailsTheCommand(t *testing.T) {
 	f := newFakeLLM(t)
-	f.Handler = askHandler(`
-		let r = [];
-		try { askUser({questions: [{id: "a", text: "first?", type: "text"}]}) } catch (e) { r.push(e.name) }
-		try { askUser({timeout: 1, questions: [{id: "b", text: "second?", type: "text"}]}) } catch (e) { r.push(e.name) }
-		console.log('[[answered]] ' + r.join(' | '))`, "noted")
+	f.Handler = askHandler(`meno ask - <<'EOF'
+{"questions":[{"id":"a","text":"first?","type":"text"}]}
+EOF
+echo "[[answered]] exit=$?"`, "noted")
 	s := start(t, options{fake: f})
-	s.Say("ask twice")
+	s.Say("ask once")
 	s.WaitFor("agent asks")
 	s.Send(Esc) // leaves typing and focuses Submit
 	time.Sleep(500 * time.Millisecond)
 	s.Send("\t") // Cancel
 	s.Send(Enter)
 	scr := s.WaitFor("noted")
-	if !strings.Contains(scr, "AskCancelled | AskTimeout") {
-		t.Fatalf("\n%s", scr)
+	if !strings.Contains(scr, "exit=1") {
+		t.Fatalf("a cancelled form must fail the command:\n%s", scr)
 	}
 }
 
 func TestCtrlCDuringQuestion(t *testing.T) {
 	f := newFakeLLM(t)
-	f.Handler = askHandler(`askUser({questions: [{id: "a", text: "waiting forever?", type: "text"}]})`, "never")
+	f.Handler = askHandler("meno ask - <<'EOF'\n{\"questions\":[{\"id\":\"a\",\"text\":\"waiting forever?\",\"type\":\"text\"}]}\nEOF", "never")
 	s := start(t, options{fake: f})
 	s.Say("ask")
 	s.WaitFor("waiting forever?")
@@ -163,7 +159,7 @@ func TestCtrlCDuringQuestion(t *testing.T) {
 
 func TestAskFormOnNarrowTerminal(t *testing.T) {
 	f := newFakeLLM(t)
-	f.Handler = askHandler(`const r = askUser({questions: [{id: "a", text: "A rather long question that has to wrap on a narrow terminal, word by word", type: "single", options: [{id: "1", label: "one"}, {id: "2", label: "two"}]}]}); console.log('[[answered]] ' + r.answers[0].selected[0])`, "all done")
+	f.Handler = askHandler("out=$(meno ask - <<'EOF'\n{\"questions\":[{\"id\":\"a\",\"text\":\"A rather long question that has to wrap on a narrow terminal, word by word\",\"type\":\"single\",\"options\":[{\"id\":\"1\",\"label\":\"one\"},{\"id\":\"2\",\"label\":\"two\"}]}]}\nEOF\n); echo \"[[answered]] $out\"", "all done")
 	s := start(t, options{fake: f, cols: 40, rows: 24})
 	s.Say("go")
 	s.WaitFor("agent asks")

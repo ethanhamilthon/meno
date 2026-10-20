@@ -18,9 +18,6 @@ type toolSpec struct {
 	allow        []string // command groups of the bash prompt; nil = all
 }
 
-// isBash reports whether the session works through the bash tool.
-func isBash(s *runState) bool { return s.session.Tool == "bash" }
-
 // groupsOf returns the command groups the session may use: a child gets the
 // child set, a main agent what its modes allow (nil = every group).
 func groupsOf(s *runState) []string {
@@ -32,16 +29,13 @@ func groupsOf(s *runState) []string {
 
 // toolSpecFor builds the tool definition of a session for one request.
 func (e *Engine) toolSpecFor(s *runState) toolSpec {
-	if !isBash(s) {
-		return toolSpec{desc: prompt.ToolDescriptionFor(s.session.Kind == agent.KindChild, s.modes.Only), modelTimeout: e.settings.BashModelTimeout()}
-	}
 	allow := groupsOf(s)
-	model := e.settings.BashModelTimeout()
+	model := e.cfg().BashModelTimeout()
 	return toolSpec{name: "bash", desc: prompt.BashToolDescriptionFor(allow, model), modelTimeout: model, allow: allow}
 }
 
 // bashTimeout is the default limit of a bash call (0 = none).
-func (e *Engine) bashTimeout() time.Duration { return e.settings.BashTimeoutDuration() }
+func (e *Engine) bashTimeout() time.Duration { return e.cfg().BashTimeoutDuration() }
 
 var exitLine = regexp.MustCompile(`\[exit (-?\d+)\]\s*$`)
 
