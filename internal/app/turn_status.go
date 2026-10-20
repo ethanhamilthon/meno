@@ -19,21 +19,6 @@ func fmtWait(d time.Duration) string {
 	return itoa(int((d+time.Second-1)/time.Second)) + "s"
 }
 
-// retryText is the status-bar text while a retry is pending, with a countdown.
-func (a *App) retryText() string {
-	r := a.st.Retry
-	if r == nil {
-		return ""
-	}
-	head := "retry " + itoa(r.Attempt) + "/" + itoa(r.Max)
-	if left := time.Until(r.Until); left > 0 {
-		head += " in " + fmtWait(left)
-	} else {
-		head += " · sending"
-	}
-	return head + " — " + r.Reason
-}
-
 // clock writes how long something has gone on: 0:42, 12:05, 1:02:03.
 func clock(d time.Duration) string {
 	s := int(max(0, d) / time.Second)

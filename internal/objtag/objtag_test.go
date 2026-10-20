@@ -51,16 +51,10 @@ func TestSplitAcceptsOnlyWellFormedTags(t *testing.T) {
 	if segs := Split("<skill>nope</skill>", func(_ Kind, n string) bool { return n == "yes" }); segs[0].Obj != nil {
 		t.Fatal("an unavailable skill stays text")
 	}
-	known := func(k Kind, n string) bool { return k != Mode || n == "goal" }
-	if segs := Split("use <mode>goal</mode> and <mode>nope</mode>", known); len(segs) != 3 || segs[1].Obj == nil || segs[1].Obj.Kind != Mode || segs[2].Obj != nil {
-		t.Fatalf("modes are objects only when known: %v", texts(segs))
+	if segs := Split("<mode>goal</mode>", nil); len(segs) != 1 || segs[0].Obj != nil {
+		t.Fatal("removed modes must stay literal")
 	}
-	if segs := Split("`<mode>goal</mode>`", known); segs[0].Obj != nil {
-		t.Fatal("a mode in code stays text")
-	}
-	if o := (Object{Mode, "subagents"}); o.Tag() != "<mode>subagents</mode>" || o.Label() != "#subagents" {
-		t.Fatalf("%q %q", o.Tag(), o.Label())
-	}
+
 }
 
 func replaceTick(s string) string {

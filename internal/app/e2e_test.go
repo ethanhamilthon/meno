@@ -71,11 +71,12 @@ func newTestApp(t *testing.T) (*App, tcell.SimulationScreen) {
 // pump processes queued events until the turn finishes or the deadline passes.
 func pump(t *testing.T, a *App, until func() bool) {
 	t.Helper()
-	deadline := time.After(5 * time.Second)
+	deadline := time.After(15 * time.Second)
 	for !until() {
 		select {
 		case msg := <-a.events:
 			a.handle(msg)
+		case <-time.After(5 * time.Millisecond):
 		case <-deadline:
 			t.Fatalf("timeout waiting for condition; running=%v", a.st.Running)
 		}

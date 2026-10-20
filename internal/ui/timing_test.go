@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"strings"
 	"testing"
 	"time"
 )
@@ -142,73 +141,4 @@ func jsTurn(code string, mods func(*Turn)) Turn {
 		mods(&t)
 	}
 	return t
-}
-
-// asideTexts lists the badge text of every row that has one.
-func asideTexts(lines []Line) []string {
-	var out []string
-	for _, l := range lines {
-		if len(l.Aside) > 0 {
-			out = append(out, joinText(l.Aside))
-		}
-	}
-	return out
-}
-
-func TestBuildLinesPutsBadgeInTopRightOfCode(t *testing.T) {
-	lines := BuildLines([]Turn{jsTurn("run()\nnext()", nil)}, 80, JSOpts{})
-	texts := lineTexts(lines)
-	i := -1
-	for k, s := range texts {
-		if strings.Contains(s, "run()") {
-			i = k
-		}
-	}
-	if i < 0 || len(lines[i].Aside) == 0 || joinText(lines[i].Aside) != "✓ 3.2s" || len(lines[i+1].Aside) != 0 || !strings.Contains(texts[i+2], "out") {
-		t.Fatalf("%q %v", texts, asideTexts(lines))
-	}
-	if got := asideTexts(lines); len(got) != 1 {
-		t.Fatalf("one badge per call: %v", got)
-	}
-	// Failed and timed out calls sit on the error background, code and badge alike.
-	for _, mod := range []func(*Turn){
-		func(t *Turn) { t.Err = "boom" },
-		func(t *Turn) { t.Err, t.TimedOut = "js timeout after 30s", true },
-	} {
-		ls := BuildLines([]Turn{jsTurn("run()", mod)}, 80, JSOpts{})
-		for k, l := range ls {
-			if strings.Contains(l.Text(), "run()") || len(l.Aside) > 0 {
-				if l.BG != BgJSErr {
-					t.Fatalf("line %d %q on %v", k, l.Text(), l.BG)
-				}
-			}
-		}
-		if got := asideTexts(ls); len(got) != 1 || !strings.HasPrefix(got[0], "✕") {
-			t.Fatalf("%v", got)
-		}
-	}
-	// A running call keeps the running background and counts up.
-	live := BuildLines([]Turn{{Role: RoleAssistant, Code: "run()"}}, 80, JSOpts{Running: true, Exec: true, Elapsed: time.Second})
-	if got := asideTexts(live); len(got) != 1 || got[0] != "⠋ 1.0s" {
-		t.Fatalf("live badge: %v", got)
-	}
-	for _, l := range live {
-		if len(l.Aside) > 0 && l.BG != BgJSRun {
-			t.Fatalf("live badge on %v", l.BG)
-		}
-	}
-}
-
-func TestBadgeGetsOwnRowWhenCodeIsLong(t *testing.T) {
-	code := strings.Repeat("x", 60)
-	lines := BuildLines([]Turn{jsTurn(code, nil)}, 40, JSOpts{})
-	texts := lineTexts(lines)
-	for k, l := range lines {
-		if len(l.Aside) > 0 && (l.Text() != "" || k+1 >= len(texts) || !strings.Contains(texts[k+1], "xxxx")) {
-			t.Fatalf("badge row %q is not an empty row above the code: %q", l.Text(), texts)
-		}
-	}
-	if len(asideTexts(lines)) != 1 {
-		t.Fatalf("%q", texts)
-	}
 }

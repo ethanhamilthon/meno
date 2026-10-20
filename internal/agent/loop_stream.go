@@ -46,7 +46,11 @@ func (r *Runner) streamAttempt(ctx context.Context, s *Session) ([]call, llm.Msg
 				legacy := llm.Msg{Role: llm.RoleAssistant, CallID: id, Code: e.Code}
 				args = legacy.Calls()[0].Arguments
 			}
-			c := call{ID: id, Code: e.Code, Title: llm.ToolTitle(e.Arguments)}
+			title := llm.ToolTitle(e.Arguments)
+			if name == llm.BashToolName {
+				title = llm.BashTitle(e.Arguments)
+			}
+			c := call{ID: id, Code: e.Code, Title: title}
 			calls = append(calls, c)
 			replay.ToolCalls = append(replay.ToolCalls, llm.ToolCall{ID: id, Name: name, Arguments: args})
 			if len(e.Item) != 0 {

@@ -156,7 +156,7 @@ func (q *llmReq) Tools(preface string, commands ...string) {
 	if q.Proto == "chat" {
 		var calls []any
 		for i, command := range commands {
-			args := js(map[string]string{"command": command, "title": "t"})
+			args := js(map[string]string{"command": command, "title": "Inspect shell output"})
 			calls = append(calls, map[string]any{"index": i, "id": fmt.Sprintf("call_%d_%d", q.N, i), "function": map[string]any{"name": "bash", "arguments": args}})
 		}
 		q.sse("", js(map[string]any{"choices": []any{map[string]any{"delta": map[string]any{"tool_calls": calls}}}}))
@@ -166,7 +166,7 @@ func (q *llmReq) Tools(preface string, commands ...string) {
 		return
 	}
 	for i, command := range commands {
-		args := js(map[string]string{"command": command, "title": "t"})
+		args := js(map[string]string{"command": command, "title": "Inspect shell output"})
 		id := fmt.Sprintf("call_%d_%d", q.N, i)
 		item := map[string]any{"type": "function_call", "id": "fc_" + id, "call_id": id, "name": "bash", "arguments": args}
 		q.sse("", js(map[string]any{"type": "response.output_item.added", "item": map[string]any{"type": "function_call", "id": "fc_" + id, "call_id": id, "name": "bash"}}))

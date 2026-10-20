@@ -109,8 +109,6 @@ func (s *Service) Resource(ctx context.Context, method, path, query string, req 
 		data, err = s.loginResource(ctx, method, path, query, req)
 	case path == "/skills" || strings.HasPrefix(path, "/skills/"):
 		data, err = s.skillsResource(method, path, req)
-	case path == "/snippets" || strings.HasPrefix(path, "/snippets/"):
-		data, err = s.snippetsResource(method, path, req)
 	case path == "/mcp/servers" || strings.HasPrefix(path, "/mcp/servers/"):
 		data, err = s.mcpResource(ctx, method, path, req)
 	case path == "/models":

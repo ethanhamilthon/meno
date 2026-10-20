@@ -24,6 +24,26 @@ func (a *App) runCommand(raw string) {
 		return
 	}
 	name := fields[0]
+	if name == "v" || name == "visual" {
+		if len(fields) != 1 {
+			a.notifyErr("visual takes no arguments")
+			return
+		}
+		if len(a.st.Input) == 0 {
+			a.st.InLog = true
+			a.execLogNormal(vcmd{key: "G", n: 1})
+		}
+		if len(a.st.Input) == 0 && len(a.logText()) == 0 {
+			a.notify("nothing to select")
+			a.st.Mode = ui.ModeInput
+			return
+		}
+		if len(a.st.Input) > 0 {
+			a.st.InLog = false
+		}
+		a.startVisual('v')
+		return
+	}
 	if a.st.Running && interruptsAgent[name] {
 		a.notifyErr("agent is running · :stop it first (or ctrl+c)")
 		return
@@ -41,6 +61,7 @@ func (a *App) runCommand(raw string) {
 		a.quit = true
 	case "new":
 		a.newSession()
+		a.st.Mode = ui.ModeInput
 	case "cd":
 		a.changeDir(strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(raw), name)))
 	case "fork":
@@ -51,16 +72,16 @@ func (a *App) runCommand(raw string) {
 		a.openTasks()
 	case "compact":
 		a.compact()
-	case "snippets":
-		a.openSnippets()
-	case "save_snippet":
-		a.saveSnippet(args)
-	case "paste_snippet":
-		a.pasteSnippet(args)
 	case "export":
 		a.exportSession(args)
 	case "stop":
 		a.abortTurn()
+	case "context":
+		if len(args) != 0 {
+			a.notifyErr("context takes no arguments")
+			return
+		}
+		a.openOverlay(OverContext)
 	case "help":
 		a.openOverlay(OverHelp)
 	case "model":
@@ -137,7 +158,7 @@ func (a *App) cancelAll() {
 
 // markUnseen flags a finished turn of a session that is not on screen.
 func (a *App) markUnseen(sid string) {
-	if rt := a.rts[sid]; rt != nil && rt != a.st.Runtime {
+	if rt := a.rts[sid]; rt != nil {
 		rt.Unseen = true
 	}
 }

@@ -123,10 +123,6 @@ type MCPServerRequest struct {
 type ViewRequest struct {
 	Path string `json:"path"`
 }
-type GoalRequest struct {
-	Summary string `json:"summary,omitempty"`
-	Reason  string `json:"reason,omitempty"`
-}
 type SessionModelsRequest struct {
 	Provider string `json:"provider,omitempty"`
 	Refresh  bool   `json:"refresh,omitempty"`

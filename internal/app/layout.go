@@ -75,12 +75,3 @@ func awaitingChar(buf []rune, visual bool) bool {
 	c, state := parseVim(probe, visual)
 	return state == parseDone && c.ch == 0 && len(c.key) == 1 && strings.ContainsRune("fFtTr", rune(c.key[0]))
 }
-
-// cmdNameRune translates the letters of the command name typed after ":".
-// Once the name is finished (a space was typed) the arguments stay as typed.
-func cmdNameRune(cmd []rune, r rune) rune {
-	if slices.Contains(cmd, ' ') {
-		return r
-	}
-	return latinKey(r)
-}

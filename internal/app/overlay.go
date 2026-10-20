@@ -7,6 +7,9 @@ import (
 )
 
 func (a *App) openOverlay(o Overlay) {
+	if a.st.Over == OverNone && o != OverNone {
+		a.st.OverlayOrigin = a.st.Mode
+	}
 	a.st.Over = o
 	a.st.Sel = 0
 	a.st.Field = 0
@@ -16,6 +19,7 @@ func (a *App) openOverlay(o Overlay) {
 }
 
 func (a *App) closeOverlay() {
+	a.st.Mode = a.st.OverlayOrigin
 	a.openOverlay(OverNone)
 }
 
@@ -73,14 +77,14 @@ func (a *App) onOverlayKey(k *tcell.EventKey) {
 		a.mcpEditKey(k)
 	case OverSessions:
 		a.sessionsKey(k)
+	case OverContext:
+		a.onContextKey(k)
 	case OverHelp:
 		a.helpKey(k)
 	case OverFork:
 		a.forkKey(k)
 	case OverTasks:
 		a.tasksKey(k)
-	case OverSnippets:
-		a.snippetsKey(k)
 	}
 }
 
@@ -104,14 +108,14 @@ func (a *App) drawOverlay(c ui.Canvas, w, h int) {
 		a.drawMCPEdit(c, w, h)
 	case OverSessions:
 		a.drawSessions(c, w, h)
+	case OverContext:
+		a.drawContext(c, w, h)
 	case OverHelp:
 		a.drawHelp(c, w, h)
 	case OverFork:
 		a.drawFork(c, w, h)
 	case OverTasks:
 		a.drawTasks(c, w, h)
-	case OverSnippets:
-		a.drawSnippets(c, w, h)
 	}
 }
 

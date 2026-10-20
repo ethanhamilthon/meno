@@ -23,48 +23,17 @@ func TestClock(t *testing.T) {
 	}
 }
 
-func TestTimingSettingsInTheDialog(t *testing.T) {
+func TestAlwaysVisibleRunMetadataHasNoMisleadingToggle(t *testing.T) {
 	a, s := newTestApp(t)
 	defer s.Fini()
 	a.openOverlay(OverSettings)
 	a.onKey(keyK(tcell.KeyTab))
 	a.draw()
 	text := screenText(s)
-	for _, want := range []string{"bash timing", "slow only", "turn summary"} {
-		if !strings.Contains(text, want) {
-			t.Fatalf("%q missing:\n%s", want, text)
+	for _, old := range []string{"bash timing", "turn summary"} {
+		if strings.Contains(text, old) {
+			t.Fatal("obsolete visibility toggle", old)
 		}
-	}
-	a.st.Sel = settingIdx(t, "bash_timing")
-	if a.st.Settings.BashTiming != "all" {
-		t.Fatalf("default %q", a.st.Settings.BashTiming)
-	}
-	a.onKey(keyK(tcell.KeyRight))
-	a.onKey(keyK(tcell.KeyRight))
-	if a.st.Settings.BashTiming != "off" {
-		t.Fatalf("cycled to %q", a.st.Settings.BashTiming)
-	}
-	a.onKey(keyK(tcell.KeyLeft))
-	if a.st.Settings.BashTiming != "slow" {
-		t.Fatalf("back to %q", a.st.Settings.BashTiming)
-	}
-	// +/- change nothing on a setting without a number.
-	a.onKey(key('+'))
-	if a.st.Settings.BashTiming != "slow" {
-		t.Fatal("+ changed bash timing")
-	}
-	a.st.Sel = settingIdx(t, "turn_summary")
-	a.onKey(key(' '))
-	if a.st.Settings.TurnSummary != "off" {
-		t.Fatalf("summary %q", a.st.Settings.TurnSummary)
-	}
-	// The choice is saved: a new app on the same files sees it.
-	saved, err := a.storeForTest().LoadSettings()
-	if err != nil || saved.BashTiming != "slow" || saved.TurnSummary != "off" {
-		t.Fatalf("not persisted: %+v %v", saved, err)
-	}
-	if optLabel(&a.st.Settings, "bash_timing", "slow") != "slow only" || optLabel(&a.st.Settings, "bash_timing", "all") != "all" || optLabel(&a.st.Settings, "turn_summary", "on") != "on" {
-		t.Fatal("option labels")
 	}
 }
 
@@ -100,38 +69,21 @@ func TestJSOptsFollowSettings(t *testing.T) {
 
 func TestStatusBarAndPlaceholderShowTheClock(t *testing.T) {
 	a, s := visualFixture(t, 112, 36)
-	a.st.Running, a.st.Phase = true, "running"
-	a.st.RunStart = time.Now().Add(-65 * time.Second)
-	a.st.RunTurns, a.st.RunJS = 2, 2
-	a.draw()
-	text := screenText(s)
-	if !strings.Contains(text, "running... 1:05") {
-		t.Fatalf("%s", text)
-	}
-	if row := visualRow(s, 35); !strings.Contains(row, "◫") || strings.Contains(row, "turn 2") {
-		t.Fatalf("the status bar shows the session, not the run: %q", row)
-	}
-	// A pending retry, a question and visual mode take the middle of the bar over.
-	a.st.Retry = &retryState{Attempt: 1, Max: 3, Until: time.Now().Add(3 * time.Second), Reason: "http 503"}
-	a.draw()
-	if row := visualRow(s, 35); !strings.Contains(row, "retry 1/3") {
-		t.Fatalf("%q", row)
-	}
-	a.st.Retry = nil
-	a.st.Running, a.st.RunStart = false, time.Time{}
-	a.draw()
-	if row := visualRow(s, 35); !strings.Contains(row, "◫") || strings.Contains(row, "turn") {
-		t.Fatalf("idle bar: %q", row)
-	}
-	if !strings.Contains(screenText(s), "give a task") {
-		t.Fatal("idle placeholder")
-	}
-	// Without a start time the placeholder is as it was.
 	a.st.Running = true
-	a.st.Phase = "thinking"
+	a.st.Phase = "running"
+	a.st.RunStart = time.Now().Add(-65 * time.Second)
 	a.draw()
-	if !strings.Contains(screenText(s), "thinking...") || strings.Contains(screenText(s), "thinking... 0") {
-		t.Fatal("placeholder")
+	if !strings.Contains(screenText(s), "running... 1:05") {
+		t.Fatal(screenText(s))
+	}
+	row := visualRow(s, 35)
+	for _, want := range []string{"running", "tasks", "Asking", "done"} {
+		if !strings.Contains(row, want) {
+			t.Fatal(row)
+		}
+	}
+	if strings.Contains(row, "◫") {
+		t.Fatal("context remains in bar")
 	}
 }
 
@@ -191,7 +143,7 @@ func TestLiveCallShowsItsTimer(t *testing.T) {
 	}
 	a.st.Settings.BashTiming = "off"
 	a.draw()
-	if strings.Contains(screenText(s), "3.0s") {
-		t.Fatal("timer shown with timing off")
+	if !strings.Contains(screenText(s), "3.0s") {
+		t.Fatal("header timer hidden by old timing preference")
 	}
 }

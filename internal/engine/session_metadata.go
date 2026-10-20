@@ -6,7 +6,6 @@ import (
 	"meno/internal/proto"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 func (e *Engine) Snapshot(ctx context.Context, id string) (proto.Snapshot, error) {
@@ -16,12 +15,13 @@ func (e *Engine) Snapshot(ctx context.Context, id string) (proto.Snapshot, error
 	}
 	s.mu.Lock()
 	turns := s.session.Snapshot()
-	out := proto.Snapshot{Session: item(s), AgentToken: s.token.value, Cwd: s.cwd, Model: s.session.Model, Modes: append([]string(nil), s.session.Modes...), Running: s.running, Phase: s.phase, RequestID: s.requestID, TurnCount: len(turns), Live: s.live, Ask: askWire(s.ask), Retry: s.retry, Metrics: s.metrics, Seq: 0, Tasks: []proto.Task{},
+	out := proto.Snapshot{Session: item(s), AgentToken: s.token.value, Cwd: s.cwd, Model: s.session.Model, Running: s.running, Phase: s.phase, RequestID: s.requestID, TurnCount: len(turns), Live: s.live, Ask: askWire(s.ask), Retry: s.retry, Metrics: s.metrics, Seq: 0, Tasks: []proto.Task{},
 		Spent: s.session.Metrics.Spent, Context: s.session.Metrics.Context, Unpriced: s.session.Metrics.Unpriced, Provider: s.session.Provider, Effort: s.session.Effort}
 	for _, m := range s.queue.Items() {
 		out.Queued = append(out.Queued, m.Text)
 	}
 	s.mu.Unlock()
+	out.Session.Completed, out.Session.ReadThrough = e.attention(id)
 	if e.events != nil {
 		out.Seq = e.events.Sequence(id)
 	}
@@ -72,26 +72,13 @@ func (e *Engine) PatchSession(ctx context.Context, id string, q proto.PatchSessi
 	if q.Effort != nil {
 		s.session.Effort = *q.Effort
 	}
-	if q.Modes != nil {
-		oldModes := strings.Join(s.session.Modes, " ")
-		v, er := validateModes(*q.Modes)
-		if er != nil {
-			s.mu.Unlock()
-			return proto.SessionItem{}, er
-		}
-		s.session.Modes = v
-		if oldModes != strings.Join(v, " ") {
-			s.token.value, _ = newToken()
-		}
-		s.token.groups = groupsFor(v)
-	}
 	if err = e.save(s); err != nil {
 		s.mu.Unlock()
 		return proto.SessionItem{}, err
 	}
 	result := item(s)
 	s.mu.Unlock()
-	e.publish(id, proto.EventSessionChanged, proto.ChangedData{Fields: []string{"name", "cwd", "model", "effort", "modes"}})
+	e.publish(id, proto.EventSessionChanged, proto.ChangedData{Fields: []string{"name", "cwd", "model", "effort"}})
 	return result, nil
 }
 func (e *Engine) DeleteSession(ctx context.Context, id string) error {

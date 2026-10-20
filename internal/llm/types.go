@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"strings"
+	"unicode"
 )
 
 const (
@@ -153,7 +154,12 @@ func ToolTitle(args string) string {
 	if json.Unmarshal([]byte(args), &a) != nil {
 		return ""
 	}
-	t := strings.Join(strings.Fields(a.Title), " ")
+	t := strings.Join(strings.Fields(strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) && !unicode.IsSpace(r) {
+			return -1
+		}
+		return r
+	}, a.Title)), " ")
 	if r := []rune(t); len(r) > MaxTitleRunes {
 		t = strings.TrimSpace(string(r[:MaxTitleRunes-1])) + "…"
 	}

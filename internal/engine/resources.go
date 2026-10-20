@@ -10,6 +10,9 @@ import (
 )
 
 func (e *Engine) Resource(ctx context.Context, method, path, query string, q proto.ResourceRequest) (proto.ResourceResponse, error) {
+	if path == "/v1/session-state" && method == "GET" {
+		return e.globalState(ctx)
+	}
 	if strings.HasPrefix(path, "/v1/sessions/") {
 		return e.sessionResource(ctx, method, path, query, q)
 	}
@@ -29,6 +32,9 @@ func (e *Engine) sessionResource(ctx context.Context, method, path, query string
 		return proto.ResourceResponse{}, notFound(err)
 	}
 	group := parts[1]
+	if group == "read" && method == "POST" {
+		return e.readCompletion(ctx, id, q.Data)
+	}
 	if !e.authorized(s, q.Token, group) {
 		return proto.ResourceResponse{}, api(proto.CodeForbidden, "resource group is forbidden by the session mode")
 	}
@@ -42,8 +48,6 @@ func (e *Engine) sessionResource(ctx context.Context, method, path, query string
 		out, err = e.mcpResource(ctx, s, parts[2:], method, data, query)
 	case "view":
 		out, err = e.viewResource(s, data)
-	case "goal":
-		out, err = e.goalResource(s, parts[2:], data)
 	case "models":
 		out = e.modelResource(query)
 	case "queue":

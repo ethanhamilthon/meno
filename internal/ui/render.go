@@ -7,6 +7,9 @@ import (
 func DrawLine(c Canvas, x, y, w int, l Line) {
 	c.Fill(x, y, w, 1, l.BG)
 	cx := x + padX
+	if l.FullWidth {
+		cx = x
+	}
 	for _, s := range l.Segs {
 		cx += c.Text(cx, y, x+w-cx, s.Text, s.style(l.BG))
 	}
@@ -58,10 +61,7 @@ func DrawBar(c Canvas, x, y, w int, bg tcell.Color, left, mid, right []Seg) {
 	mw := TextWidth(joinSegs(mid))
 	mx := x + (w-mw)/2
 	if mx < cx+1 || mx+mw > rx-1 {
-		mx = cx + 1
-		if mx+mw > rx-1 {
-			mid = nil
-		}
+		mid = nil
 	}
 	cx = mx
 	for _, s := range mid {

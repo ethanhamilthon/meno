@@ -156,9 +156,6 @@ func TestSessionsListAndSend(t *testing.T) {
 
 func TestAgentGoalAndViewWithoutActiveGoal(t *testing.T) {
 	_, _, _, api := start(t, &scripted{})
-	if err := api.GoalDone("x"); err == nil {
-		t.Fatal("goal.done without a goal run should fail")
-	}
 	if _, err := api.Models("", false); err != nil {
 		t.Fatal(err)
 	}

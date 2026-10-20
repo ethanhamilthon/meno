@@ -19,7 +19,6 @@ func TestConfigWireGoldens(t *testing.T) {
 		{"login_start", LoginStartRequest{Service: "codex"}, "{\"service\":\"codex\"}"},
 		{"login_status", LoginStatusResponse{Status: "wait"}, "{\"status\":\"wait\"}"},
 		{"skill_enabled", SkillEnabledRequest{Enabled: false}, "{\"enabled\":false}"},
-		{"snippet", SnippetRequest{Name: "build", Text: "make"}, "{\"name\":\"build\",\"text\":\"make\"}"},
 		{"helper_status", OAuthHelperResponse{Installed: true, Running: true, Ready: true, Version: "v8.1.0", Port: 1900, Accounts: 2, HasAccounts: true}, `{"installed":true,"running":true,"ready":true,"version":"v8.1.0","port":1900,"accounts":2,"has_accounts":true}`},
 		{"mcp_request", McpServerRequest{Server: ConfigMCPServer{Name: "git", Transport: "stdio", Command: "git", Enabled: true}}, `{"server":{"name":"git","transport":"stdio","command":"git","enabled":true,"source":"","running":false,"starting":false}}`},
 		{"mcp_server", ConfigMCPServer{Name: "git", Transport: "stdio", Command: "git", Enabled: true}, "{\"name\":\"git\",\"transport\":\"stdio\",\"command\":\"git\",\"enabled\":true,\"source\":\"\",\"running\":false,\"starting\":false}"},

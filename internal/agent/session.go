@@ -39,8 +39,6 @@ type Turn struct {
 	// System is the <system-event> block sent in front of a user message. It is
 	// part of the request history but never shown to the user.
 	System string `json:"system,omitempty"`
-	// Mode is the mode the user started the request with (#brainstorm, #goal...).
-	Mode string `json:"mode,omitempty"`
 	// Attachments are the images the user message refers to.
 	Attachments []Attachment `json:"attachments,omitempty"`
 	// Kind is empty for what the user wrote; KindView for an image the agent
@@ -74,10 +72,11 @@ type RunStats struct {
 	Status    string    `json:"status"`
 	ElapsedMs int64     `json:"elapsed_ms"`
 	Turns     int       `json:"turns"`
-	ToolCalls int       `json:"js_calls"`
-	ToolMs    int64     `json:"js_ms"`
+	ToolCalls int       `json:"tool_calls"`
+	ToolMs    int64     `json:"tool_ms"`
 	Usage     llm.Usage `json:"usage"`
 	Cost      *float64  `json:"cost,omitempty"`
+	Partial   bool      `json:"partial,omitempty"`
 	Err       string    `json:"err,omitempty"`
 }
 
@@ -108,13 +107,10 @@ type Session struct {
 	// Provider, Model and Effort are the model this session talks to; each
 	// session has its own. Sessions saved before this was per session may have
 	// only Model.
-	Provider string `json:"provider,omitempty"`
-	Tool     string `json:"tool,omitempty"`
-	Model    string `json:"model"`
-	Effort   string `json:"effort,omitempty"`
-	// Modes are the modes the messages of this session are sent in (#brainstorm,
-	// #goal...). A message that names modes replaces the set; #none empties it.
-	Modes     []string  `json:"modes,omitempty"`
+	Provider  string    `json:"provider,omitempty"`
+	Tool      string    `json:"tool,omitempty"`
+	Model     string    `json:"model"`
+	Effort    string    `json:"effort,omitempty"`
 	UpdatedAt time.Time `json:"updated_at"`
 	Summary   string    `json:"summary,omitempty"`
 	// Kind is KindMain or KindChild (empty = main). ParentID owns a child.
@@ -248,17 +244,4 @@ func (s *Session) DisplayTitle() string {
 		return s.Title
 	}
 	return deriveTitle(&Session{Turns: s.Snapshot()})
-}
-
-func deriveTitle(s *Session) string {
-	for _, t := range s.Turns {
-		if t.Role == llm.RoleUser && t.Kind == "" && t.Text != "" {
-			r := []rune(t.Text)
-			if len(r) > 60 {
-				return string(r[:60])
-			}
-			return string(r)
-		}
-	}
-	return "untitled"
 }

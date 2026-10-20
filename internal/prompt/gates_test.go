@@ -6,7 +6,7 @@ import (
 )
 
 func TestRestrictedGroupsDropTheirRules(t *testing.T) {
-	out := Build(Input{Cwd: "/w", Allow: []string{"ask", "goal", "help"}})
+	out := Build(Input{Cwd: "/w", Allow: []string{"ask", "help"}})
 	for _, rule := range []string{"meno mcp", "meno tasks"} {
 		if strings.Contains(out, rule) {
 			t.Errorf("restricted method includes %q", rule)

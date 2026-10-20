@@ -32,9 +32,7 @@ var settingTabs = []settingTab{
 		rows: []settingRow{
 			{"bash code", "bash_code"},
 			{"bash output", "bash_output"},
-			{"bash timing", "bash_timing"},
 			{"thinking", "thinking"},
-			{"turn summary", "turn_summary"},
 		},
 	},
 	{

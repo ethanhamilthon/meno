@@ -24,43 +24,6 @@ func (c *Client) SetSkillEnabled(ctx context.Context, name string, enabled bool)
 	return r.Skill, e
 }
 
-// Snippets lists, saves, renames, and removes shared snippets.
-func (c *Client) Snippets(ctx context.Context) (proto.SnippetsResponse, error) {
-	raw, e := c.configCall(ctx, "GET", "/v1/snippets", nil)
-	if e != nil {
-		return proto.SnippetsResponse{}, e
-	}
-	return configDecode[proto.SnippetsResponse](raw)
-}
-func (c *Client) SaveSnippet(ctx context.Context, v proto.SnippetRequest) (proto.SnippetResponse, error) {
-	return c.UpsertSnippet(ctx, v.Name, v.Text)
-}
-func (c *Client) UpsertSnippet(ctx context.Context, name, text string) (proto.SnippetResponse, error) {
-	path := "/v1/snippets"
-	method := "POST"
-	if name != "" {
-		path += "/" + pathID(name)
-		method = "PUT"
-	}
-	raw, e := c.configCall(ctx, method, path, proto.SnippetRequest{Name: name, Text: text})
-	if e != nil {
-		return proto.SnippetResponse{}, e
-	}
-	return configDecode[proto.SnippetResponse](raw)
-}
-
-func (c *Client) RenameSnippet(ctx context.Context, old, name string) (proto.SnippetResponse, error) {
-	raw, e := c.configCall(ctx, "PUT", "/v1/snippets/"+pathID(old)+"/rename", proto.SnippetRequest{Name: name})
-	if e != nil {
-		return proto.SnippetResponse{}, e
-	}
-	return configDecode[proto.SnippetResponse](raw)
-}
-func (c *Client) DeleteSnippet(ctx context.Context, name string) error {
-	_, e := c.configCall(ctx, "DELETE", "/v1/snippets/"+pathID(name), nil)
-	return e
-}
-
 // McpServers lists and manages daemon MCP server configurations.
 func (c *Client) McpServers(ctx context.Context) (proto.McpServersResponse, error) {
 	raw, e := c.configCall(ctx, "GET", "/v1/mcp/servers", nil)

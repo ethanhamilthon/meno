@@ -29,10 +29,10 @@ const (
 	OverMCP
 	OverMCPEdit
 	OverSessions
+	OverContext
 	OverHelp
 	OverFork
 	OverTasks
-	OverSnippets
 )
 
 // liveCall is a tool call that is not in the session yet: its code is still
@@ -59,16 +59,20 @@ type retryState struct {
 type State struct {
 	*Runtime
 
-	Over Overlay
+	OverlayOrigin ui.Mode
+	Over          Overlay
 	// UpdateTag is the newer release the background check found ("" if none).
-	UpdateTag string
-	TasksUI   tasksView
-	CmdSel    int
-	Pricing   map[string]llm.ModelInfo
-	Cmd       []rune
-	Sel       int
-	Query     textEdit
-	Status    string
+	UpdateTag        string
+	TasksUI          tasksView
+	CmdUndo, CmdRedo []commandPoint
+	CmdCursor        int
+	CmdTop           int
+	CmdSel           int
+	Pricing          map[string]llm.ModelInfo
+	Cmd              []rune
+	Sel              int
+	Query            textEdit
+	Status           string
 
 	Settings   config.Settings
 	Providers  []llm.Provider
@@ -78,10 +82,8 @@ type State struct {
 	Skills     []config.Skill
 	Servers    []mcp.Server
 	ServerInfo map[string]mcpInfo // runtime state of the servers, by name
-	Snippets   []config.Snippet
-	SnippetDel string
 
-	// SelText is the text of the last visual or mouse selection; :save_snippet
+	// SelText preserves the last visual or mouse selection.
 	// reads it. Registers are shared by all sessions, and so is this.
 	SelText string
 
@@ -121,7 +123,7 @@ type State struct {
 
 func NewState() *State {
 	return &State{
-		Runtime:  &Runtime{Mode: ui.ModeInsert},
+		Runtime:  &Runtime{Mode: ui.ModeInput},
 		Settings: config.DefaultSettings(),
 		Models:   map[string][]llm.Model{},
 		ModelErr: map[string]string{},

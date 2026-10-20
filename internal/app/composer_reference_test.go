@@ -46,7 +46,7 @@ func TestReferenceHighlight(t *testing.T) {
 	if len(toks) != 1 || toks[0].name != "api-security" {
 		t.Fatalf("tokens %+v", toks)
 	}
-	a.st.Mode = ui.ModeNormal
+	a.st.Mode = ui.ModeInput
 	a.draw()
 	s := a.scr.(tcell.SimulationScreen)
 	find := func(text string) (int, int) {

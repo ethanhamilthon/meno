@@ -42,7 +42,7 @@ func policyKey(in prompt.Input) string {
 func (e *Engine) prepare(ctx context.Context, s *runState, effort string, first bool) (string, string, promptState) {
 	_ = e.mcp.WaitReady(ctx, 3*time.Second)
 	s.mu.Lock()
-	cwd, provider, model, only, allow := s.cwd, s.session.Provider, s.session.Model, s.modes.Only, groupsOf(s)
+	cwd, provider, model, only, allow := s.cwd, s.session.Provider, s.session.Model, []string(nil), []string(nil)
 	s.mu.Unlock()
 	paths := e.paths
 	paths.Cwd = cwd

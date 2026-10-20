@@ -47,14 +47,3 @@ func timingBadge(t Turn, js JSOpts) (segs []Seg, ok bool) {
 	}
 	return segs, true
 }
-
-// withBadge puts the badge in the right corner of the first row of a block. When
-// the row has no room for it, the badge gets a row of its own above the block.
-func withBadge(rows []Line, badge []Seg, w int, bg Line) []Line {
-	if len(rows) > 0 && rows[0].Width()+segsWidth(badge)+2 <= w {
-		rows[0].Aside = badge
-		return rows
-	}
-	bg.Aside = badge
-	return append([]Line{bg}, rows...)
-}

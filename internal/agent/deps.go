@@ -93,8 +93,6 @@ type Deps struct {
 	ToolDesc string
 	// ToolName is the name of the tool: "" or "js" for the js tool, "bash" for the shell tool.
 	ToolName string
-	// Goal, when set, keeps the run going until the agent gives a verdict.
-	Goal *Goal
 	// Retry is the policy for failed model requests (zero value: defaults).
 	Retry RetryPolicy
 	// Queue, when set, delivers messages the user wrote during the turn; they

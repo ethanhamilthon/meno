@@ -10,7 +10,7 @@ import (
 )
 
 func queueTestApp() (*App, *Runtime) {
-	rt := &Runtime{Session: &sessView{id: "session", Title: "session"}, Running: true, Mode: ui.ModeInsert}
+	rt := &Runtime{Session: &sessView{id: "session", Title: "session"}, Running: true, Mode: ui.ModeInput}
 	a := &App{st: &State{Runtime: rt}, rts: map[string]*Runtime{rt.ID(): rt}}
 	return a, rt
 }

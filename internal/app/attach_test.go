@@ -185,10 +185,9 @@ func TestAtPickerAttachesImageAndNormalModeP(t *testing.T) {
 	if len(a.st.Images) != 1 || string(a.st.Input) != "[Image #1] " {
 		t.Fatalf("input=%q", string(a.st.Input))
 	}
-	// Normal-mode p with an empty register takes the clipboard image.
+	// Clipboard paste remains available directly in INPUT.
 	a.clipboard = func() ([]byte, error) { return testPNG(t, 7, 7), nil }
-	a.onKey(keyK(tcell.KeyEsc))
-	typeRunes(a, "p")
+	a.onKey(keyK(tcell.KeyCtrlV))
 	pump(t, a, func() bool { return len(a.st.Images) == 2 })
 	if !strings.Contains(string(a.st.Input), "[Image #2]") {
 		t.Fatalf("input=%q", string(a.st.Input))

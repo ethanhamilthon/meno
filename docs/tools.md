@@ -22,12 +22,11 @@ add `--json` for structured output.
 | mcp | `servers`, `tools SERVER`, `call SERVER TOOL [ARGS]`, `results ID`, `add`, `remove`, `restart` |
 | tasks | `start CMD`, `list`, `status ID`, `logs ID`, `wait ID`, `cancel ID` |
 | ask | `meno ask FILE\|-` shows a form to the user and prints the answers |
-| goal | `done SUMMARY`, `blocked REASON` (for the `#goal` mode) |
 | view | `meno view IMAGE` shows an image to the model |
 | models | the models of the configured providers |
 
 The other commands (`daemon`, `sessions`, `send`, `tail`) are for people and scripts, see
-[the command line](cli.md). The groups a session may use depend on its [modes](modes.md).
+[the command line](cli.md). All normal tool groups are available without application modes.
 
 Daemon-backed groups reach the daemon through the `MENO_SOCK`, `MENO_SESSION`, `MENO_TOKEN`
 and `MENO_CALL` variables that the daemon puts in the environment of each call. The token is

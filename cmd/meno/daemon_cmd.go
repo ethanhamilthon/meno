@@ -8,6 +8,7 @@ import (
 	"meno/internal/config"
 	"meno/internal/daemon"
 	"meno/internal/daemon/cfgsvc"
+	"meno/internal/db"
 	"meno/internal/engine"
 	ver "meno/internal/version"
 	"os"
@@ -60,6 +61,22 @@ func daemonCLI(args []string, out, errOut io.Writer) int {
 	}
 }
 func runDaemon(home string, errOut io.Writer) int {
+	startupLock, err := daemon.StartupOwnership(home)
+	if err != nil {
+		fmt.Fprintln(errOut, err)
+		return 1
+	}
+	if startupLock != nil {
+		defer startupLock.Close()
+	}
+	backup, err := db.PrepareEpoch(home)
+	if err != nil {
+		fmt.Fprintln(errOut, "database reset:", err)
+		return 1
+	}
+	if backup != "" {
+		fmt.Fprintln(errOut, "meno 0.5.0 starts with a fresh database; previous data backed up to", backup)
+	}
 	service, e := cfgsvc.New(cfgsvc.Options{Paths: config.Paths{Home: home}})
 	if e != nil {
 		fmt.Fprintln(errOut, e)
@@ -72,7 +89,7 @@ func runDaemon(home string, errOut io.Writer) int {
 		fmt.Fprintln(errOut, e)
 		return 1
 	}
-	s, e := daemon.New(daemon.Options{Home: home, Version: ver.Label(), Backend: eng, Hub: hub, Global: global, OnStart: service.Start, OnStop: func() { eng.Close(); service.Close() }})
+	s, e := daemon.New(daemon.Options{StartupLock: startupLock, Home: home, Version: ver.Label(), Backend: eng, Hub: hub, Global: global, OnStart: service.Start, OnStop: func() { eng.Close(); service.Close() }})
 	if e != nil {
 		eng.Close()
 		fmt.Fprintln(errOut, e)

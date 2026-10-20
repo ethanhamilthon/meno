@@ -2,7 +2,7 @@
 package proto
 
 // Protocol is the HTTP API compatibility number. Clients require exact equality.
-const Protocol = 1
+const Protocol = 2
 
 // Error codes returned in an ErrorEnvelope.
 const (
@@ -48,14 +48,16 @@ type Ack struct {
 
 // SessionItem is one item in a session list response.
 type SessionItem struct {
-	ID        string `json:"id"`
-	Name      string `json:"name,omitempty"`
-	Cwd       string `json:"cwd"`
-	Model     string `json:"model,omitempty"`
-	Status    string `json:"status,omitempty"`
-	Running   bool   `json:"running"`
-	NeedsYou  bool   `json:"needs_you"`
-	UpdatedAt string `json:"updated_at,omitempty"`
+	Completed   int64  `json:"completed,omitempty"`
+	ReadThrough int64  `json:"read_through,omitempty"`
+	ID          string `json:"id"`
+	Name        string `json:"name,omitempty"`
+	Cwd         string `json:"cwd"`
+	Model       string `json:"model,omitempty"`
+	Status      string `json:"status,omitempty"`
+	Running     bool   `json:"running"`
+	NeedsYou    bool   `json:"needs_you"`
+	UpdatedAt   string `json:"updated_at,omitempty"`
 }
 
 // SessionsListRequest contains session list filters.
@@ -74,7 +76,6 @@ type SessionsListResponse struct {
 type SessionCreateRequest struct {
 	Cwd      string            `json:"cwd"`
 	Model    string            `json:"model,omitempty"`
-	Modes    []string          `json:"modes,omitempty"`
 	Env      map[string]string `json:"env,omitempty"`
 	ClientID string            `json:"client_id"`
 }
@@ -118,7 +119,6 @@ type Snapshot struct {
 	AgentToken string      `json:"agent_token,omitempty"`
 	Cwd        string      `json:"cwd"`
 	Model      string      `json:"model,omitempty"`
-	Modes      []string    `json:"modes,omitempty"`
 	Running    bool        `json:"running"`
 	Phase      string      `json:"phase,omitempty"`
 	RequestID  string      `json:"request_id,omitempty"`
@@ -141,12 +141,11 @@ type Snapshot struct {
 
 // PatchSessionRequest updates session metadata.
 type PatchSessionRequest struct {
-	Name     *string   `json:"name,omitempty"`
-	Cwd      *string   `json:"cwd,omitempty"`
-	Provider *string   `json:"provider,omitempty"`
-	Model    *string   `json:"model,omitempty"`
-	Effort   *string   `json:"effort,omitempty"`
-	Modes    *[]string `json:"modes,omitempty"`
+	Name     *string `json:"name,omitempty"`
+	Cwd      *string `json:"cwd,omitempty"`
+	Provider *string `json:"provider,omitempty"`
+	Model    *string `json:"model,omitempty"`
+	Effort   *string `json:"effort,omitempty"`
 }
 
 // ForkRequest creates a session from an existing session.
@@ -169,7 +168,6 @@ type Turn struct {
 	CreatedAt string     `json:"created_at,omitempty"`
 	// Fields a client needs to draw the turn.
 	Kind        string           `json:"kind,omitempty"` // "" , "event" or "view"
-	Mode        string           `json:"mode,omitempty"` // mode tags the request started with
 	Thinking    string           `json:"thinking,omitempty"`
 	Err         string           `json:"err,omitempty"`
 	ElapsedMS   int64            `json:"elapsed_ms,omitempty"`
@@ -191,16 +189,19 @@ type TurnAttachment struct {
 
 // RunStats closes a run: what it took and cost.
 type RunStats struct {
-	Status    string   `json:"status"`
-	ElapsedMS int64    `json:"elapsed_ms"`
-	Turns     int      `json:"turns"`
-	ToolCalls int      `json:"tool_calls"`
-	ToolMS    int64    `json:"tool_ms"`
-	In        int      `json:"in"`
-	Out       int      `json:"out"`
-	Cached    int      `json:"cached"`
-	Cost      *float64 `json:"cost,omitempty"`
-	Err       string   `json:"err,omitempty"`
+	Status     string   `json:"status"`
+	ElapsedMS  int64    `json:"elapsed_ms"`
+	Turns      int      `json:"turns"`
+	ToolCalls  int      `json:"tool_calls"`
+	ToolMS     int64    `json:"tool_ms"`
+	In         int      `json:"in"`
+	Out        int      `json:"out"`
+	CacheWrite int      `json:"cache_write"`
+	CacheKnown bool     `json:"cache_known"`
+	Cached     int      `json:"cached"`
+	Cost       *float64 `json:"cost,omitempty"`
+	Partial    bool     `json:"partial,omitempty"`
+	Err        string   `json:"err,omitempty"`
 }
 
 // TurnPart is declared in history.go.

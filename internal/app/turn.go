@@ -17,27 +17,11 @@ func (a *App) submit() {
 	if text == "" {
 		return
 	}
-	if names, rest, tagged := a.messageModes(text); tagged && rest == "" && len(a.st.Images) == 0 {
-		a.setModes(names)
-		a.notify(modesNotice(a.st.Session.Modes))
-		a.clearDraft()
-		return
-	}
 	msg := a.draftMessage(text)
 	if len(msg.Attachments) > 0 {
 		if !a.imagesAllowed() {
 			return
 		}
-	}
-	if a.st.Running {
-		if names, rest, tagged := a.messageModes(msg.Text); tagged {
-			msg.Text = rest // the modes apply from the next request; this message steers the running one
-			a.notify("modes apply to the next request · " + modesNotice(names))
-			a.setModes(names)
-		}
-	} else if names, rest, tagged := a.messageModes(msg.Text); tagged {
-		a.setModes(names)
-		msg.Text = rest
 	}
 	if _, ok := a.currentProvider(); !ok && !a.st.Running {
 		a.notifyErr("provider not configured · select provider and model with :model")
@@ -59,7 +43,7 @@ func (a *App) clearDraft() {
 func (a *App) send(msg msgDraft) {
 	rt := a.st.Runtime
 	sid := rt.ID()
-	req := proto.MessageRequest{Text: msg.Text, ClientID: newClientID(), Modes: append([]string(nil), rt.Session.Modes...)}
+	req := proto.MessageRequest{Text: msg.Text, ClientID: newClientID()}
 	for _, at := range msg.Attachments {
 		req.Attachments = append(req.Attachments, proto.Attachment{Name: "image", MIME: at.Mime, Data: base64Of(msg.data[at.SHA])})
 	}
@@ -67,7 +51,7 @@ func (a *App) send(msg msgDraft) {
 	// HTTP acknowledgments, which can arrive after a message was consumed.
 	rt.sending++
 	if rt.Session.Title == "" && rt.Session.Len() == 0 {
-		rt.Session.Title = firstLine(msg.Text, 60) // the daemon names it the same way
+		rt.Session.Title = "" // The daemon derives the authoritative readable title.
 	}
 	if !rt.Running {
 		rt.Running, rt.Phase, rt.LastErr = true, "preparing", false

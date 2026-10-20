@@ -42,11 +42,8 @@ func (a *App) bottomHeight() int { return a.bottomBase() }
 // bottomBase is the bottom area: input, completions,
 // status bar and the gap above them.
 func (a *App) bottomBase() int {
-	if a.st.Mode == ui.ModeCommand {
-		w, _ := a.scr.Size()
-		return acRowCount(len(commandRows(a)), w) + 1 + a.logGap()
-	}
-	return a.composerHeight() + a.acHeight() + 1 + a.logGap()
+	w, _ := a.scr.Size()
+	return a.activeComposerHeight(w) + a.activeCompletionHeight(w) + 1 + a.logGap()
 }
 func (a *App) drawLog(c ui.Canvas, x, y, w, h int, lines []ui.Line) {
 	c.Fill(x, y, w, h, ui.BgTerm)
@@ -61,23 +58,26 @@ func (a *App) drawLog(c ui.Canvas, x, y, w, h int, lines []ui.Line) {
 	}
 	a.paintLog(c, x, y, w, h, lines, start)
 	a.noteVisible(lines, start, x, y, h)
+	if h > 0 && len(lines) > 0 && start+h >= len(lines) {
+		for _, line := range lines[start:] {
+			if line.CompletionAnchor {
+				a.completionVisible = true
+				break
+			}
+		}
+	}
 }
 func (a *App) drawBottom(c ui.Canvas, x, y, w, h int) {
 	if h <= 0 {
 		return
 	}
-	if a.st.Mode == ui.ModeCommand {
-		// Command mode owns the whole bottom: completion rows and one input line.
-		rows := min(acRowCount(len(commandRows(a)), w), h-1)
-		a.drawCommandRows(c, x, y, w, rows)
-		a.drawCommandLine(c, x, y+h-1, w)
-		return
-	}
 	statusY := y + h - 1
 	bodyH := max(0, h-1)
 	if bodyH > 0 {
-		ac := min(a.acHeight(), max(0, bodyH-a.composerHeight()))
-		if ac > 0 && !a.acActive() {
+		ac := min(a.activeCompletionHeight(w), max(0, bodyH-a.activeComposerHeight(w)))
+		if ac > 0 && a.st.Mode == ui.ModeCommand {
+			a.drawCommandRows(c, x, y, w, ac)
+		} else if ac > 0 && !a.acActive() {
 			a.drawQueue(c, x, y, w, ac)
 		} else if ac > 0 {
 			a.drawAutocompleteRows(c, x, y, w, ac)
@@ -85,7 +85,7 @@ func (a *App) drawBottom(c ui.Canvas, x, y, w, h int) {
 		y += ac
 		bodyH -= ac
 		c.Fill(x, y, w, bodyH, ui.BgTerm)
-		a.drawComposer(c, x, y, w, bodyH)
+		a.drawActiveComposer(c, x, y, w, bodyH)
 	}
 	a.drawStatus(c, x, statusY, w)
 }

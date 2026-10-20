@@ -18,7 +18,7 @@ import (
 const File = "meno.db"
 
 // Version is the current schema version; see migrations.
-const Version = 12
+const Version = 13
 
 var (
 	mu    sync.Mutex

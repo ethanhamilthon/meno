@@ -25,15 +25,11 @@ func TestImportsOldSessionsDB(t *testing.T) {
 	old.Exec("INSERT INTO sessions(id,title,updated_at) VALUES('o1','old',?)", ts(time.Now()))
 	old.Close()
 	list, err := ListSessions(home)
-	if err != nil || len(list) != 1 || list[0].ID != "o1" {
-		t.Fatalf("%+v %v", list, err)
-	}
-	if _, err := os.Stat(filepath.Join(dir, "sessions.db")); err != nil {
-		t.Fatal("old db must stay")
+	if err != nil || len(list) != 0 {
+		t.Fatalf("legacy import into clean epoch: %v %v", list, err)
 	}
 }
 
-// oldSchema is the layout of the pre-meno.db sessions.db file.
 const oldSchema = `
 CREATE TABLE sessions (id TEXT PRIMARY KEY, title TEXT NOT NULL DEFAULT '', cwd TEXT NOT NULL DEFAULT '', model TEXT NOT NULL DEFAULT '',
 	summary TEXT NOT NULL DEFAULT '', metrics TEXT NOT NULL DEFAULT '{}', updated_at TEXT NOT NULL);

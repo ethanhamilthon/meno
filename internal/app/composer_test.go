@@ -163,7 +163,7 @@ func TestInsertUpDownMovesBetweenRows(t *testing.T) {
 func TestColonIsPlainTextInInsertMode(t *testing.T) {
 	a, _ := visualFixture(t, 60, 20)
 	typeText(a, ":model")
-	if a.st.Mode != ui.ModeInsert || string(a.st.Input) != ":model" {
+	if a.st.Mode != ui.ModeInput || string(a.st.Input) != ":model" {
 		t.Fatalf("mode=%v input=%q", a.st.Mode, string(a.st.Input))
 	}
 }
@@ -182,7 +182,7 @@ func TestCursorBlinksOnlyInInsertMode(t *testing.T) {
 	if s.style != tcell.CursorStyleBlinkingBar {
 		t.Fatalf("insert style %v", s.style)
 	}
-	a.st.Mode = ui.ModeNormal
+	a.st.Mode = ui.ModeVisual
 	a.draw()
 	if _, _, vis := s.GetCursor(); !vis || s.style != tcell.CursorStyleSteadyBlock {
 		t.Fatalf("normal: vis=%v style=%v", vis, s.style)
@@ -194,12 +194,13 @@ func TestCursorBlinksOnlyInInsertMode(t *testing.T) {
 	}
 	a.st.Mode = ui.ModeCommand
 	a.st.Cmd = []rune("mo")
+	a.st.CmdCursor = 2
 	a.draw()
 	x, y, vis = s.GetCursor()
-	if !vis || x != 3 || y != 19 || s.style != tcell.CursorStyleSteadyBar {
+	if !vis || x != a.st.ComposerX+2 || y != a.st.ComposerY || s.style != tcell.CursorStyleSteadyBar {
 		t.Fatalf("command cursor %d,%d vis=%v style=%v", x, y, vis, s.style)
 	}
-	a.st.Mode = ui.ModeInsert
+	a.st.Mode = ui.ModeInput
 	a.openOverlay(OverHelp)
 	a.draw()
 	if _, _, vis := s.GetCursor(); vis {

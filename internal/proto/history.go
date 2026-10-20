@@ -36,7 +36,6 @@ type Attachment struct {
 type MessageRequest struct {
 	Text        string       `json:"text"`
 	Attachments []Attachment `json:"attachments,omitempty"`
-	Modes       []string     `json:"modes,omitempty"`
 	ClientID    string       `json:"client_id"`
 }
 

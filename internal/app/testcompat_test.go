@@ -13,12 +13,11 @@ import (
 // store gives tests the same views of the daemon's data the old store did.
 type testStore struct {
 	a *App
-	snippetStore
 }
 
 func (a *App) storeForTest() testStore {
 	a.running.Wait() // let the background saves reach the daemon
-	return testStore{a: a, snippetStore: snippetStore{a}}
+	return testStore{a: a}
 }
 
 func (s testStore) LoadSettings() (config.Settings, error) {

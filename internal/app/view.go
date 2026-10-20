@@ -80,18 +80,6 @@ func cmdDesc(name string) string {
 	return ""
 }
 
-// drawCommandLine is the whole bottom input in command mode: no padding, no status.
-func (a *App) drawCommandLine(c ui.Canvas, x, y, w int) {
-	c.Fill(x, y, w, 1, ui.BgUser)
-	rs := []rune(":" + string(a.st.Cmd))
-	for len(rs) > 0 && ui.TextWidth(string(rs))+1 > w {
-		rs = rs[1:]
-	}
-	text := string(rs)
-	c.Text(x, y, w, text, ui.Style{FG: ui.FgWhite, BG: ui.BgUser}.TCell())
-	a.cur = cursorPos{x + min(ui.TextWidth(text), max(0, w-1)), y, true}
-}
-
 func commandRows(a *App) []string {
 	if rows, ok := a.cdRows(); ok {
 		return rows
@@ -110,6 +98,8 @@ type cmdDef struct {
 }
 
 var commandList = []cmdDef{
+	{":context", "context, tokens, cache and cost"},
+	{":v", "select draft or transcript"}, {":visual", "select draft or transcript"},
 	{":new", "new session"},
 	{":fork", "fork at a message"},
 	{":rename", "rename this session"},
@@ -122,9 +112,6 @@ var commandList = []cmdDef{
 	{":login", "accounts & api keys"},
 	{":settings", "settings"},
 	{":compact", "compact context"},
-	{":snippets", "saved snippets"},
-	{":save_snippet", "save the selection"},
-	{":paste_snippet", "insert a snippet"},
 	{":export", "export markdown"},
 	{":stop", "stop this turn"},
 	{":help", "keys & commands"},

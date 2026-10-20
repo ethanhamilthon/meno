@@ -13,7 +13,6 @@ import (
 	"meno/internal/attach"
 	"meno/internal/client"
 	"meno/internal/proto"
-	"meno/internal/ui"
 )
 
 // kindImage marks the [Image #N] tokens in the composer.
@@ -257,17 +256,7 @@ func (a *App) insertImage(img attach.Image, after bool) {
 		attachment: attachment{N: n, Mime: img.Mime, SHA: img.SHA, W: img.W, H: img.H},
 		Data:       img.Data,
 	})
-	normal := a.st.Mode == ui.ModeNormal
 	tok := []rune("[Image #" + itoa(n) + "]")
 	a.clampCursor()
-	if normal {
-		a.pushUndo(a.snapshot())
-		if after && a.st.Cursor < len(a.st.Input) {
-			a.moveRight()
-		}
-		a.insertAtCursor(tok)
-		a.st.Cursor--
-		return
-	}
 	a.insertAtCursor(append(tok, ' '))
 }

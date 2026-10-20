@@ -61,7 +61,7 @@ func (a *App) pickToken() (start, end int, query string, ok bool) {
 
 // pickSync opens, updates or closes the picker after the input changed.
 func (a *App) pickSync() {
-	if a.st.Mode != ui.ModeInsert || a.st.Ask != nil {
+	if a.st.Mode != ui.ModeInput || a.st.Ask != nil {
 		a.pickClose()
 		return
 	}
@@ -129,7 +129,7 @@ func (a *App) pickClose() {
 // pickOpen reports whether the picker has something to show.
 func (a *App) pickOpen() bool {
 	p := a.st.Pick
-	return p != nil && p.dismissed != p.Start && len(p.Items) > 0 && a.st.Mode == ui.ModeInsert
+	return p != nil && p.dismissed != p.Start && len(p.Items) > 0 && a.st.Mode == ui.ModeInput
 }
 
 // pickItems adapts the results for the completion popup.

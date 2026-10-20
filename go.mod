@@ -3,6 +3,7 @@ module meno
 go 1.27.1
 
 require (
+	github.com/alecthomas/chroma/v2 v2.23.1
 	github.com/creack/pty v1.1.24
 	github.com/gdamore/tcell/v2 v2.13.10
 	github.com/hinshun/vt10x v0.0.0-20220301184237-5011da428d02
@@ -13,6 +14,7 @@ require (
 )
 
 require (
+	github.com/dlclark/regexp2 v1.11.5 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/gdamore/encoding v1.0.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect

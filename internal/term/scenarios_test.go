@@ -66,7 +66,7 @@ func TestStreamingAnswer(t *testing.T) {
 			s.WaitFor("give a task")
 			s.Say("greet me")
 			s.WaitFor("Hello from " + proto)
-			s.WaitFor("100/20") // usage arrives when the stream completes
+			s.WaitFor("in 100 · out 20") // usage arrives when the stream completes
 			if strings.Contains(s.Screen(), "retry") {
 				t.Fatal("unexpected retry")
 			}
@@ -131,7 +131,7 @@ func TestResumeAfterRestart(t *testing.T) {
 	s := start(t, options{fake: f, home: home})
 	s.Say("question before restart")
 	s.WaitFor("persisted-answer")
-	s.WaitFor("100/20")
+	s.WaitFor("in 100 · out 20")
 	s.Cmd("q")
 	if err := s.WaitExit(); err != nil {
 		t.Fatal(err)

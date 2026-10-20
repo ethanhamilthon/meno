@@ -14,14 +14,9 @@ type toolSpec struct {
 	allow []string // command groups of the bash prompt; nil = all
 }
 
-// groupsOf returns the command groups allowed by the session modes.
-func groupsOf(s *runState) []string {
-	return s.modes.AllowedGroups()
-}
-
 // toolSpecFor builds the tool definition of a session for one request.
 func (e *Engine) toolSpecFor(s *runState) toolSpec {
-	allow := groupsOf(s)
+	var allow []string
 	return toolSpec{name: "bash", desc: prompt.BashToolDescriptionFor(allow), allow: allow}
 }
 

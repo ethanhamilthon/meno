@@ -12,9 +12,7 @@ notify command), Enter saves it and Esc cancels. Every change is saved at once.
 | General | images | `auto`, `off`, `kitty`, `sixel`, `iterm` — see [terminal graphics](graphics.md) |
 | Display | bash code | `all`, `lines <n>`, `off` — how much command text the timeline shows |
 | Display | bash output | `all`, `lines <n>`, `off` |
-| Display | bash timing | `all`, `slow only`, `off` — which finished bash calls show their duration |
 | Display | thinking | `all`, `lines <n>` (the newest rows), `off` |
-| Display | turn summary | `on`, `off` — the line that closes a run |
 | Notify | notify | `off`, `question`, `done` — see [notification sounds](notifications.md) |
 | Notify | notify sound | `default`, `bell`, or one of 25 built-in sounds; changing it previews |
 | Notify | notify volume | `20`…`100` percent; previews on change; ignored for a custom command |

@@ -35,6 +35,11 @@ func openDB(home string) (*sql.DB, error) {
 		return nil, fmt.Errorf("session db: %w", err)
 	}
 	sessInit[d] = true
+	var epoch string
+	_ = d.QueryRow("SELECT value FROM meta WHERE key='format_epoch'").Scan(&epoch)
+	if epoch == "0.5" {
+		return d, nil
+	}
 	legacy := filepath.Join(home, "sessions")
 	importOldDB(d, filepath.Join(legacy, "sessions.db"))
 	migrateLegacy(d, legacy)
@@ -58,7 +63,6 @@ func ensureColumns(d *sql.DB) error {
 		{"turns", "run", "TEXT NOT NULL DEFAULT ''"},
 		{"sessions", "provider", "TEXT NOT NULL DEFAULT ''"},
 		{"sessions", "effort", "TEXT NOT NULL DEFAULT ''"},
-		{"sessions", "modes", "TEXT NOT NULL DEFAULT ''"},
 		{"sessions", "tool", "TEXT NOT NULL DEFAULT 'js'"},
 	} {
 		has, err := hasColumn(d, c.table, c.name)

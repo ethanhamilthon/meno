@@ -54,9 +54,6 @@ func TestRemovedAgentFeaturesAreUnavailableAndHistoryIsUnchanged(t *testing.T) {
 	e, _ := fixture(t, &fakeProvider{})
 	id := newSession(t, e)
 	ctx := context.Background()
-	if _, err := e.PatchSession(ctx, id, proto.PatchSessionRequest{Modes: &[]string{"subagents"}}); err == nil {
-		t.Fatal("removed mode must be rejected")
-	}
 	s, _ := e.load(ctx, id)
 	if _, err := e.Resource(ctx, "POST", "/v1/sessions/"+id+"/agents/spawn", "", proto.ResourceRequest{Token: s.token.value}); err == nil {
 		t.Fatal("removed resource must be rejected")

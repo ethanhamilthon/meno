@@ -44,7 +44,7 @@ func skillsN(n int) []config.Skill {
 
 func TestAutocompleteTwoColumnsFillDownThenRight(t *testing.T) {
 	a, s := visualFixture(t, 100, 40)
-	a.st.Mode = ui.ModeInsert
+	a.st.Mode = ui.ModeInput
 	a.st.Skills = skillsN(8)
 	a.setInput([]rune("/"))
 	a.drawAutocompleteRows(ui.Canvas{S: s}, 0, 0, 100, 10)
@@ -90,7 +90,7 @@ func TestAutocompleteShortListUsesFullWidth(t *testing.T) {
 
 func TestAutocompleteScrollsByPages(t *testing.T) {
 	a, s := visualFixture(t, 100, 40)
-	a.st.Mode = ui.ModeInsert
+	a.st.Mode = ui.ModeInput
 	a.st.Skills = skillsN(40)
 	a.setInput([]rune("/"))
 	for i := 0; i < 30; i++ {

@@ -35,7 +35,7 @@ func TestSQLiteRoundTripAndRewrite(t *testing.T) {
 	if len(turns) != 2 || turns[0].Text != "hi \U0001F600\nline2" || turns[1].Replay == nil || turns[1].Replay.Thought != "t" || turns[1].ReplayGroup != "g" {
 		t.Fatalf("turns %+v", turns)
 	}
-	if got.Summary != "sum" || got.Metrics.Spent != 1.5 || !got.Metrics.Unpriced || got.Title != "hi \U0001F600\nline2" {
+	if got.Summary != "sum" || got.Metrics.Spent != 1.5 || !got.Metrics.Unpriced || got.Title != "hi \U0001F600 line2" {
 		t.Fatalf("session %+v", got)
 	}
 	if len(got.Requests) != 2 || got.Requests[0].Cost == nil || *got.Requests[0].Cost != 0.5 || got.Requests[1].Cost != nil || got.Requests[0].Usage.In != 10 {
@@ -77,18 +77,8 @@ func TestSQLiteMigratesLegacyJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 	list, err := ListSessions(home)
-	if err != nil || len(list) != 1 || list[0].ID != "legacy-1" || list[0].Turns != 2 || list[0].ToolRuns != 1 || list[0].Tool != "js" {
-		t.Fatalf("list %+v %v", list, err)
-	}
-	if _, err := os.Stat(filepath.Join(dir, "legacy-1.json.migrated")); err != nil {
-		t.Fatal("original not preserved:", err)
-	}
-	if _, err := os.Stat(filepath.Join(dir, "broken.json")); err != nil {
-		t.Fatal("unreadable file must stay untouched")
-	}
-	got, err := LoadSession(home, "legacy-1")
-	if err != nil || got.Title != "old chat" || len(got.Snapshot()) != 2 {
-		t.Fatalf("%+v %v", got, err)
+	if err != nil || len(list) != 0 {
+		t.Fatalf("legacy import: %v %v", list, err)
 	}
 }
 

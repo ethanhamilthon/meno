@@ -87,7 +87,7 @@ func TestStopLeavesTasksAlive(t *testing.T) {
 			s.WaitFor("sleep 60")
 			time.Sleep(time.Second) // the task exists once the command has run
 			s.Send("\x03")
-			s.WaitFor("INSERT")
+			s.WaitFor("stopped")
 			s.Say("list the tasks")
 			scr := s.WaitFor("listed")
 			if !strings.Contains(scr, "running") {

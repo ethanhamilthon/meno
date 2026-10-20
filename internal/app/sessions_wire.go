@@ -95,12 +95,16 @@ func (a *App) onSessionRefreshed(m sessionRefreshed) {
 		return
 	}
 	sn := m.snap
+	rt.Session.Completed, rt.Session.ReadThrough = sn.Session.Completed, sn.Session.ReadThrough
+	if !rt.Running && !sn.Running {
+		rt.Session.load(sn)
+		rt.lines = lineCache{}
+	}
 	rt.Session.Title = sn.Session.Name
 	if rt.Session.Title == "untitled" {
 		rt.Session.Title = ""
 	}
 	rt.Session.Provider, rt.Session.Model, rt.Session.Effort = sn.Provider, sn.Model, sn.Effort
-	rt.Session.Modes = append([]string(nil), sn.Modes...)
 	if sn.Cwd != "" {
 		rt.Cwd = sn.Cwd
 	}
@@ -133,22 +137,6 @@ func (a *App) setSelection(provider, model, effort string) {
 	}
 	a.st.Settings.Provider, a.st.Settings.Model, a.st.Settings.Effort = provider, model, effort
 	a.persistSettings()
-}
-
-// setModes replaces the modes of the current session. Unknown names are dropped.
-func (a *App) setModes(names []string) {
-	var keep []string
-	for _, n := range names {
-		if _, ok := findMode(n); ok && !hasName(keep, n) {
-			keep = append(keep, n)
-		}
-	}
-	a.st.Session.Modes = keep
-	a.patchSession(proto.PatchSessionRequest{Modes: &keep}, func(err error) {
-		if err != nil {
-			a.notifyErr("modes: " + err.Error())
-		}
-	})
 }
 
 // setCwd moves a session to dir.

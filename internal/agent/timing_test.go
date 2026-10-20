@@ -122,7 +122,7 @@ func TestRunStatsWithoutPriceHaveNoCost(t *testing.T) {
 			if err := r.Turn(context.Background(), s, "q"); err != nil {
 				t.Fatal(err)
 			}
-			if run := lastTurn(s).Run; run == nil || run.Cost != nil || run.Turns != 2 {
+			if run := lastTurn(s).Run; run == nil || run.Turns != 2 || (name != "half known" && run.Cost != nil) || (name == "half known" && (run.Cost == nil || !run.Partial)) {
 				t.Fatalf("%+v", run)
 			}
 		})

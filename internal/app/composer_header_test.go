@@ -28,10 +28,10 @@ func TestComposerHeaderDrawsTitleAtRight(t *testing.T) {
 			t.Fatalf("header cell %d background %v", x, bg)
 		}
 		nameStart := 88 - ui.TextWidth("session title")
-		if x < nameStart-1 && fg != ui.FgSoft {
+		if x < nameStart-1 && fg != ui.FgDim {
 			t.Fatalf("rule cell %d foreground %v", x, fg)
 		}
-		if x >= nameStart && fg != ui.FgSoft {
+		if x >= nameStart && fg != ui.FgDim {
 			t.Fatalf("name cell %d foreground %v", x, fg)
 		}
 		if x < 88-ui.TextWidth("session title")-1 && glyph != '─' {

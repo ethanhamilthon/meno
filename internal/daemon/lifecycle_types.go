@@ -19,6 +19,7 @@ var ErrAlreadyRunning = errors.New("daemon is already running")
 // Options configures daemon lifecycle and transport. IdleExit accepts a duration;
 // IdleExitMin accepts the corresponding setting in minutes.
 type Options struct {
+	StartupLock   *os.File
 	Home, Version string
 	OnStart       func(context.Context) error
 	OnStop        func()
@@ -86,7 +87,7 @@ func New(o Options) (*Server, error) {
 	if idle == 0 && o.IdleExitMin > 0 {
 		idle = time.Duration(o.IdleExitMin) * time.Minute
 	}
-	return &Server{home: o.Home, runDir: run, socket: SocketPath(o.Home), logPath: filepath.Join(logs, "daemon.log"), version: o.Version, bootID: boot, pid: os.Getpid(), started: time.Now(), idle: idle, backend: o.Backend, hub: hub, global: global, done: make(chan struct{}), onStart: o.OnStart, onStop: o.OnStop}, nil
+	return &Server{home: o.Home, runDir: run, socket: SocketPath(o.Home), logPath: filepath.Join(logs, "daemon.log"), version: o.Version, bootID: boot, pid: os.Getpid(), started: time.Now(), idle: idle, backend: o.Backend, hub: hub, global: global, done: make(chan struct{}), lock: o.StartupLock, onStart: o.OnStart, onStop: o.OnStop}, nil
 }
 func privateDir(path string) error {
 	if e := os.MkdirAll(path, 0o700); e != nil {

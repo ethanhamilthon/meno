@@ -75,85 +75,38 @@ func slowCall(t Turn) bool {
 	return t.TimedOut || t.ElapsedMs >= 10000
 }
 
-func plural(n int, one string) string {
-	if n == 1 {
-		return fmt.Sprintf("%d %s", n, one)
+// SummaryLines closes a run with lossless usage and execution metadata.
+func SummaryLines(s *RunStats, w int) []Line {
+	if s == nil {
+		return nil
 	}
-	return fmt.Sprintf("%d %ss", n, one)
-}
-
-// SummaryLines is what closes a run: its outcome and duration, how many
-// requests and tool calls it took, and on the right the tokens, cache hits and
-// cost, all on one line. Parts that do not fit are dropped, the right side
-// first. A failed run says why in a line above.
-func SummaryLines(run *RunStats, w int) []Line {
-	took := time.Duration(run.ElapsedMs) * time.Millisecond
-	glyph, color, head := "✓", Green, FmtDur(took)
-	switch run.Status {
-	case RunFail:
-		glyph, color, head = "✕", Red, "failed after "+head
-	case RunStop:
-		glyph, color, head = "■", Yellow, "stopped after "+head
+	cache := "?/?"
+	if s.CacheKnown || s.Cached > 0 || s.CacheWrite > 0 {
+		cache = fmt.Sprintf("%d/%d", s.Cached, s.CacheWrite)
 	}
-	rest := []string{}
-	if run.Turns > 0 {
-		rest = append(rest, plural(run.Turns, "turn"))
-	}
-	if run.ToolCalls > 0 {
-		rest = append(rest, plural(run.ToolCalls, "tool call"))
-	}
-	if run.ToolMs >= 1000 {
-		rest = append(rest, FmtDur(time.Duration(run.ToolMs)*time.Millisecond)+" in tools")
-	}
-	var right []string
-	if u := run; u.In > 0 || u.Out > 0 {
-		right = append(right, "↓"+FmtTokens(u.In), "↑"+FmtTokens(u.Out))
-		if u.In > 0 {
-			right = append(right, fmt.Sprintf("↺%.0f%%", 100*float64(min(max(0, u.Cached), u.In))/float64(u.In)))
+	cost := "$?"
+	if s.Cost != nil {
+		cost = fmt.Sprintf("$%.4f", *s.Cost)
+		if s.Partial {
+			cost += "+?"
 		}
 	}
-	if run.Cost != nil {
-		right = append(right, FmtCost(*run.Cost))
-	}
-	rightText := strings.Join(right, " ")
+	left := fmt.Sprintf("in %d · out %d · cache %s · %s", s.In, s.Out, cache, cost)
+	right := fmt.Sprintf("%s · %d bash", FmtDur(time.Duration(s.ElapsedMs)*time.Millisecond), s.ToolCalls)
 	var out []Line
-	if run.Status == RunFail && run.Err != "" {
-		for i, l := range Wrap(run.Err, max(1, w-4)) {
-			mark := "  "
-			if i == 0 {
-				mark = "! "
-			}
-			out = append(out, Line{Segs: []Seg{{Text: "  "}, {Text: mark, FG: Red, Bold: true}, {Text: l, FG: Red}}, BG: BgTerm})
-		}
+	if s.Status == "fail" {
+		out = append(out, Plain("failed: "+s.Err, Red, BgTerm))
+	} else if s.Status == "stop" {
+		out = append(out, Plain("stopped", Orange, BgTerm))
 	}
-	lead := 2 + 2 // indent and glyph
-	for {
-		left := head
-		if len(rest) > 0 {
-			left += " · " + strings.Join(rest, " · ")
-		}
-		need := lead + TextWidth(left)
-		if rightText != "" {
-			need += 1 + 3 + 1 + TextWidth(rightText) // rule of at least three cells
-		}
-		if need <= w || (rightText == "" && len(rest) == 0) {
-			break
-		}
-		switch {
-		case rightText != "":
-			rightText = ""
-		default:
-			rest = rest[:len(rest)-1]
-		}
+	if TextWidth(left)+TextWidth(right)+3 <= w {
+		out = append(out, Plain(left+" "+strings.Repeat("─", max(1, w-TextWidth(left)-TextWidth(right)-2))+" "+right, FgDim, BgTerm))
+	} else {
+		out = append(out, WrapLines(left, max(1, w), func(s string) Line { return Plain(s, FgDim, BgTerm) })...)
+		out = append(out, WrapLines(right, max(1, w), func(s string) Line { return Plain(s, FgDim, BgTerm) })...)
 	}
-	segs := []Seg{{Text: "  "}, {Text: glyph + " ", FG: color}, {Text: head, FG: color, Bold: true}}
-	for _, p := range rest {
-		segs = append(segs, Seg{Text: " · ", FG: FgDim}, Seg{Text: p, FG: FgDim})
+	if len(out) > 0 {
+		out[len(out)-1].CompletionAnchor = true
 	}
-	if rightText != "" {
-		gap := w - segsWidth(segs) - 2 - TextWidth(rightText)
-		segs = append(segs, Seg{Text: " " + strings.Repeat("─", max(1, gap)) + " ", FG: FgDim}, Seg{Text: rightText, FG: FgDim})
-	}
-	segs = clipSegs(segs, max(1, w))
-	return append(out, Line{Segs: segs, BG: BgTerm})
+	return out
 }

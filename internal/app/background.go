@@ -44,7 +44,12 @@ func (a *App) bgAny() bool {
 }
 
 // bgColor is the blinking purple of the background-work marker.
-func bgColor() tcell.Color { return dimOr(blinkOn(), ui.Purple) }
+func bgColor() tcell.Color {
+	if blinkOn() {
+		return ui.Purple
+	}
+	return ui.FgDim
+}
 
 // bgBadge is the marker text for n units of background work, "" for none.
 func bgBadge(n int) string {

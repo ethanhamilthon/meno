@@ -4,8 +4,6 @@ import (
 	"testing"
 
 	"github.com/gdamore/tcell/v2"
-
-	"meno/internal/ui"
 )
 
 func runeKey(r rune) *tcell.EventKey { return tcell.NewEventKey(tcell.KeyRune, r, tcell.ModNone) }
@@ -24,54 +22,17 @@ func TestLayoutTableIsComplete(t *testing.T) {
 	}
 }
 
-func TestRussianLayoutMovesInNormalModeButTypesRussianInInsertMode(t *testing.T) {
-	a, scr, _ := e2eApp(t, &recClient{})
+func TestUnicodeInputAndCommandArguments(t *testing.T) {
+	a, scr := newTestApp(t)
 	defer scr.Fini()
-	for _, r := range "привет мир" {
-		a.onKey(runeKey(r))
-	}
-	if got := string(a.st.Input); got != "привет мир" {
-		t.Fatalf("insert mode must keep Russian text, got %q", got)
+	vimKeys(a, "привет")
+	if string(a.st.Input) != "привет" {
+		t.Fatal(string(a.st.Input))
 	}
 	a.onKey(keyK(tcell.KeyEsc))
-	if a.st.Mode != ui.ModeNormal {
-		t.Fatal("not in normal mode")
-	}
-	a.onKey(runeKey('0'))
-	col := a.st.Cursor
-	a.onKey(runeKey('д')) // l
-	a.onKey(runeKey('д'))
-	if a.st.Cursor != col+2 {
-		t.Fatalf("д (l) did not move right: %d -> %d", col, a.st.Cursor)
-	}
-	a.onKey(runeKey('р')) // h
-	if a.st.Cursor != col+1 {
-		t.Fatalf("р (h) did not move left: %d", a.st.Cursor)
-	}
-	// r replaces with a literal character: the Russian letter must stay Russian.
-	a.onKey(runeKey('к'))
-	a.onKey(runeKey('ы'))
-	if got := string(a.st.Input); got != "пыивет мир" {
-		t.Fatalf("rы must put ы, got %q", got)
-	}
-}
-
-func TestCommandNameIsTranslatedButArgumentsAreNot(t *testing.T) {
-	a, scr, _ := e2eApp(t, &recClient{})
-	defer scr.Fini()
-	a.onKey(keyK(tcell.KeyEsc))
-	a.onKey(runeKey('Ж')) // ":" on the Russian layout
-	if a.st.Mode != ui.ModeCommand {
-		t.Fatalf("Ж did not open the command line, mode %v", a.st.Mode)
-	}
-	for _, r := range "св " {
-		a.onKey(runeKey(r))
-	}
-	for _, r := range "папка" {
-		a.onKey(runeKey(r))
-	}
-	if got := string(a.st.Cmd); got != "cd папка" {
-		t.Fatalf("got %q", got)
+	vimKeys(a, "cd /tmp/проект")
+	if string(a.st.Cmd) != "cd /tmp/проект" {
+		t.Fatal(string(a.st.Cmd))
 	}
 }
 

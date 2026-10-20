@@ -33,7 +33,7 @@ func (c *steeringClient) Stream(ctx context.Context, req llm.Request, emit func(
 	case <-release:
 	}
 	if n == 1 {
-		emit(llm.Event{Kind: llm.EvTool, CallID: "step", Code: "console.log(1)"})
+		emit(llm.Event{Kind: llm.EvTool, CallID: "step", Name: "bash", Code: "echo 1"})
 	} else {
 		emit(llm.Event{Kind: llm.EvText, Text: "done"})
 		emit(llm.Event{Kind: llm.EvDone})
@@ -63,7 +63,10 @@ func TestSteeringQueueClearsBeforeRunFinishes(t *testing.T) {
 		}
 	})
 	a.send(msgDraft{Text: "steer the next step"})
-	pump(t, a, func() bool { return len(a.st.Queued) == 1 })
+	pump(t, a, func() bool { return len(a.st.Queued) == 1 || a.lastNotice() != "" })
+	if len(a.st.Queued) != 1 {
+		t.Fatalf("steering not queued: %s", a.lastNotice())
+	}
 	if a.st.Queued[0] != "steer the next step" || a.queueHeight() == 0 {
 		t.Fatalf("queued message is not visible: %q", a.st.Queued)
 	}

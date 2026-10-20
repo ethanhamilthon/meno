@@ -5,8 +5,7 @@ import "github.com/gdamore/tcell/v2"
 type Mode int
 
 const (
-	ModeInsert Mode = iota
-	ModeNormal
+	ModeInput Mode = iota
 	ModeVisual
 	ModeCommand
 	ModeModal
@@ -14,10 +13,8 @@ const (
 
 func (m Mode) Label() string {
 	switch m {
-	case ModeInsert:
-		return "INSERT"
-	case ModeNormal:
-		return "NORMAL"
+	case ModeInput:
+		return "INPUT"
 	case ModeVisual:
 		return "VISUAL"
 	case ModeCommand:
@@ -28,10 +25,8 @@ func (m Mode) Label() string {
 
 func (m Mode) Color() tcell.Color {
 	switch m {
-	case ModeInsert:
+	case ModeInput:
 		return Green
-	case ModeNormal:
-		return Blue
 	case ModeVisual:
 		return Orange
 	case ModeCommand:

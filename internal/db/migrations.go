@@ -1,7 +1,7 @@
 package db
 
 // migrations[i] upgrades the schema from version i to i+1. Migrations are
-// additive: they never drop or rewrite user data.
+// versioned; the 0.5 format activates after a verified epoch backup.
 var migrations = []string{`
 CREATE TABLE meta (
 	key   TEXT PRIMARY KEY,
@@ -228,4 +228,13 @@ ALTER TABLE providers ADD COLUMN disabled INTEGER NOT NULL DEFAULT 0;
 -- Bash tool selection. Sessions that already exist keep their js history.
 ALTER TABLE sessions ADD COLUMN tool TEXT NOT NULL DEFAULT 'js';
 `,
+	`DROP TABLE IF EXISTS snippets;
+
+ INSERT OR REPLACE INTO meta(key,value) VALUES('format_epoch','0.5');
+ INSERT OR REPLACE INTO meta(key,value) VALUES('migrated_sessions_db','1');
+ CREATE TABLE session_attention (
+ session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+ completed INTEGER NOT NULL DEFAULT 0,
+ read_through INTEGER NOT NULL DEFAULT 0
+ );`,
 }

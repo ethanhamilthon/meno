@@ -1,5 +1,22 @@
 # Upgrading, data and privacy
 
+## 0.5.0: clean database and simplified interface
+
+Stop all older meno daemons before the first launch. 0.5.0 creates a verified,
+private SQLite backup in `$MENO_HOME/backups/`, then starts with a clean database.
+History and DB-backed accounts/settings are not transferred; onboarding may be
+needed. JSON overlays, skills, projects and old session files remain untouched.
+A backup or integrity failure stops startup instead of erasing the original.
+The reset happens once; later launches keep your new data.
+
+Backups may contain API keys. To recover, stop every daemon, preserve the new DB
+separately, restore the selected backup as `meno.db`, and use the previous binary.
+Do not restore over a live database. There is no automatic downgrade/import path.
+
+Application `#` modes, `meno goal` and snippets are removed. INPUT replaces INSERT;
+NORMAL is gone. Esc toggles INPUT/COMMAND and `:v` opens VISUAL. `:context` holds
+usage metrics; the bar shows running/tasks/Asking/unread done counts. See [UI](ui.md).
+
 ## 0.4.1: stable history, no execution timeouts, parallel bash calls
 
 The settings `bash timeout`, `bash strings` and `bash string lines` are gone; old settings files that hold them still load and the keys disappear on the next save. A bash call or a task runs until it ends, you stop it, or it is cancelled. `meno tasks start --timeout` now fails; `meno tasks wait --timeout` is unchanged. Old turns that timed out still show as they did.
@@ -32,7 +49,7 @@ The one-time import of `settings.json`, `providers.json`, `skills.json` and
 deleted. `mcp.json` now means something else: it adds MCP servers (see
 [settings](settings.md)), so an old `mcp.json` is read as that list.
 
-Migrations are additive and run when meno opens `meno.db`. Sessions from older
+Before 0.5.0, migrations were additive and ran when meno opened `meno.db`. Sessions from older
 versions keep all their turns; their history IDs are assigned on first load.
 Sessions compacted by an old version cannot get back the turns that version
 discarded: they are marked as partially covered and forks of them are

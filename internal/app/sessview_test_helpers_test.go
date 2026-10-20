@@ -20,7 +20,7 @@ func (s *sessView) Replace(ts []agent.Turn) {
 
 // viewTurn converts a stored turn into what the transcript draws (tests only).
 func viewTurn(t agent.Turn) ui.Turn {
-	v := ui.Turn{CallID: t.CallID, Role: t.Role, Kind: t.Kind, Text: t.Text, Mode: t.Mode, Code: t.Code, Title: t.Title,
+	v := ui.Turn{CallID: t.CallID, Role: t.Role, Kind: t.Kind, Text: t.Text, Code: t.Code, Title: t.Title,
 		Output: t.Output, Err: t.Err, ElapsedMs: t.ElapsedMs, LimitMs: t.LimitMs, TimedOut: t.TimedOut, Thinking: t.Thinking}
 	if v.Thinking == "" && t.Replay != nil {
 		v.Thinking = t.Replay.Thought
@@ -30,7 +30,7 @@ func viewTurn(t agent.Turn) ui.Turn {
 	}
 	if r := t.Run; r != nil {
 		v.Run = &ui.RunStats{Status: r.Status, ElapsedMs: r.ElapsedMs, Turns: r.Turns, ToolCalls: r.ToolCalls, ToolMs: r.ToolMs,
-			In: r.Usage.In, Out: r.Usage.Out, Cached: r.Usage.Cached, Cost: r.Cost, Err: r.Err}
+			In: r.Usage.In, Out: r.Usage.Out, Cached: r.Usage.Cached, CacheWrite: r.Usage.CacheWrite, CacheKnown: r.Usage.CacheReported, Cost: r.Cost, Partial: r.Partial, Err: r.Err}
 	}
 	return v
 }

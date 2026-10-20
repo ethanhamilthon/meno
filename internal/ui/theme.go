@@ -90,7 +90,7 @@ func derive(name string, dark bool, bg, fg, dim, blue, purple, green, yellow, re
 		BgTerm:     b,
 		BgUser:     mix(b, f, 0.05),
 		BgJSDone:   mix(b, hex(green), 0.10),
-		BgJSRun:    mix(b, hex(orange), 0.12),
+		BgJSRun:    mix(b, hex(green), 0.12),
 		BgJSErr:    mix(b, hex(red), 0.10),
 		BgPopup:    popup,
 		BgPopupIn:  mix(popup, b, 0.5),

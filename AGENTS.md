@@ -53,11 +53,10 @@ Bash tools, provider APIs, MCP integrations, and SQLite persistence.
 | `internal/daemon/` | Daemon lifecycle, socket, HTTP resources, event streams; configuration resources in `cfgsvc/`. |
 | `internal/mcp/` | MCP server lifecycle, transports, JSON-RPC, tool schemas, typed results and the local result/artifact store. Start with `manager.go`, `client.go`, `result.go`, `store.go`. |
 | `internal/prompt/` | System prompt assembly: `prompt.go` (`Build`, inputs), `sections.go` (one XML element per section), `xml.go` (`element`, `escapeBody`), `bash.go` (the Bash prompt and its guidelines) and the Bash tool description (`bash_toolspec.go`). |
-| `internal/config/` | Paths, settings, providers, skills, snippets, MCP configuration, and the read-only `provider.json`/`mcp.json` overlays (`overlay.go`). Start with `paths.go`, `settings.go`, `store.go`, `snippets.go`. |
-| `internal/db/` | Shared SQLite database; additive versioned migrations live in `migrations.go`, opening in `db.go`. |
+| `internal/config/` | Paths, settings, providers, skills, MCP configuration, and the read-only `provider.json`/`mcp.json` overlays (`overlay.go`). Start with `paths.go`, `settings.go`, `store.go`. |
+| `internal/db/` | Shared SQLite database; versioned migrations live in `migrations.go`, opening in `db.go`, clean 0.5 epoch backup in `epoch.go`. |
 | `internal/proc/` | Process supervisor for foreground bash calls and background tasks (`foreground.go`: launch, promote to a task, cancel): process groups, bounded rotating disk logs, durable task results; `daemon.go` runs the provider `run` commands. |
 | `internal/update/` | `meno update` and the start-up check: latest GitHub release (the release page redirect, API as fallback), SHA-256 verified install (`Asset`/`InstallAsset`, also used for cliproxyapi), cached check in `$MENO_HOME/update.json`. |
-| `internal/modes/` | Built-in modes (`#brainstorm`, `#goal`), their texts and composition (`compose.go`). Goal continuation is in `agent/goal.go`; session mode controls are in `app/modes.go`. |
 | `internal/cliproxy/` | The cliproxyapi helper behind OAuth logins: install and update from its GitHub releases (`install.go`), config and command (`config.go`), state/keys (`manager.go`), management API client for logins and accounts (`api.go`), the six services (`services.go`). The process itself runs under `proc.Daemons`. |
 | `internal/version/` | Single version source: `VERSION` file (embedded); `Label()` feeds the welcome screen and help title, `Number()` feeds `--version`. Bump it for every release. |
 | `internal/store/` | Reusable JSON loading and atomic saving; `json.go`. |

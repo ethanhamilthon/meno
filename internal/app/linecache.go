@@ -41,7 +41,7 @@ func (c *lineCache) turnLines(t ui.Turn, w int, js ui.JSOpts) []ui.Line {
 	if t.ID == "" {
 		return ui.BuildLines([]ui.Turn{t}, w, js)
 	}
-	k := lineKey{t.ID, w, optsKey(js), turnSig(t)}
+	k := lineKey{t.ID, w, optsKey(js) + fmt.Sprint(ui.BgTerm, ui.FgWhite, ui.Green), turnSig(t)}
 	if lines, ok := c.m[k]; ok {
 		return lines
 	}

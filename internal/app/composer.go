@@ -79,9 +79,9 @@ func (a *App) applyCursor() {
 		return
 	}
 	switch a.st.Mode {
-	case ui.ModeInsert:
+	case ui.ModeInput:
 		a.scr.SetCursorStyle(tcell.CursorStyleBlinkingBar)
-	case ui.ModeNormal, ui.ModeVisual:
+	case ui.ModeVisual:
 		a.scr.SetCursorStyle(tcell.CursorStyleSteadyBlock)
 	case ui.ModeCommand:
 		a.scr.SetCursorStyle(tcell.CursorStyleSteadyBar)

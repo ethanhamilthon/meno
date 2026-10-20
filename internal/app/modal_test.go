@@ -158,7 +158,7 @@ func TestSkillAutocompleteEscLeavesInsert(t *testing.T) {
 	a.st.Skills = []config.Skill{{Name: "rate-limit", Desc: "x", Enabled: true}}
 	typeRunes(a, "/r")
 	a.onKey(keyK(tcell.KeyEsc))
-	if a.st.Mode != ui.ModeNormal || a.acActive() || string(a.st.Input) != "/r" {
+	if a.st.Mode != ui.ModeCommand || a.acActive() || string(a.st.Input) != "/r" {
 		t.Fatalf("esc: mode=%v input=%q", a.st.Mode, string(a.st.Input))
 	}
 }
@@ -168,12 +168,12 @@ func TestVisualModeShowsHintAndSelection(t *testing.T) {
 	defer scr.Fini()
 	a.st.Session.Append(agent.Turn{Role: llm.RoleUser, Text: "hi"})
 	a.onKey(keyK(tcell.KeyEsc))
-	a.onKey(key('v'))
+	a.runCommand("v")
 	if a.st.Mode != ui.ModeVisual {
 		t.Fatalf("mode %v", a.st.Mode)
 	}
 	a.draw()
-	if !strings.Contains(screenText(scr), "y yank") {
+	if !strings.Contains(screenText(scr), "VISUAL") {
 		t.Fatal("visual hint missing")
 	}
 }
@@ -182,12 +182,11 @@ func TestCommandModeShowsListAndLine(t *testing.T) {
 	a, scr := newTestApp(t)
 	defer scr.Fini()
 	a.onKey(keyK(tcell.KeyEsc))
-	a.onKey(key(':'))
 	typeRunes(a, "mo")
 	a.draw()
 	out := screenText(scr)
 	_, h := scr.Size()
-	if !strings.HasPrefix(visualRow(scr, h-1), ":mo") {
+	if !strings.Contains(out, "mo") || !strings.Contains(visualRow(scr, h-1), "COMMAND") {
 		t.Fatalf("command line missing on the last row:\n%s", out)
 	}
 	if !strings.Contains(out, ":model") {
@@ -208,7 +207,6 @@ func TestCommandEnterRunsCommand(t *testing.T) {
 	a, scr := newTestApp(t)
 	defer scr.Fini()
 	a.onKey(keyK(tcell.KeyEsc))
-	a.onKey(key(':'))
 	typeRunes(a, "help")
 	a.onKey(keyK(tcell.KeyEnter))
 	if a.st.Over != OverHelp {

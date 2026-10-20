@@ -46,6 +46,9 @@ func (r *Runner) runBatch(ctx context.Context, s *Session, text string, calls []
 			fin <- i
 			continue
 		}
+		if r.cur != nil {
+			r.cur.jsCalls++
+		}
 		b.run = run
 		go func(i int, run RunningCall) { <-run.Done(); fin <- i }(i, run)
 	}
@@ -114,7 +117,6 @@ func (r *Runner) runBatch(ctx context.Context, s *Session, text string, calls []
 		if b.elapsed > 0 {
 			turn.ElapsedMs = max(1, b.elapsed.Milliseconds())
 			if r.cur != nil {
-				r.cur.jsCalls++
 				r.cur.jsTime += b.elapsed
 			}
 		}

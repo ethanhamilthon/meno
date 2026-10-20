@@ -26,6 +26,9 @@ type RunStats struct {
 	ToolCalls       int
 	ToolMs          int64
 	In, Out, Cached int
+	CacheWrite      int
+	CacheKnown      bool
+	Partial         bool
 	Cost            *float64
 	Err             string
 }
@@ -37,7 +40,6 @@ type Turn struct {
 	Role        string
 	Kind        string
 	Text        string
-	Mode        string
 	Thinking    string
 	Code        string
 	Title       string

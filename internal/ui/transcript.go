@@ -80,9 +80,6 @@ func BuildLines(turns []Turn, w int, js JSOpts) []Line {
 		case t.Role == RoleUser:
 			out = append(out, Band(BgUser))
 			shown := t.Text
-			if t.Mode != "" {
-				shown = "#" + t.Mode + " " + shown // the tag was taken off the text; the transcript shows it as typed
-			}
 			out = append(out, WrapLines(withObjectLabels(shown), wrapW-2, userLineMaker())...)
 			out = append(out, Band(BgUser))
 			for _, at := range t.Attachments {
@@ -92,7 +89,7 @@ func BuildLines(turns []Turn, w int, js JSOpts) []Line {
 			if t.Text != "" {
 				out = append(out, MarkdownLines(t.Text, wrapW-2, "◇")...)
 			}
-			block := jsBlock(t, wrapW-2, js)
+			block := jsBlock(t, w, js)
 			if t.Text != "" && len(block) > 0 {
 				out = append(out, Band(BgTerm))
 			}
@@ -100,7 +97,7 @@ func BuildLines(turns []Turn, w int, js JSOpts) []Line {
 		case t.Role == RoleAssistant && t.Text != "":
 			out = append(out, MarkdownLines(t.Text, wrapW-2, "◆")...)
 		}
-		if js.Summary && t.Run != nil {
+		if t.Run != nil {
 			if len(out) > 0 {
 				out = append(out, Band(BgTerm))
 			}
@@ -111,34 +108,24 @@ func BuildLines(turns []Turn, w int, js JSOpts) []Line {
 }
 
 func jsBlock(t Turn, w int, js JSOpts) []Line {
-	var out []Line
+	out := []Line{bashHeader(t, w, js)}
 	if js.Mode != JSOff {
 		max := 0
 		if js.Mode == JSLines {
 			max = js.Lines
 		}
-		bg := BgJSDone
+		bg := BgTerm
 		switch {
-		case js.Running:
-			bg = BgJSRun
 		case t.Err != "" || t.TimedOut:
 			bg = BgJSErr
+		case js.Running || js.Streaming:
+			bg = BgJSRun
 		}
 		lines := CodeLinesOpt(t.Code, bg, w-2, max, CodeOpts{Plain: js.Streaming})
 		for i := range lines {
 			lines[i].Segs = append([]Seg{{Text: "  ", FG: FgDim}}, lines[i].Segs...)
 		}
-		// The timing sits in the top right corner of the block.
-		if badge, ok := timingBadge(t, js); ok {
-			lines = withBadge(lines, badge, w, Band(bg))
-		}
-		// The title sits in the bottom right corner.
-		lines = withTitle(lines, t.Title, w, Band(bg))
 		out = append(out, lines...)
-	} else if badge, ok := timingBadge(t, js); ok && (t.Err != "" || t.TimedOut) {
-		// With the code hidden only the news that matter (a failure, a timeout)
-		// are worth a row of their own.
-		out = append(out, withBadge(nil, badge, w, Band(BgJSErr))...)
 	}
 	if js.OutMode != JSOff {
 		limit := 0

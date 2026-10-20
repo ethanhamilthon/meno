@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"io"
 	"os"
-	"strings"
 )
 
 func runAsk(args []string, s IO, a API, j bool) (int, error) {
@@ -34,28 +33,7 @@ func runAsk(args []string, s IO, a API, j bool) (int, error) {
 	}
 	return 0, emit(s, true, answer, "")
 }
-func runGoal(args []string, s IO, a API, j bool) (int, error) {
-	if len(args) < 2 {
-		return 0, usageError("usage: meno goal done SUMMARY|blocked REASON")
-	}
-	if err := apiRequired(a); err != nil {
-		return 0, err
-	}
-	text := strings.Join(args[1:], " ")
-	var err error
-	switch args[0] {
-	case "done":
-		err = a.GoalDone(text)
-	case "blocked":
-		err = a.GoalBlocked(text)
-	default:
-		return 0, unknown(args[0], []string{"done", "blocked"})
-	}
-	if err != nil {
-		return 0, err
-	}
-	return 0, emit(s, j, map[string]string{"status": args[0], "text": text}, args[0]+" sent\n")
-}
+
 func runView(args []string, s IO, a API, j bool) (int, error) {
 	if len(args) != 1 {
 		return 0, usageError("usage: meno view IMAGE")

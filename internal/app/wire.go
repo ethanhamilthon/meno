@@ -145,11 +145,13 @@ func (a *App) applyWire(rt *Runtime, e proto.Event) {
 			a.notifyErr(d.Message)
 		}
 	case proto.EventAborted:
+		a.refreshSession(rt.ID())
 		a.clearLive()
 		rt.Phase, rt.Running = "", false
 		a.markUnseen(rt.ID())
 		a.signal("")
 	case proto.EventDone:
+		a.refreshSession(rt.ID())
 		a.clearLive()
 		rt.Phase, rt.Running = "", false
 		a.markUnseen(rt.ID())

@@ -14,6 +14,7 @@ func (a *App) draw() {
 	a.scr.Fill(' ', tcell.StyleDefault.Background(ui.BgTerm))
 	c := ui.Canvas{S: a.scr}
 	a.cur = cursorPos{}
+	a.completionVisible = false
 	a.waveOn.Store(false)
 	a.drawMain(c, w, h)
 	if a.st.Over != OverNone {
@@ -23,5 +24,8 @@ func (a *App) draw() {
 	}
 	a.applyCursor()
 	a.scr.Show()
+	if a.completionVisible {
+		a.acknowledgeVisible()
+	}
 	a.placeImages()
 }

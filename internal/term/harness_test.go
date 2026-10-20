@@ -149,7 +149,7 @@ func start(t *testing.T, o options) *session {
 	if o.firstRun {
 		s.WaitFor("LOGIN")
 	} else {
-		s.WaitFor("INSERT")
+		s.WaitFor("INPUT")
 	}
 	return s
 }
@@ -212,16 +212,20 @@ func (s *session) Type(text string) {
 // Cmd runs a ":command" from normal mode.
 func (s *session) Cmd(c string) {
 	s.t.Helper()
-	s.Normal()
-	s.Type(":" + c)
+	if !strings.Contains(s.Screen(), "COMMAND") {
+		s.Send(Esc)
+		time.Sleep(150 * time.Millisecond)
+	}
+	s.Type(c)
 	s.Send(Enter)
 }
 
-// Normal leaves insert mode.
+// Normal returns the editor to INPUT for legacy test helpers.
 func (s *session) Normal() {
-	s.t.Helper()
-	s.Send(Esc)
-	time.Sleep(150 * time.Millisecond) // a lone Esc is told from an escape sequence by timing
+	if strings.Contains(s.Screen(), "COMMAND") {
+		s.Send(Esc)
+		time.Sleep(150 * time.Millisecond)
+	}
 }
 
 // WaitFor waits until the screen contains want.
@@ -289,12 +293,4 @@ func (s *session) WaitExit() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.err
-}
-
-// Say types a message and submits it.
-func (s *session) Say(text string) {
-	s.t.Helper()
-	s.Type(text) // meno starts in insert mode and stays there after a command
-	time.Sleep(30 * time.Millisecond)
-	s.Send(Enter)
 }

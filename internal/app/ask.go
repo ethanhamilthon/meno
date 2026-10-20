@@ -210,14 +210,6 @@ func (a *App) askChoosing() bool { return a.st.Ask != nil }
 // askHeight: the form is a dialog, it takes no rows above the composer.
 func (a *App) askHeight() int { return 0 }
 
-// askStatus is the status-bar text while a form is open.
-func (a *App) askStatus() string {
-	if st := a.st.Ask; st != nil {
-		return "waiting for your answers · " + itoa(st.answeredCount()) + "/" + itoa(len(st.F.Questions))
-	}
-	return ""
-}
-
 // wordWrap wraps text to width columns at spaces, keeping line breaks; words
 // longer than a row are cut.
 func wordWrap(text string, width int) []string {

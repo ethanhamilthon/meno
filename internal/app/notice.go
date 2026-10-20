@@ -40,7 +40,7 @@ func (a *App) addNotice(text string, isErr bool) {
 }
 
 func (a *App) notify(text string)    { a.addNotice(text, false) }
-func (a *App) notifyErr(text string) { a.addNotice(text, true) }
+func (a *App) notifyErr(text string) { a.commandFailed = true; a.addNotice(text, true) }
 
 // currentNotices are the notices of the active session.
 func (a *App) currentNotices() []notice {

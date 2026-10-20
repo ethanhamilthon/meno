@@ -18,23 +18,6 @@ type SkillEnabledRequest struct {
 	Enabled bool `json:"enabled"`
 }
 
-// ConfigSnippet is a globally shared composer snippet.
-type ConfigSnippet struct {
-	Name      string `json:"name"`
-	Text      string `json:"text"`
-	UpdatedAt string `json:"updatedAt"`
-}
-type SnippetsResponse struct {
-	Snippets []ConfigSnippet `json:"snippets"`
-}
-type SnippetRequest struct {
-	Name string `json:"name"`
-	Text string `json:"text"`
-}
-type SnippetResponse struct {
-	Snippet ConfigSnippet `json:"snippet"`
-}
-
 // ConfigMCPServer describes one configured MCP server.
 type ConfigMCPServer struct {
 	Name      string            `json:"name"`

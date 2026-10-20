@@ -17,7 +17,6 @@ type Mirror struct {
 type MirrorState struct {
 	Session                      proto.SessionItem
 	Cwd, Model, Phase, RequestID string
-	Modes                        []string
 	Running                      bool
 	Seq                          uint64
 	Turns                        []proto.Turn
@@ -38,7 +37,7 @@ type MirrorState struct {
 func (m *Mirror) Load(s proto.Snapshot) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.State = MirrorState{Session: s.Session, Cwd: s.Cwd, Model: s.Model, Modes: append([]string(nil), s.Modes...), Phase: s.Phase, RequestID: s.RequestID, Running: s.Running, Seq: s.Seq, Turns: append([]proto.Turn(nil), s.Turns...), Live: s.Live, Ask: s.Ask, Retry: s.Retry, Metrics: s.Metrics, Queued: append([]string(nil), s.Queued...), Provider: s.Provider, Effort: s.Effort, Spent: s.Spent, Context: s.Context, Unpriced: s.Unpriced, Tasks: append([]proto.Task(nil), s.Tasks...)}
+	m.State = MirrorState{Session: s.Session, Cwd: s.Cwd, Model: s.Model, Phase: s.Phase, RequestID: s.RequestID, Running: s.Running, Seq: s.Seq, Turns: append([]proto.Turn(nil), s.Turns...), Live: s.Live, Ask: s.Ask, Retry: s.Retry, Metrics: s.Metrics, Queued: append([]string(nil), s.Queued...), Provider: s.Provider, Effort: s.Effort, Spent: s.Spent, Context: s.Context, Unpriced: s.Unpriced, Tasks: append([]proto.Task(nil), s.Tasks...)}
 }
 
 // Snapshot returns an isolated copy of the current view state.
@@ -47,7 +46,6 @@ func (m *Mirror) Snapshot() MirrorState {
 	defer m.mu.RUnlock()
 	s := m.State
 	s.Queued = append([]string(nil), s.Queued...)
-	s.Modes = append([]string(nil), s.Modes...)
 	s.Turns = append([]proto.Turn(nil), s.Turns...)
 	if s.Ask != nil {
 		ask := *s.Ask

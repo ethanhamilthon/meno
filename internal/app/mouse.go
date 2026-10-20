@@ -27,6 +27,9 @@ type mouseState struct {
 const doubleClick = 400 * time.Millisecond
 
 func (a *App) onMouse(m *tcell.EventMouse) {
+	if a.st.Mode == ui.ModeCommand && (m.Buttons()&tcell.Button1) != 0 {
+		return
+	}
 	if a.st.Over != OverNone {
 		return
 	}
@@ -155,8 +158,8 @@ func (a *App) mousePress(x, y int) {
 		return
 	}
 	a.mouse.input = y >= a.logHeight()
-	if a.st.Mode == ui.ModeInsert {
-		a.leaveInsert()
+	if a.st.Mode == ui.ModeInput {
+		a.endInsert()
 	}
 	if a.st.Mode == ui.ModeVisual {
 		a.exitVisual()

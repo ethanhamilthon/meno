@@ -41,21 +41,7 @@ func (e *Engine) viewResource(s *runState, data map[string]any) (any, error) {
 	})
 	return map[string]any{"path": abs, "displayed": true}, nil
 }
-func (e *Engine) goalResource(s *runState, tail []string, data map[string]any) (any, error) {
-	if s.goal == nil {
-		return nil, api(proto.CodeConflict, "goal is not active")
-	}
-	op := "done"
-	if len(tail) > 0 {
-		op = tail[0]
-	}
-	text := stringValue(data, "summary")
-	if op == "blocked" {
-		text = stringValue(data, "reason")
-		return nil, s.goal.Blocked(text)
-	}
-	return nil, s.goal.Done(text)
-}
+
 func (e *Engine) modelResource(query string) any {
 	v, _ := url.ParseQuery(query)
 	provider := v.Get("provider")

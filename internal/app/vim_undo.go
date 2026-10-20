@@ -61,7 +61,7 @@ func (a *App) beginInsert(base snap) {
 	if a.st.InLog {
 		a.st.InLog, a.st.Cursor = false, len(a.st.Input)
 	}
-	a.st.Mode = ui.ModeInsert
+	a.st.Mode = ui.ModeInput
 	a.st.InsBase = base
 	a.st.VimBuf = nil
 }
@@ -76,15 +76,8 @@ func (a *App) endInsert() {
 // leaveInsert is Esc in insert mode: like vim, the cursor steps back one.
 func (a *App) leaveInsert() {
 	a.endInsert()
-	a.st.Mode = ui.ModeNormal
+	a.st.Mode = ui.ModeCommand
 	a.st.VimBuf = nil
-	a.clampCursor()
-	t := a.inputText()
-	p := t.pos(a.st.Cursor)
-	if p.col > 0 {
-		p.col--
-	}
-	a.setCursorPos(t, p)
 }
 
 // --- input as a vim document ---

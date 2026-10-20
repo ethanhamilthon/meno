@@ -34,7 +34,7 @@ func (a *App) drawComposerHeader(c ui.Canvas, x, y, w int) {
 	if w >= 4 {
 		name = ui.Truncate(a.composerHeaderLabel(), min(max(1, w*composerHeaderMax/100), w-2))
 	}
-	st := ui.Style{FG: ui.FgSoft, BG: ui.BgTerm}.TCell()
+	st := ui.Style{FG: ui.FgDim, BG: ui.BgTerm}.TCell()
 	if name == "" {
 		c.Text(x, y, w, strings.Repeat("─", w), st)
 		return

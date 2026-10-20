@@ -47,9 +47,6 @@ func bashMethod(groups []string) string {
 	if allows(groups, "ask") {
 		lines = append(lines, "- Use meno ask when you need a user decision.")
 	}
-	if allows(groups, "goal") {
-		lines = append(lines, "- Use meno goal done or blocked to finish a goal run.")
-	}
 	if allows(groups, "view") {
 		lines = append(lines, "- Use meno view to inspect an image.")
 	}

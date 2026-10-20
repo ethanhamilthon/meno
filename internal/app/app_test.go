@@ -25,7 +25,7 @@ func TestMainScreenRenders(t *testing.T) {
 	defer scr.Fini()
 	a.draw()
 	out := screenText(scr)
-	if !strings.Contains(out, "INSERT") {
+	if !strings.Contains(out, "INPUT") {
 		t.Fatalf("status badge missing:\n%s", out)
 	}
 	if !strings.Contains(out, "gpt-5.5") {
@@ -52,13 +52,12 @@ func TestCommandModeEnterAndEscape(t *testing.T) {
 	a, scr := newTestApp(t)
 	defer scr.Fini()
 	a.onKey(tcell.NewEventKey(tcell.KeyEsc, 0, tcell.ModNone)) // commands start from normal mode
-	a.onKey(tcell.NewEventKey(tcell.KeyRune, ':', tcell.ModNone))
 	if a.st.Mode.Label() != "COMMAND" {
 		t.Fatalf("mode %s", a.st.Mode.Label())
 	}
 	a.onKey(tcell.NewEventKey(tcell.KeyEsc, 0, tcell.ModNone))
-	if a.st.Mode.Label() != "NORMAL" {
-		t.Fatalf("esc should go to NORMAL, got %s", a.st.Mode.Label())
+	if a.st.Mode.Label() != "INPUT" {
+		t.Fatalf("esc should go to INPUT, got %s", a.st.Mode.Label())
 	}
 }
 

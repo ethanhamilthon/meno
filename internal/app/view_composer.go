@@ -23,7 +23,11 @@ func (a *App) drawComposer(c ui.Canvas, x, y, w, h int) {
 		if !a.st.InLog {
 			a.cur = cursorPos{textX, row, true}
 		}
-		c.Text(textX, row, innerW, a.placeholder(), ui.Style{FG: ui.FgDim, BG: bg}.TCell())
+		hint := a.placeholder()
+		if a.st.Mode == ui.ModeCommand {
+			hint = "type a command..."
+		}
+		c.Text(textX, row, innerW, hint, ui.Style{FG: ui.FgDim, BG: bg}.TCell())
 		return
 	}
 	rows := layoutInput(a.st.Input, max(1, innerW))

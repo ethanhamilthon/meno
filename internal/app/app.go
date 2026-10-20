@@ -17,6 +17,15 @@ import (
 )
 
 type App struct {
+	unfocused         bool
+	globalPending     bool
+	commandFailed     bool
+	globalRefresh     time.Time
+	globalSessions    []proto.SessionItem
+	globalTasks       int
+	ackPending        bool
+	completionVisible bool
+
 	scr       tcell.Screen
 	drawErr   string   // last rendering panic, reported once until it changes
 	warnings  []string // problems found in the theme file at start
@@ -70,6 +79,7 @@ func New(scr tcell.Screen, paths config.Paths, cl *client.Client) (*App, error) 
 	}
 	a.openURL = openBrowser
 	a.st = NewState()
+	scr.EnableFocus()
 	a.loadThemeFile()
 	if err := a.loadAll(); err != nil {
 		return nil, err
@@ -151,6 +161,8 @@ func (a *App) handle(msg any) {
 		a.idleTick = false
 	}
 	switch m := msg.(type) {
+	case *tcell.EventFocus:
+		a.unfocused = !m.Focused
 	case *tcell.EventKey:
 		if a.pasting {
 			a.collectPaste(m)
@@ -182,6 +194,27 @@ func (a *App) handle(msg any) {
 		a.notifyErr(m.text)
 	case updateAvailable:
 		a.onUpdateAvailable(m.tag)
+	case globalSessionsLoaded:
+		a.globalPending = false
+		if m.err == nil {
+			a.globalSessions = m.rows
+			a.globalTasks = m.tasks
+			for _, row := range m.rows {
+				if rt := a.rts[row.ID]; rt != nil && rt.Session != nil {
+					rt.Session.Completed = row.Completed
+					rt.Session.ReadThrough = row.ReadThrough
+					rt.Unseen = row.Completed > row.ReadThrough
+				}
+			}
+		}
+	case completionRead:
+		a.ackPending = false
+		if m.err == nil {
+			if rt := a.rts[m.sid]; rt != nil && rt.Session != nil {
+				rt.Session.ReadThrough = max(rt.Session.ReadThrough, m.through)
+				rt.Unseen = rt.Session.Completed > rt.Session.ReadThrough
+			}
+		}
 	case sessionsLoaded:
 		a.onSessionsLoaded(m)
 	case modelsLoaded:
@@ -207,6 +240,7 @@ func (a *App) handle(msg any) {
 		close(m.done)
 	case waveTick:
 	case tick:
+		a.refreshGlobalState()
 		a.refreshTasks()
 		if a.pruneNotices() {
 			a.idleTick = false

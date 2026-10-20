@@ -38,7 +38,7 @@ func TestWrapKeepsParagraphsAndWidth(t *testing.T) {
 }
 
 func TestModeLabels(t *testing.T) {
-	if ModeInsert.Label() != "INSERT" || ModeVisual.Label() != "VISUAL" {
+	if ModeInput.Label() != "INPUT" || ModeVisual.Label() != "VISUAL" {
 		t.Fatal("mode labels changed")
 	}
 }

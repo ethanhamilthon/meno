@@ -9,7 +9,11 @@ import (
 
 // Serve listens on the configured unix socket until context cancellation.
 func (s *Server) Serve(ctx context.Context) error {
-	lock, err := lockFile(s.runDir)
+	lock := s.lock
+	var err error
+	if lock == nil {
+		lock, err = lockFile(s.runDir)
+	}
 	if err != nil {
 		return err
 	}
@@ -20,9 +24,11 @@ func (s *Server) Serve(ctx context.Context) error {
 			lock.Close()
 			return err
 		}
-	} else if err = acquireLock(lock); err != nil {
-		lock.Close()
-		return ErrAlreadyRunning
+	} else if s.lock == nil {
+		if err = acquireLock(lock); err != nil {
+			lock.Close()
+			return ErrAlreadyRunning
+		}
 	}
 	s.lock = lock
 	defer s.cleanup()

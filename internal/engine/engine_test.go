@@ -229,7 +229,7 @@ func TestCrashRecoveryMarksTasksInterrupted(t *testing.T) {
 	}
 }
 
-func TestTokenIsEphemeralAndModeScoped(t *testing.T) {
+func TestTokenIsEphemeral(t *testing.T) {
 	f := &fakeProvider{}
 	e, _ := fixture(t, f)
 	id := newSession(t, e)
@@ -245,20 +245,6 @@ func TestTokenIsEphemeralAndModeScoped(t *testing.T) {
 	if _, err = e.Resource(context.Background(), "GET", path, "", proto.ResourceRequest{Token: token}); err != nil {
 		t.Fatal(err)
 	}
-	modes := []string{"brainstorm"}
-	if _, err = e.PatchSession(context.Background(), id, proto.PatchSessionRequest{Modes: &modes}); err != nil {
-		t.Fatal(err)
-	}
-	next, err := e.Snapshot(context.Background(), id)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if next.AgentToken == token {
-		t.Fatal("token did not rotate on mode change")
-	}
-	if _, err = e.Resource(context.Background(), "GET", path, "", proto.ResourceRequest{Token: token}); err == nil {
-		t.Fatal("old token remained valid")
-	}
 	e.mu.Lock()
 	s := e.sessions[id]
 	e.mu.Unlock()
@@ -272,7 +258,7 @@ func TestTokenIsEphemeralAndModeScoped(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(loaded.Modes) != 1 || loaded.Modes[0] != "brainstorm" {
-		t.Fatalf("modes persisted: %v", loaded.Modes)
+	if loaded.ID != id {
+		t.Fatal("session missing")
 	}
 }

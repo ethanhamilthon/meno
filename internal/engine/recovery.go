@@ -23,6 +23,9 @@ func recoverInterrupted(home string, d *sql.DB) error {
 	if err = rows.Err(); err != nil {
 		return err
 	}
+	if err = rows.Close(); err != nil {
+		return err
+	}
 	now := time.Now().UTC()
 	for _, id := range ids {
 		s, er := agent.LoadSession(home, id)
@@ -32,7 +35,8 @@ func recoverInterrupted(home string, d *sql.DB) error {
 		turns := s.Snapshot()
 		if len(turns) > 0 && (turns[len(turns)-1].Run == nil || turns[len(turns)-1].Run.Status == "") {
 			s.Append(agent.Turn{Role: "assistant", Text: "[interrupted: meno restarted while this request was running]", Time: now})
-			if er = agent.SaveSession(home, s); er != nil {
+			s.SetRun(agent.RunStats{Status: agent.RunStop, Err: "interrupted by restart"})
+			if er = agent.SaveCompletion(home, s); er != nil {
 				return er
 			}
 		}

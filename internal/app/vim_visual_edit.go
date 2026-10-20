@@ -43,7 +43,7 @@ func (a *App) visualEdit(t vtext, top int, c vcmd) {
 	s, _ := a.selOrder(top)
 	startPos := vpos{s.line - top, s.col}
 	text := joinRngs(in, rel)
-	a.st.Mode, a.st.VKind, a.st.VimBuf = ui.ModeNormal, 0, nil
+	a.st.Mode, a.st.VKind, a.st.VimBuf = ui.ModeInput, 0, nil
 	switch c.key {
 	case "d", "x", "X", "D":
 		a.setReg(text, linewise)

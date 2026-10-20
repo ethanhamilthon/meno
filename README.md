@@ -55,7 +55,7 @@ every push and pull request on Linux and macOS and installs a snapshot build wit
    switches an entry off and on, `d` removes it.
 2. `:model` — pick a model (the list comes from the provider's `/models`) and an
    effort level. It applies to the current session.
-3. Press `i`, type a task, press Enter.
+3. Type a task in INPUT and press Enter.
 
 ## Documentation
 
@@ -64,7 +64,7 @@ every push and pull request on Linux and macOS and installs a snapshot build wit
 | [The agent's tool](docs/tools.md) | the `bash` tool and the `meno` command the model uses: files, tasks, mcp, web, view, ask |
 | [Command line](docs/cli.md), [daemon](docs/daemon.md) | `meno sessions`, `send`, `tail`; the background daemon |
 | [Sessions, history and events](docs/sessions.md) | :new, :fork, :cd, compaction, steering, :stop |
-| [Modes](docs/modes.md), [accounts and providers](docs/login.md) | `#brainstorm`, `#goal`, `#none`; `:login` |
+| [Accounts and providers](docs/login.md) | `:login` |
 | [Interface](docs/ui.md) | keys, commands, timeline, Markdown, images, tool-call display |
 | [Settings](docs/settings.md), [notifications](docs/notifications.md) | |
 | [Upgrading, data and privacy](docs/upgrading.md) | migrations, where data lives, what is logged |
@@ -82,12 +82,18 @@ Everything lives in `$MENO_HOME` (default `~/.meno`; `make run` uses `~/.meno-de
 
 | | |
 | --- | --- |
-| `meno.db` | SQLite (mode 0600): settings, providers (**API keys in plain text**), MCP servers, skill state, snippets, model catalog cache, sessions, history, tasks |
+| `meno.db` | SQLite (mode 0600): settings, providers (**API keys in plain text**), MCP servers, skill state, model catalog cache, sessions, history, tasks |
 | `attachments/` | image bytes, named by hash |
 | `tasks/` | bounded logs of background tasks |
 | `mcp-results/` | complete MCP tool results and their binary artifacts, per session |
 | `skills/`, `AGENTS.md` | global skills and instructions |
 | `provider.json`, `mcp.json`, `theme.json` | optional: add providers, MCP servers and themes, see [settings](docs/settings.md) |
+
+## Upgrading to 0.5.0
+
+0.5.0 starts with a clean database and preserves the old database in
+`$MENO_HOME/backups/`. History and database-backed accounts/settings are not
+automatically transferred. See [upgrading](docs/upgrading.md) before updating.
 
 ## Development
 

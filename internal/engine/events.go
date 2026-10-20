@@ -61,15 +61,19 @@ func (e *Engine) agentEvent(s *runState, ev agent.Ev) {
 		s.session.Metrics.Usage.Out += ev.Usage.Out
 		s.session.Metrics.Usage.Cached += ev.Usage.Cached
 		s.session.Metrics.Usage.CacheWrite += ev.Usage.CacheWrite
+		s.session.Metrics.Usage.CacheReported = s.session.Metrics.Usage.CacheReported || ev.Usage.CacheReported
+		priced := false
 		if p, ok := e.provider(s.session.Provider); ok {
-			if mi, ok := p.Lookup(e.catalogView(), s.session.Model); ok {
-				s.session.Metrics.Context = mi.Context
-			}
+			s.session.Metrics.Context = ev.Usage.In
 			if mi, ok := p.Lookup(e.catalogView(), s.session.Model); ok && mi.CanPrice(ev.Usage) {
+				priced = true
 				cost := mi.Cost(ev.Usage)
 				s.metrics.Cost += cost
 				s.session.Metrics.Spent += cost
 			}
+		}
+		if !priced {
+			s.session.Metrics.Unpriced = true
 		}
 	case agent.EvError:
 		s.lastErr = ev.Err

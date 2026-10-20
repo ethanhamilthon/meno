@@ -96,8 +96,6 @@ func Run(args []string, streams IO, api API) int {
 		code, err = runTasks(args, streams, api, jsonOut)
 	case "ask":
 		code, err = runAsk(args, streams, api, jsonOut)
-	case "goal":
-		code, err = runGoal(args, streams, api, jsonOut)
 	case "view":
 		code, err = runView(args, streams, api, jsonOut)
 	case "models":

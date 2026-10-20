@@ -14,14 +14,8 @@ func (a *API) Ask(form []byte) (map[string]any, error) {
 }
 
 // GoalDone ends a goal run with a summary.
-func (a *API) GoalDone(summary string) error {
-	return a.post("goal", "done", map[string]any{"summary": summary}, nil)
-}
 
 // GoalBlocked ends a goal run that cannot go on.
-func (a *API) GoalBlocked(reason string) error {
-	return a.post("goal", "blocked", map[string]any{"reason": reason}, nil)
-}
 
 // View asks the client to show an image after the call.
 func (a *API) View(path string) (cli.ViewResult, error) {

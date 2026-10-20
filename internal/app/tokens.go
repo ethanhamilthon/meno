@@ -3,15 +3,12 @@ package app
 import (
 	"strings"
 	"unicode"
-
-	"meno/internal/modes"
 )
 
 // Skill (/name) references can appear anywhere in the input,
 // as long as the sigil starts a word. A mode (#name) is only the first word.
 const (
 	kindSkill = '/'
-	kindMode  = '#'
 )
 
 type tokSpan struct {
@@ -24,7 +21,7 @@ func isNameRune(r rune) bool {
 	return unicode.IsLetter(r) || unicode.IsDigit(r) || r == '-' || r == '_'
 }
 
-func isSigil(r rune) bool { return r == kindSkill || r == kindMode }
+func isSigil(r rune) bool { return r == kindSkill }
 
 func wordStart(in []rune, i int) bool { return i == 0 || unicode.IsSpace(in[i-1]) }
 
@@ -116,15 +113,6 @@ func (a *App) acMatches() []acItem {
 			if s.Enabled && strings.HasPrefix(strings.ToLower(s.Name), t.prefix) {
 				out = append(out, acItem{kindSkill, s.Name, s.Desc})
 			}
-		}
-	case kindMode:
-		for _, m := range a.modeCatalog() {
-			if strings.HasPrefix(m.Name, t.prefix) {
-				out = append(out, acItem{kindMode, m.Name, m.Description})
-			}
-		}
-		if strings.HasPrefix(modes.Control, t.prefix) {
-			out = append(out, acItem{kindMode, modes.Control, "clear the modes of this session"})
 		}
 	}
 	return out

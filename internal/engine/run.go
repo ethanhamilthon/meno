@@ -64,20 +64,6 @@ func (e *Engine) Message(ctx context.Context, id string, q proto.MessageRequest)
 		s.mu.Unlock()
 		return proto.MessageResponse{}, err
 	}
-	if len(q.Modes) > 0 {
-		oldModes := strings.Join(s.session.Modes, " ")
-		v, er := validateModes(q.Modes)
-		if er != nil {
-			s.mu.Unlock()
-			return proto.MessageResponse{}, er
-		}
-		s.session.Modes = v
-		s.modes = compose(v)
-		s.token.groups = groupsFor(v)
-		if oldModes != strings.Join(v, " ") {
-			s.token.value, _ = newToken()
-		}
-	}
 	if err = e.appendMessage(s, q); err != nil {
 		s.mu.Unlock()
 		return proto.MessageResponse{}, err
@@ -88,11 +74,6 @@ func (e *Engine) Message(ctx context.Context, id string, q proto.MessageRequest)
 	s.phase = "preparing"
 	s.metrics = proto.Metrics{}
 	s.live = proto.LiveState{Calls: []proto.CallState{}}
-	if s.modes.Goal {
-		s.goal = agent.NewGoal(s.modes.Rounds)
-	} else {
-		s.goal = nil
-	}
 	runCtx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
 	_ = e.save(s)
@@ -139,7 +120,7 @@ func (e *Engine) appendMessage(s *runState, q proto.MessageRequest) error {
 		}
 		att = append(att, agent.Attachment{N: i + 1, Mime: img.Mime, SHA: img.SHA, W: img.W, H: img.H})
 	}
-	s.session.Append(agent.Turn{Role: llm.RoleUser, Text: q.Text, Attachments: att, Mode: strings.Join(s.session.Modes, " "), Time: time.Now().UTC()})
+	s.session.Append(agent.Turn{Role: llm.RoleUser, Text: q.Text, Attachments: att, Time: time.Now().UTC()})
 	return nil
 }
 
@@ -169,9 +150,6 @@ func (e *Engine) run(ctx context.Context, s *runState, text string, cont bool) {
 	}
 	s.mu.Unlock()
 	system, diff, ps := e.prepare(ctx, s, effort, s.prompt.system == "")
-	if !cont && s.modes.Text != "" {
-		system += "\n\n" + s.modes.Text
-	}
 	if diff != "" {
 		turns := s.session.Snapshot()
 		if len(turns) > 0 {
@@ -185,7 +163,7 @@ func (e *Engine) run(ctx context.Context, s *runState, text string, cont bool) {
 	if info, ok := p.Lookup(e.catalogView(), model); ok {
 		auto = agent.AutoCompact{Window: info.Context, Percent: e.cfg().CompactPercent, Keep: e.cfg().CompactKeep, SummaryTokens: e.cfg().CompactSummaryTokens}
 	}
-	deps := agent.Deps{Client: e.client(p), Provider: p, Model: model, Effort: effort, System: system, Tool: tool, Thinking: e.cfg().Thinking != "off", ToolDesc: spec.desc, ToolName: spec.name, Goal: s.goal, Queue: &s.queue, AutoCompact: auto, Events: e.eventSource(s.session.ID),
+	deps := agent.Deps{Client: e.client(p), Provider: p, Model: model, Effort: effort, System: system, Tool: tool, Thinking: e.cfg().Thinking != "off", ToolDesc: spec.desc, ToolName: spec.name, Queue: &s.queue, AutoCompact: auto, Events: e.eventSource(s.session.ID),
 		Cost: func(u llm.Usage) (float64, bool) {
 			mi, ok := p.Lookup(e.catalogView(), model)
 			if !ok || !mi.CanPrice(u) {
@@ -213,13 +191,14 @@ func (e *Engine) finish(s *runState, err error) {
 	if err != nil && !errors.Is(err, context.Canceled) {
 		s.lastErr = err.Error()
 	}
-	saveErr := e.save(s)
+	saveErr := agent.SaveCompletion(e.home, s.session)
 	queued := s.queue.Take()
 	requestID, metrics := s.requestID, s.metrics
 	s.mu.Unlock()
 	if saveErr != nil {
 		e.publish(id, proto.EventError, proto.ErrorData{Message: saveErr.Error()})
 	}
+	e.publish(id, proto.EventSessionChanged, proto.ChangedData{Fields: []string{"run", "unread"}})
 	e.publish(id, proto.EventStatus, proto.StatusData{Running: false})
 	if err != nil && errors.Is(err, context.Canceled) {
 		e.publish(id, proto.EventAborted, map[string]any{})

@@ -87,10 +87,3 @@ func (a *App) transcriptWithSelection(w int) []ui.Line {
 	appendLines(ui.BuildLines([]ui.Turn{live}, w, js), ui.TurnHasMessage(live, js))
 	return out
 }
-
-func (a *App) visualHint() string {
-	if a.st.Mode != ui.ModeVisual {
-		return ""
-	}
-	return "hjkl move · y yank · esc back"
-}

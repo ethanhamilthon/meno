@@ -86,13 +86,6 @@ func (r *Runner) loop(ctx context.Context, s *Session) error {
 			if r.D.Queue != nil && r.D.Queue.Len() > 0 {
 				continue // the user spoke meanwhile: answer without ending the turn
 			}
-			if r.D.Goal != nil {
-				if text, ok := r.D.Goal.Nudge(); ok {
-					s.Append(goalEvent(text))
-					r.emit(s, Ev{Kind: EvInjected})
-					continue
-				}
-			}
 			r.emit(s, Ev{Kind: EvDone})
 			return nil
 		}
@@ -109,6 +102,7 @@ func (r *Runner) emit(s *Session, e Ev) {
 		r.cur.usage.Out += e.Usage.Out
 		r.cur.usage.Cached += e.Usage.Cached
 		r.cur.usage.CacheWrite += e.Usage.CacheWrite
+		r.cur.usage.CacheReported = r.cur.usage.CacheReported || e.Usage.CacheReported
 		if r.D.Cost != nil {
 			if c, ok := r.D.Cost(e.Usage); ok {
 				r.cur.cost += c
@@ -137,9 +131,10 @@ func (r *Runner) finish(s *Session, err error) {
 	default:
 		st.Status, st.Err = RunFail, briefErr(err.Error())
 	}
-	if r.D.Cost != nil && !c.unpriced && c.turns > 0 {
+	if r.D.Cost != nil && c.turns > 0 && (!c.unpriced || c.cost > 0) {
 		cost := c.cost
 		st.Cost = &cost
+		st.Partial = c.unpriced
 	}
 	s.SetRun(st)
 	r.cur = nil

@@ -16,7 +16,6 @@ const (
 	File   Kind = "file"
 	Folder Kind = "folder"
 	Skill  Kind = "skill"
-	Mode   Kind = "mode"
 )
 
 // Check says whether a skill or mode reference may stay an object: it is the
@@ -38,8 +37,6 @@ func (o Object) Tag() string {
 	switch o.Kind {
 	case Skill:
 		return "<skill>" + esc(o.Ref) + "</skill>"
-	case Mode:
-		return "<mode>" + esc(o.Ref) + "</mode>"
 	case Folder:
 		return "<folder-link>" + esc(o.Ref) + "</folder-link>"
 	}
@@ -51,8 +48,6 @@ func (o Object) Label() string {
 	switch o.Kind {
 	case Skill:
 		return "/" + o.Ref
-	case Mode:
-		return "#" + o.Ref
 	case Folder:
 		return "@" + filepath.Base(o.Ref) + "/"
 	}
@@ -72,7 +67,6 @@ var kinds = []struct {
 	{"<file-link>", "</file-link>", File},
 	{"<folder-link>", "</folder-link>", Folder},
 	{"<skill>", "</skill>", Skill},
-	{"<mode>", "</mode>", Mode},
 }
 
 // Split cuts text into plain runs and objects. Only well-formed, complete tags

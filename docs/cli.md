@@ -14,8 +14,8 @@
 `sessions`, `send` and `tail` start the daemon when it is not running. They let you drive
 meno from scripts and from other agents without the TUI.
 
-The groups `mcp`, `tasks`, `ask`, `goal`, `view` and `models` act on a session
+The groups `mcp`, `tasks`, `ask`, `view` and `models` act on a session
 (`MENO_SESSION`), which only an agent call has. See [the agent's tool](tools.md).
 
 Run `meno <group> --help` for help; `--json` gives structured output. Exit codes: 0 success,
-1 operation error, 2 invalid syntax, 3 forbidden by the mode, 124 wait timed out.
+1 operation error, 2 invalid syntax, 3 forbidden, 124 wait timed out.

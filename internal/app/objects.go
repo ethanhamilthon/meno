@@ -4,7 +4,6 @@ import (
 	"strings"
 	"sync"
 
-	"meno/internal/modes"
 	"meno/internal/objtag"
 )
 
@@ -106,8 +105,6 @@ func objectKind(sigil rune) (objtag.Kind, bool) {
 	switch sigil {
 	case kindSkill:
 		return objtag.Skill, true
-	case kindMode:
-		return objtag.Mode, true
 	}
 	return "", false
 }
@@ -118,9 +115,6 @@ func (a *App) objectKnown(k objtag.Kind, ref string) bool {
 	switch k {
 	case objtag.Skill:
 		return a.skillEnabled(ref)
-	case objtag.Mode:
-		_, ok := modes.Find(a.modeCatalog(), ref)
-		return ok
 	}
 	return true
 }

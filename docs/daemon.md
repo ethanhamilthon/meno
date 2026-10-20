@@ -41,8 +41,8 @@ The daemon owns configuration reads and writes; the TUI uses these routes too. R
   `GET /login/accounts`, `PUT|DELETE /login/accounts/{file}`,
   `GET /login/helper`, and `POST /login/restart` manage OAuth logins.
 - `GET /skills` and `PUT /skills/{name}/enabled` list and toggle skills.
-- `GET|POST /snippets`, `GET|PUT|DELETE /snippets/{name}`, and
-  `PUT /snippets/{name}/rename` manage shared snippets.
+- `GET /session-state` returns daemon-wide session attention and live-task counts.
+- `POST /sessions/{id}/read` acknowledges the displayed completion generation.
 - `GET|POST /mcp/servers`, `GET|PUT|DELETE /mcp/servers/{name}`, and
   `POST /mcp/servers/{name}/restart` manage MCP servers. mcp.json entries
   are read-only. Responses report starting, running, and error state.

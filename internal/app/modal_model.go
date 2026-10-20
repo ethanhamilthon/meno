@@ -31,6 +31,7 @@ func (a *App) modelKey(k *tcell.EventKey) {
 			a.setSelection(pick.Provider, pick.ID, effort)
 			a.persistSettings()
 			a.closeOverlay()
+			a.st.Mode = ui.ModeInput
 		}
 	default:
 		if a.st.Query.Handle(k) {

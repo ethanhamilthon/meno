@@ -5,7 +5,7 @@ func helpTopic(group string, before []string) string {
 		return group
 	}
 	switch group {
-	case "mcp", "tasks", "goal", "daemon":
+	case "mcp", "tasks", "daemon":
 		return group + "-" + before[0]
 	default:
 		return group

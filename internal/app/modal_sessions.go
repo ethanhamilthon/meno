@@ -22,6 +22,7 @@ type sessionRow struct {
 	UpdatedAt      time.Time
 	Turns          int
 	Model          string // "gpt-5.5 (openai, effort high)", "" when unknown
+	unseen         bool
 	rt             *Runtime
 }
 
@@ -57,12 +58,12 @@ func (a *App) sessionRows() []sessionRow {
 		if rt.Running {
 			updated = time.Now()
 		}
-		rows = append(rows, sessionRow{ID: rt.ID(), Title: rt.sessionTitle(), Cwd: rt.Cwd, UpdatedAt: updated, Turns: rt.Session.Len(), Model: a.runtimeModel(rt), rt: rt})
+		rows = append(rows, sessionRow{ID: rt.ID(), Title: rt.sessionTitle(), Cwd: rt.Cwd, UpdatedAt: updated, Turns: rt.Session.Len(), Model: a.runtimeModel(rt), unseen: rt.Unseen, rt: rt})
 	}
 	for _, s := range a.dbRows {
 		if !seen[s.ID] {
 			t, _ := time.Parse(time.RFC3339Nano, s.UpdatedAt)
-			rows = append(rows, sessionRow{ID: s.ID, Title: s.Name, Cwd: s.Cwd, UpdatedAt: t, Model: s.Model})
+			rows = append(rows, sessionRow{ID: s.ID, Title: s.Name, Cwd: s.Cwd, UpdatedAt: t, Model: s.Model, unseen: s.Completed > s.ReadThrough})
 		}
 	}
 	sort.SliceStable(rows, func(i, j int) bool { return rows[i].UpdatedAt.After(rows[j].UpdatedAt) })
@@ -138,10 +139,10 @@ func (rt *Runtime) status() sessionStatus {
 		return statusRetry
 	case rt.Running:
 		return statusRunning
-	case rt.LastErr:
-		return statusFailed
 	case rt.Unseen:
 		return statusUnseen
+	case rt.LastErr:
+		return statusFailed
 	}
 	return statusIdle
 }

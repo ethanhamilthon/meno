@@ -29,7 +29,7 @@ func (a *App) setAsk(rt *Runtime, f *proto.AskForm) {
 		a.setInput(nil)
 		a.st.Undo, a.st.Redo, a.st.InsBase = nil, nil, a.snapshot()
 		if a.st.Mode != ui.ModeCommand {
-			a.st.Mode = ui.ModeInsert
+			a.st.Mode = ui.ModeInput
 		}
 		a.st.Scroll = 0
 	})

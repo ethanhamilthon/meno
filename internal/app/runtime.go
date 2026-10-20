@@ -100,7 +100,7 @@ func (rt *Runtime) Idle() bool { return !rt.Running && rt.Ask == nil }
 
 // newRuntime wraps a session view in a fresh runtime.
 func (a *App) newRuntime(sess *sessView, cwd string) *Runtime {
-	rt := &Runtime{Session: sess, Cwd: cwd, Mode: ui.ModeInsert}
+	rt := &Runtime{Session: sess, Cwd: cwd, Mode: ui.ModeInput}
 	a.rts[sess.ID()] = rt
 	a.rtList = append(a.rtList, rt)
 	return rt
@@ -137,12 +137,12 @@ func (a *App) inRT(sid string, fn func()) {
 
 // switchTo puts a session on screen.
 func (a *App) switchTo(rt *Runtime) {
+	a.st.Mode = ui.ModeInput
 	prev := a.st.Runtime
 	if prev == rt {
 		return
 	}
 	a.st.Runtime = rt
-	rt.Unseen = false
 	// An empty session nobody used is not worth keeping around.
 	if prev != nil && prev.Empty() && prev.Idle() && !prev.Saved && len(prev.Input) == 0 {
 		a.dropRuntime(prev)

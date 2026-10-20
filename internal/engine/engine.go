@@ -11,7 +11,6 @@ import (
 	"meno/internal/db"
 	"meno/internal/llm"
 	"meno/internal/mcp"
-	"meno/internal/modes"
 	"meno/internal/proc"
 	"meno/internal/proto"
 	"os"
@@ -59,8 +58,6 @@ type runState struct {
 	ask              *askState
 	retry            *proto.RetryState
 	metrics          proto.Metrics
-	goal             *agent.Goal
-	modes            modes.Combined
 	token            tokenState
 	changed          time.Time
 	prompt           promptState
@@ -196,7 +193,8 @@ func (e *Engine) publish(id, typ string, data any) {
 		e.events.Publish(id, typ, data)
 	}
 	if e.global != nil {
-		e.global.Publish(id, proto.EventGlobalStatus, proto.GlobalStatus{SessionID: id, Running: e.running(id), NeedsYou: e.needsYou(id), DoneUnseen: typ == proto.EventDone})
+		completed, read := e.attention(id)
+		e.global.Publish(id, proto.EventGlobalStatus, proto.GlobalStatus{SessionID: id, Running: e.running(id), NeedsYou: e.needsYou(id), DoneUnseen: completed > read})
 	}
 }
 func (e *Engine) running(id string) bool {
@@ -242,8 +240,7 @@ func (e *Engine) load(ctx context.Context, id string) (*runState, error) {
 	if err != nil {
 		return nil, err
 	}
-	st := &runState{cancelled: map[string]bool{}, session: sess, cwd: sess.Cwd, env: map[string]string{}, changed: time.Now(), token: tokenState{value: tok, groups: groupsFor(sess.Modes)}}
-	st.modes = compose(sess.Modes)
+	st := &runState{cancelled: map[string]bool{}, session: sess, cwd: sess.Cwd, env: map[string]string{}, changed: time.Now(), token: tokenState{value: tok, groups: groupsFor(nil)}}
 	st.published = len(sess.Snapshot())
 	e.mu.Lock()
 	if old := e.sessions[id]; old != nil {
@@ -263,7 +260,7 @@ func newToken() (string, error) {
 }
 func groupsFor(names []string) map[string]bool {
 	m := map[string]bool{}
-	for _, g := range []string{"tasks", "mcp", "view", "goal", "models", "ask", "help"} {
+	for _, g := range []string{"tasks", "mcp", "view", "models", "ask", "help"} {
 		m[g] = true
 	}
 	return m

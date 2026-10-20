@@ -1,36 +1,8 @@
 package app
 
 import (
-	"github.com/gdamore/tcell/v2"
-
 	"meno/internal/ui"
 )
-
-// otherSessions counts what the sessions other than the current one are doing.
-func (a *App) otherSessions() (running, waiting, done int) {
-	for _, rt := range a.rtList {
-		if rt == a.st.Runtime {
-			continue
-		}
-		switch rt.status() {
-		case statusAsk:
-			waiting++
-		case statusRunning, statusRetry:
-			running++
-		}
-		if rt.Unseen {
-			done++
-		}
-	}
-	return running, waiting, done
-}
-
-func dimOr(on bool, c tcell.Color) tcell.Color {
-	if on {
-		return c
-	}
-	return ui.FgDim
-}
 
 func (a *App) drawSessions(c ui.Canvas, w, h int) {
 	rows, idx := a.sessionsFiltered()
@@ -40,6 +12,10 @@ func (a *App) drawSessions(c ui.Canvas, w, h int) {
 		g, gfg := "○", ui.FgDim
 		if s.rt != nil {
 			g, gfg = s.rt.status().glyph()
+		}
+		if s.unseen || s.rt != nil && s.rt.Unseen {
+			g = "●"
+			gfg = ui.Blue
 		}
 		title := s.Title
 		if title == "" {

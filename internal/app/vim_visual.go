@@ -17,27 +17,12 @@ func (a *App) startVisual(kind rune) {
 }
 
 func (a *App) exitVisual() {
-	// Remember the text: :save_snippet runs after visual mode has ended.
+	// Keep the clipboard selection after leaving VISUAL.
 	t, top := a.doc()
 	a.st.SelText = joinRngs(t, a.selRngs(t, top))
-	a.st.Mode, a.st.VKind, a.st.VimBuf = ui.ModeNormal, 0, nil
-	a.normClampCursor()
-}
-
-// normClampCursor keeps whichever cursor is active on a character.
-func (a *App) normClampCursor() {
-	if a.st.InLog {
-		t := a.logText()
-		if len(t) == 0 {
-			a.st.InLog = false
-			a.normClamp()
-			return
-		}
-		p := t.clamp(vpos{a.st.LogLine, a.st.LogCol}, false)
-		a.st.LogLine, a.st.LogCol = p.line, p.col
-		return
-	}
-	a.normClamp()
+	a.st.Mode, a.st.VKind, a.st.VimBuf = ui.ModeInput, 0, nil
+	a.st.InLog = false
+	a.clampCursor()
 }
 
 // selOrder returns the selection ends in document order.
@@ -125,6 +110,11 @@ func (a *App) onVisualKey(k *tcell.EventKey) {
 		}
 		return
 	}
+	if r == ':' {
+		a.exitVisual()
+		a.st.Mode = ui.ModeCommand
+		return
+	}
 	if r == '\n' {
 		return
 	}
@@ -145,7 +135,7 @@ func (a *App) onVisualKey(k *tcell.EventKey) {
 }
 
 func (a *App) pageCursor(n int, key string) {
-	if a.st.Mode == ui.ModeVisual || a.st.Mode == ui.ModeNormal {
+	if a.st.Mode == ui.ModeVisual || a.st.Mode == ui.ModeInput {
 		a.moveVertical(vcmd{n: n, key: key})
 	}
 }
