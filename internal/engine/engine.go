@@ -9,7 +9,6 @@ import (
 	"meno/internal/agent"
 	"meno/internal/config"
 	"meno/internal/db"
-	"meno/internal/jsvm"
 	"meno/internal/llm"
 	"meno/internal/mcp"
 	"meno/internal/modes"
@@ -54,21 +53,6 @@ type liveCall struct {
 	limit, elapsed          time.Duration
 	exit                    int
 	timedOut                bool
-}
-type tokenState struct {
-	value  string
-	groups map[string]bool
-}
-type askReply struct {
-	answers []jsvm.FormAnswer
-	err     error
-}
-type askState struct {
-	id       string
-	form     jsvm.Form
-	by       string
-	answer   chan askReply
-	deadline time.Time
 }
 type runState struct {
 	session          *agent.Session
