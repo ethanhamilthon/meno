@@ -58,12 +58,15 @@ func segsWidth(ss []seg) int {
 	return n
 }
 
-// drawSegs draws the segments as one line centered in [x, x+w).
+// drawSegs draws the segments as one line centered in [x+Gutter, x+w-Gutter);
+// a line that is too wide is cut at the right gutter.
 func drawSegs(c ui.Canvas, x, y, w int, ss []seg) {
-	col := x + max(0, (w-segsWidth(ss))/2)
+	g := min(ui.Gutter, max(0, (w-1)/2))
+	lo, hi := x+g, x+w-g
+	col := lo + max(0, (hi-lo-segsWidth(ss))/2)
 	for _, s := range ss {
 		st := ui.Style{FG: s.fg, BG: ui.BgTerm, Bold: s.bold}.TCell()
-		col += c.Text(col, y, max(0, x+w-col), s.text, st)
+		col += c.Text(col, y, max(0, hi-col), s.text, st)
 	}
 }
 

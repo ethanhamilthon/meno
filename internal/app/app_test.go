@@ -48,11 +48,11 @@ func TestTypeAndSendPlaceholder(t *testing.T) {
 	}
 }
 
-func TestCommandModeEnterAndEscape(t *testing.T) {
+func TestEditModeEnterAndEscape(t *testing.T) {
 	a, scr := newTestApp(t)
 	defer scr.Fini()
-	a.onKey(tcell.NewEventKey(tcell.KeyEsc, 0, tcell.ModNone)) // commands start from normal mode
-	if a.st.Mode.Label() != "COMMAND" {
+	a.onKey(tcell.NewEventKey(tcell.KeyEsc, 0, tcell.ModNone))
+	if a.st.Mode.Label() != "EDIT" {
 		t.Fatalf("mode %s", a.st.Mode.Label())
 	}
 	a.onKey(tcell.NewEventKey(tcell.KeyEsc, 0, tcell.ModNone))

@@ -96,7 +96,10 @@ func (a *App) onVisualKey(k *tcell.EventKey) {
 	if r == 0 {
 		switch k.Key() {
 		case tcell.KeyEsc:
+			inLog := a.st.InLog
 			a.exitVisual()
+			a.st.InLog = inLog && len(a.logText()) > 0
+			a.st.Mode = ui.ModeEdit
 		case tcell.KeyCtrlV:
 			a.switchVisual('b')
 		case tcell.KeyCtrlE:
@@ -110,17 +113,7 @@ func (a *App) onVisualKey(k *tcell.EventKey) {
 		}
 		return
 	}
-	if r == ':' {
-		a.exitVisual()
-		a.st.Mode = ui.ModeCommand
-		return
-	}
-	if r == '\n' {
-		return
-	}
-	if r == ':' && len(a.st.VimBuf) == 0 {
-		a.exitVisual()
-		a.st.Mode, a.st.Cmd = ui.ModeCommand, nil
+	if r == ':' || r == '\n' {
 		return
 	}
 	a.st.VimBuf = append(a.st.VimBuf, r)

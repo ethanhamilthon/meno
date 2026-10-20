@@ -9,26 +9,6 @@ import (
 // skillsIntro opens the skills element.
 const skillsIntro = "A skill is an instruction file for one type of work. When the task matches a skill, read its file with cat before you start. Obey the file. If the user writes /name, read that skill first."
 
-const voiceRules = `Answer in the shortest form that is still complete.
-- No preamble, no restating the request, no "let me", no offer to continue, no praise.
-- Say what changed and what you checked, one line per fact. No headings.
-- Bullets only for three or more items.
-- Do not explain code you did not change.
-- Say "unverified" instead of guessing.`
-
-const verificationRules = `- Check the smallest thing that can fail: the package you touched, not the whole repo.
-- Run the full suite once, before you say the work is done.
-- A failing test is not done until it passes or until you say why it cannot.
-- Do not run the same command twice unchanged.`
-
-const outputRules = `- Ask the program for less: head, tail, a filter, a narrower flag. Do not dump a directory or a whole log.
-- Return the value you need, not the whole object.
-- Everything a call prints stays in the context for the rest of the run and is paid for again in every request.`
-
-func voiceSection() string        { return element("voice", voiceRules) }
-func verificationSection() string { return element("verification", verificationRules) }
-func outputSection() string       { return element("output", outputRules) }
-
 func skillsSection(skills []Skill) string {
 	if len(skills) == 0 {
 		return ""

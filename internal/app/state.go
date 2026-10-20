@@ -62,17 +62,15 @@ type State struct {
 	OverlayOrigin ui.Mode
 	Over          Overlay
 	// UpdateTag is the newer release the background check found ("" if none).
-	UpdateTag        string
-	TasksUI          tasksView
-	CmdUndo, CmdRedo []commandPoint
-	CmdCursor        int
-	CmdTop           int
-	CmdSel           int
-	Pricing          map[string]llm.ModelInfo
-	Cmd              []rune
-	Sel              int
-	Query            textEdit
-	Status           string
+	UpdateTag  string
+	TasksUI    tasksView
+	CmdSel     int
+	CmdPicked  bool // an arrow chose the row, so Enter may run it on an empty line
+	Pricing    map[string]llm.ModelInfo
+	CmdDismiss int // start offset+1 of a command token the user closed with Esc
+	Sel        int
+	Query      textEdit
+	Status     string
 
 	Settings   config.Settings
 	Providers  []llm.Provider

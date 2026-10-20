@@ -8,7 +8,7 @@ notify command), Enter saves it and Esc cancels. Every change is saved at once.
 
 | Tab | Setting | Values |
 | --- | --- | --- |
-| General | theme | `meno`, `pure-black`, `catppuccin-mocha`, or a custom theme; live preview |
+| General | theme | `default` or a custom theme from `theme.json`; live preview |
 | General | images | `auto`, `off`, `kitty`, `sixel`, `iterm` — see [terminal graphics](graphics.md) |
 | Display | bash code | `all`, `lines <n>`, `off` — how much command text the timeline shows |
 | Display | bash output | `all`, `lines <n>`, `off` |

@@ -43,7 +43,7 @@ func (a *App) bottomHeight() int { return a.bottomBase() }
 // status bar and the gap above them.
 func (a *App) bottomBase() int {
 	w, _ := a.scr.Size()
-	return a.activeComposerHeight(w) + a.activeCompletionHeight(w) + 1 + a.logGap()
+	return a.composerHeightFor(w) + a.completionHeight(w) + 1 + a.logGap()
 }
 func (a *App) drawLog(c ui.Canvas, x, y, w, h int, lines []ui.Line) {
 	c.Fill(x, y, w, h, ui.BgTerm)
@@ -74,8 +74,8 @@ func (a *App) drawBottom(c ui.Canvas, x, y, w, h int) {
 	statusY := y + h - 1
 	bodyH := max(0, h-1)
 	if bodyH > 0 {
-		ac := min(a.activeCompletionHeight(w), max(0, bodyH-a.activeComposerHeight(w)))
-		if ac > 0 && a.st.Mode == ui.ModeCommand {
+		ac := min(a.completionHeight(w), max(0, bodyH-a.composerHeightFor(w)))
+		if ac > 0 && a.cmdActive() {
 			a.drawCommandRows(c, x, y, w, ac)
 		} else if ac > 0 && !a.acActive() {
 			a.drawQueue(c, x, y, w, ac)
@@ -85,7 +85,7 @@ func (a *App) drawBottom(c ui.Canvas, x, y, w, h int) {
 		y += ac
 		bodyH -= ac
 		c.Fill(x, y, w, bodyH, ui.BgTerm)
-		a.drawActiveComposer(c, x, y, w, bodyH)
+		a.drawComposer(c, x, y, w, bodyH)
 	}
 	a.drawStatus(c, x, statusY, w)
 }

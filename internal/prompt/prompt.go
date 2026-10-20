@@ -11,7 +11,7 @@ import (
 )
 
 // identityPrompt is the first section: who the agent is, nothing else.
-const identityPrompt = "You are meno, a coding agent."
+const identityPrompt = "You are Meno, a coding agent."
 
 // Skill is one enabled skill as the model sees it.
 type Skill struct {
@@ -40,24 +40,13 @@ const MaxInstructions = 256 << 10
 type Input struct {
 	Cwd           string
 	Skills        []Skill
-	GlobalAgents  Instructions
 	ProjectAgents Instructions
 	Tools         []Tool
 	Now           time.Time
 	OS, Shell     string
-	// Only lists the tool groups this prompt keeps; nil keeps them all.
-	Only []string
-	// Tool names the tool of the session; the prompt is always the bash one.
-	Tool string
-	// Allow lists bash command groups; nil allows every group.
-	Allow []string
 	// Model is the model this session talks to; empty omits the line.
 	Provider, Model, Effort string
 }
-
-// Build returns the full system prompt. Sections go from the most stable to
-// the most volatile so that a change only invalidates the text after it.
-func Build(in Input) string { return buildBash(in) }
 
 // DescribeModel renders a model selection as "gpt-5.5 (openai, effort high)".
 func DescribeModel(provider, model, effort string) string {

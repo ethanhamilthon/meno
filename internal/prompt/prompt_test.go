@@ -14,7 +14,6 @@ func full() Input {
 	return Input{
 		Cwd:           "/w",
 		Skills:        []Skill{{"b", "second", "/p/b.md"}, {"a", "first", "/p/a.md"}},
-		GlobalAgents:  Instructions{"/h/AGENTS.md", "global text\n"},
 		ProjectAgents: Instructions{"/w/AGENTS.md", "project text"},
 		Tools:         []Tool{{"s2", "x", "", "{}"}, {"s1", "y", "", "{}"}, {"s1", "a", "", "{}"}},
 		Now:           now,
@@ -30,8 +29,8 @@ func TestSectionOrder(t *testing.T) {
 	}
 	last := -1
 	for _, h := range []string{
-		"You are meno, a coding agent.", "<voice>", "<method>", "<editing>", "<verification>", "<output>", "<guidelines>", "<skills>",
-		"<global-instructions>", "<project-instructions>", "<mcp-servers>", "<environment>",
+		"You are Meno, a coding agent.", "<skills>",
+		"<project-instructions>", "<mcp-servers>", "<environment>",
 	} {
 		i := strings.Index(out, h)
 		if i <= last {
@@ -39,7 +38,7 @@ func TestSectionOrder(t *testing.T) {
 		}
 		last = i
 	}
-	if !strings.HasPrefix(out, "You are meno, a coding agent.\n\n<voice>") {
+	if !strings.HasPrefix(out, "You are Meno, a coding agent.\n\n<skills>") {
 		t.Fatal("identity must be a bare first line")
 	}
 	if !strings.HasSuffix(out, "- Working directory: /w\n- OS: macOS 15.1 (darwin/arm64). Shell: /bin/sh.\n- Date: 2026-10-17, Saturday (UTC).\n</environment>") {
@@ -67,19 +66,19 @@ func TestEnvironmentNamesTheModel(t *testing.T) {
 
 func TestOptionalSectionsAbsentWhenEmpty(t *testing.T) {
 	out := Build(Input{Cwd: "/w", Now: now})
-	for _, h := range []string{"skills", "global-instructions", "project-instructions", "mcp-servers"} {
+	for _, h := range []string{"skills", "project-instructions", "mcp-servers"} {
 		if strings.Contains(out, "<"+h+">") || strings.Contains(out, "</"+h+">") {
 			t.Fatalf("%s must be absent:\n%s", h, out)
 		}
 	}
-	if !strings.Contains(out, "<environment>") || !strings.Contains(out, "<guidelines>") {
+	if !strings.Contains(out, "<environment>") {
 		t.Fatal("bare prompt lost a fixed section")
 	}
 }
 
 func TestInstructionsFormat(t *testing.T) {
 	out := Build(full())
-	want := "<global-instructions>\nFrom /h/AGENTS.md. Follow these unless the user's message says otherwise.\n\nglobal text\n</global-instructions>\n\n<project-instructions>\nFrom /w/AGENTS.md. Follow these unless the user's message says otherwise.\n\nproject text\n</project-instructions>\n\n"
+	want := "<project-instructions>\nFrom /w/AGENTS.md. Follow these unless the user's message says otherwise.\n\nproject text\n</project-instructions>\n\n"
 	if !strings.Contains(out, want) {
 		t.Fatalf("instructions format:\n%s", out)
 	}
@@ -94,7 +93,6 @@ func TestPrefixIsByteStable(t *testing.T) {
 		marker string // first heading that may differ
 	}{
 		{"skills", func(i *Input) { i.Skills = append(i.Skills, Skill{"c", "", "/c.md"}) }, "<skills>"},
-		{"global agents", func(i *Input) { i.GlobalAgents.Text = "other" }, "<global-instructions>"},
 		{"project agents", func(i *Input) { i.ProjectAgents = Instructions{} }, "<project-instructions>"},
 		{"tools", func(i *Input) { i.Tools = i.Tools[:1] }, "<mcp-servers>"},
 		{"cwd and date", func(i *Input) { i.Cwd = "/other"; i.Now = now.AddDate(0, 0, 1) }, "<environment>"},

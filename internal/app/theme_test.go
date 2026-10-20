@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -20,18 +21,20 @@ func themeApp(t *testing.T) (*App, tcell.SimulationScreen) {
 
 func TestSettingsThemeCyclesAndPersists(t *testing.T) {
 	a, s := themeApp(t)
+	extra, _ := ui.ThemesFromJSON([]json.RawMessage{json.RawMessage(`{"name":"mine","dark":true,"bg":"101010","fg":"EEEEEE","dim":"777777","blue":"5555FF","purple":"AA55FF","green":"55FF55","yellow":"FFFF55","red":"FF5555","orange":"FFAA55"}`)})
+	ui.SetExtraThemes(extra)
+	t.Cleanup(func() { ui.SetExtraThemes(nil) })
 	a.runCommand("settings")
 	if a.st.Over != OverSettings {
 		t.Fatal("settings dialog did not open")
 	}
 	a.draw()
 	text := screenText(s)
-	if !strings.Contains(text, "General") || !strings.Contains(text, "theme") || !strings.Contains(text, "meno") {
+	if !strings.Contains(text, "General") || !strings.Contains(text, "theme") || !strings.Contains(text, "default") {
 		t.Fatalf("General tab or theme row missing:\n%s", text)
 	}
 	a.onKey(keyK(tcell.KeyRight))
-	a.onKey(keyK(tcell.KeyRight))
-	want := ui.Themes()[2].Name
+	want := ui.Themes()[1].Name
 	if ui.CurrentTheme() != want || a.st.Settings.Theme != want {
 		t.Fatalf("theme %q/%q, want %q", ui.CurrentTheme(), a.st.Settings.Theme, want)
 	}
@@ -68,7 +71,7 @@ func TestThemeLoadedAtStartupWithFallback(t *testing.T) {
 	}
 	defer scr.Fini()
 	a, err := New(scr, config.Paths{Home: dir, Cwd: dir}, r.cl)
-	if err != nil || ui.CurrentTheme() != "catppuccin-mocha" {
+	if err != nil || ui.CurrentTheme() != ui.DefaultTheme {
 		t.Fatalf("startup theme %q err %v", ui.CurrentTheme(), err)
 	}
 	a.Close()

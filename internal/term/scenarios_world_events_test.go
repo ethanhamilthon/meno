@@ -16,7 +16,7 @@ func TestModelSwitchProducesSystemEvent(t *testing.T) {
 	f.Handler = func(q *llmReq) { q.Text("noted") }
 	s := start(t, options{fake: f})
 	s.Say("first message")
-	s.WaitFor("in 100 · out 20")
+	s.WaitFor("↑100 ↓20")
 	s.Cmd("model")
 	s.WaitFor("other-model")
 	s.Send(Down + Enter)
@@ -46,7 +46,7 @@ func TestCdProducesSystemEvent(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.Say("first")
-	s.WaitFor("in 100 · out 20")
+	s.WaitFor("↑100 ↓20")
 	s.Cmd("cd sub")
 	s.WaitFor("working directory")
 	s.Say("second")

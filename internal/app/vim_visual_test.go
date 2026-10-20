@@ -26,9 +26,9 @@ func visualApp(t *testing.T) *App {
 
 func TestVisualDraftAndHistoryEntry(t *testing.T) {
 	a := visualApp(t)
-	a.st.Mode = ui.ModeCommand
 	a.st.Cursor = 0
-	a.runCommand("v")
+	a.runCommand("edit")
+	vimKeys(a, "v")
 	if a.st.Mode != ui.ModeVisual || a.st.InLog {
 		t.Fatal("draft not selected")
 	}
@@ -37,11 +37,16 @@ func TestVisualDraftAndHistoryEntry(t *testing.T) {
 		t.Fatal("history motion failed")
 	}
 	a.onKey(keyK(tcell.KeyEsc))
+	if a.st.Mode != ui.ModeEdit {
+		t.Fatal("exit not EDIT")
+	}
+	a.onKey(keyK(tcell.KeyEsc))
 	if a.st.Mode != ui.ModeInput {
 		t.Fatal("exit not INPUT")
 	}
 	a.setInput(nil)
-	a.runCommand("visual")
+	a.runCommand("edit")
+	vimKeys(a, "v")
 	if !a.st.InLog || a.st.Mode != ui.ModeVisual {
 		t.Fatal("empty draft must select history")
 	}
@@ -53,7 +58,8 @@ func TestVisualEditsInput(t *testing.T) {
 		a.st.Session.Replace(nil)
 		a.setInput([]rune("alpha beta"))
 		a.st.Cursor = 0
-		a.runCommand("v")
+		a.runCommand("edit")
+		vimKeys(a, "v")
 		vimKeys(a, tc.keys)
 		if string(a.st.Input) != tc.want {
 			t.Fatalf("%s: %q", tc.keys, string(a.st.Input))
@@ -67,11 +73,13 @@ func TestVisualEditsInput(t *testing.T) {
 func TestVisualDeleteInTimelineIsRefused(t *testing.T) {
 	a := visualApp(t)
 	a.setInput(nil)
-	a.runCommand("v")
+	a.runCommand("edit")
+	vimKeys(a, "v")
 	vimKeys(a, "ld")
 	if !strings.Contains(a.lastNotice(), "read-only") || a.st.Mode != ui.ModeVisual {
 		t.Fatalf("%s %v", a.lastNotice(), a.st.Mode)
 	}
+	a.onKey(keyK(tcell.KeyEsc))
 	a.onKey(keyK(tcell.KeyEsc))
 	if a.st.Mode != ui.ModeInput {
 		t.Fatal("exit failed")
@@ -81,7 +89,8 @@ func TestVisualDeleteInTimelineIsRefused(t *testing.T) {
 func TestVisualHighlightAndCursorRendering(t *testing.T) {
 	a := visualApp(t)
 	a.st.Cursor = 0
-	a.runCommand("v")
+	a.runCommand("edit")
+	vimKeys(a, "v")
 	vimKeys(a, "l")
 	a.draw()
 	scr := a.scr.(tcell.SimulationScreen)
@@ -103,7 +112,8 @@ func TestTimelineCursorScrollsIntoView(t *testing.T) {
 		a.st.Session.Append(agent.Turn{Role: llm.RoleUser, Text: "row " + itoa(i)})
 	}
 	a.setInput(nil)
-	a.runCommand("v")
+	a.runCommand("edit")
+	vimKeys(a, "v")
 	vimKeys(a, "gg")
 	a.draw()
 	if a.st.LogLine != 0 || !strings.Contains(screenText(s), "row 0") {

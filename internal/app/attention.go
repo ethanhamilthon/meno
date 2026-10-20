@@ -75,15 +75,14 @@ func (a *App) globalCounts() []ui.Seg {
 		{asking, "Asking", ui.Seg{FG: ui.Orange}}, {done, "done", ui.Seg{FG: ui.Blue}},
 	}
 	var out []ui.Seg
-	for i, v := range values {
-		if i > 0 {
+	for _, v := range values {
+		if v.n == 0 {
+			continue
+		}
+		if len(out) > 0 {
 			out = append(out, ui.Seg{Text: " | ", FG: ui.FgDim})
 		}
-		fg := v.color.FG
-		if v.n == 0 {
-			fg = ui.FgDim
-		}
-		out = append(out, ui.Seg{Text: itoa(v.n) + " " + v.name, FG: fg})
+		out = append(out, ui.Seg{Text: itoa(v.n) + " " + v.name, FG: v.color.FG})
 	}
 	return out
 }

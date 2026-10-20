@@ -3,6 +3,7 @@ package app
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 
@@ -192,14 +193,6 @@ func TestCursorBlinksOnlyInInsertMode(t *testing.T) {
 	if _, _, vis := s.GetCursor(); !vis || s.style != tcell.CursorStyleSteadyBlock {
 		t.Fatalf("visual: vis=%v style=%v", vis, s.style)
 	}
-	a.st.Mode = ui.ModeCommand
-	a.st.Cmd = []rune("mo")
-	a.st.CmdCursor = 2
-	a.draw()
-	x, y, vis = s.GetCursor()
-	if !vis || x != a.st.ComposerX+2 || y != a.st.ComposerY || s.style != tcell.CursorStyleSteadyBar {
-		t.Fatalf("command cursor %d,%d vis=%v style=%v", x, y, vis, s.style)
-	}
 	a.st.Mode = ui.ModeInput
 	a.openOverlay(OverHelp)
 	a.draw()
@@ -208,22 +201,29 @@ func TestCursorBlinksOnlyInInsertMode(t *testing.T) {
 	}
 }
 
-func TestPlaceholderFollowsAgentPhase(t *testing.T) {
+func TestPlaceholderHasThreeTexts(t *testing.T) {
 	a, s := visualFixture(t, 90, 20)
-	row := func() string { a.draw(); return visualRow(s, a.logHeight()+1) }
-	if got := row(); !strings.Contains(got, "give a task... or use /skills") {
-		t.Fatalf("idle: %q", got)
+	row := func() string { a.draw(); return screenText(s) }
+	if got := row(); !strings.Contains(got, "Type to start building anything") {
+		t.Fatalf("new session: %q", got)
 	}
 	a.st.Running = true
-	for phase, want := range map[string]string{"thinking": "thinking...", "running": "running...", "writing": "writing...", "": "working..."} {
+	for _, phase := range []string{"thinking", "running", "writing", "x"} {
 		a.st.Phase = phase
-		if got := row(); !strings.Contains(got, want) || strings.Contains(got, "give a task") {
+		a.st.RunStart = time.Now().Add(-5 * time.Second)
+		got := row()
+		if !strings.Contains(got, "Tell the working agent something") || strings.Contains(got, phase+"...") || strings.Contains(got, "0:05") {
 			t.Fatalf("phase %q: %q", phase, got)
 		}
 	}
 	a.st.Running = false
+	a.st.LiveText = "an answer"
+	a.st.Phase = ""
+	if got := row(); !strings.Contains(got, "Type your next task here") {
+		t.Fatalf("after an answer: %q", got)
+	}
 	a.setInput([]rune("typed"))
-	if got := row(); strings.Contains(got, "give a task") || !strings.Contains(got, "typed") {
+	if got := row(); strings.Contains(got, "Type your next task") || !strings.Contains(got, "typed") {
 		t.Fatalf("typed: %q", got)
 	}
 }

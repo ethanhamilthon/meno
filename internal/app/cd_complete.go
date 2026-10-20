@@ -15,7 +15,7 @@ const maxCdRows = 500
 // at all. The directory listing is cached per input and working directory, as
 // the rows are asked for on every frame.
 func (a *App) cdRows() ([]string, bool) {
-	cmd := string(a.st.Cmd)
+	cmd := a.cmdQuery()
 	arg, ok := strings.CutPrefix(cmd, "cd ")
 	if !ok {
 		return nil, false

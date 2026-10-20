@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"strings"
+
 	"github.com/gdamore/tcell/v2"
 )
 
@@ -44,20 +46,25 @@ func (s Seg) style(bg tcell.Color) tcell.Style {
 	return st
 }
 
+// DrawBar draws a one-row bar. Text stays inside the gutter on both sides:
+// left text starts at x+Gutter, right text ends at x+w-Gutter. The center is
+// optional and dropped when it does not fit.
 func DrawBar(c Canvas, x, y, w int, bg tcell.Color, left, mid, right []Seg) {
 	c.Fill(x, y, w, 1, bg)
-	cx := x
+	g := min(Gutter, max(0, (w-1)/2))
+	lo, hi := x+g, x+w-g
+	cx := lo
 	for _, s := range left {
-		cx += c.Text(cx, y, x+w-cx, s.Text, tcell.StyleDefault.Foreground(s.FG).Background(bg))
+		cx += c.Text(cx, y, max(0, hi-cx), s.Text, tcell.StyleDefault.Foreground(s.FG).Background(bg))
 	}
 	rw := TextWidth(joinSegs(right))
 	// Keep both edge anchors visible on narrow terminals. The center is optional.
-	rightW := max(0, w-(cx-x)-1)
+	rightW := max(0, hi-cx-1)
 	if rw > rightW {
 		right = []Seg{{Text: Truncate(joinSegs(right), rightW), FG: FgDim}}
 		rw = TextWidth(joinSegs(right))
 	}
-	rx := x + w - rw
+	rx := hi - rw
 	mw := TextWidth(joinSegs(mid))
 	mx := x + (w-mw)/2
 	if mx < cx+1 || mx+mw > rx-1 {
@@ -69,7 +76,7 @@ func DrawBar(c Canvas, x, y, w int, bg tcell.Color, left, mid, right []Seg) {
 	}
 	cx = rx
 	for _, s := range right {
-		cx += c.Text(cx, y, x+w-cx, s.Text, tcell.StyleDefault.Foreground(s.FG).Background(bg))
+		cx += c.Text(cx, y, max(0, hi-cx), s.Text, tcell.StyleDefault.Foreground(s.FG).Background(bg))
 	}
 }
 
@@ -81,6 +88,10 @@ func joinSegs(s []Seg) string {
 	return out
 }
 
+// Badge paints a colored label from the left edge. The color block may use the
+// gutter; the label text starts at column Gutter.
 func Badge(c Canvas, x, y int, label string, bg tcell.Color) int {
-	return c.Text(x, y, 1000, " "+label+" ", tcell.StyleDefault.Foreground(FgBlack).Background(bg))
+	st := tcell.StyleDefault.Foreground(FgBlack).Background(bg)
+	lead := strings.Repeat(" ", Gutter)
+	return c.Text(x, y, 1000, lead+label+" ", st)
 }

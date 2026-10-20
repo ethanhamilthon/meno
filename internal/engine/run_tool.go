@@ -9,15 +9,13 @@ import (
 
 // toolSpec is what a run tells the model about its one tool.
 type toolSpec struct {
-	name  string // "" is the js tool, "bash" the shell tool
-	desc  string
-	allow []string // command groups of the bash prompt; nil = all
+	name string // "" is the js tool, "bash" the shell tool
+	desc string
 }
 
 // toolSpecFor builds the tool definition of a session for one request.
 func (e *Engine) toolSpecFor(s *runState) toolSpec {
-	var allow []string
-	return toolSpec{name: "bash", desc: prompt.BashToolDescriptionFor(allow), allow: allow}
+	return toolSpec{name: "bash", desc: prompt.BashToolDescription()}
 }
 
 var exitLine = regexp.MustCompile(`\[exit (-?\d+)\]\s*$`)

@@ -80,9 +80,12 @@ func SummaryLines(s *RunStats, w int) []Line {
 	if s == nil {
 		return nil
 	}
-	cache := "?/?"
+	cache := "?"
 	if s.CacheKnown || s.Cached > 0 || s.CacheWrite > 0 {
-		cache = fmt.Sprintf("%d/%d", s.Cached, s.CacheWrite)
+		cache = "0%"
+		if s.In > 0 {
+			cache = fmt.Sprintf("%.0f%%", 100*float64(min(max(0, s.Cached), s.In))/float64(s.In))
+		}
 	}
 	cost := "$?"
 	if s.Cost != nil {
@@ -91,7 +94,7 @@ func SummaryLines(s *RunStats, w int) []Line {
 			cost += "+?"
 		}
 	}
-	left := fmt.Sprintf("in %d · out %d · cache %s · %s", s.In, s.Out, cache, cost)
+	left := fmt.Sprintf("↑%s ↓%s · cache %s · %s", CompactCount(s.In), CompactCount(s.Out), cache, cost)
 	right := fmt.Sprintf("%s · %d bash", FmtDur(time.Duration(s.ElapsedMs)*time.Millisecond), s.ToolCalls)
 	var out []Line
 	if s.Status == "fail" {

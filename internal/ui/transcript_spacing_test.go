@@ -34,11 +34,11 @@ func TestToolTurnsHaveNoExtraGap(t *testing.T) {
 	}
 }
 
-func TestPureBlackMatchesFilePalette(t *testing.T) {
+func TestDefaultMatchesFilePalette(t *testing.T) {
 	raw := []byte(`{"name":"sample","dark":true,"bg":"000000","fg":"EDEDED","dim":"888888","blue":"52A8FF","purple":"BF7AF0","green":"62C073","yellow":"FFCA16","red":"FF6166","orange":"F5A623"}`)
 	var want Theme
 	for _, th := range Themes() {
-		if th.Name == "pure-black" {
+		if th.Name == DefaultTheme {
 			want = th
 		}
 	}

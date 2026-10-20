@@ -3,7 +3,6 @@
 package term
 
 import (
-	"strings"
 	"testing"
 	"time"
 )
@@ -11,10 +10,6 @@ import (
 // Say types a message and submits it.
 func (s *session) Say(text string) {
 	s.t.Helper()
-	if strings.Contains(s.Screen(), "COMMAND") {
-		s.Send(Esc)
-		time.Sleep(150 * time.Millisecond)
-	}
 	s.Type(text)
 	s.Send(Enter)
 }

@@ -3,46 +3,44 @@ package app
 import (
 	"fmt"
 	"github.com/gdamore/tcell/v2"
+	"meno/internal/llm"
 	"meno/internal/ui"
 )
 
+func usageLine(u llm.Usage) string {
+	return fmt.Sprintf("in %s · out %s · cache hit %s", compactTokens(u.In), compactTokens(u.Out), cacheShare(u))
+}
+
+// usageSince is the usage added after the snapshot from.
+func usageSince(now, from llm.Usage) llm.Usage {
+	return llm.Usage{In: now.In - from.In, Out: now.Out - from.Out, Cached: now.Cached - from.Cached,
+		CacheWrite: now.CacheWrite - from.CacheWrite, CacheReported: now.CacheReported}
+}
+
 func (a *App) contextRows() []string {
 	p, m, _ := a.selection()
-	u := a.st.Usage
-	cost := fmtSpend(a.st.Spent)
+	spent := fmtSpend(a.st.Spent)
 	if a.st.Unpriced {
-		cost += " (partial; unpriced usage)"
-	}
-	cache := "? / ?"
-	if u.CacheReported {
-		cache = fmt.Sprintf("%d / %d", u.Cached, u.CacheWrite)
+		spent += " (partial)"
 	}
 	rows := []string{
-		"Context", p + " / " + m, a.statsText(),
-		"", "Session total",
-		fmt.Sprintf("Input: %d   Output: %d", u.In, u.Out),
-		"Cache read / write: " + cache,
-		"Cost: " + cost,
-		"", "Cache is read/write. Cache reads are part of input, not extra input.",
-		"Context size is the latest request estimate, not lifetime token usage.",
-	}
-	if a.st.Session != nil {
-		turns := a.st.Session.Turns()
-		for i := len(turns) - 1; i >= 0; i-- {
-			if turns[i].Run != nil {
-				r := turns[i].Run
-				rows = append(rows, "", "Latest finalized run")
-				for _, line := range ui.SummaryLines(r, 80) {
-					rows = append(rows, line.Text())
-				}
-				break
-			}
-		}
+		"model            " + p + " / " + m,
+		"ctx              " + a.ctxLabel() + a.ctxPercent(),
+		"spent            " + spent,
+		"last turn        " + usageLine(a.st.LastUsage),
+		"session          " + usageLine(a.st.Usage),
 	}
 	if a.st.Running {
-		rows = append(rows, "", "Current run (provisional)", fmt.Sprintf("Input: %d   Output: %d", a.st.Usage.In-a.st.RunUsage0.In, a.st.Usage.Out-a.st.RunUsage0.Out))
+		rows = append(rows, "current request  "+usageLine(usageSince(a.st.Usage, a.st.RunUsage0)))
 	}
 	return rows
+}
+
+func (a *App) ctxPercent() string {
+	if info, ok := a.modelInfo(); ok && info.Context > 0 {
+		return fmt.Sprintf(" (%.0f%%)", 100*float64(a.st.Context)/float64(info.Context))
+	}
+	return ""
 }
 func (a *App) onContextKey(k *tcell.EventKey) {
 	if k.Key() == tcell.KeyEsc || k.Key() == tcell.KeyEnter {

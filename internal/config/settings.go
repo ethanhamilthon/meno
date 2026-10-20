@@ -135,7 +135,7 @@ func DefaultSettings() Settings {
 		Thinking:       "all",
 		TurnSummary:    "on",
 		ThinkLines:     5,
-		Theme:          "meno",
+		Theme:          "default",
 		CompactPercent: 80, CompactKeep: 8, CompactSummaryTokens: 4000,
 		Notify:       "off",
 		NotifySound:  "default",

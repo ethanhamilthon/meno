@@ -5,7 +5,6 @@ import (
 
 	"github.com/alecthomas/chroma/v2"
 	"github.com/alecthomas/chroma/v2/lexers"
-	"github.com/gdamore/tcell/v2"
 )
 
 // bashSegments preserves source exactly; malformed or oversized input stays plain.
@@ -41,29 +40,6 @@ func bashSegments(source string) (segments []Seg) {
 		}
 		cacheBashTokens(source, tokens)
 	}
-	for _, token := range tokens {
-		segments = append(segments, Seg{Text: token.Value, FG: bashTokenColor(token.Type)})
-	}
+	segments = bashColorize(tokens)
 	return segments
-}
-
-func bashTokenColor(t chroma.TokenType) tcell.Color {
-	switch {
-	case t.InCategory(chroma.Comment):
-		return FgDim
-	case t.InCategory(chroma.Keyword):
-		return Purple
-	case t.InSubCategory(chroma.NameVariable):
-		return Orange
-	case t.InSubCategory(chroma.LiteralString):
-		return Green
-	case t.InSubCategory(chroma.LiteralNumber):
-		return Orange
-	case t == chroma.NameBuiltin || t == chroma.NameFunction:
-		return Blue
-	case t.InCategory(chroma.Operator) || t.InCategory(chroma.Punctuation):
-		return FgSoft
-	default:
-		return FgWhite
-	}
 }

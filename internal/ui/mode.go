@@ -7,8 +7,8 @@ type Mode int
 const (
 	ModeInput Mode = iota
 	ModeVisual
-	ModeCommand
 	ModeModal
+	ModeEdit
 )
 
 func (m Mode) Label() string {
@@ -17,8 +17,8 @@ func (m Mode) Label() string {
 		return "INPUT"
 	case ModeVisual:
 		return "VISUAL"
-	case ModeCommand:
-		return "COMMAND"
+	case ModeEdit:
+		return "EDIT"
 	}
 	return "MODAL"
 }
@@ -29,8 +29,8 @@ func (m Mode) Color() tcell.Color {
 		return Green
 	case ModeVisual:
 		return Orange
-	case ModeCommand:
-		return Yellow
+	case ModeEdit:
+		return Blue
 	}
 	return Purple
 }

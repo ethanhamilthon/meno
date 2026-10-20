@@ -30,8 +30,25 @@ func (a *App) statusLeft(w int) (string, []ui.Seg) {
 	return label, []ui.Seg{{Text: " " + label + " ", FG: ui.FgBlack}}
 }
 
-// statusRight is the right side: the model and nothing else.
+// ctxLabel is the context size and the model's window, "12k/200k".
+func (a *App) ctxLabel() string {
+	max := "?"
+	if info, ok := a.modelInfo(); ok && info.Context > 0 {
+		max = compactTokens(info.Context)
+	}
+	return compactTokens(a.st.Context) + "/" + max
+}
+
+// statusRight is the right side: the model and its context use.
 func (a *App) statusRight() []ui.Seg {
+	if _, m, _ := a.selection(); m == "" {
+		return []ui.Seg{{Text: a.modelLabel(), FG: ui.FgDim}, {Text: " ", FG: ui.FgDim}}
+	}
+	return []ui.Seg{{Text: a.modelLabel() + " ", FG: ui.FgDim}, {Text: a.ctxLabel(), FG: ui.FgDim}, {Text: " ", FG: ui.FgDim}}
+}
+
+// statusRightModel is the right side without the context figures.
+func (a *App) statusRightModel() []ui.Seg {
 	return []ui.Seg{{Text: a.modelLabel(), FG: ui.FgDim}, {Text: " ", FG: ui.FgDim}}
 }
 
@@ -40,21 +57,21 @@ func (a *App) drawStatus(c ui.Canvas, x, y, w int) {
 	mid := a.globalCounts()
 	right := a.statusRight()
 	if ui.TextWidth(joinSegText(mid))+ui.TextWidth(joinSegText(left))+ui.TextWidth(joinSegText(right))+4 > w {
+		right = a.statusRightModel()
+	}
+	if ui.TextWidth(joinSegText(mid))+ui.TextWidth(joinSegText(left))+ui.TextWidth(joinSegText(right))+4 > w {
 		right = nil
 	}
 	if ui.TextWidth(joinSegText(mid))+ui.TextWidth(joinSegText(left))+4 > w {
-		short := []string{"r", "t", "a", "d"}
-		j := 0
 		for i := range mid {
 			if mid[i].Text == " | " {
 				continue
 			}
 			parts := strings.Fields(mid[i].Text)
-			mid[i].Text = parts[0] + short[j]
-			j++
+			mid[i].Text = parts[0] + strings.ToLower(parts[1][:1])
 		}
 	}
-	if ui.TextWidth(joinSegText(mid))+ui.TextWidth(joinSegText(left))+2 > w {
+	if len(mid) > 0 && ui.TextWidth(joinSegText(mid))+ui.TextWidth(joinSegText(left))+2 > w {
 		mid = mid[len(mid)-1:]
 	}
 	ui.DrawBar(c, x, y, w, ui.BgTerm, left, mid, right)

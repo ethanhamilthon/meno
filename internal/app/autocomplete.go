@@ -69,7 +69,7 @@ func drawAcGrid(c ui.Canvas, x, y, w, limit int, cells []acCell, sel int) {
 		c.Text(cx+2, row, 2, mark, tcell.StyleDefault.Foreground(ui.Blue).Background(bg))
 		labelW := min(24, max(6, cw*2/5))
 		c.Text(cx+4, row, labelW, it.label, tcell.StyleDefault.Foreground(fg).Background(bg))
-		c.Text(cx+4+labelW+1, row, max(0, cw-labelW-6), oneLine(it.desc), tcell.StyleDefault.Foreground(ui.FgDim).Background(bg))
+		c.Text(cx+4+labelW+1, row, max(0, cw-labelW-6-ui.Gutter), oneLine(it.desc), tcell.StyleDefault.Foreground(ui.FgDim).Background(bg))
 	}
 }
 

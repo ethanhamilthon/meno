@@ -29,10 +29,9 @@ func TestUnicodeInputAndCommandArguments(t *testing.T) {
 	if string(a.st.Input) != "привет" {
 		t.Fatal(string(a.st.Input))
 	}
-	a.onKey(keyK(tcell.KeyEsc))
-	vimKeys(a, "cd /tmp/проект")
-	if string(a.st.Cmd) != "cd /tmp/проект" {
-		t.Fatal(string(a.st.Cmd))
+	vimKeys(a, " :cd /tmp/проект")
+	if a.cmdQuery() != "cd /tmp/проект" {
+		t.Fatal(a.cmdQuery())
 	}
 }
 

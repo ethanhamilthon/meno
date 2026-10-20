@@ -28,9 +28,7 @@ func (a *App) setAsk(rt *Runtime, f *proto.AskForm) {
 	a.inRT(rt.ID(), func() {
 		a.setInput(nil)
 		a.st.Undo, a.st.Redo, a.st.InsBase = nil, nil, a.snapshot()
-		if a.st.Mode != ui.ModeCommand {
-			a.st.Mode = ui.ModeInput
-		}
+		a.st.Mode = ui.ModeInput
 		a.st.Scroll = 0
 	})
 	a.signal("question")
@@ -49,9 +47,7 @@ func (a *App) closeAskFor(rt *Runtime, st *askState) {
 		a.setInput(d.Input)
 		a.st.Cursor = d.Cursor
 		a.st.Undo, a.st.Redo, a.st.InsBase = d.Undo, d.Redo, d.InsBase
-		if a.st.Mode != ui.ModeCommand {
-			a.st.Mode = d.Mode
-		}
+		a.st.Mode = d.Mode
 		a.clampCursor()
 	})
 }

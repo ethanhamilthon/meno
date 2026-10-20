@@ -53,4 +53,4 @@ PNG or JPEG to the model (see [images](ui.md#images)).
 ## Skills and instructions
 
 Skills are listed in the system prompt; the model reads one with `cat`. Your
-`AGENTS.md` files are added to the prompt as described in the [README](../README.md).
+The project `AGENTS.md` is added to the prompt as described in the [README](../README.md).

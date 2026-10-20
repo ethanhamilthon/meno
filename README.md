@@ -70,8 +70,8 @@ every push and pull request on Linux and macOS and installs a snapshot build wit
 | [Upgrading, data and privacy](docs/upgrading.md) | migrations, where data lives, what is logged |
 | [Terminal graphics](docs/graphics.md) | Kitty, Sixel and iTerm images |
 
-Instructions for the agent live in `$MENO_HOME/AGENTS.md` (global) and
-`AGENTS.md` in the session's directory (project); both go into the system
+Instructions for the agent live in
+`AGENTS.md` in the session's directory; it goes into the system
 prompt. Skills are markdown files in `.meno/skills/` or `~/.meno/skills/`
 (`name.md` or `name/SKILL.md`, optional `name`/`description` header); enabled
 skills are listed in the prompt and `/name` in a message asks for one.
@@ -86,7 +86,7 @@ Everything lives in `$MENO_HOME` (default `~/.meno`; `make run` uses `~/.meno-de
 | `attachments/` | image bytes, named by hash |
 | `tasks/` | bounded logs of background tasks |
 | `mcp-results/` | complete MCP tool results and their binary artifacts, per session |
-| `skills/`, `AGENTS.md` | global skills and instructions |
+| `skills/` | global skills |
 | `provider.json`, `mcp.json`, `theme.json` | optional: add providers, MCP servers and themes, see [settings](docs/settings.md) |
 
 ## Upgrading to 0.5.0

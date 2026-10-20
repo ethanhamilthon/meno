@@ -41,32 +41,11 @@ func indexRune(rs []rune, r rune) int {
 	return -1
 }
 
-func TestInputCommandDrafts(t *testing.T) {
-	a, scr := newTestApp(t)
-	defer scr.Fini()
-	vimKeys(a, "hello :hjkl")
-	if string(a.st.Input) != "hello :hjkl" {
-		t.Fatal(string(a.st.Input))
-	}
-	a.onKey(keyK(tcell.KeyEsc))
-	vimKeys(a, "settings")
-	if a.st.Mode != ui.ModeCommand || string(a.st.Cmd) != "settings" {
-		t.Fatalf("%v %q", a.st.Mode, string(a.st.Cmd))
-	}
-	a.onKey(keyK(tcell.KeyEsc))
-	if string(a.st.Input) != "hello :hjkl" {
-		t.Fatal("message lost")
-	}
-	a.onKey(keyK(tcell.KeyEsc))
-	if string(a.st.Cmd) != "settings" {
-		t.Fatal("command lost")
-	}
-}
 func TestColonIsOrdinaryInput(t *testing.T) {
 	a, scr := newTestApp(t)
 	defer scr.Fini()
-	vimKeys(a, ":model")
-	if a.st.Mode != ui.ModeInput || string(a.st.Input) != ":model" {
-		t.Fatal("colon intercepted")
+	vimKeys(a, "a:model")
+	if a.st.Mode != ui.ModeInput || string(a.st.Input) != "a:model" {
+		t.Fatal("colon inside a word intercepted")
 	}
 }

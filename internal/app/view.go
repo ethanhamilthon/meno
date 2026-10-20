@@ -86,7 +86,7 @@ func commandRows(a *App) []string {
 	}
 	var out []string
 	for _, c := range commandList {
-		if a.st.Cmd == nil || strings.HasPrefix(c.name, ":"+string(a.st.Cmd)) {
+		if strings.HasPrefix(c.name, ":"+a.cmdQuery()) {
 			out = append(out, c.name)
 		}
 	}
@@ -99,7 +99,7 @@ type cmdDef struct {
 
 var commandList = []cmdDef{
 	{":context", "context, tokens, cache and cost"},
-	{":v", "select draft or transcript"}, {":visual", "select draft or transcript"},
+	{":edit", "navigate and edit draft or transcript"},
 	{":new", "new session"},
 	{":fork", "fork at a message"},
 	{":rename", "rename this session"},

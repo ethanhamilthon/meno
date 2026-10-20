@@ -1,5 +1,19 @@
 # Upgrading, data and privacy
 
+## 0.5.2: commands inside the input
+
+COMMAND mode is gone: type `:` at the start of a word in INPUT and pick a command
+(see [UI](ui.md)). Esc in INPUT enters EDIT. The global `$MENO_HOME/AGENTS.md` is no
+longer read; put shared rules in a project `AGENTS.md` or a skill. The system prompt
+is now only the identity line, skills, the project `AGENTS.md`, MCP servers and the
+environment; the rules for using bash moved into the `bash` tool description. The
+reply-style rules are gone. Bash commands are colored by role, the run summary reads
+`↑in ↓out · cache N% · cost`, and the empty composer has three fixed hints.
+
+## 0.5.1: one theme, `:edit`
+
+`meno`, `pure-black` and `catppuccin-mocha` are gone; the only built-in theme is `default` (the old pure-black palette). Saved names of removed themes fall back to `default`; add others in `theme.json`. `:v` and `:visual` are replaced by `:edit`, which navigates and edits like vim normal mode; `v` starts a selection. Zero counts leave the status bar, which also shows `ctx/max`.
+
 ## 0.5.0: clean database and simplified interface
 
 Stop all older meno daemons before the first launch. 0.5.0 creates a verified,

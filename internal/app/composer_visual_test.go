@@ -6,6 +6,7 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 
+	"meno/internal/proto"
 	"meno/internal/ui"
 )
 
@@ -39,6 +40,9 @@ func TestVisualReferenceBottom(t *testing.T) {
 	if fg != ui.FgBlack || bg != ui.Green || attrs&tcell.AttrReverse != 0 {
 		t.Fatalf("badge fg=%v bg=%v attrs=%v", fg, bg, attrs)
 	}
+	a.globalTasks = 1
+	a.globalSessions = []proto.SessionItem{{Running: true}, {Running: true, NeedsYou: true}, {Completed: 2}}
+	a.draw()
 	row := visualRow(s, 35)
 	for _, want := range []string{"running", "tasks", "Asking", "done"} {
 		if !strings.Contains(row, want) {

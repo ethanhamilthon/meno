@@ -26,13 +26,11 @@ func TestCompletionWaitsUntilResultIsVisible(t *testing.T) {
 	s.WaitFor("1 done")
 	s.Send(Esc)
 	s.WaitFor("completed-background-result")
-	s.WaitFor("0 done")
+	s.WaitGone("1 done")
 	s.Cmd("context")
-	s.WaitFor("Session total")
+	s.WaitFor("last turn")
 	s.Send(Esc)
-	if !strings.Contains(s.Screen(), "COMMAND") {
-		s.WaitFor("COMMAND")
-	}
+	s.WaitFor("INPUT")
 }
 
 func TestBashHeadersUseTitlesAndFinalRunStatistics(t *testing.T) {

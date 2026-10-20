@@ -60,6 +60,9 @@ func (a *App) execLogNormal(c vcmd) {
 	case "j", "k":
 		a.moveVertical(c)
 	case "gg", "G":
+		if top == 0 {
+			return
+		}
 		line := 0
 		if c.key == "G" {
 			line = top - 1

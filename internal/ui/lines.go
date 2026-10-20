@@ -41,7 +41,7 @@ func (l Line) Text() string {
 }
 
 // PadX is the left padding DrawLine puts before the first segment.
-const PadX = padX
+const PadX = Gutter
 
 func (l Line) Width() int {
 	n := 0

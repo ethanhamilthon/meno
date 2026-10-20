@@ -10,7 +10,7 @@ const queueMaxShown = 3
 
 // queueHeight is the rows of the panel listing messages waiting for the agent.
 func (a *App) queueHeight() int {
-	if !a.st.Running || a.st.Over != OverNone || a.st.Mode == ui.ModeCommand {
+	if !a.st.Running || a.st.Over != OverNone {
 		return 0
 	}
 	n := len(a.st.Queued)

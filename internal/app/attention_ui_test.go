@@ -1,7 +1,6 @@
 package app
 
 import (
-	"github.com/gdamore/tcell/v2"
 	"meno/internal/agent"
 	"meno/internal/proto"
 	"meno/internal/ui"
@@ -27,15 +26,14 @@ func TestGlobalCountsUseExclusiveAskingAndThemeColors(t *testing.T) {
 func TestContextOpensAndReturnsToCommand(t *testing.T) {
 	a, s := newTestApp(t)
 	defer s.Fini()
-	a.st.Mode = ui.ModeCommand
 	a.runCommand("context")
 	a.draw()
-	if a.st.Over != OverContext || !strings.Contains(screenText(s), "Session total") {
+	if a.st.Over != OverContext || !strings.Contains(screenText(s), "session") {
 		t.Fatal(screenText(s))
 	}
 
 	a.closeOverlay()
-	if a.st.Mode != ui.ModeCommand {
+	if a.st.Mode != ui.ModeInput {
 		t.Fatal("context return")
 	}
 }
@@ -75,25 +73,21 @@ func TestUnreadSurvivesModalAndScrollUntilSummaryVisible(t *testing.T) {
 func TestWireDoesNotStealCommandFocus(t *testing.T) {
 	a, s := newTestApp(t)
 	defer s.Fini()
-	a.st.Mode = ui.ModeCommand
+	a.st.Mode = ui.ModeEdit
 	a.inRT(a.st.Session.ID(), func() { a.st.Phase = "thinking" })
-	if a.st.Mode != ui.ModeCommand {
+	if a.st.Mode != ui.ModeEdit {
 		t.Fatal("event stole command focus")
 	}
 }
 
-func TestCommandUndoDoesNotChangeMessage(t *testing.T) {
+func TestGlobalCountsSkipZeros(t *testing.T) {
 	a, s := newTestApp(t)
 	defer s.Fini()
-	typeRunes(a, "message")
-	a.onKey(keyK(tcell.KeyEsc))
-	typeRunes(a, "settings")
-	a.onKey(keyK(tcell.KeyCtrlZ))
-	if string(a.st.Cmd) != "setting" {
-		t.Fatal(string(a.st.Cmd))
+	if got := joinSegText(a.globalCounts()); got != "" {
+		t.Fatalf("zeros shown: %q", got)
 	}
-	a.onKey(keyK(tcell.KeyEsc))
-	if string(a.st.Input) != "message" {
-		t.Fatal("message draft affected")
+	a.globalSessions = []proto.SessionItem{{Running: true}, {Running: true}, {Completed: 2, ReadThrough: 1}}
+	if got := joinSegText(a.globalCounts()); got != "2 running | 1 done" {
+		t.Fatal(got)
 	}
 }

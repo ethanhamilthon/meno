@@ -37,11 +37,13 @@ type App struct {
 	quit      bool
 	done      chan struct{}
 	closeOnce sync.Once
-	waveOn    atomic.Bool // the welcome screen was drawn last: keep it animating
-	agentsAt  time.Time   // when agentsOK was last checked
-	agentsOK  bool        // an AGENTS.md exists (cached for the welcome screen)
-	idleTick  bool        // the batch held only ticks: skip drawing when nothing runs
-	cur       cursorPos   // real terminal cursor, set while drawing
+	waveOn    atomic.Bool      // the welcome screen was drawn last: keep it animating
+	agentsAt  time.Time        // when agentsOK was last checked
+	agentsOK  bool             // an AGENTS.md exists (cached for the welcome screen)
+	now       func() time.Time // the clock of animations; tests replace it
+	waveEpoch time.Time        // start of the header wave clock
+	idleTick  bool             // the batch held only ticks: skip drawing when nothing runs
+	cur       cursorPos        // real terminal cursor, set while drawing
 
 	imgs imageMgr // inline terminal graphics
 
@@ -78,6 +80,7 @@ func New(scr tcell.Screen, paths config.Paths, cl *client.Client) (*App, error) 
 		events: make(chan any, 512), rts: map[string]*Runtime{},
 	}
 	a.openURL = openBrowser
+	a.waveEpoch = time.Now()
 	a.st = NewState()
 	scr.EnableFocus()
 	a.loadThemeFile()

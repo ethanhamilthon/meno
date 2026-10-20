@@ -209,24 +209,16 @@ func (s *session) Type(text string) {
 	}
 }
 
-// Cmd runs a ":command" from normal mode.
+// Cmd runs a ":command" typed inline in the input.
 func (s *session) Cmd(c string) {
 	s.t.Helper()
-	if !strings.Contains(s.Screen(), "COMMAND") {
-		s.Send(Esc)
-		time.Sleep(150 * time.Millisecond)
-	}
-	s.Type(c)
+	s.Type(":" + c)
+	time.Sleep(60 * time.Millisecond)
 	s.Send(Enter)
 }
 
-// Normal returns the editor to INPUT for legacy test helpers.
-func (s *session) Normal() {
-	if strings.Contains(s.Screen(), "COMMAND") {
-		s.Send(Esc)
-		time.Sleep(150 * time.Millisecond)
-	}
-}
+// Normal is kept for legacy helpers: INPUT is the only typing mode now.
+func (s *session) Normal() {}
 
 // WaitFor waits until the screen contains want.
 func (s *session) WaitFor(want string) string {

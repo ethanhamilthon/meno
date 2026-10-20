@@ -1,8 +1,6 @@
 package app
 
 import (
-	"strings"
-
 	"github.com/gdamore/tcell/v2"
 
 	"meno/internal/ui"
@@ -45,14 +43,18 @@ func (a *App) onKey(k *tcell.EventKey) {
 		a.onInsertKey(k)
 	case ui.ModeVisual:
 		a.onVisualKey(k)
-	case ui.ModeCommand:
-		a.onCommandKey(k)
+	case ui.ModeEdit:
+		a.onEditKey(k)
 	}
 }
 
 func (a *App) onInsertKey(k *tcell.EventKey) {
 	a.clampCursor()
 	defer a.pickSync()
+	defer a.cmdSync()
+	if a.cmdActive() && a.cmdKey(k) {
+		return
+	}
 	if a.acActive() && a.acKey(k) {
 		return
 	}
@@ -105,45 +107,8 @@ func (a *App) onInsertKey(k *tcell.EventKey) {
 	case tcell.KeyEnd, tcell.KeyCtrlE:
 		a.moveLineEdge(1)
 	case tcell.KeyRune:
-		// INPUT never intercepts colon or navigation letters.
 		if !isObjRune(k.Rune()) {
 			a.insertAtCursor([]rune{k.Rune()})
 		}
-	}
-}
-
-func (a *App) onCommandKey(k *tcell.EventKey) {
-	rows := commandRows(a)
-	switch k.Key() {
-	case tcell.KeyEsc:
-		a.st.Mode = ui.ModeInput
-	case tcell.KeyUp:
-		a.st.CmdSel = clampSel(a.st.CmdSel-1, len(rows))
-	case tcell.KeyDown:
-		a.st.CmdSel = clampSel(a.st.CmdSel+1, len(rows))
-	case tcell.KeyTab:
-		if len(rows) > 0 {
-			a.st.Cmd = []rune(rows[clampSel(a.st.CmdSel, len(rows))][1:])
-			a.st.CmdCursor = len(a.st.Cmd)
-			a.st.CmdSel = 0
-		}
-	case tcell.KeyEnter:
-		cmd := string(a.st.Cmd)
-		if strings.TrimSpace(cmd) == "" {
-			return
-		}
-		if len(rows) > 0 && !strings.HasPrefix(cmd, "cd ") {
-			cmd = rows[clampSel(a.st.CmdSel, len(rows))][1:]
-		}
-		a.commandFailed = false
-		a.runCommand(cmd)
-		if !a.commandFailed {
-			a.st.Cmd = nil
-			a.st.CmdCursor = 0
-			a.st.CmdUndo = nil
-			a.st.CmdRedo = nil
-		}
-	default:
-		a.commandEdit(k)
 	}
 }

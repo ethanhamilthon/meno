@@ -63,10 +63,10 @@ func TestStreamingAnswer(t *testing.T) {
 			f := newFakeLLM(t)
 			f.Handler = func(q *llmReq) { q.Text("Hel", "lo ", "from ", proto) }
 			s := start(t, options{fake: f, proto: proto})
-			s.WaitFor("give a task")
+			s.WaitFor("Type to start building anything")
 			s.Say("greet me")
 			s.WaitFor("Hello from " + proto)
-			s.WaitFor("in 100 · out 20") // usage arrives when the stream completes
+			s.WaitFor("↑100 ↓20") // usage arrives when the stream completes
 			if strings.Contains(s.Screen(), "retry") {
 				t.Fatal("unexpected retry")
 			}
@@ -131,13 +131,13 @@ func TestResumeAfterRestart(t *testing.T) {
 	s := start(t, options{fake: f, home: home})
 	s.Say("question before restart")
 	s.WaitFor("persisted-answer")
-	s.WaitFor("in 100 · out 20")
+	s.WaitFor("↑100 ↓20")
 	s.Cmd("q")
 	if err := s.WaitExit(); err != nil {
 		t.Fatal(err)
 	}
 	s2 := start(t, options{home: home})
-	s2.WaitFor("give a task")
+	s2.WaitFor("Type to start building anything")
 	s2.Cmd("sessions")
 	s2.WaitFor("question before")
 	s2.Type("before restart")
@@ -149,7 +149,7 @@ func TestResumeAfterRestart(t *testing.T) {
 func TestQuitRestoresTerminal(t *testing.T) {
 	f := newFakeLLM(t)
 	s := start(t, options{fake: f})
-	s.WaitFor("give a task")
+	s.WaitFor("Type to start building anything")
 	if s.vt.Mode()&vt10x.ModeAltScreen == 0 {
 		t.Fatal("meno should use the alternate screen")
 	}

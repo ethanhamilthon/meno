@@ -24,9 +24,6 @@ func (a *App) drawComposer(c ui.Canvas, x, y, w, h int) {
 			a.cur = cursorPos{textX, row, true}
 		}
 		hint := a.placeholder()
-		if a.st.Mode == ui.ModeCommand {
-			hint = "type a command..."
-		}
 		c.Text(textX, row, innerW, hint, ui.Style{FG: ui.FgDim, BG: bg}.TCell())
 		return
 	}

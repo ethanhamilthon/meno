@@ -52,7 +52,7 @@ Bash tools, provider APIs, MCP integrations, and SQLite persistence.
 | `internal/proto/` | Shared daemon API request, response, and event types. |
 | `internal/daemon/` | Daemon lifecycle, socket, HTTP resources, event streams; configuration resources in `cfgsvc/`. |
 | `internal/mcp/` | MCP server lifecycle, transports, JSON-RPC, tool schemas, typed results and the local result/artifact store. Start with `manager.go`, `client.go`, `result.go`, `store.go`. |
-| `internal/prompt/` | System prompt assembly: `prompt.go` (`Build`, inputs), `sections.go` (one XML element per section), `xml.go` (`element`, `escapeBody`), `bash.go` (the Bash prompt and its guidelines) and the Bash tool description (`bash_toolspec.go`). |
+| `internal/prompt/` | System prompt (identity, skills, project AGENTS.md, MCP servers, environment): `prompt.go` (inputs), `bash.go` (`Build`), `sections.go`, `xml.go`. The bash tool description with the editing, verification and output rules: `bash_toolspec.go`, `bash_rules.go`. |
 | `internal/config/` | Paths, settings, providers, skills, MCP configuration, and the read-only `provider.json`/`mcp.json` overlays (`overlay.go`). Start with `paths.go`, `settings.go`, `store.go`. |
 | `internal/db/` | Shared SQLite database; versioned migrations live in `migrations.go`, opening in `db.go`, clean 0.5 epoch backup in `epoch.go`. |
 | `internal/proc/` | Process supervisor for foreground bash calls and background tasks (`foreground.go`: launch, promote to a task, cancel): process groups, bounded rotating disk logs, durable task results; `daemon.go` runs the provider `run` commands. |
@@ -79,7 +79,7 @@ Bash tools, provider APIs, MCP integrations, and SQLite persistence.
   `composer.go`; visual output: `internal/ui/` and `internal/app/draw*.go`.
 - Agent behavior: `internal/agent/loop.go`, `queue.go`, `retry.go`,
   `compact.go`; application integration: `internal/app/turn.go`.
-- Tool capabilities: `internal/tools/` and `internal/engine/`; update `internal/prompt/prompt.go`
+- Tool capabilities: `internal/tools/` and `internal/engine/`; update the `bash` description in `internal/prompt/bash_toolspec.go`
   when the model-facing tool contract changes.
 - Storage changes: `internal/db/db.go` plus the owning configuration or
   session storage code; preserve existing data and migration behavior.

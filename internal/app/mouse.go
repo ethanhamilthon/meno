@@ -27,9 +27,6 @@ type mouseState struct {
 const doubleClick = 400 * time.Millisecond
 
 func (a *App) onMouse(m *tcell.EventMouse) {
-	if a.st.Mode == ui.ModeCommand && (m.Buttons()&tcell.Button1) != 0 {
-		return
-	}
 	if a.st.Over != OverNone {
 		return
 	}
@@ -101,7 +98,7 @@ func (a *App) mousePos(x, y int, clamp bool) (vpos, bool) {
 // geometry comes from the last drawComposer call.
 func (a *App) inputPosAt(x, y int, clamp bool) (vpos, bool) {
 	rows := a.st.ComposerRows
-	if len(rows) == 0 || a.st.Mode == ui.ModeCommand {
+	if len(rows) == 0 {
 		return vpos{}, false
 	}
 	idx := y - a.st.ComposerY + a.st.ComposerTop
@@ -154,7 +151,7 @@ func textCol(rs []rune, col int) int {
 
 func (a *App) mousePress(x, y int) {
 	p, ok := a.mousePos(x, y, false)
-	if !ok || a.st.Mode == ui.ModeCommand {
+	if !ok {
 		return
 	}
 	a.mouse.input = y >= a.logHeight()

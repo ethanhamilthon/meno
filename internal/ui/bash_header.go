@@ -17,11 +17,13 @@ func bashHeader(t Turn, w int, opts JSOpts) Line {
 	if opts.Running {
 		elapsed = FmtDur(opts.Elapsed)
 	}
-	if w < TextWidth(elapsed)+5 {
-		return Line{Segs: []Seg{{Text: Truncate(elapsed, max(0, w)), FG: FgDim}}, BG: BgTerm, FullWidth: true}
+	// The rule glyphs may use the gutter; the title starts at column Gutter and
+	// the elapsed time ends before the right gutter.
+	if w < TextWidth(elapsed)+2*Gutter+2 {
+		return Line{Segs: []Seg{{Text: Truncate(elapsed, max(0, w-2*Gutter)), FG: FgFaint}}, BG: BgTerm}
 	}
-	title = Truncate(title, max(0, w-TextWidth(elapsed)-5))
-	gap := max(0, w-TextWidth(title)-TextWidth(elapsed)-5)
-	text := "─ " + title + " " + strings.Repeat("─", gap) + " " + elapsed
-	return Line{Segs: []Seg{{Text: Truncate(text, w), FG: FgDim}}, BG: BgTerm, FullWidth: true}
+	title = Truncate(title, max(0, w-TextWidth(elapsed)-6))
+	gap := max(0, w-TextWidth(title)-TextWidth(elapsed)-6)
+	text := "─ " + title + " " + strings.Repeat("─", gap) + " " + elapsed + " ─"
+	return Line{Segs: []Seg{{Text: Truncate(text, w), FG: FgFaint}}, BG: BgTerm, FullWidth: true}
 }

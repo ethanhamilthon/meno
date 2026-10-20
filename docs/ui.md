@@ -1,9 +1,21 @@
 # Interface
 
-INPUT is the default editor. Esc toggles INPUT and COMMAND. Both use the same
-composer with separate drafts and carets. A colon typed in INPUT is ordinary text;
-COMMAND has a permanent `:` prefix. Completion appears above the composer.
-There is no NORMAL mode.
+INPUT is the default editor. A colon that starts a word (at the start of the
+draft, or after a space or a newline) opens the command list above the composer,
+anywhere in the text. Arrows pick a row, Tab completes it, Enter runs it and
+removes the `:command` from the draft; the rest of the draft stays. Esc closes the
+list and keeps the text. A command that fails keeps its text for correction.
+A colon inside a word (`http://x`, `a:b`) is ordinary text. Esc without a list
+enters EDIT. There is no NORMAL or COMMAND mode.
+
+An empty composer shows one of three hints: `Type to start building anything` (new
+session), `Tell the working agent something` (an agent is running) and
+`Type your next task here` (the agent has answered). While an agent works, a green
+wave runs along the composer's top line and the session name.
+
+Text keeps two free columns on the left and on the right of every row: the
+timeline, the composer, the status bar and the lists. Backgrounds, rules and icons
+may use them.
 
 | Key or command | Action |
 | --- | --- |
@@ -11,35 +23,36 @@ There is no NORMAL mode.
 | Enter during a run | Queue steering for the next model request |
 | Ctrl+C | Stop this session's active work |
 | Ctrl+V, drag/drop, @ | Image attachment / file picker in INPUT |
-| :v / :visual | Select the draft; with an empty draft, select transcript history |
-| Esc in VISUAL | Return to INPUT |
+| :edit | Vim-style navigation and editing of the draft (history when the draft is empty); no selection until `v` |
+| v / V / Ctrl+V in EDIT | Start a selection; Esc returns to EDIT |
+| Esc in EDIT | Return to INPUT |
+| Esc in INPUT (no command list) | Enter EDIT |
 | :new :sessions :fork :rename :cd :compact :export | Session actions |
 | :model :settings :skills :mcp :login :tasks | Model and management dialogs |
-| :context | Context occupancy, input/output, cache read/write and spending |
+| :context | ctx/max, spent, in/out and cache hit for the last turn, the session and the current request |
 | :stop :q :q! | Stop, quit, or quit and cancel work |
 
 VISUAL retains motions, counts, text objects and copy. History is read-only.
 Completed copy/edit returns to INPUT. Mouse selection copies on release; the wheel
 scrolls history. The command editor does not select transcript text on drag.
 
-Successful new/session/fork/model selection returns to INPUT. Management dialogs
-and commands return to COMMAND; canceling a COMMAND-opened dialog returns there.
-Errors retain the command for correction. Direct-shortcut dialogs preserve origin.
+Dialogs opened by a command return to INPUT when they close. Errors retain the
+command text for correction. Direct-shortcut dialogs preserve origin.
 
 The composer header uses a dark gray line and session label. Automatic titles
 replace file/folder/skill tags with readable labels before truncating.
 
 ## Status bar
 
-Left: INPUT, COMMAND or VISUAL (or an open dialog's name). Center:
-`N running | N tasks | N Asking | N done`. Right: model and effort where space allows.
+Left: INPUT, EDIT or VISUAL (or an open dialog's name). Center:
+`N running | N tasks | N Asking | N done`. Right: model, effort and `ctx/max` where space allows.
 
 - running is green: active sessions, excluding those waiting for an answer.
 - tasks is purple: live background Bash processes.
 - Asking is orange: sessions waiting for an agent question form.
 - done is blue: sessions with unread completed runs, including failures/stops.
 
-Counts cover the whole daemon, not only the current project. Zeros use dark gray.
+Counts cover the whole daemon, not only the current project. Zero counts are hidden.
 A session may have a new running request and an older unread completion. Blue
 completion markers survive restart/reconnect and clear across UIs only after the
 result is visible, not merely when a session is opened. Scrolling upward or opening

@@ -94,7 +94,7 @@ func TestSkillEditProducesSystemEvent(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.Say("first message")
-	s.WaitFor("in 100 · out 20")
+	s.WaitFor("↑100 ↓20")
 	if err := os.WriteFile(skill, []byte("---\ndescription: code style\n---\nv2\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}

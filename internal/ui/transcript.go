@@ -7,7 +7,11 @@ import (
 	"time"
 )
 
-const padX = 2
+// Gutter is the number of columns kept free of text on the left and the right
+// of every row. Backgrounds, rules and icons may use them; text may not.
+const Gutter = 2
+
+const padX = Gutter
 
 type JSMode int
 

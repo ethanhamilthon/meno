@@ -67,15 +67,18 @@ func TestJSOptsFollowSettings(t *testing.T) {
 	}
 }
 
-func TestStatusBarAndPlaceholderShowTheClock(t *testing.T) {
+func TestStatusBarCountsAndBusyPlaceholder(t *testing.T) {
 	a, s := visualFixture(t, 112, 36)
 	a.st.Running = true
 	a.st.Phase = "running"
 	a.st.RunStart = time.Now().Add(-65 * time.Second)
 	a.draw()
-	if !strings.Contains(screenText(s), "running... 1:05") {
-		t.Fatal(screenText(s))
+	if got := screenText(s); !strings.Contains(got, "Tell the working agent something") || strings.Contains(got, "1:05") {
+		t.Fatal(got)
 	}
+	a.globalTasks = 1
+	a.globalSessions = []proto.SessionItem{{Running: true}, {Running: true, NeedsYou: true}, {Completed: 2}}
+	a.draw()
 	row := visualRow(s, 35)
 	for _, want := range []string{"running", "tasks", "Asking", "done"} {
 		if !strings.Contains(row, want) {

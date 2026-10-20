@@ -29,7 +29,7 @@ func TestSummaryPreservesMetricsAtNarrowWidths(t *testing.T) {
 	stats := &RunStats{Status: "done", ElapsedMs: 84000, ToolCalls: 7, In: 12000, Out: 2000, Cached: 8000, CacheWrite: 1000, CacheKnown: true, Cost: &cost}
 	for _, w := range []int{20, 80, 160} {
 		text := summaryText(SummaryLines(stats, w))
-		for _, want := range []string{"12000", "2000", "8000/1000", "$0.1234", "7 bash"} {
+		for _, want := range []string{"↑12K", "↓2K", "cache 67%", "$0.1234", "7 bash"} {
 			if !strings.Contains(text, want) {
 				t.Fatalf("width %d missing %q: %s", w, want, text)
 			}
@@ -48,4 +48,15 @@ func summaryText(lines []Line) string {
 		out = append(out, l.Text())
 	}
 	return strings.Join(out, "\n")
+}
+
+func TestSummaryCacheUnknownAndZeroInput(t *testing.T) {
+	text := summaryText(SummaryLines(&RunStats{Status: "done", In: 1500000, Out: 12}, 100))
+	if !strings.Contains(text, "↑1.5M ↓12 · cache ? ·") {
+		t.Fatal(text)
+	}
+	text = summaryText(SummaryLines(&RunStats{Status: "done", CacheKnown: true}, 100))
+	if !strings.Contains(text, "cache 0%") {
+		t.Fatal(text)
+	}
 }

@@ -24,26 +24,6 @@ func (a *App) runCommand(raw string) {
 		return
 	}
 	name := fields[0]
-	if name == "v" || name == "visual" {
-		if len(fields) != 1 {
-			a.notifyErr("visual takes no arguments")
-			return
-		}
-		if len(a.st.Input) == 0 {
-			a.st.InLog = true
-			a.execLogNormal(vcmd{key: "G", n: 1})
-		}
-		if len(a.st.Input) == 0 && len(a.logText()) == 0 {
-			a.notify("nothing to select")
-			a.st.Mode = ui.ModeInput
-			return
-		}
-		if len(a.st.Input) > 0 {
-			a.st.InLog = false
-		}
-		a.startVisual('v')
-		return
-	}
 	if a.st.Running && interruptsAgent[name] {
 		a.notifyErr("agent is running · :stop it first (or ctrl+c)")
 		return
@@ -59,6 +39,12 @@ func (a *App) runCommand(raw string) {
 	case "q!", "quit!":
 		a.cancelAll()
 		a.quit = true
+	case "edit":
+		if len(args) != 0 {
+			a.notifyErr("edit takes no arguments")
+			return
+		}
+		a.startEdit()
 	case "new":
 		a.newSession()
 		a.st.Mode = ui.ModeInput

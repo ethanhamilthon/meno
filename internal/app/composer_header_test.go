@@ -14,11 +14,11 @@ func TestComposerHeaderDrawsTitleAtRight(t *testing.T) {
 	a.st.Session.Title = "session title"
 	a.draw()
 	row := visualRow(screen, 12-a.bottomHeight())
-	if !strings.HasSuffix(row, "session title") {
-		t.Fatalf("header is not flush right: %q", row)
+	if !strings.HasSuffix(row, "session title──") {
+		t.Fatalf("name must end before the right gutter: %q", row)
 	}
 	cells := []rune(row)
-	if got := string(cells[:88-ui.TextWidth("session title")-1]); strings.Trim(got, "─") != "" {
+	if got := string(cells[:88-ui.Gutter-ui.TextWidth("session title")-1]); strings.Trim(got, "─") != "" {
 		t.Fatalf("rule contains unexpected cells: %q", got)
 	}
 	for x := 0; x < 88; x++ {
@@ -27,14 +27,11 @@ func TestComposerHeaderDrawsTitleAtRight(t *testing.T) {
 		if bg != ui.BgTerm {
 			t.Fatalf("header cell %d background %v", x, bg)
 		}
-		nameStart := 88 - ui.TextWidth("session title")
-		if x < nameStart-1 && fg != ui.FgDim {
-			t.Fatalf("rule cell %d foreground %v", x, fg)
+		nameStart := 88 - ui.Gutter - ui.TextWidth("session title")
+		if glyph != ' ' && fg != ui.FgDim {
+			t.Fatalf("cell %d foreground %v", x, fg)
 		}
-		if x >= nameStart && fg != ui.FgDim {
-			t.Fatalf("name cell %d foreground %v", x, fg)
-		}
-		if x < 88-ui.TextWidth("session title")-1 && glyph != '─' {
+		if x < nameStart-1 && glyph != '─' {
 			t.Fatalf("header cell %d = %q, want rule", x, glyph)
 		}
 	}
@@ -45,8 +42,7 @@ func TestComposerHeaderTruncatesAtThirtyPercent(t *testing.T) {
 	a.st.Session.Title = strings.Repeat("long session name ", 8)
 	a.draw()
 	row := visualRow(screen, 12-a.bottomHeight())
-	name := strings.TrimLeft(row, "─")
-	name = strings.TrimSpace(name)
+	name := strings.Trim(strings.TrimLeft(row, "─"), "─ ")
 	if !strings.HasSuffix(name, "…") {
 		t.Fatalf("truncated name has no ellipsis: %q", row)
 	}
@@ -61,7 +57,7 @@ func TestComposerHeaderUsesFolderWithoutTitle(t *testing.T) {
 	a.st.Session.Title = ""
 	a.st.Cwd = filepath.Join(t.TempDir(), "project")
 	a.draw()
-	if !strings.HasSuffix(visualRow(screen, 10-a.bottomHeight()), "project") {
+	if !strings.HasSuffix(visualRow(screen, 10-a.bottomHeight()), "project──") {
 		t.Fatal("empty session did not show its folder")
 	}
 	a.st.Session.Title = "untitled"

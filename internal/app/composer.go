@@ -2,7 +2,6 @@ package app
 
 import (
 	"strings"
-	"time"
 
 	"github.com/gdamore/tcell/v2"
 
@@ -13,12 +12,17 @@ import (
 const composerMaxText = 8
 
 const (
-	composerPadX = 2
+	composerPadX = ui.Gutter
 	// composerPadY is the bottom padding; the top row is the header.
 	composerPadY = 1
 )
 
-const placeholderIdle = "give a task... or use /skills"
+// The three placeholders of an empty composer.
+const (
+	placeholderStart = "Type to start building anything"
+	placeholderBusy  = "Tell the working agent something"
+	placeholderNext  = "Type your next task here"
+)
 
 func oneLine(s string) string {
 	return strings.Join(strings.Fields(strings.ReplaceAll(s, "\n", " ")), " ")
@@ -48,21 +52,13 @@ func (a *App) placeholder() string {
 	if a.st.Ask != nil {
 		return "answer the questions above..."
 	}
-	if !a.st.Running {
-		return placeholderIdle
-	}
-	text := a.st.Phase + "..."
 	switch {
-	case a.st.Phase == "":
-		text = "working..."
-	case a.st.Title != "" && (a.st.Phase == "thinking" || a.st.Phase == "running"):
-		// After the first js call the title of the latest one says what is going on.
-		text = a.st.Title + "..."
+	case a.st.Running:
+		return placeholderBusy
+	case a.timelineEmpty():
+		return placeholderStart
 	}
-	if !a.st.RunStart.IsZero() {
-		text += " " + clock(time.Since(a.st.RunStart))
-	}
-	return text
+	return placeholderNext
 }
 
 // cursorPos is the terminal cursor requested by the last draw.
@@ -81,13 +77,16 @@ func (a *App) applyCursor() {
 	switch a.st.Mode {
 	case ui.ModeInput:
 		a.scr.SetCursorStyle(tcell.CursorStyleBlinkingBar)
-	case ui.ModeVisual:
+	case ui.ModeVisual, ui.ModeEdit:
 		a.scr.SetCursorStyle(tcell.CursorStyleSteadyBlock)
-	case ui.ModeCommand:
-		a.scr.SetCursorStyle(tcell.CursorStyleSteadyBar)
 	default:
 		a.scr.HideCursor()
 		return
 	}
 	a.scr.ShowCursor(a.cur.x, a.cur.y)
+}
+
+// composerHeightFor is the composer band height for a screen width w.
+func (a *App) composerHeightFor(w int) int {
+	return 1 + min(composerMaxText, max(1, len(layoutInput(a.st.Input, a.composerInnerWidth(w))))) + composerPadY
 }

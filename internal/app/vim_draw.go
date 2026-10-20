@@ -37,7 +37,7 @@ func (a *App) paintLog(c ui.Canvas, x, y, w, h int, lines []ui.Line, start int) 
 				paintBG(c, x+from, y+i, screenCol(rs, hi)-from, ui.BgSelect)
 			}
 		}
-		if a.st.InLog && l == a.st.LogLine && (mode == ui.ModeInput || mode == ui.ModeVisual) {
+		if a.st.InLog && l == a.st.LogLine && (mode == ui.ModeInput || mode == ui.ModeVisual || mode == ui.ModeEdit) {
 			cx := screenCol(rs, a.st.LogCol)
 			if cx < w {
 				a.cur = cursorPos{x + cx, y + i, true}
