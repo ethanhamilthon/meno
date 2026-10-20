@@ -51,7 +51,7 @@ func (e *Engine) sessionResource(ctx context.Context, method, path, query string
 	case "models":
 		out = e.modelResource(query)
 	case "ask":
-		out, err = e.askResource(s, data)
+		out, err = e.askResource(ctx, s, q.Call, data)
 	default:
 		return proto.ResourceResponse{}, api(proto.CodeNotFound, "resource not found")
 	}

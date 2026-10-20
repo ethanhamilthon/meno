@@ -16,6 +16,7 @@ import (
 	"meno/internal/proc"
 	"meno/internal/proto"
 	"meno/internal/routing"
+	"meno/internal/tools"
 	"os"
 	"sync"
 	"time"
@@ -44,6 +45,8 @@ type Options struct {
 	GlobalHub      GlobalEventHub
 	Resources      ResourceHandler
 	ProviderClient func(llm.Provider) llm.Client
+	// Socket is the path of the daemon socket (MENO_SOCK of agent calls).
+	Socket string
 }
 
 type liveCall struct {
@@ -89,6 +92,7 @@ type runState struct {
 	lastRequest      llm.Request
 	lastErr          string
 	spawned          int
+	calls            map[string]*tools.Call // running bash calls by id (ask pauses their timer)
 	published        int
 	mu               sync.Mutex
 }
@@ -97,6 +101,7 @@ type runState struct {
 // Construct it with New and pass it to daemon.New as its Backend.
 type Engine struct {
 	home      string
+	sock      string // the daemon socket, handed to agent calls as MENO_SOCK
 	paths     config.Paths
 	store     *config.Store
 	settings  config.Settings
@@ -183,7 +188,7 @@ func New(o Options) (*Engine, error) {
 			go func() { _ = mcpManager.Start(mcpCtx, server) }()
 		}
 	}
-	return &Engine{home: o.Home, paths: paths, store: st, settings: settings, providers: providers, servers: servers, catalog: catalog, mcp: mcpManager, tasks: tasks, children: children, events: o.EventHub, global: o.GlobalHub, resources: o.Resources, client: client, mcpCtx: mcpCtx, mcpStop: mcpStop, sessions: map[string]*runState{}, ids: map[string]idResult{}}, nil
+	return &Engine{sock: o.Socket, home: o.Home, paths: paths, store: st, settings: settings, providers: providers, servers: servers, catalog: catalog, mcp: mcpManager, tasks: tasks, children: children, events: o.EventHub, global: o.GlobalHub, resources: o.Resources, client: client, mcpCtx: mcpCtx, mcpStop: mcpStop, sessions: map[string]*runState{}, ids: map[string]idResult{}}, nil
 }
 
 // Close stops owned child/task/MCP services but does not react to client disconnects.
@@ -264,7 +269,7 @@ func (e *Engine) load(ctx context.Context, id string) (*runState, error) {
 	if err != nil {
 		return nil, err
 	}
-	st := &runState{session: sess, cwd: sess.Cwd, env: map[string]string{}, changed: time.Now(), token: tokenState{value: tok, groups: groupsFor(sess.Modes)}}
+	st := &runState{calls: map[string]*tools.Call{}, session: sess, cwd: sess.Cwd, env: map[string]string{}, changed: time.Now(), token: tokenState{value: tok, groups: groupsFor(sess.Modes)}}
 	st.modes = compose(sess.Modes)
 	st.published = len(sess.Snapshot())
 	e.mu.Lock()

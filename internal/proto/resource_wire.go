@@ -11,6 +11,7 @@ type OpaqueResource struct {
 type ResourceRequest struct {
 	ClientID  string          `json:"client_id,omitempty"`
 	Token     string          `json:"token,omitempty"`
+	Call      string          `json:"call,omitempty"`
 	Data      json.RawMessage `json:"data,omitempty"`
 	SessionID string          `json:"session_id,omitempty"`
 }

@@ -52,9 +52,6 @@ func (e *Engine) modelResource(query string) any {
 	}
 	return out
 }
-func (e *Engine) askResource(s *runState, data map[string]any) (any, error) {
-	return nil, api(proto.CodeBadRequest, "ask is only available as a paused tool call")
-}
 func stringValue(m map[string]any, k string) string { v, _ := m[k].(string); return v }
 func boolValue(m map[string]any, k string, def bool) bool {
 	v, ok := m[k].(bool)

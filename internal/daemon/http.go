@@ -129,6 +129,7 @@ func (s *Server) resource(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	q.Token = bearer(r)
+	q.Call = r.Header.Get("X-Meno-Call")
 	q.SessionID = r.PathValue("id")
 	v, e := s.backend.Resource(r.Context(), r.Method, r.URL.Path, r.URL.RawQuery, q)
 	s.result(w, v, e)

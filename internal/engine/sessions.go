@@ -60,6 +60,9 @@ func (e *Engine) CreateSession(ctx context.Context, q proto.SessionCreateRequest
 	}
 	sess := agent.NewSession(abs, model)
 	sess.Provider = e.settings.Provider
+	if e.settings.Tool == "js" {
+		sess.Tool = "js"
+	}
 	sess.Effort = e.settings.Effort
 	sess.Modes, err = validateModes(q.Modes)
 	if err != nil {

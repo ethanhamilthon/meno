@@ -167,6 +167,7 @@ func TestAskPausesThenResumes(t *testing.T) {
 	f := &fakeProvider{steps: [][]llm.Event{{{Kind: llm.EvTool, CallID: "a", Code: "askUser({questions:[{id:'choice',text:'Pick',type:'single',options:[{id:'x',label:'X'}]}]})"}, {Kind: llm.EvDone}}, {{Kind: llm.EvText, Text: "answered"}, {Kind: llm.EvDone}}}}
 	e, h := fixture(t, f)
 	id := newSession(t, e)
+	jsSession(t, e, id)
 	if _, err := e.Message(context.Background(), id, proto.MessageRequest{Text: "choose", ClientID: "ask"}); err != nil {
 		t.Fatal(err)
 	}

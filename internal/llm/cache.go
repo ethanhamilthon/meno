@@ -69,7 +69,7 @@ func applyCache(body map[string]any, req Request) {
 		if key == "" && req.System != "" {
 			prefix := req.Model + "\x00" + req.System
 			if req.Tools {
-				prefix += "\x00" + mustJSON(ToolSchema(req.ToolDescription, req.ModelTimeout))
+				prefix += "\x00" + mustJSON(req.toolSchema())
 			}
 			sum := sha256.Sum256([]byte(prefix))
 			key = "meno-" + hex.EncodeToString(sum[:])[:48]

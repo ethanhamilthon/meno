@@ -55,7 +55,7 @@ func (s *Session) msgsOf(all []Turn, n int) []llm.Msg {
 		case t.Role == llm.RoleUser:
 			out = append(out, s.userMsg(t))
 		case t.Code != "" || t.CallID != "":
-			out = append(out, llm.Msg{Role: llm.RoleAssistant, Text: t.Text, CallID: t.CallID, Code: t.Code})
+			out = append(out, llm.Msg{Role: llm.RoleAssistant, Text: t.Text, CallID: t.CallID, Code: t.Code, ToolName: s.legacyToolName()})
 			out = append(out, resultMsg(all, i))
 		case t.Role == llm.RoleAssistant:
 			out = append(out, llm.Msg{Role: llm.RoleAssistant, Text: t.Text})

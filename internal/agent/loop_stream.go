@@ -14,7 +14,7 @@ func (r *Runner) streamAttempt(ctx context.Context, s *Session) ([]call, llm.Msg
 	var streamErr error
 	req := llm.Request{
 		Provider: r.D.Provider, Model: r.D.Model, Effort: r.D.Effort,
-		System: r.D.System, Msgs: s.ToMsgs(), Tools: true, ToolDescription: r.D.ToolDesc, ModelTimeout: r.D.ModelTimeout,
+		System: r.D.System, Msgs: s.ToMsgs(), Tools: true, ToolDescription: r.D.ToolDesc, ToolName: r.D.ToolName, ModelTimeout: r.D.ModelTimeout,
 	}
 	r.sent = req.Msgs
 	r.emit(s, Ev{Kind: EvRequest, Req: &req})
@@ -104,7 +104,7 @@ func (r *Runner) exec(ctx context.Context, c call) (string, string, string, bool
 	if r.D.Tool == nil {
 		return "", "", "tool runner is not configured", false, 0
 	}
-	return r.D.Tool.Run(ctx, c.Code, r.limit(c))
+	return r.D.Tool.Run(WithCallID(ctx, c.ID), c.Code, r.limit(c))
 }
 
 // limit is the timeout the call runs under (0 = none), as exec applies it.
@@ -116,6 +116,9 @@ func (r *Runner) limit(c call) time.Duration {
 		return r.D.Tool.Timeout()
 	}
 	d := defaultModelTimeout
+	if r.D.DefaultTimeout > 0 {
+		d = r.D.DefaultTimeout
+	}
 	if c.Timeout != nil {
 		d = time.Duration(*c.Timeout * float64(time.Second))
 		if d < 0 {

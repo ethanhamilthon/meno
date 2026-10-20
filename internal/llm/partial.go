@@ -11,11 +11,20 @@ import (
 // yields "const x = 1;\nprint(x". It never fails: incomplete escapes at the
 // end are simply left out until more input arrives.
 func PartialCode(args string) string {
-	i := strings.Index(args, `"code"`)
+	if v := partialString(args, "code"); v != "" {
+		return v
+	}
+	return partialString(args, "command")
+}
+
+// partialString is PartialCode for one named key.
+func partialString(args, key string) string {
+	quoted := `"` + key + `"`
+	i := strings.Index(args, quoted)
 	if i < 0 {
 		return ""
 	}
-	rest := strings.TrimLeft(args[i+len(`"code"`):], " \t\r\n")
+	rest := strings.TrimLeft(args[i+len(quoted):], " \t\r\n")
 	if !strings.HasPrefix(rest, ":") {
 		return ""
 	}

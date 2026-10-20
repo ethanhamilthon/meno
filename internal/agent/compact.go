@@ -23,6 +23,7 @@ type CompactOptions struct {
 	Effort       string
 	ModelTimeout bool
 	ToolDesc     string
+	ToolName     string
 }
 
 // Compact summarizes the old part of the active context with the model and
@@ -69,7 +70,7 @@ func CompactWith(ctx context.Context, cl llm.Client, p llm.Provider, model strin
 	instruction := summaryInstruction(o.SummaryTokens)
 	var summary string
 	if o.System != "" {
-		req := llm.Request{Provider: p, Model: model, Effort: o.Effort, System: o.System, Tools: true, ToolDescription: o.ToolDesc, ModelTimeout: o.ModelTimeout,
+		req := llm.Request{Provider: p, Model: model, Effort: o.Effort, System: o.System, Tools: true, ToolDescription: o.ToolDesc, ToolName: o.ToolName, ModelTimeout: o.ModelTimeout,
 			Msgs: append(s.msgsOf(all, cut), llm.Msg{Role: llm.RoleUser, Text: instruction + "\nThe last " + strconv.Itoa(len(tail)) + " messages stay as they are and are not part of this summary. Answer with the summary as text; do not call any tool."})}
 		summary, err = askSummary(ctx, cl, req, reportUsage)
 		if err != nil && ctx.Err() != nil {
