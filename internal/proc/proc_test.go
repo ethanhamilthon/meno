@@ -41,8 +41,8 @@ func start(t *testing.T, s *Supervisor, session, cmd string, mod func(*StartOpti
 }
 
 func TestSuccessFailureAndLogsKeepStreamsApart(t *testing.T) {
-	var fin []Task
-	s, _ := newSup(t, func(t Task) { fin = append(fin, t) })
+	fin := make(chan Task, 2)
+	s, _ := newSup(t, func(t Task) { fin <- t })
 	a := start(t, s, "s1", "echo out1; echo err1 >&2; echo out2", nil)
 	got, timedOut, err := s.Wait(context.Background(), "s1", a.ID, 10*time.Second)
 	if err != nil || timedOut || got.Status != Succeeded || got.ExitCode == nil || *got.ExitCode != 0 {
@@ -68,8 +68,12 @@ func TestSuccessFailureAndLogsKeepStreamsApart(t *testing.T) {
 	if got.Status != Failed || got.ExitCode == nil || *got.ExitCode != 3 {
 		t.Fatalf("a later nonzero exit is failed task data: %+v", got)
 	}
-	if len(fin) != 2 {
-		t.Fatalf("finish hook calls: %d", len(fin))
+	for range 2 {
+		select {
+		case <-fin:
+		case <-time.After(time.Second):
+			t.Fatal("finish hook was not called")
+		}
 	}
 	if _, err := s.Start(StartOptions{Session: "s1", Command: "x", Cwd: "/does/not/exist"}); err == nil {
 		t.Fatal("startup validation")

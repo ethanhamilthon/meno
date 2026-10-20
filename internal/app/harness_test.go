@@ -47,8 +47,12 @@ func startRig(t testing.TB, home string, model llm.Client) *rig {
 		t.Fatal(err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	go func() { _ = srv.Serve(ctx) }()
-	t.Cleanup(func() { cancel(); srv.Stop("test"); eng.Close(); db.CloseAll() })
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_ = srv.Serve(ctx)
+	}()
+	t.Cleanup(func() { cancel(); srv.Stop("test"); <-done; eng.Close(); db.CloseAll() })
 	for i := 0; i < 400; i++ {
 		if _, err := os.Stat(srv.Socket()); err == nil {
 			break
