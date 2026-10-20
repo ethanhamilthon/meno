@@ -1,23 +1,25 @@
 # Changelog
 
-## Unreleased
+## 0.4.0
+
+- **The agent has one `bash` tool; the JavaScript runtime is gone.** The `js` tool, goja and `internal/jsvm` are removed. Each call runs one command in a fresh `/bin/sh`, and the `meno` command inside it gives the agent files (`read`, `edit`, `write`, `search`), `mcp`, `tasks`, `ask`, `goal`, `web`, `view` and `models`. Old `js` turns are sent to the model as plain text. See [the agent's tool](docs/tools.md).
+- **A background daemon owns the work; the TUI is a thin client.** Sessions, runs, tasks, MCP servers, logins and configuration live in the daemon (unix socket `$MENO_HOME/run/meno.sock`, started on demand). Closing the TUI does not stop a run, several clients can use one session, and a killed daemon recovers. See [the daemon](docs/daemon.md).
+- New commands for scripts and other agents: `meno sessions`, `meno send`, `meno tail` and `meno daemon run|start|stop|restart|status|logs`. See [the command line](docs/cli.md).
+- Removed: `meno agents`, the `:agents` dialog and the `#subagents` mode, the `js_*` settings keys (they still load as `bash_*` aliases), and the `tool` setting as a switch. The bash timeout is seconds, `off` or `model`.
+- Add daemon-owned configuration resources, sequenced session events with resume, ephemeral session tokens for agent calls, steering and queue recall through the daemon, and world-change events for edited instructions.
+- Add `meno` command help embedded in the binary (`meno <group> --help`) and `--json` output.
+
+### Other changes
 
 - Complete the JavaScript-to-bash settings rename. Legacy `js_*` keys still load as aliases, but saved settings use only `bash_*` keys; the bash timeout is seconds, `off`, or `model`.
 
 - Add a SQLite-backed daemon engine with persistent session runs, steering and stop, ask pause/resume, retries and goal modes, subagents, tasks and MCP services. The daemon emits sequenced session events and enforces ephemeral session/mode tokens for agent resource routes. `meno daemon run` now starts this backend.
-- Replace the agent runner's direct JavaScript VM dependency with `agent.ToolRunner`; the existing JavaScript VM implements it without changing in-process TUI behavior.
-- Add concrete typed task, subagent, MCP, web, view, goal, models and ask resource payloads; delegate unowned configuration resources through the engine handler.
 - Add daemon-owned configuration resources for settings, providers, OAuth/cliproxy login, skills, snippets, MCP servers, provider models, file search, and debug requests; add typed config clients and config change notifications.
 - Prepare bash-only migration: add mode command-group permissions, bash settings with legacy JS aliases, persisted session tool selection, bash prompt/schema text, and plain-text replay conversion for old JS turns.
-- Add daemon transport foundations: versioned wire types, a unix-socket HTTP/SSE server, resumable session and global event hubs, typed clients, startup locking, and the `meno daemon` lifecycle commands. Session logic remains a stub for later integration.
-- Add standalone bash execution, restricted meno command parsing, bounded output logs, timeout controls, and conservative heredoc body detection for the daemon migration.
-- Add local `meno read`, `edit`, `write`, and `search` commands, embedded CLI help, and a typed command API for daemon-backed groups.
 
 - **The composer is transparent and identifies the session.** Its top row is a `─` rule with the session name at the right, clipped to 30% of the terminal width; untitled sessions show their working-directory name (or `~` in the home directory).
 - Trim answered tool output above 1 KB while preserving the stored result.
 - Rebuild the system prompt when mode policy changes; add gated voice, method, editing, verification and output sections.
-- Remove `fs.edit`; add `offset`/`limit` aliases and safer existing-file errors for `fs.write`.
-- Add `Buffer` guidance to `help("js")`.
 - Keep cliproxyapi running while disabled OAuth accounts exist. meno now discovers, starts and restarts the helper, retries failed account actions once, and repairs port conflicts. The `:login` list shows helper errors, account status notes and a manual restart action.
 - Added optional per-request effort routing. The router never changes the model, needs two matching verdicts to change effort, and shows each applied change. Configure it in `:settings` under **Agents**.
 

@@ -25,7 +25,7 @@
 - Keep the agent loop independent of terminal rendering. Pass events and data
   through explicit interfaces instead of reaching into UI state.
 - Keep provider API/protocol code in `internal/llm`, MCP transport code in
-  `internal/mcp`, and JavaScript tool bindings in `internal/jsvm`.
+  `internal/mcp`, and Bash tool execution in `internal/tools`.
 - Keep SQL/schema concerns in `internal/db`, configuration persistence in
   `internal/config`, session persistence in the agent's session storage files,
   and reusable JSON file persistence in `internal/store`.
@@ -33,25 +33,33 @@
 
 ## Repo map
 
-meno is a Go terminal coding agent with a tcell UI, a goja JavaScript VM whose
-state lasts for one answer, provider APIs, MCP integrations, and SQLite persistence.
+meno is a Go terminal coding agent with a tcell UI, a daemon-owned engine,
+Bash tools, provider APIs, MCP integrations, and SQLite persistence.
 
 | Path | Responsibility / starting points |
 | --- | --- |
 | `cmd/meno/main.go` | CLI entry point; terminal setup and application lifecycle. |
 | `internal/app/` | TUI controller, state, input, commands, modals, session/runtime wiring. Start with `app.go`, `state.go`, `runtime.go`, `turn.go`. Text fields outside the composer: `textedit*.go` (`textEdit`), forms in `forms.go`. `:login` (the only providers UI): `login.go` (list), `login_flow.go` (OAuth login modal), `login_oauth.go` (helper glue, the derived `oauth` provider), `login_api.go` (API-key providers, the first-run lock). |
 | `internal/ui/` | Rendering primitives, themes, Markdown, transcript layout, widgets. Start with `render.go`, `transcript.go`, `theme.go`. |
-| `internal/agent/` | Agent loop, events, retries, queues, compaction, sessions. Start with `loop.go`, `session.go`, `sessiondb.go`; history/fork/versioned store in `history.go`, `fork.go`, `kv.go`; steering queue in `events.go`; subagent records in `agents_store.go`; retrieval in `retrieval.go`. |
+| `internal/agent/` | Agent loop, events, retries, queues, compaction, sessions. Start with `loop.go`, `session.go`, `sessiondb.go`; history/fork/versioned store in `history.go`, `fork.go`, `kv.go`; steering queue in `events.go`; retrieval in `retrieval_read.go`. |
 | `internal/llm/` | Provider API clients, streaming, native web search, model catalog, usage and protocol types. Start with `types.go`, `http.go`, `chat.go`, `responses.go`, `websearch.go`. |
-| `internal/jsvm/` | JS runtime (state lasts until `VM.Reset`, called when a new user request starts) and its bindings: filesystem (`fs_*.go`), shell, web search, session, tasks, agents, askUser forms, MCP, and `help` (topic texts in `help/*.md`). Start with `vm.go`, `exec.go`, `compile.go` and `prelude.js`. |
+| `internal/engine/` | Daemon-owned session runs, steering, resources, Bash calls, and provider reloads. Start with `engine.go`, `run.go`, `events.go`, `resources.go`. |
+| `internal/tools/` | Bash execution, process tasks, filesystem commands, and restricted command parsing. |
+| `internal/client/` | Daemon HTTP/SSE client and session mirror. |
+| `internal/cli/` | The `meno <group>` commands: parsing, local file commands (`files.go`, `file_*.go`), daemon-backed groups (`mcp.go`, `tasks.go`, `interactive.go`, `daemon.go`) behind the `API` interface; `daemonapi/` implements it over the daemon socket and the `MENO_*` environment of a bash call. |
+| `internal/clihelp/` | Embedded help texts of the commands (`help/*.md`, golden files in `testdata/`). |
+| `internal/form/` | Shape of the question form that `meno ask` shows to the user. |
+| `internal/routing/` | Per-request effort routing (`model_router.go`, `routing.go`). |
+| `internal/proto/` | Shared daemon API request, response, and event types. |
+| `internal/daemon/` | Daemon lifecycle, socket, HTTP resources, event streams; configuration resources in `cfgsvc/`. |
 | `internal/mcp/` | MCP server lifecycle, transports, JSON-RPC, tool schemas, typed results and the local result/artifact store. Start with `manager.go`, `client.go`, `result.go`, `store.go`. |
 | `internal/websearch/` | Brave, Tavily and keyless DuckDuckGo search backends; `search.go` dispatches by backend. |
-| `internal/prompt/` | System prompt assembly: `prompt.go` (`Build`, inputs), `sections.go` (one XML element per section), `xml.go` (`element`, `escapeBody`), `tools.go` (guidelines, subagent role) and the js tool description with the runtime rules and globals (`toolspec.go`). |
+| `internal/prompt/` | System prompt assembly: `prompt.go` (`Build`, inputs), `sections.go` (one XML element per section), `xml.go` (`element`, `escapeBody`), `bash.go` (the Bash prompt and its guidelines) and the Bash tool description (`bash_toolspec.go`). |
 | `internal/config/` | Paths, settings, providers, skills, snippets, MCP configuration, and the read-only `provider.json`/`mcp.json` overlays (`overlay.go`). Start with `paths.go`, `settings.go`, `store.go`, `snippets.go`. |
 | `internal/db/` | Shared SQLite database; additive versioned migrations live in `migrations.go`, opening in `db.go`. |
 | `internal/proc/` | Background process supervisor: process groups, bounded rotating disk logs, durable task results; `daemon.go` runs the provider `run` commands. |
 | `internal/update/` | `meno update` and the start-up check: latest GitHub release (the release page redirect, API as fallback), SHA-256 verified install (`Asset`/`InstallAsset`, also used for cliproxyapi), cached check in `$MENO_HOME/update.json`. |
-| `internal/modes/` | Built-in modes (`#subagents`, `#brainstorm`, `#goal`), their texts and composition (`compose.go`). Their effects: the globals a run keeps (`jsvm/policy.go`), the tool description (`prompt/toolspec.go`), `agent/goal.go` (a goal keeps the run going, not while subagents wait) and `app/modes.go` (the set of a session, `#none`). |
+| `internal/modes/` | Built-in modes (`#brainstorm`, `#goal`), their texts and composition (`compose.go`). Goal continuation is in `agent/goal.go`; session mode controls are in `app/modes.go`. |
 | `internal/cliproxy/` | The cliproxyapi helper behind OAuth logins: install and update from its GitHub releases (`install.go`), config and command (`config.go`), state/keys (`manager.go`), management API client for logins and accounts (`api.go`), the six services (`services.go`). The process itself runs under `proc.Daemons`. |
 | `internal/version/` | Single version source: `VERSION` file (embedded); `Label()` feeds the welcome screen and help title, `Number()` feeds `--version`. Bump it for every release. |
 | `internal/store/` | Reusable JSON loading and atomic saving; `json.go`. |
@@ -74,7 +82,7 @@ state lasts for one answer, provider APIs, MCP integrations, and SQLite persiste
   `composer.go`; visual output: `internal/ui/` and `internal/app/draw*.go`.
 - Agent behavior: `internal/agent/loop.go`, `queue.go`, `retry.go`,
   `compact.go`; application integration: `internal/app/turn.go`.
-- Tool capabilities: `internal/jsvm/`; update `internal/prompt/prompt.go`
+- Tool capabilities: `internal/tools/` and `internal/engine/`; update `internal/prompt/prompt.go`
   when the model-facing tool contract changes.
 - Storage changes: `internal/db/db.go` plus the owning configuration or
   session storage code; preserve existing data and migration behavior.

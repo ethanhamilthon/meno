@@ -1,9 +1,15 @@
-# Daemon transport and configuration service
+# The daemon
 
-The daemon owns SQLite-backed sessions and agent runs. Closing a client does
-not cancel a run. The current interactive TUI still uses the in-process app; the
-client conversion is a later migration stage.
-The client uses a startup lock, starts one daemon, and waits for its socket.
+The daemon owns SQLite-backed sessions, agent runs, tasks, MCP servers and configuration.
+The TUI and the `meno` commands are clients: closing the TUI does not cancel a run, and
+several clients can use one session. A client talks HTTP and SSE over the unix socket
+`$MENO_HOME/run/meno.sock` (a short hashed path in `$TMPDIR` when that path is too long).
+The first client that finds no daemon takes a startup lock, starts `meno daemon run` from its
+own executable and waits for the socket. Every `MENO_HOME` has its own daemon.
+
+The daemon puts `MENO_SOCK`, `MENO_SESSION`, `MENO_TOKEN` and `MENO_CALL` in the environment
+of each bash call. The token is valid for one session; the `meno` commands inside the call
+send it in the `X-Meno-Token` header.
 
 ## Commands
 
@@ -18,8 +24,7 @@ The client uses a startup lock, starts one daemon, and waits for its socket.
 
 ## Configuration routes
 
-The daemon owns configuration reads and writes. The TUI still uses its current
-in-process config path. Routes use JSON request and response objects under
+The daemon owns configuration reads and writes; the TUI uses these routes too. Routes use JSON request and response objects under
 `/v1`:
 
 - `GET|PUT /settings` reads or replaces settings. The daemon reads
@@ -56,7 +61,7 @@ The service uses the existing SQLite stores and validators.
 - `internal/proto` defines JSON request, response, event, and error types.
 - `internal/daemon` owns the HTTP server, SSE event hub, and lifecycle.
   Session operations use a `Backend` interface. `internal/engine` implements
-  the backend, owns session runs, queues, tasks, subagents and MCP services, and
+  the backend, owns session runs, queues, tasks and MCP services, and
   publishes agent events through the session hub. Session resource routes use
   ephemeral bearer tokens. Configuration routes delegate to an injected handler.
 - `internal/daemon/cfgsvc` owns daemon configuration resources.

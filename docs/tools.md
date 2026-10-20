@@ -1,75 +1,55 @@
 # The agent's tool
 
-During the bash migration, `tool` selects `bash` or the compatibility `js` tool for a session. New sessions default to bash. The in-process TUI still runs JS for sessions whose saved `tool` is `js`. JS history is converted to plain text before a bash request; no JS tool calls are replayed. See [bash preparation](bash-tool.md).
+The model has one tool, `bash`. Each call runs one command in a fresh `/bin/sh` in the
+session's working directory. Nothing is shared between calls: durable state lives in files
+and in background tasks. The result ends with `[exit N]`, `[timed out after Ns]` or
+`[cancelled]`. Output is bounded and the full text is kept on disk.
 
-The model has one tool, `js`. **The runtime lives for one answer of the agent**: variables,
-functions and classes declared at the top level of a call are there in the next calls, and a
-new message from the user (or a new run of a subagent) starts a clean runtime. Top-level `let`,
-`const` and `class` behave like `var`, so a later call can declare a name again; code with a
-top-level `return` or `await` runs inside a function and keeps its declarations local.
-Durable data lives in files and tasks. `help()` lists the topics; `help("name")` returns the full API of one global (the text is embedded in `internal/jsvm/help/`). Host functions are
-synchronous; `await` works on values that are already settled and a promise that
-stays pending is an error. The last expression, or an explicit top-level
-`return`, is the result: strings as they are, objects and arrays as JSON;
-functions, Map, Set and cyclic objects are errors. `console.log` output and the
-result share one 64 KB budget; there is a timeout (a setting).
+The `bash timeout` setting (default 120 seconds, `off` or `model`) limits a call; with
+`model` the tool gets a `timeout` argument in seconds.
 
-| Global | |
+## The `meno` command
+
+Inside a call, `meno` is the running executable. Run `meno <group> --help` for details and
+add `--json` for structured output.
+
+| Group | Commands |
 | --- | --- |
-| `fs.read(path, {startLine?, endLine?, offset?, limit?})`, `fs.inspect(...)` | 1-based inclusive lines; `offset`/`limit` alias the range fields and cannot be mixed with them; `inspect` also returns `{sha256}` of the whole file |
-| `fs.search(query, {root?, glob?, regex?, caseSensitive?, includeIgnored?, limit?, cursor?})` | `{matches: [{path, line, column, text}], nextCursor, truncated}`; columns are Unicode scalar positions; skips git-ignored files unless asked |
-| `fs.patch(path, [{oldText, newText}], {expectedHash})` | all-or-nothing exact edits against what `inspect` showed; each `oldText` must match once; atomic replace keeping permissions |
-| `fs.write`, `fs.glob`, `fs.exists` | `write` refuses an existing file and reports its hash and line count; use `inspect` then `patch` for a targeted edit |
-| `sh(cmd)`, `console` | shell and output; there is no `fetch`, `URL`, `URLSearchParams` or `env` global |
-| `websearch(query, {count?})` | `{query, backend, answer?, results: [{title, url, snippet}]}`; provider-native search, then Brave or Tavily from settings, then DuckDuckGo; `count` is 1..10 (default 5) |
-| `session.models({provider?, refresh?})` | models of enabled providers with known capabilities; `null` means unknown |
-| `tasks.start/list/status/logs/wait/cancel` | background processes, see below |
-| `agents.spawn/list/status/send/wait/result/cancel` | subagents, see below |
-| `askUser({questions, timeout})` | one form with all questions, see below |
-| `goal.done(summary)`, `goal.blocked(reason)` | the verdict of a `#goal` run, see [modes](modes.md); they throw elsewhere |
-| `mcp.<server>.<tool>(args)`, `mcpResults`, `mcpServers` | MCP, see below |
-| `view(path)` | look at a PNG/JPEG |
+| files | `meno read`, `edit`, `write`, `search`: local files only, no daemon |
+| mcp | `servers`, `tools SERVER`, `call SERVER TOOL [ARGS]`, `results ID`, `add`, `remove`, `restart` |
+| tasks | `start CMD`, `list`, `status ID`, `logs ID`, `wait ID`, `cancel ID` |
+| ask | `meno ask FILE\|-` shows a form to the user and prints the answers |
+| goal | `done SUMMARY`, `blocked REASON` (for the `#goal` mode) |
+| web | `search QUERY` |
+| view | `meno view IMAGE` shows an image to the model |
+| models | the models of the configured providers |
 
-## Questions
+The other commands (`daemon`, `sessions`, `send`, `tail`) are for people and scripts, see
+[the command line](cli.md). The groups a session may use depend on its [modes](modes.md).
 
-`askUser({questions: [{id, text, type: "single"|"multi"|"text", options: [{id, label}], recommendation}], timeout})`
-returns `{answers: [{id, selected, text}]}`. Every question is required and the
-user can always add custom text. `Tab`/`Shift+Tab` move focus, `Space` toggles,
-`[`/`]` change question, clicks work. Enter selects a single choice, marks a
-multi choice or accepts text and goes to the next question; Enter on the last
-question sends every answer at once. Going back with the arrow keys or
-`Shift+Tab` keeps what was already answered. There is no separate submit step.
-`Cancel` makes the call throw `AskCancelled` (`AskTimeout` after the timeout).
-`Esc` never closes the form.
+Daemon-backed groups reach the daemon through the `MENO_SOCK`, `MENO_SESSION`, `MENO_TOKEN`
+and `MENO_CALL` variables that the daemon puts in the environment of each call. The token is
+valid for that session only. See [the daemon](daemon.md).
 
-## Tasks
+## Background tasks
 
-`tasks.start(cmd, {cwd?, env?, name?, timeout?, notify?})` starts `/bin/sh -c` in its
-own process group with stdin closed and returns `{id}`. The process inherits the
-environment of meno; `env` adds or overrides single values. Logs are kept on disk, at
-most 10 MiB per task (newest kept, lost ranges are reported). When a task ends
-the agent is told through the steering queue unless `notify: false` or it already
-saw the result in a successful `tasks.wait`. `:tasks` shows the session's tasks,
-live logs, and cancels. Cancel sends SIGTERM to the group and SIGKILL after 5 s.
-Tasks live only while meno is open; a task found running after a crash is marked
-`interrupted` and never restarted.
-
-## Subagents
-
-`agents.spawn({task, cwd?, provider?, model?, effort?})` starts a child session that
-sees only the task text, `AGENTS.md` of its directory and the ordinary tools: no
-`askUser`, no tasks, no further agents. Provider, model and effort fall back one
-by one: the spawn argument, then the defaults in settings, then this agent's
-values.
-Children report with `agents.report`, ask for help with `agents.block` and finish by
-answering. `:agents` lists only working children of the session; open one to watch
-and message it. Their spend is shown apart (`delegated`), unknown prices stay
-unknown. Children never appear in `:sessions`.
+`meno tasks start CMD` runs a command under the process supervisor. A task outlives the call
+and the client. `meno tasks wait ID` exits with 124 when its wait times out. See
+[sessions](sessions.md) for what stop does to tasks.
 
 ## MCP
 
-Tool calls return `{text, structuredContent, content, artifacts, isError, resultId,
-truncated}`. Complete results are stored under `mcp-results/` and can be read back in
-bounded slices with `mcpResults.read(resultId, {offset, limit})`; binary parts are
-files listed in `artifacts`. Manage servers with `mcpServers.list/add/update/remove/restart`
-(secrets are shown as `***`) or in `:mcp`.
+Configured MCP servers are listed in the system prompt with their tool signatures. A call
+returns an envelope with `isError` and the content; a tool's own error does not fail the
+command. Large results are stored and can be read again with `meno mcp results ID`.
+
+## Web search and images
+
+`meno web search` uses the native search of the provider when it has one, and otherwise the
+backend from the `search` setting: Brave, Tavily or keyless DuckDuckGo. `meno view` sends a
+PNG or JPEG to the model (see [images](ui.md#images)).
+
+## Skills and instructions
+
+Skills are listed in the system prompt; the model reads one with `cat` or `meno read`. Your
+`AGENTS.md` files are added to the prompt as described in the [README](../README.md).

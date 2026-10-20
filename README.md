@@ -1,15 +1,14 @@
 # meno
 
-A terminal coding agent for individual developers. It has one tool, `js`: a
-JavaScript runtime ([goja](https://github.com/dop251/goja)) that keeps its
-variables for one answer of the agent, with the file system, a shell, web search, background tasks,
-subagents and your MCP servers inside it. The UI is a vim-style TUI built on
+A terminal coding agent for individual developers. It has one tool, `bash`;
+the `meno` command inside it gives the agent files, background tasks, web search, images and
+your MCP servers. A background daemon owns sessions and runs, so work goes on when you close
+the terminal. The UI is a vim-style TUI built on
 [tcell](https://github.com/gdamore/tcell). Pure Go, no CGO. macOS and Linux
 (arm64, amd64). MIT licensed.
 
-**There is no sandbox.** The agent runs with your permissions: `fs` reads and
-writes any path, `sh` runs any command, and `websearch` or `sh(curl)` reaches
-any URL. Run it where you would run a shell you trust the model with.
+**There is no sandbox.** The agent runs with your permissions: `bash` runs any
+command, so it reads and writes any path and reaches any URL. Run it where you would run a shell you trust the model with.
 
 ## Install
 
@@ -62,10 +61,11 @@ every push and pull request on Linux and macOS and installs a snapshot build wit
 
 | | |
 | --- | --- |
-| [The agent's tool](docs/tools.md) | every global the model can use: fs, sh, websearch, session, tasks, agents, askUser, mcp, help |
+| [The agent's tool](docs/tools.md) | the `bash` tool and the `meno` command the model uses: files, tasks, mcp, web, view, ask |
+| [Command line](docs/cli.md), [daemon](docs/daemon.md) | `meno sessions`, `send`, `tail`; the background daemon |
 | [Sessions, history and events](docs/sessions.md) | :new, :fork, :cd, compaction, steering, :stop |
-| [Modes](docs/modes.md), [accounts and providers](docs/login.md) | `#subagents`, `#brainstorm`, `#goal`, `#none`; `:login` |
-| [Interface](docs/ui.md) | keys, commands, timeline, Markdown, images, JS display |
+| [Modes](docs/modes.md), [accounts and providers](docs/login.md) | `#brainstorm`, `#goal`, `#none`; `:login` |
+| [Interface](docs/ui.md) | keys, commands, timeline, Markdown, images, tool-call display |
 | [Settings](docs/settings.md), [notifications](docs/notifications.md) | |
 | [Upgrading, data and privacy](docs/upgrading.md) | migrations, where data lives, what is logged |
 | [Terminal graphics](docs/graphics.md) | Kitty, Sixel and iTerm images |
@@ -82,7 +82,7 @@ Everything lives in `$MENO_HOME` (default `~/.meno`; `make run` uses `~/.meno-de
 
 | | |
 | --- | --- |
-| `meno.db` | SQLite (mode 0600): settings, providers (**API keys in plain text**), MCP servers, skill state, snippets, model catalog cache, sessions, history, tasks, agents |
+| `meno.db` | SQLite (mode 0600): settings, providers (**API keys in plain text**), MCP servers, skill state, snippets, model catalog cache, sessions, history, tasks |
 | `attachments/` | image bytes, named by hash |
 | `tasks/` | bounded logs of background tasks |
 | `mcp-results/` | complete MCP tool results and their binary artifacts, per session |

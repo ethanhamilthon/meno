@@ -12,12 +12,11 @@ supports every motion and yank (`y` copies through OSC 52). `:` opens commands.
 | `Ctrl+C` | abort this session's active request |
 | `Ctrl+V`, drag and drop, `@` | attach a PNG/JPEG from the clipboard, a dropped file or the picker |
 | `:new :fork :rename :sessions :cd :compact :export` | sessions, see [sessions](sessions.md) |
-| `:tasks :agents` | background processes, working subagents |
+| `:tasks` | background processes |
 | `:model :settings :skills :mcp :login` | dialogs |
 | `:snippets :save_snippet <name> :paste_snippet <name>` | saved text: list, save the selection, insert at the cursor |
 | `:stop :q :q!` | stop the active request, quit, quit and cancel everything |
 
-`:reset` no longer exists: every JS call starts fresh.
 
 The composer shares the terminal background. Its top row is a `─` rule with the session title (saved title or first user message) at the right; long names are limited to 30% of the terminal width. Before a session has a title, the rule shows the working-directory name, or `~` for the home directory.
 
@@ -42,13 +41,13 @@ Enter pastes, `r` renames, `d` twice deletes. Snippets are global and live in
 ## Status bar
 
 Left: a colored badge with the mode (`INSERT`, `NORMAL`, …) followed by the modes of the
-session, for example `NORMAL #subagents #goal`. An open dialog shows its own name instead
+session, for example `NORMAL #brainstorm #goal`. An open dialog shows its own name instead
 (`SESSIONS`, `HELP`, …). On a narrow terminal the modes leave the badge first.
 
 Next to it are groups of the form `N x ◆` written without spaces (`3x◆`):
 
 - green, blinking: `1x◆` — the agent of this session is working;
-- purple, blinking: `Nx◆` — N background tasks or subagents of this session;
+- purple, blinking: `Nx◆` — N background tasks of this session;
 - after a `|`: `Kx◆` (green, blinking) is the number of other sessions that are
   running, and `D◉` (blue) the number of other sessions that finished since you last
   looked at them. A session that waits for an answer is not counted here; see `:sessions`.
@@ -59,23 +58,20 @@ model, with its effort in brackets.
 ## Timeline
 
 Answers are drawn as Markdown (headings, lists, quotes, alerts, tables, fenced code
-with language colours). Every js call shows a small badge in the top right corner of its block: `⠹ 2.3s/120s` while it
+with language colours). Every bash call shows a small badge in the top right corner of its block: `⠹ 2.3s/120s` while it
 runs (time so far / limit), then `✓ 2.3s` or `✕ 2.3s`; long calls turn yellow. A line sums up
-each run (time, requests, js calls, tokens, cache hit rate, cost).
+each run (time, requests, tool calls, tokens, cache hit rate, cost).
 
-## JS display
+## Tool-call display
 
-Tool-call source is highlighted by a JavaScript tokenizer once the whole call has been
-received; while it streams, and when it cannot be tokenized (unterminated string or
-template), it stays plain. Strings stay strings whatever they contain. The setting
-`js strings` is `off` (default) or `lines <n>`: string and template literals show their
-first `n` content lines followed by a muted `…` (`n = 0` shows only the marker); quotes,
-interpolations and the surrounding code stay. Folding is display only: copy, export,
-execution and model replay use the full source. Turn it on and off with the `js strings` setting.
+The timeline shows the command of each bash call once the whole call has arrived; while it
+streams, it stays plain. The settings `bash code`, `bash output`, `bash strings` and
+`bash timing` (see [settings](settings.md)) choose how much of the command, its output and its
+duration you see. Display settings never change what is executed or what the model sees.
 
 ## Images
 
 `[Image #N]` tokens are one unit in the input. At most 5 images per message, 5 MB
-each, PNG or JPEG, scaled to 1568 px. The agent can look with `view(path)`. With a
+each, PNG or JPEG, scaled to 1568 px. The agent can look with `meno view PATH`. With a
 capable terminal the timeline shows the pictures themselves, see
 [terminal graphics](graphics.md); otherwise a text block names number, size and type.

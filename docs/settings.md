@@ -1,14 +1,14 @@
 # Settings (`:settings`)
 
-Settings live in tabs: **General**, **Display**, **Web**, **Notify**, **Agents**,
-**Context**. The `tool` setting selects `js` or `bash`; new sessions use `bash` unless changed. Existing sessions keep their saved tool. `Tab` or `]` moves to the next tab, `Shift+Tab` or `[` to the
+Settings live in tabs: **General**, **Display**, **Web**, **Notify**, **Routing**,
+**Context**. `Tab` or `]` moves to the next tab, `Shift+Tab` or `[` to the
 previous one. `↑`/`↓` or `j`/`k` selects a row; `←`/`→`, space or Enter
 changes a choice; `+`/`-` changes a number. Enter edits a text value (search
 key, notify command), Enter saves it and Esc cancels. Every change is saved at once.
 
 | Tab | Setting | Values |
 | --- | --- | --- |
-| General | theme | one of the built-in color themes, with a live preview |
+| General | theme | `meno`, `pure-black`, `catppuccin-mocha`, or a custom theme; live preview |
 | General | images | `auto`, `off`, `kitty`, `sixel`, `iterm` — see [terminal graphics](graphics.md) |
 | Display | bash code | `all`, `lines <n>`, `off` — how much command text the timeline shows |
 | Display | bash output | `all`, `lines <n>`, `off` |
@@ -17,16 +17,15 @@ key, notify command), Enter saves it and Esc cancels. Every change is saved at o
 | Display | bash timeout | `<seconds>` (default `120`), `off`, `model` — maximum run time for bash calls; `model` lets the model set a timeout per call |
 | Display | thinking | `all`, `lines <n>` (the newest rows), `off` |
 | Display | turn summary | `on`, `off` — the line that closes a run |
-| Web | search | `auto`, `brave`, `tavily`, `duckduckgo`, `off` — fallback backend of `websearch()`, see [tools](tools.md) |
+| Web | search | `auto`, `brave`, `tavily`, `duckduckgo`, `off` — fallback backend of `meno web search`, see [tools](tools.md) |
 | Web | search key | the Brave or Tavily API key; stored as text and shown masked |
 | Notify | notify | `off`, `question`, `done` — see [notification sounds](notifications.md) |
 | Notify | notify sound | `default`, `bell`, or one of 25 built-in sounds; changing it previews |
 | Notify | notify volume | `20`…`100` percent; previews on change; ignored for a custom command |
 | Notify | notify command | optional shell command that replaces the sound |
-| Agents | subagent provider, model, effort | defaults for `agents.spawn`; an empty value ("inherit") uses this agent's value |
-| Agents | effort routing | `off` (default) or `auto` — choose effort for each user request |
-| Agents | effort router model | model ID; empty uses the subagent model, then this session's model |
-| Agents | effort router provider | provider name; empty uses this session's provider |
+| Routing | effort routing | `off` (default) or `auto` — choose effort for each user request |
+| Routing | effort router model | model ID; required when effort routing is enabled |
+| Routing | effort router provider | provider name; required when effort routing is enabled |
 Effort routing chooses an effort level for each user request. It never changes the model. The level changes only after the router asks for the same different level on two requests in a row. The status bar continues to show the manual level.
 
 | Context | auto compact | the percentage of the context window at which meno compacts before a request |
@@ -56,7 +55,7 @@ notice and the rest still loads.
   "vision": true, "efforts": ["low", "high"]}}`. Prices are USD per million tokens; a field you leave out
   keeps the value of the model catalog, and a model without a catalog entry is priced only when both
   `input` and `output` are set. `efforts` replaces the standard levels for that model in `:model`,
-  `session.models()` and `agents.spawn`; a stored effort the model does not take is replaced by
+  `session.models()`; a stored effort the model does not take is replaced by
   `medium`, `high` or its first level. In `:login` the `run` command has its own field;
   `models` can only be set in `provider.json` (a saved provider keeps what it has).
 - `mcp.json`: `[{"name", "transport", "command" or "url", "env", "headers", "enabled"}]`;
@@ -67,5 +66,3 @@ notice and the rest still loads.
 Settings without a row in the dialog live in the settings JSON (`meno.db`):
 `compact_keep` (8) and `compact_summary_tokens` (4000) tune the automatic
 compaction safety net, see [sessions](sessions.md).
-
-`subagent_max_spawn` (50) limits the subagents one request may start, see [modes](modes.md).
