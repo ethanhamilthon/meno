@@ -3,7 +3,6 @@ package daemon
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 )
 
 const maxLogBytes = 10 << 20
@@ -36,12 +35,4 @@ func RotateLog(path string) error {
 		return e
 	}
 	return f.Close()
-}
-
-// RotatePath returns one of the daemon's retained log files by index.
-func RotatePath(path string, index int) string {
-	if index <= 0 {
-		return path
-	}
-	return filepath.Clean(fmt.Sprintf("%s.%d", path, index))
 }

@@ -45,8 +45,6 @@ func (s Style) TCell() tcell.Style {
 	return st
 }
 
-func Base() tcell.Style { return Style{FG: FgWhite, BG: BgTerm}.TCell() }
-
 // Palette is the full set of colors the UI draws with.
 type Palette struct {
 	BgTerm, BgUser, BgJSDone, BgJSRun, BgJSErr, BgPopup, BgPopupIn, BgPopupSel, BgSelect tcell.Color

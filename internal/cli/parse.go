@@ -107,23 +107,6 @@ func intFlag(name, value string, fallback int, minValue int) (int, error) {
 	return n, nil
 }
 
-func readPayload(args []string, input []byte) ([]byte, error) {
-	if len(args) == 0 || len(args) == 1 && args[0] == "-" {
-		return input, nil
-	}
-	if len(args) != 1 {
-		return nil, usageError("provide one JSON object or '-' for stdin")
-	}
-	if strings.HasPrefix(strings.TrimSpace(args[0]), "{") {
-		return []byte(args[0]), nil
-	}
-	obj, err := parseObject(args)
-	if err != nil {
-		return nil, err
-	}
-	return json.Marshal(obj)
-}
-
 func formatList[T any](items []T, name func(T) string) string {
 	var b strings.Builder
 	for _, item := range items {

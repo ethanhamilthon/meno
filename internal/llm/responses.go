@@ -151,11 +151,6 @@ type responsesStream struct {
 	calls     map[string]string // item id -> call id
 }
 
-func handleResponsesEvent(e SSEEvent, emit func(Event)) error {
-	s := responsesStream{items: map[string]any{}}
-	return s.handle(e, emit)
-}
-
 func (s *responsesStream) handle(e SSEEvent, emit func(Event)) error {
 	if e.Data == "[DONE]" {
 		return nil

@@ -38,12 +38,3 @@ func BenchmarkSaveSession(b *testing.B) {
 		}
 	}
 }
-
-func BenchmarkFingerprint(b *testing.B) {
-	msgs := benchSession(300).ToMsgs()
-	req := llm.Request{Model: "m", System: strings.Repeat("s", 8000), Msgs: msgs, Tools: true}
-	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
-		_ = llm.FingerprintOf(req)
-	}
-}

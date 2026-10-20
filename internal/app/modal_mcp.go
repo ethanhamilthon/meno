@@ -164,8 +164,6 @@ func (a *App) saveMCPEdit() {
 		if reflect.DeepEqual(a.st.Servers[a.st.EditIdx], s) {
 			return // nothing changed: do not restart the server
 		}
-		if old := a.st.Servers[a.st.EditIdx].Name; old != s.Name {
-		}
 		a.st.Servers[a.st.EditIdx] = s
 	} else {
 		a.st.Servers = append(a.st.Servers, s)

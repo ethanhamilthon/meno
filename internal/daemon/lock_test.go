@@ -1,10 +1,11 @@
 package daemon
 
 import (
-	"golang.org/x/sys/unix"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"golang.org/x/sys/unix"
 )
 
 func TestLockInheritSerialization(t *testing.T) {

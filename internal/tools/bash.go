@@ -166,12 +166,3 @@ func (c *Call) setPaused(paused bool) bool {
 
 // Wait blocks until the shell exits and its process group is stopped.
 func (c *Call) Wait() (Result, error) { <-c.finished; return c.result, c.err }
-
-// Run starts a bash call and waits for its result.
-func Run(ctx context.Context, options RunOptions) (Result, error) {
-	call, err := Start(ctx, options)
-	if err != nil {
-		return Result{}, err
-	}
-	return call.Wait()
-}

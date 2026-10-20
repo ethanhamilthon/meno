@@ -32,10 +32,6 @@ var graceTime atomic.Int64 // nanoseconds
 
 func init() { graceTime.Store(int64(5 * time.Second)) }
 
-// SetGraceTime changes how long a cancelled process group may take to exit
-// after SIGTERM before it is killed (default five seconds).
-func SetGraceTime(d time.Duration) { graceTime.Store(int64(d)) }
-
 // Task is a process and its outcome.
 type Task struct {
 	ID       string        `json:"id"`

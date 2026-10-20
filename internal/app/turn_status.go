@@ -3,8 +3,6 @@ package app
 import (
 	"strings"
 	"time"
-
-	"meno/internal/llm"
 )
 
 // briefReason squeezes a provider error into one short line.
@@ -34,20 +32,6 @@ func (a *App) retryText() string {
 		head += " · sending"
 	}
 	return head + " — " + r.Reason
-}
-
-// pricer prices one request of the model, for the cost in the run summary.
-func (a *App) pricer(p llm.Provider, model string) func(llm.Usage) (float64, bool) {
-	info, ok := p.Lookup(a.st.Pricing, model)
-	if !ok {
-		return nil
-	}
-	return func(u llm.Usage) (float64, bool) {
-		if !info.CanPrice(u) {
-			return 0, false
-		}
-		return info.Cost(u), true
-	}
 }
 
 // clock writes how long something has gone on: 0:42, 12:05, 1:02:03.

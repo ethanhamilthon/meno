@@ -8,8 +8,8 @@ import (
 )
 
 // LegacyForkWarning is returned with a fork of a session that predates the
-// versioned state journal: only the conversation could be carried over.
-const LegacyForkWarning = "this session predates versioned state; the fork keeps the conversation only, with empty state"
+// history journal: only the conversation could be carried over.
+const LegacyForkWarning = "this session predates the history journal; the fork keeps the conversation only"
 
 // SafeBoundary expands the history ID hid to the end of its replay group, so a
 // fork never splits an assistant message from its tool results. It returns 0
@@ -105,9 +105,6 @@ func ForkSession(dir, srcID string, hid int64, cwd string) (*Session, string, er
 	}
 	pend, err := writeSessionTx(tx, fork)
 	if err == nil {
-		err = copyVersioned(tx, srcID, fork.ID, boundary, src.Legacy)
-	}
-	if err == nil {
 		err = tx.Commit()
 	}
 	if err != nil {
@@ -141,31 +138,4 @@ func summaryRevs(d *sql.DB, id string, boundary int64) ([]SummaryRev, error) {
 		out = append(out, r)
 	}
 	return out, rows.Err()
-}
-
-// copyVersioned writes the versioned state of src at boundary into dst, with a
-// journal baseline at the same boundary. A legacy source has no journal worth
-// reconstructing, so nothing is copied.
-func copyVersioned(tx *sql.Tx, src, dst string, boundary int64, legacy bool) error {
-	if legacy {
-		return nil
-	}
-	var ver int64
-	for _, ns := range []string{NSData} {
-		entries, err := entriesAt(tx, src, ns, boundary)
-		if err != nil {
-			return err
-		}
-		for _, e := range entries {
-			ver++
-			if _, err := tx.Exec("INSERT INTO kv(session_id,ns,key,value_json) VALUES(?,?,?,?)", dst, ns, e.Key, e.JSON); err != nil {
-				return err
-			}
-			if _, err := tx.Exec("INSERT INTO journal(session_id,ver,ns,key,value_json,deleted,boundary,time) VALUES(?,?,?,?,?,0,?,?)",
-				dst, ver, ns, e.Key, e.JSON, boundary, ts(time.Now())); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
 }

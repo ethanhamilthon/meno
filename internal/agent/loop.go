@@ -30,11 +30,6 @@ type runCount struct {
 	unpriced bool
 }
 
-func (r *Runner) Turn(ctx context.Context, s *Session, userText string) error {
-	s.Append(Turn{Role: llm.RoleUser, Text: userText})
-	return r.Continue(ctx, s)
-}
-
 // Continue runs the agent until the model answers without a tool call. The last
 // turn of the session gets the stats of the run (Turn.Run).
 func (r *Runner) Continue(ctx context.Context, s *Session) error {
@@ -117,17 +112,6 @@ func (r *Runner) loop(ctx context.Context, s *Session) error {
 			text = ""
 		}
 	}
-}
-
-// batchFailed reports whether any of the last n tool results holds an error.
-func batchFailed(s *Session, n int) bool {
-	turns := s.Snapshot()
-	for i := max(0, len(turns)-n); i < len(turns); i++ {
-		if turns[i].CallID != "" && turns[i].Err != "" {
-			return true
-		}
-	}
-	return false
 }
 
 func (r *Runner) emit(s *Session, e Ev) {

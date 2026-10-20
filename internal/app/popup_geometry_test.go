@@ -6,10 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gdamore/tcell/v2"
 	"meno/internal/config"
 	"meno/internal/proto"
 	"meno/internal/ui"
+
+	"github.com/gdamore/tcell/v2"
 )
 
 func TestUnifiedModalGeometry(t *testing.T) {

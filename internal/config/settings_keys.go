@@ -20,10 +20,6 @@ var choices = map[string][]string{
 	"notify_sound":    append([]string{"default", "bell"}, notify.Names()...),
 }
 
-func SettingKeys() []string {
-	return append([]string{"theme", "images", "thinking", "turn_summary", "notify", "notify_sound", "notify_volume", "notify_command", "compact_percent"}, bashKeys...)
-}
-
 func Choices(key string) []string {
 	if key == "bash_timeout" {
 		return []string{"seconds", "off", "model"}

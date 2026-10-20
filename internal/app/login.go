@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+
 	"github.com/gdamore/tcell/v2"
 
 	"meno/internal/client"

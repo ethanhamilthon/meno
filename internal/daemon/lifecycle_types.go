@@ -103,6 +103,3 @@ func (s *Server) BootID() string { return s.bootID }
 
 // GlobalHub returns the daemon-wide event hub for service notifications.
 func (s *Server) GlobalHub() *GlobalHub { return s.global }
-
-// LogPath returns the daemon log path.
-func (s *Server) LogPath() string { return s.logPath }

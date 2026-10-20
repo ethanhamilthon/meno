@@ -56,12 +56,6 @@ func (a *App) modelInfo() (llm.ModelInfo, bool) {
 	return p.Lookup(a.st.Pricing, modelOf(a))
 }
 
-// statusUsageText is the session line of the status bar, with icons instead of
-// words: tokens in/out, cache hit of the last request/of the session, the
-// context in use/window, and the spend. Everything in it is about the session:
-// it does not change while the agent works.
-func (a *App) statusUsageText() string { return a.statusUsage(1 << 30) }
-
 // statusUsage is the same line cut to max columns: fields leave from the right
 // (spend first, then the context, then the cache) until it fits.
 func (a *App) statusUsage(max int) string {

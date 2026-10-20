@@ -13,9 +13,6 @@ import (
 	"meno/internal/store"
 )
 
-// CloseSessionStores closes every opened database (flushing the WAL).
-func CloseSessionStores() { db.CloseAll() }
-
 var (
 	sessMu   sync.Mutex
 	sessInit = map[*sql.DB]bool{}

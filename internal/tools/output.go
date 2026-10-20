@@ -5,7 +5,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 const (
@@ -146,16 +145,4 @@ func createLog(dir, callID string) (*cappedLog, string, error) {
 		return nil, "", err
 	}
 	return &cappedLog{file: f}, path, nil
-}
-
-// DeleteSessionOutput removes one session's output directory below outputRoot.
-func DeleteSessionOutput(outputRoot, sessionID string) error {
-	if !filepath.IsAbs(outputRoot) {
-		return fmt.Errorf("output root must be an absolute path")
-	}
-	if sessionID == "" || sessionID == "." || sessionID == ".." ||
-		filepath.Base(sessionID) != sessionID || strings.Contains(sessionID, string(rune(92))) {
-		return fmt.Errorf("invalid session ID")
-	}
-	return os.RemoveAll(filepath.Join(outputRoot, sessionID))
 }

@@ -117,10 +117,6 @@ func short(s string, n int) string {
 	return s
 }
 
-// Ident returns the name under which the js side exposes a server or tool:
-// names that are valid identifiers stay, anything else gets underscores.
-func Ident(name string) string { return ident(name) }
-
 func ident(name string) string {
 	var b strings.Builder
 	for i, r := range name {

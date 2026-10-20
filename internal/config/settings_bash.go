@@ -13,8 +13,6 @@ var bashChoices = map[string][]string{
 	"bash_timing": {"all", "slow", "off"},
 }
 
-var bashKeys = []string{"tool", "bash_code", "bash_lines", "bash_output", "bash_output_lines", "bash_strings", "bash_string_lines", "bash_timing", "bash_timeout", "daemon_idle_exit_min"}
-
 func hasLegacyJSSetting(raw map[string]json.RawMessage) bool {
 	for _, key := range []string{"js_code", "js_lines", "js_output", "js_output_lines", "js_strings", "js_string_lines", "js_timing", "js_timeout", "js_timeout_sec"} {
 		if _, ok := raw[key]; ok {

@@ -2,9 +2,7 @@ package tools
 
 import (
 	"bytes"
-	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -14,7 +12,7 @@ func TestOutputCollectorCutShape(t *testing.T) {
 	input := bytes.Repeat([]byte("x"), outputHeadLimit+outputTailLimit+123)
 	collector.add(input)
 	text, omitted := collector.result("/output/call.log")
-	marker := fmt.Sprintf("\n[123 bytes omitted; full output: /output/call.log]\n")
+	marker := "\n[123 bytes omitted; full output: /output/call.log]\n"
 	if !strings.HasPrefix(text, strings.Repeat("x", outputHeadLimit)+marker) {
 		t.Fatal("missing head or marker")
 	}
@@ -50,28 +48,5 @@ func TestCappedLogKeepsNewestBytes(t *testing.T) {
 	}
 	if !bytes.Equal(data[len(data)-20:], second) || !bytes.Equal(data[:10], bytes.Repeat([]byte("a"), 10)) {
 		t.Fatal("log did not retain newest bytes")
-	}
-}
-
-func TestDeleteSessionOutput(t *testing.T) {
-	root := t.TempDir()
-	dir := filepath.Join(root, "session")
-	if err := os.Mkdir(dir, 0700); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, "call.log"), []byte("out"), 0600); err != nil {
-		t.Fatal(err)
-	}
-	if err := DeleteSessionOutput(root, "session"); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := os.Stat(dir); !os.IsNotExist(err) {
-		t.Fatalf("directory remains: %v", err)
-	}
-	if err := DeleteSessionOutput(root, "../escape"); err == nil {
-		t.Fatal("accepted path traversal")
-	}
-	if err := DeleteSessionOutput("relative", "session"); err == nil {
-		t.Fatal("accepted relative output root")
 	}
 }

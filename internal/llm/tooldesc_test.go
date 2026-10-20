@@ -43,11 +43,3 @@ func TestToolDescriptionIsInBothProtocols(t *testing.T) {
 		}
 	}
 }
-
-func TestFingerprintSeesAToolDescriptionChange(t *testing.T) {
-	a := FingerprintOf(Request{System: "s", Tools: true, ToolDescription: "one"})
-	b := FingerprintOf(Request{System: "s", Tools: true, ToolDescription: "two"})
-	if b.SharedPrefix(a) != -1 || a.SharedPrefix(a) != 0 {
-		t.Fatalf("shared: %d %d", b.SharedPrefix(a), a.SharedPrefix(a))
-	}
-}

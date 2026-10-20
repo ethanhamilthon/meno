@@ -8,8 +8,6 @@ import (
 	"meno/internal/mcp"
 )
 
-func encode(v any) json.RawMessage { b, _ := json.Marshal(v); return b }
-
 func decodeData(raw json.RawMessage, v any) error {
 	if len(raw) == 0 {
 		return nil

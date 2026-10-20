@@ -62,14 +62,6 @@ func (a *App) timelineEmpty() bool {
 	return a.st.Session == nil || a.st.Session.Len() == 0 && a.st.LiveText == "" && a.st.LiveThink == "" && len(a.st.LiveCalls) == 0
 }
 
-// lastNotice is the text of the newest notice of the active session.
-func (a *App) lastNotice() string {
-	if ns := a.currentNotices(); len(ns) > 0 {
-		return ns[len(ns)-1].Text
-	}
-	return ""
-}
-
 // pruneNotices drops expired notices and reports whether anything was removed.
 func (a *App) pruneNotices() bool {
 	now := noticeNow()

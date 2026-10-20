@@ -37,12 +37,6 @@ func (f *scripted) Stream(_ context.Context, _ llm.Request, emit func(llm.Event)
 	return nil
 }
 
-type rig struct {
-	home, socket string
-	eng          *engine.Engine
-	sess         proto.Snapshot
-}
-
 func start(t *testing.T, f llm.Client) (home string, eng *engine.Engine, sess proto.Snapshot, api *daemonapi.API) {
 	h, e, s, a, _ := startRig(t, f)
 	return h, e, s, a

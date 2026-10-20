@@ -48,12 +48,6 @@ type Options struct {
 	Socket string
 }
 
-type liveCall struct {
-	id, code, title, output string
-	limit, elapsed          time.Duration
-	exit                    int
-	timedOut                bool
-}
 type runState struct {
 	session          *agent.Session
 	cwd, prevCwd     string
@@ -74,7 +68,6 @@ type runState struct {
 	lastRequests     []llm.Request
 	lastRequest      llm.Request
 	lastErr          string
-	spawned          int
 	pinProvider      string // provider, model and effort the running request started with
 	pinModel         string
 	pinEffort        string

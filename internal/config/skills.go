@@ -197,17 +197,3 @@ func (s *Store) SaveSkills(sk []Skill) error {
 		return nil
 	})
 }
-
-func FilterSkills(sk []Skill, q string) []Skill {
-	q = strings.ToLower(strings.TrimSpace(q))
-	if q == "" {
-		return sk
-	}
-	var out []Skill
-	for _, s := range sk {
-		if strings.Contains(strings.ToLower(s.Name+" "+s.Desc), q) {
-			out = append(out, s)
-		}
-	}
-	return out
-}

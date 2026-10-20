@@ -179,11 +179,3 @@ func TestDescribeOSAndDate(t *testing.T) {
 		t.Fatal(got)
 	}
 }
-
-func TestIdent(t *testing.T) {
-	for in, want := range map[string]string{"github": "github", "my-server": "my_server", "9lives": "_lives", "a.b": "a_b", "": "_"} {
-		if got := Ident(in); got != want {
-			t.Errorf("%q: %q, want %q", in, got, want)
-		}
-	}
-}

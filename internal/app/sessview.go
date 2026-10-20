@@ -11,7 +11,7 @@ import (
 // sessView is a session as the TUI knows it: a copy of what the daemon told.
 // The daemon owns the real session; this is only for drawing and choosing.
 type sessView struct {
-	id, summaryNote string
+	id              string
 	Title           string
 	Cwd             string
 	Provider, Model string

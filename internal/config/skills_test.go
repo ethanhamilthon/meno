@@ -100,10 +100,3 @@ func TestOldSkillsFileIsIgnored(t *testing.T) {
 		t.Fatalf("%+v %v", sk, err)
 	}
 }
-
-func TestFilterSkills(t *testing.T) {
-	sk := []Skill{{Name: "api-security", Desc: "auth"}, {Name: "docker", Desc: "deploy"}}
-	if len(FilterSkills(sk, "api")) != 1 || len(FilterSkills(sk, "DEPLOY")) != 1 || len(FilterSkills(sk, "")) != 2 {
-		t.Fatal("filter")
-	}
-}

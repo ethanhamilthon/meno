@@ -1,12 +1,9 @@
 package app
 
 import (
-	"context"
 	"os"
 	"strconv"
 )
-
-func contextBackground() context.Context { return context.Background() }
 
 func itoa(n int) string { return strconv.Itoa(n) }
 

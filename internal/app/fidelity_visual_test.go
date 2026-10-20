@@ -9,9 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gdamore/tcell/v2"
 	"meno/internal/llm"
 	"meno/internal/ui"
+
+	"github.com/gdamore/tcell/v2"
 )
 
 func visualFixture(t *testing.T, w, h int) (*App, tcell.SimulationScreen) {

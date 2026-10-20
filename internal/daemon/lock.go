@@ -1,11 +1,12 @@
 package daemon
 
 import (
-	"golang.org/x/sys/unix"
 	"os"
 	"path/filepath"
 	"strconv"
 	"time"
+
+	"golang.org/x/sys/unix"
 )
 
 func lockFile(runDir string) (*os.File, error) {

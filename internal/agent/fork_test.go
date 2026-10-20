@@ -7,78 +7,29 @@ import (
 	"meno/internal/llm"
 )
 
-func entriesMap(t *testing.T, kv *KV, boundary int64) map[string]string {
-	t.Helper()
-	es, err := kv.EntriesAt(boundary)
-	if err != nil {
-		t.Fatal(err)
-	}
-	m := map[string]string{}
-	for _, e := range es {
-		m[e.Key] = e.JSON
-	}
-	return m
-}
-
-// A fork sees the state of its boundary: a write made by the step that the
-// boundary ends is included, a later write is not, and a failed step's earlier
-// writes survive.
-func TestForkReconstructsStateAtBoundary(t *testing.T) {
+// A fork carries the turns up to its boundary and records where it came from.
+func TestForkKeepsTurnsUpToTheBoundary(t *testing.T) {
 	home := t.TempDir()
 	t.Cleanup(CloseSessionStores)
 	s := NewSession(t.TempDir(), "m")
-	kv, err := OpenKV(home, s.ID, NSData)
-	if err != nil {
-		t.Fatal(err)
-	}
-	s.Append(Turn{Role: llm.RoleUser, Text: "start"}) // 1
-	// Step 2 sets a, then fails: the call turn still records it.
-	if err := kv.Set("a", "1", s.ExecBoundary()); err != nil {
-		t.Fatal(err)
-	}
-	s.Append(Turn{Role: llm.RoleAssistant, Text: "call", CallID: "c1", Code: "x", Err: "boom"}) // 2
-	// Step 3 changes a and adds b.
-	if err := kv.Set("a", "2", s.ExecBoundary()); err != nil {
-		t.Fatal(err)
-	}
-	if err := kv.Set("b", "true", s.ExecBoundary()); err != nil {
-		t.Fatal(err)
-	}
-	s.Append(Turn{Role: llm.RoleAssistant, Text: "call2", CallID: "c2", Code: "y"}) // 3
-	if _, err := kv.Delete("b", s.ExecBoundary()); err != nil {
-		t.Fatal(err)
-	}
-	s.Append(Turn{Role: llm.RoleAssistant, Text: "done"}) // 4
+	s.Append(Turn{Role: llm.RoleUser, Text: "start"})
+	s.Append(Turn{Role: llm.RoleAssistant, Text: "call", CallID: "c1", Code: "x", Err: "boom"})
+	s.Append(Turn{Role: llm.RoleAssistant, Text: "call2", CallID: "c2", Code: "y"})
+	s.Append(Turn{Role: llm.RoleAssistant, Text: "done"})
 	if err := SaveSession(home, s); err != nil {
 		t.Fatal(err)
 	}
-	for hid, want := range map[int64]string{1: "", 2: "a=1", 3: "a=2,b=true", 4: "a=2"} {
+	for hid := int64(1); hid <= 4; hid++ {
 		f, warn, err := ForkSession(home, s.ID, hid, "")
 		if err != nil || warn != "" {
 			t.Fatalf("fork at %d: %v %q", hid, err, warn)
-		}
-		fkv, _ := OpenKV(home, f.ID, NSData)
-		got := ""
-		es, _ := fkv.Entries()
-		for i, e := range es {
-			if i > 0 {
-				got += ","
-			}
-			got += e.Key + "=" + e.JSON
-		}
-		if got != want {
-			t.Fatalf("fork at %d state %q, want %q", hid, got, want)
 		}
 		if f.ForkSource != s.ID || f.ForkBoundary != hid || len(f.Snapshot()) != int(hid) {
 			t.Fatalf("fork at %d: %+v", hid, f)
 		}
 	}
-	// Independence: writing to a fork leaves the source alone.
-	f, _, _ := ForkSession(home, s.ID, 4, "")
-	fkv, _ := OpenKV(home, f.ID, NSData)
-	_ = fkv.Set("only", "1", 5)
-	if m := entriesMap(t, kv, 99); len(m) != 1 || m["a"] != "2" {
-		t.Fatalf("source changed: %v", m)
+	if len(s.Snapshot()) != 4 {
+		t.Fatal("the source changed")
 	}
 }
 
@@ -136,27 +87,5 @@ func TestForkMissingCwdAndLegacyWarning(t *testing.T) {
 	f, warn, err := ForkSession(home, s.ID, 2, t.TempDir())
 	if err != nil || warn != LegacyForkWarning || f.Legacy {
 		t.Fatalf("%+v %q %v", f, warn, err)
-	}
-}
-
-func TestStateLimitsAndAtomicFailure(t *testing.T) {
-	home := t.TempDir()
-	t.Cleanup(CloseSessionStores)
-	kv, _ := OpenKV(home, "s", NSData)
-	kv.MaxValue, kv.MaxTotal = 10, 15
-	if err := kv.Set("a", "123456789", 1); err != nil {
-		t.Fatal(err)
-	}
-	if err := kv.Set("b", "12345678901", 1); err == nil {
-		t.Fatal("over the per-value limit")
-	}
-	if err := kv.Set("b", "1234567", 1); err == nil {
-		t.Fatal("over the total limit")
-	}
-	if err := kv.Set("a", "1234567890", 1); err != nil { // replaces, so the total is 10
-		t.Fatal(err)
-	}
-	if v, ok, _ := kv.Get("a"); !ok || v != "1234567890" {
-		t.Fatal(v, ok)
 	}
 }

@@ -26,12 +26,6 @@ type CompactOptions struct {
 	ToolName     string
 }
 
-// Compact summarizes the old part of the active context with the model and
-// moves it to the history; nothing is deleted.
-func Compact(ctx context.Context, cl llm.Client, p llm.Provider, model string, s *Session, reportUsage ...func(llm.Usage)) (before, after int, err error) {
-	return CompactWith(ctx, cl, p, model, s, CompactOptions{}, reportUsage...)
-}
-
 // CompactWith is Compact with options.
 func CompactWith(ctx context.Context, cl llm.Client, p llm.Provider, model string, s *Session, o CompactOptions, reportUsage ...func(llm.Usage)) (before, after int, err error) {
 	keep := o.Keep

@@ -89,25 +89,3 @@ func hashFile(path string) string {
 	_, _ = io.Copy(h, io.LimitReader(f, 4<<20))
 	return hex.EncodeToString(h.Sum(nil)[:8])
 }
-
-func sameBaseline(a, b baseline) bool {
-	if a.cwd != b.cwd || a.date != b.date || a.model != b.model || len(a.files) != len(b.files) || len(a.skills) != len(b.skills) || len(a.tools) != len(b.tools) {
-		return false
-	}
-	for k, v := range a.files {
-		if b.files[k] != v {
-			return false
-		}
-	}
-	for k, v := range a.skills {
-		if b.skills[k] != v {
-			return false
-		}
-	}
-	for i := range a.tools {
-		if a.tools[i] != b.tools[i] {
-			return false
-		}
-	}
-	return true
-}

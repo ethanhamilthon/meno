@@ -84,16 +84,6 @@ func b2i(b bool) int {
 	return 0
 }
 
-func (a *App) enabledAccounts() int {
-	n := 0
-	for _, acc := range a.st.Accounts {
-		if !acc.Disabled {
-			n++
-		}
-	}
-	return n
-}
-
 // accountAction runs a change to an OAuth account off the UI goroutine and
 // then lists the accounts again.
 func (a *App) accountAction(what string, fn func(ctx context.Context, c *client.Client) error) {

@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"os"
 	"time"
 
 	"meno/internal/client"
@@ -72,15 +71,4 @@ func (a *App) watch(sid string) (stop func()) {
 		}
 	}()
 	return cancel
-}
-
-// homeDir is the data directory of this meno.
-func (a *App) homeDir() string { return a.paths.Home }
-
-func cwdOrHome(dir string) string {
-	if dir != "" {
-		return dir
-	}
-	d, _ := os.Getwd()
-	return d
 }

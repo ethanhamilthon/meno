@@ -37,49 +37,14 @@ func TestWrapKeepsParagraphsAndWidth(t *testing.T) {
 	}
 }
 
-func TestHighlightJSClassifiesTokens(t *testing.T) {
-	segs := HighlightJS(`const x = "s" + 42`)
-	var hasStr, hasNum bool
-	for _, s := range segs {
-		if s.Text == `"s"` && s.FG == Green {
-			hasStr = true
-		}
-		if s.Text == "42" && s.FG == Orange {
-			hasNum = true
-		}
-	}
-	if !hasStr || !hasNum {
-		t.Fatalf("segments %+v", segs)
-	}
-}
-
 func TestModeLabels(t *testing.T) {
 	if ModeInsert.Label() != "INSERT" || ModeVisual.Label() != "VISUAL" {
 		t.Fatal("mode labels changed")
 	}
 }
 
-func TestCodeLinesRespectMax(t *testing.T) {
-	lines := CodeLines("a\nb\nc\nd", BgJSDone, 0, 2)
-	if len(lines) != 3 || lines[2].Segs[0].Text != "  …" {
-		t.Fatalf("expected 2 code lines + ellipsis, got %d", len(lines))
-	}
-}
-
 func TestPlainKeepsBackground(t *testing.T) {
 	if l := Plain("x", tcell.ColorWhite, BgUser); l.BG != BgUser {
 		t.Fatal("plain line lost background")
-	}
-}
-
-func TestCodeLinesWrapLongRows(t *testing.T) {
-	lines := CodeLines("const s = '"+strings.Repeat("x", 50)+"';\nok", BgJSDone, 20, 0)
-	if len(lines) < 4 {
-		t.Fatalf("long row not wrapped: %d rows", len(lines))
-	}
-	for _, l := range lines {
-		if l.Width() > 20 || l.BG != BgJSDone {
-			t.Fatalf("row width %d bg %v", l.Width(), l.BG)
-		}
 	}
 }

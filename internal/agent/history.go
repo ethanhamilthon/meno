@@ -6,17 +6,6 @@ import (
 	"fmt"
 )
 
-// ReadHistory returns up to limit turns of the complete source history of a
-// session with history ID greater than after, oldest first. It covers turns
-// that compaction moved out of the active context as well as the active ones.
-func ReadHistory(dir, id string, after int64, limit int) ([]Turn, error) {
-	d, err := openDB(dir)
-	if err != nil {
-		return nil, err
-	}
-	return readHistory(d, id, after, limit)
-}
-
 func readHistory(d *sql.DB, id string, after int64, limit int) ([]Turn, error) {
 	if limit <= 0 {
 		limit = 50

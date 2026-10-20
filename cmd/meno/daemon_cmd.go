@@ -61,6 +61,10 @@ func daemonCLI(args []string, out, errOut io.Writer) int {
 }
 func runDaemon(home string, errOut io.Writer) int {
 	service, e := cfgsvc.New(cfgsvc.Options{Paths: config.Paths{Home: home}})
+	if e != nil {
+		fmt.Fprintln(errOut, e)
+		return 1
+	}
 	hub := daemon.NewHub("", 20000)
 	global := daemon.NewGlobalHub("", 2000)
 	eng, e := engine.New(engine.Options{Home: home, EventHub: hub, GlobalHub: global, Resources: service, Socket: daemon.SocketPath(home)})
