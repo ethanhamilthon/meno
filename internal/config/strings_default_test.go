@@ -2,17 +2,17 @@ package config
 
 import "testing"
 
-func TestJSStringsDefaultsAreUsable(t *testing.T) {
+func TestBashStringsDefaultsAreUsable(t *testing.T) {
 	d := DefaultSettings()
-	if d.JSStrings != "off" || d.JSStringLines != 3 {
-		t.Fatalf("defaults: %q %d", d.JSStrings, d.JSStringLines)
+	if d.BashStrings != "off" || d.BashStringLines != 3 {
+		t.Fatalf("defaults: %q %d", d.BashStrings, d.BashStringLines)
 	}
 	// Settings saved before the default existed hold an empty value.
 	s := Settings{}
-	if got := s.Get("js_strings"); got != "" {
+	if got := s.Get("bash_strings"); got != "" {
 		t.Fatalf("zero value %q", got)
 	}
-	if err := s.Set("js_strings", "lines"); err != nil || s.Get("js_strings") != "lines" {
-		t.Fatalf("set: %v %q", err, s.Get("js_strings"))
+	if err := s.Set("bash_strings", "lines"); err != nil || s.Get("bash_strings") != "lines" {
+		t.Fatalf("set: %v %q", err, s.Get("bash_strings"))
 	}
 }

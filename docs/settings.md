@@ -14,7 +14,7 @@ key, notify command), Enter saves it and Esc cancels. Every change is saved at o
 | Display | bash output | `all`, `lines <n>`, `off` |
 | Display | bash strings | `off`, `lines <n>` — fold heredoc bodies for display only |
 | Display | bash timing | `all`, `slow only`, `off` — which finished bash calls show their duration |
-
+| Display | bash timeout | `<seconds>` (default `120`), `off`, `model` — maximum run time for bash calls; `model` lets the model set a timeout per call |
 | Display | thinking | `all`, `lines <n>` (the newest rows), `off` |
 | Display | turn summary | `on`, `off` — the line that closes a run |
 | Web | search | `auto`, `brave`, `tavily`, `duckduckgo`, `off` — fallback backend of `websearch()`, see [tools](tools.md) |

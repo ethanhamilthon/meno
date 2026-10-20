@@ -25,6 +25,15 @@ func TestBashDefaultsAliasesAndSettingWrite(t *testing.T) {
 	if d.Tool != "bash" || d.BashTimeout != "off" || d.BashLines != 8 || d.DaemonIdleExitMin != 0 {
 		t.Fatalf("set: %+v", d)
 	}
+	if got := d.Cycle("bash_timeout", 1); got != "model" || d.BashTimeout != "model" {
+		t.Fatalf("timeout cycle to model: %q, %q", got, d.BashTimeout)
+	}
+	if got := d.Cycle("bash_timeout", 1); got != "seconds" || d.BashTimeout != "120" {
+		t.Fatalf("timeout cycle to seconds: %q, %q", got, d.BashTimeout)
+	}
+	if got := d.Cycle("bash_timeout", 1); got != "off" || d.BashTimeout != "off" {
+		t.Fatalf("timeout cycle to off: %q, %q", got, d.BashTimeout)
+	}
 	if d.Cycle("tool", -1) != "js" {
 		t.Fatal("tool cycle")
 	}
@@ -40,23 +49,12 @@ func TestBashDefaultsAliasesAndSettingWrite(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	encoded, err := json.Marshal(func() map[string]any {
-		var all map[string]any
-		_ = json.Unmarshal(legacyData, &all)
-		for _, key := range []string{"js_code", "js_lines", "js_output", "js_output_lines", "js_strings", "js_string_lines", "js_timing", "js_timeout", "js_timeout_sec"} {
-			delete(all, key)
-		}
-		return all
-	}())
-	if err != nil {
-		t.Fatal(err)
-	}
 	var fields map[string]any
-	if err := json.Unmarshal(encoded, &fields); err != nil {
+	if err := json.Unmarshal(legacyData, &fields); err != nil {
 		t.Fatal(err)
 	}
-	for _, old := range []string{"js_code", "js_lines", "js_timeout", "js_timeout_sec"} {
-		if _, ok := fields[old]; ok {
+	for _, old := range []string{"js_code", "js_lines", "js_output", "js_output_lines", "js_strings", "js_string_lines", "js_timing", "js_timeout", "js_timeout_sec"} {
+		if _, exists := fields[old]; exists {
 			t.Errorf("legacy key persisted: %s", old)
 		}
 	}

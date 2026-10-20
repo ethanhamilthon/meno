@@ -3,6 +3,7 @@ package config
 import (
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"testing"
 	"time"
 
@@ -12,14 +13,14 @@ import (
 
 func TestSettingsCycleWraps(t *testing.T) {
 	s := DefaultSettings()
-	if got := s.Cycle("js_code", 1); got != "lines" {
+	if got := s.Cycle("bash_code", 1); got != "lines" {
 		t.Fatalf("want lines got %s", got)
 	}
-	s.Cycle("js_code", 1)
-	if got := s.Cycle("js_code", 1); got != "all" {
+	s.Cycle("bash_code", 1)
+	if got := s.Cycle("bash_code", 1); got != "all" {
 		t.Fatalf("wrap forward failed: %s", got)
 	}
-	if got := s.Cycle("js_code", -1); got != "off" {
+	if got := s.Cycle("bash_code", -1); got != "off" {
 		t.Fatalf("wrap backward failed: %s", got)
 	}
 }
@@ -94,11 +95,11 @@ func TestPathsEnvOverride(t *testing.T) {
 
 func TestAdjustNumClamps(t *testing.T) {
 	s := DefaultSettings()
-	if s.AdjustNum("js_code", -100) != 1 || s.AdjustNum("js_code", 100) != 50 {
+	if s.AdjustNum("bash_code", -100) != 1 || s.AdjustNum("bash_code", 100) != 50 {
 		t.Fatal("clamp failed")
 	}
 	// code, output and thinking keep independent limits
-	if s.AdjustNum("js_output", -100) != 1 || s.JSLines != 50 || s.NumFor("js_output") != 1 || s.NumFor("thinking") != 5 {
+	if s.AdjustNum("bash_output", -100) != 1 || s.BashLines != 50 || s.NumFor("bash_output") != 1 || s.NumFor("thinking") != 5 {
 		t.Fatal("limits are not independent")
 	}
 	if s.AdjustNum("thinking", 3) != 8 || s.ThinkLines != 8 {
@@ -110,47 +111,47 @@ func TestAdjustTimeoutSteps(t *testing.T) {
 	s := DefaultSettings()
 	var up []int
 	for i := 0; i < 5; i++ {
-		up = append(up, s.AdjustNum("js_timeout", 1))
+		up = append(up, s.AdjustNum("bash_timeout", 1))
 	}
-	if want := []int{35, 40, 45, 50, 55}; !reflect.DeepEqual(up, want) {
+	if want := []int{150, 180, 210, 240, 270}; !reflect.DeepEqual(up, want) {
 		t.Fatalf("up %v want %v", up, want)
 	}
-	s.JSTimeoutSec = 10
-	if s.AdjustNum("js_timeout", -1) != 9 || s.AdjustNum("js_timeout", 1) != 10 {
+	s.BashTimeout = "10"
+	if s.AdjustNum("bash_timeout", -1) != 9 || s.AdjustNum("bash_timeout", 1) != 10 {
 		t.Fatal("step is not symmetric around 10")
 	}
-	s.JSTimeoutSec = 60
-	if s.AdjustNum("js_timeout", 1) != 90 || s.AdjustNum("js_timeout", -1) != 60 {
+	s.BashTimeout = "60"
+	if s.AdjustNum("bash_timeout", 1) != 90 || s.AdjustNum("bash_timeout", -1) != 60 {
 		t.Fatal("step is not symmetric around 60")
 	}
-	s.JSTimeoutSec = 1
-	if s.AdjustNum("js_timeout", -1) != 1 {
+	s.BashTimeout = "1"
+	if s.AdjustNum("bash_timeout", -1) != 1 {
 		t.Fatal("below 1 second")
 	}
-	s.JSTimeoutSec = MaxTimeoutSec
-	if s.AdjustNum("js_timeout", 1) != MaxTimeoutSec {
+	s.BashTimeout = strconv.Itoa(MaxTimeoutSec)
+	if s.AdjustNum("bash_timeout", 1) != MaxTimeoutSec {
 		t.Fatal("above max")
 	}
-	if NumOption("js_timeout") != "sec" || NumOption("thinking") != "lines" || NumOption("effort") != "" {
+	if NumOption("bash_timeout") != "seconds" || NumOption("thinking") != "lines" || NumOption("effort") != "" {
 		t.Fatal("NumOption")
 	}
 }
 
-func TestTimeoutDuration(t *testing.T) {
+func TestBashTimeoutDuration(t *testing.T) {
 	s := DefaultSettings()
-	if s.TimeoutDuration() != 30*time.Second {
-		t.Fatal("30s")
+	if s.BashTimeoutDuration() != DefaultBashTimeout {
+		t.Fatal("default 120s")
 	}
-	s.JSTimeoutSec = 7
-	if s.TimeoutDuration() != 7*time.Second {
+	s.BashTimeout = "7"
+	if s.BashTimeoutDuration() != 7*time.Second {
 		t.Fatal("7s")
 	}
-	s.JSTimeout = "off"
-	if s.TimeoutDuration() != 0 {
+	s.BashTimeout = "off"
+	if s.BashTimeoutDuration() != 0 {
 		t.Fatal("off")
 	}
-	s.JSTimeout = "model"
-	if s.TimeoutDuration() != DefaultTimeout {
+	s.BashTimeout = "model"
+	if s.BashTimeoutDuration() != DefaultTimeout {
 		t.Fatal("model default")
 	}
 }

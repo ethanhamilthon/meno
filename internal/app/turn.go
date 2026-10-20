@@ -128,7 +128,7 @@ func (a *App) startTurn(msg agent.Message) {
 		Client: a.client(p), Provider: p, Model: model,
 		Effort: effort, Goal: a.st.RunGoal, Waiting: func() bool { return a.waitingSubagents(sid) }, Queue: &a.st.Queue, Cost: a.pricer(p, model),
 		Events: a.eventSource(sid), AutoCompact: a.autoCompact(p, model), DebugPayload: a.debugPayload(),
-		Tool: a.st.VM, Thinking: a.st.Settings.Thinking != "off", ModelTimeout: a.st.Settings.ModelTimeout(), ToolDesc: prompt.ToolDescriptionFor(false, a.st.VM.Only()),
+		Tool: a.st.VM, Thinking: a.st.Settings.Thinking != "off", ModelTimeout: a.st.Settings.BashModelTimeout(), ToolDesc: prompt.ToolDescriptionFor(false, a.st.VM.Only()),
 		Emit:  func(e agent.Ev) { a.postEvent(agentEv{sid: sid, ev: e}) },
 		Retry: a.providerRetry(p),
 	}

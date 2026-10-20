@@ -5,18 +5,18 @@ type ConfigSettings struct {
 	Provider             string `json:"provider"`
 	Model                string `json:"model"`
 	Effort               string `json:"effort"`
-	JSCode               string `json:"js_code"`
-	JSLines              int    `json:"js_lines"`
-	JSOutput             string `json:"js_output"`
-	JSStrings            string `json:"js_strings"`
-	JSStringLines        int    `json:"js_string_lines"`
-	JSOutLines           int    `json:"js_output_lines"`
-	JSTiming             string `json:"js_timing"`
+	Tool                 string `json:"tool"`
+	BashCode             string `json:"bash_code"`
+	BashLines            int    `json:"bash_lines"`
+	BashOutput           string `json:"bash_output"`
+	BashOutputLines      int    `json:"bash_output_lines"`
+	BashStrings          string `json:"bash_strings"`
+	BashStringLines      int    `json:"bash_string_lines"`
+	BashTiming           string `json:"bash_timing"`
+	BashTimeout          string `json:"bash_timeout"`
 	TurnSummary          string `json:"turn_summary"`
 	Thinking             string `json:"thinking"`
 	ThinkLines           int    `json:"thinking_lines"`
-	JSTimeout            string `json:"js_timeout"`
-	JSTimeoutSec         int    `json:"js_timeout_sec"`
 	Theme                string `json:"theme"`
 	Notify               string `json:"notify"`
 	NotifyCommand        string `json:"notify_command"`

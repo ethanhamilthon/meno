@@ -28,28 +28,28 @@ func TestTimingSettingsInTheDialog(t *testing.T) {
 	a.onKey(keyK(tcell.KeyTab))
 	a.draw()
 	text := screenText(s)
-	for _, want := range []string{"js timing", "slow only", "turn summary"} {
+	for _, want := range []string{"bash timing", "slow only", "turn summary"} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("%q missing:\n%s", want, text)
 		}
 	}
-	a.st.Sel = settingIdx(t, "js_timing")
-	if a.st.Settings.JSTiming != "all" {
-		t.Fatalf("default %q", a.st.Settings.JSTiming)
+	a.st.Sel = settingIdx(t, "bash_timing")
+	if a.st.Settings.BashTiming != "all" {
+		t.Fatalf("default %q", a.st.Settings.BashTiming)
 	}
 	a.onKey(keyK(tcell.KeyRight))
 	a.onKey(keyK(tcell.KeyRight))
-	if a.st.Settings.JSTiming != "off" {
-		t.Fatalf("cycled to %q", a.st.Settings.JSTiming)
+	if a.st.Settings.BashTiming != "off" {
+		t.Fatalf("cycled to %q", a.st.Settings.BashTiming)
 	}
 	a.onKey(keyK(tcell.KeyLeft))
-	if a.st.Settings.JSTiming != "slow" {
-		t.Fatalf("back to %q", a.st.Settings.JSTiming)
+	if a.st.Settings.BashTiming != "slow" {
+		t.Fatalf("back to %q", a.st.Settings.BashTiming)
 	}
 	// +/- change nothing on a setting without a number.
 	a.onKey(key('+'))
-	if a.st.Settings.JSTiming != "slow" {
-		t.Fatal("+ changed js timing")
+	if a.st.Settings.BashTiming != "slow" {
+		t.Fatal("+ changed bash timing")
 	}
 	a.st.Sel = settingIdx(t, "turn_summary")
 	a.onKey(key(' '))
@@ -58,10 +58,10 @@ func TestTimingSettingsInTheDialog(t *testing.T) {
 	}
 	// The choice is saved: a new app on the same files sees it.
 	saved, err := a.store.LoadSettings()
-	if err != nil || saved.JSTiming != "slow" || saved.TurnSummary != "off" {
+	if err != nil || saved.BashTiming != "slow" || saved.TurnSummary != "off" {
 		t.Fatalf("not persisted: %+v %v", saved, err)
 	}
-	if optLabel(&a.st.Settings, "js_timing", "slow") != "slow only" || optLabel(&a.st.Settings, "js_timing", "all") != "all" || optLabel(&a.st.Settings, "turn_summary", "on") != "on" {
+	if optLabel(&a.st.Settings, "bash_timing", "slow") != "slow only" || optLabel(&a.st.Settings, "bash_timing", "all") != "all" || optLabel(&a.st.Settings, "turn_summary", "on") != "on" {
 		t.Fatal("option labels")
 	}
 }
@@ -83,9 +83,9 @@ func TestJSOptsFollowSettings(t *testing.T) {
 	a, s := newTestApp(t)
 	defer s.Fini()
 	for set, want := range map[string]ui.TimingMode{"all": ui.TimingAll, "slow": ui.TimingSlow, "off": ui.TimingOff, "": ui.TimingAll, "nonsense": ui.TimingAll} {
-		a.st.Settings.JSTiming = set
+		a.st.Settings.BashTiming = set
 		if got := a.jsOpts().Timing; got != want {
-			t.Errorf("js_timing %q → %v, want %v", set, got, want)
+			t.Errorf("bash_timing %q → %v, want %v", set, got, want)
 		}
 	}
 	for set, want := range map[string]bool{"on": true, "off": false, "": true} {
@@ -181,7 +181,7 @@ func TestLiveCallShowsItsTimer(t *testing.T) {
 	if text := screenText(s); !strings.Contains(text, "3.0s") || strings.Contains(text, "3.0s/") {
 		t.Fatalf("%s", text)
 	}
-	a.st.Settings.JSTiming = "off"
+	a.st.Settings.BashTiming = "off"
 	a.draw()
 	if strings.Contains(screenText(s), "3.0s") {
 		t.Fatal("timer shown with timing off")

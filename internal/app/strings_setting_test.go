@@ -16,9 +16,9 @@ func TestJSStringsSettingFoldsTheTimeline(t *testing.T) {
 		t.Fatalf("folding is off by default:\n%s", out)
 	}
 	a.openOverlay(OverSettings)
-	a.st.Sel = settingIdx(t, "js_strings")
+	a.st.Sel = settingIdx(t, "bash_strings")
 	a.onKey(key(' '))
-	if a.st.Settings.JSStrings != "lines" || !a.jsOpts().FoldStrings || a.jsOpts().FoldLines != 3 {
+	if a.st.Settings.BashStrings != "lines" || !a.jsOpts().FoldStrings || a.jsOpts().FoldLines != 3 {
 		t.Fatalf("setting not applied: %+v", a.st.Settings)
 	}
 	out, _ := transcriptText(a)

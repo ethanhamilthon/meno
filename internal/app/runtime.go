@@ -116,7 +116,7 @@ func (rt *Runtime) Idle() bool { return !rt.Running && rt.Ask == nil }
 func (a *App) newRuntime(sess *agent.Session, cwd string) *Runtime {
 	sess.AttachDir = a.attachDir()
 	rt := &Runtime{Session: sess, Cwd: cwd, Mode: ui.ModeInsert}
-	rt.VM = jsvm.New(jsvm.Options{Root: cwd, Timeout: a.st.Settings.TimeoutDuration()})
+	rt.VM = jsvm.New(jsvm.Options{Root: cwd, Timeout: a.st.Settings.BashTimeoutDuration()})
 	rt.VM.SetMCP(mcpHost{a.mcp, mcp.ResultStore{Dir: filepath.Join(a.paths.Home, "mcp-results")}, sess.ID})
 	rt.VM.SetMCPAdmin(mcpAdmin{a, sess.ID})
 	rt.VM.SetAsker(appAsker{a, sess.ID})

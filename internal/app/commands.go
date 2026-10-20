@@ -211,7 +211,7 @@ func (a *App) compact() {
 	sess, sid, client := a.st.Session, a.st.Session.ID, a.client(p)
 	// The same system prompt and tools as the session's requests: the summary is
 	// served from their cache. Before the first request there is no prompt.
-	opts := agent.CompactOptions{System: a.st.Prompt.Frozen, Effort: effort, ModelTimeout: a.st.Settings.ModelTimeout(), ToolDesc: prompt.ToolDescriptionFor(false, a.st.VM.Only())}
+	opts := agent.CompactOptions{System: a.st.Prompt.Frozen, Effort: effort, ModelTimeout: a.st.Settings.BashModelTimeout(), ToolDesc: prompt.ToolDescriptionFor(false, a.st.VM.Only())}
 	a.running.Add(1)
 	go func() {
 		defer safe.Recover(a.reportPanic)

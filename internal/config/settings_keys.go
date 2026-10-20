@@ -9,13 +9,8 @@ import (
 )
 
 var choices = map[string][]string{
-	"js_code":         {"all", "lines", "off"},
-	"js_output":       {"all", "lines", "off"},
-	"js_strings":      {"off", "lines"},
 	"images":          {"auto", "off", "kitty", "sixel", "iterm"},
 	"thinking":        {"all", "lines", "off"},
-	"js_timeout":      {"sec", "off", "model"},
-	"js_timing":       {"all", "slow", "off"},
 	"turn_summary":    {"on", "off"},
 	"effort":          {"low", "medium", "high", "max"},
 	"effort_router":   {"off", "auto"},
@@ -33,6 +28,9 @@ func SettingKeys() []string {
 }
 
 func Choices(key string) []string {
+	if key == "bash_timeout" {
+		return []string{"seconds", "off", "model"}
+	}
 	if c, ok := bashChoices[key]; ok {
 		return c
 	}
@@ -40,27 +38,14 @@ func Choices(key string) []string {
 }
 
 func (s *Settings) Get(key string) string {
-	if s.Tool == "bash" && strings.HasPrefix(key, "js_") && key != "js_timeout" {
-		key = canonicalSettingKey(key)
-	}
 	if value, ok := getBash(s, key); ok {
 		return value
 	}
 	switch key {
-	case "js_code":
-		return s.JSCode
-	case "js_output":
-		return s.JSOutput
-	case "js_strings":
-		return s.JSStrings
 	case "images":
 		return s.ImagesProtocol
 	case "thinking":
 		return s.Thinking
-	case "js_timeout":
-		return s.JSTimeout
-	case "js_timing":
-		return s.JSTiming
 	case "turn_summary":
 		return s.TurnSummary
 	case "effort":
@@ -150,20 +135,10 @@ func (s *Settings) setRaw(key, val string) {
 	switch key {
 	case "theme":
 		s.Theme = val
-	case "js_code":
-		s.JSCode = val
-	case "js_output":
-		s.JSOutput = val
-	case "js_strings":
-		s.JSStrings = val
 	case "images":
 		s.ImagesProtocol = val
 	case "thinking":
 		s.Thinking = val
-	case "js_timeout":
-		s.JSTimeout = val
-	case "js_timing":
-		s.JSTiming = val
 	case "turn_summary":
 		s.TurnSummary = val
 	case "effort":
@@ -201,6 +176,44 @@ func TextSetting(key string) bool {
 }
 
 func (s *Settings) Cycle(key string, step int) string {
+	if _, ok := getBash(s, key); !ok {
+		if opts := choices[key]; len(opts) > 0 {
+			cur := s.Get(key)
+			index := 0
+			for i, option := range opts {
+				if option == cur {
+					index = i
+				}
+			}
+			index = ((index+step)%len(opts) + len(opts)) % len(opts)
+			s.setRaw(key, opts[index])
+			return opts[index]
+		}
+	}
+	if key == "bash_timeout" {
+		choices := []string{"seconds", "off", "model"}
+		index := 0
+		if n, err := strconv.Atoi(s.BashTimeout); err == nil {
+			s.bashSeconds = n // remembered while the mode is off or model
+		}
+		if s.BashTimeout == "off" {
+			index = 1
+		} else if s.BashTimeout == "model" {
+			index = 2
+		}
+		index = ((index+step)%len(choices) + len(choices)) % len(choices)
+		if choices[index] == "seconds" {
+			if _, err := strconv.Atoi(s.BashTimeout); err != nil {
+				s.BashTimeout = "120"
+				if s.bashSeconds > 0 {
+					s.BashTimeout = strconv.Itoa(s.bashSeconds)
+				}
+			}
+		} else {
+			s.BashTimeout = choices[index]
+		}
+		return choices[index]
+	}
 	if _, ok := bashChoices[key]; ok {
 		opts := bashChoices[key]
 		cur := s.Get(key)

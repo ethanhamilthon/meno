@@ -23,28 +23,12 @@ type Settings struct {
 	BashStringLines   int    `json:"bash_string_lines"`
 	BashTiming        string `json:"bash_timing"`
 	BashTimeout       string `json:"bash_timeout"`
+	bashSeconds       int    // last number of seconds, kept while the timeout is off or model
 	DaemonIdleExitMin int    `json:"daemon_idle_exit_min"`
-	JSCode            string `json:"js_code"`
-	JSLines           int    `json:"js_lines"`
-	JSOutput          string `json:"js_output"`
-	// JSStrings is off or lines: with lines, string literals in tool-call source
-	// show only their first JSStringLines lines of content (0 = just a marker).
-	JSStrings     string `json:"js_strings"`
-	JSStringLines int    `json:"js_string_lines"`
-	// JSOutLines is the row limit of js output in "lines" mode.
-	JSOutLines int `json:"js_output_lines"`
-	// Thinking is all/lines/off like js code; ThinkLines is its row limit.
-	// JSTiming is how long each js call is shown to have taken: all calls,
-	// only the slow ones, or never. TurnSummary is the line under the answer
-	// that sums up the work (on/off).
-	JSTiming    string `json:"js_timing"`
+	// Thinking is all/lines/off; ThinkLines is its row limit.
 	TurnSummary string `json:"turn_summary"`
 	Thinking    string `json:"thinking"`
 	ThinkLines  int    `json:"thinking_lines"`
-	// JSTimeout is sec (JSTimeoutSec seconds), off (no limit) or model (the model
-	// passes a timeout with each call).
-	JSTimeout    string `json:"js_timeout"`
-	JSTimeoutSec int    `json:"js_timeout_sec"`
 	// Theme is the name of a ui theme; the app falls back to the default for
 	// names it does not know.
 	Theme string `json:"theme"`
@@ -101,13 +85,10 @@ func (s *Settings) UnmarshalJSON(data []byte) error {
 	st := Settings(next)
 	var raw map[string]json.RawMessage
 	_ = json.Unmarshal(data, &raw)
+	defaults := DefaultSettings()
 	if _, hasTool := raw["tool"]; !hasTool && hasLegacyJSSetting(raw) {
 		st.Tool = "js"
 	}
-	if hasLegacyJSSetting(raw) {
-		copyJSSettings(raw, &st)
-	}
-	defaults := DefaultSettings()
 	if _, hasBash := raw["bash_code"]; !hasBash {
 		st.BashCode = defaults.BashCode
 	}
@@ -136,42 +117,35 @@ func (s *Settings) UnmarshalJSON(data []byte) error {
 		st.DaemonIdleExitMin = defaults.DaemonIdleExitMin
 	}
 	applyJSAliases(raw, &st)
-	if hasLegacyJSSetting(raw) {
-		applyLegacySettings(raw, &st)
+	if seconds, err := strconv.Atoi(st.BashTimeout); err == nil && seconds > 0 {
+		st.BashTimeout = strconv.Itoa(min(seconds, MaxTimeoutSec))
+	} else if seconds, err := strconv.Atoi(strings.TrimSuffix(st.BashTimeout, "s")); err == nil && strings.HasSuffix(st.BashTimeout, "s") && seconds > 0 {
+		st.BashTimeout = strconv.Itoa(min(seconds, MaxTimeoutSec))
+	} else if st.BashTimeout == "none" {
+		st.BashTimeout = "off"
 	}
-	// Values from before js code/output shared the same all/lines/off choices.
-	if st.JSCode == "full" {
-		st.JSCode = "all"
+	if st.BashCode == "full" {
+		st.BashCode = "all"
 	}
-	switch st.JSOutput {
+	switch st.BashOutput {
 	case "on":
-		st.JSOutput = "all"
+		st.BashOutput = "all"
 	}
 	if st.Thinking == "on" {
 		st.Thinking = "all"
-	}
-	// Timeouts used to be 5s / 30s / none.
-	if n, err := strconv.Atoi(strings.TrimSuffix(st.JSTimeout, "s")); err == nil && strings.HasSuffix(st.JSTimeout, "s") && n > 0 {
-		st.JSTimeout, st.JSTimeoutSec = "sec", min(n, MaxTimeoutSec)
-	} else if st.JSTimeout == "none" {
-		st.JSTimeout = "off"
 	}
 	for key := range choices {
 		if err := st.Set(key, st.Get(key)); err != nil {
 			st.setRaw(key, defaults.Get(key))
 		}
 	}
+	for key, value := range map[string]string{"bash_code": st.BashCode, "bash_output": st.BashOutput, "bash_strings": st.BashStrings, "bash_timing": st.BashTiming} {
+		if !contains(bashChoices[key], value) {
+			setBash(&st, key, defaults.Get(key))
+		}
+	}
 	if st.Theme == "" {
 		st.Theme = defaults.Theme
-	}
-	if st.JSLines < 1 || st.JSLines > MaxLines {
-		st.JSLines = defaults.JSLines
-	}
-	if st.JSStringLines < 0 || st.JSStringLines > MaxLines {
-		st.JSStringLines = defaults.JSStringLines
-	}
-	if st.JSOutLines < 1 || st.JSOutLines > MaxLines {
-		st.JSOutLines = defaults.JSOutLines
 	}
 	if st.ThinkLines < 1 || st.ThinkLines > MaxLines {
 		st.ThinkLines = defaults.ThinkLines
@@ -184,9 +158,6 @@ func (s *Settings) UnmarshalJSON(data []byte) error {
 	}
 	if st.CompactSummaryTokens < 500 || st.CompactSummaryTokens > 30000 {
 		st.CompactSummaryTokens = defaults.CompactSummaryTokens
-	}
-	if st.JSTimeoutSec < 1 || st.JSTimeoutSec > MaxTimeoutSec {
-		st.JSTimeoutSec = defaults.JSTimeoutSec
 	}
 	normalizeBash(&st, defaults)
 	if st.Tool != "js" && st.Tool != "bash" {
@@ -205,19 +176,10 @@ func DefaultSettings() Settings {
 		BashStrings: "off", BashStringLines: 3, BashTiming: "all", BashTimeout: "120", DaemonIdleExitMin: 30,
 		Effort:         "high",
 		EffortRouter:   "off",
-		JSCode:         "all",
-		JSLines:        5,
-		JSOutput:       "all",
-		JSOutLines:     5,
-		JSStrings:      "off",
-		JSStringLines:  3,
 		Thinking:       "all",
-		JSTiming:       "all",
 		TurnSummary:    "on",
 		ThinkLines:     5,
 		Theme:          "meno",
-		JSTimeout:      "sec",
-		JSTimeoutSec:   30,
 		CompactPercent: 80, CompactKeep: 8, CompactSummaryTokens: 4000,
 		Notify:           "off",
 		NotifySound:      "default",

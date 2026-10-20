@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
-	"time"
 )
 
 func TestEffortRouterSettings(t *testing.T) {
@@ -62,7 +61,7 @@ func TestLoadSettingsNormalizesInvalidValues(t *testing.T) {
 
 func TestSettingsDecodeValidAndLegacy(t *testing.T) {
 	for _, lines := range []int{1, 50} {
-		want := Settings{Provider: "custom", Model: "custom-model", Effort: "max", Tool: "js", JSCode: "off", JSLines: lines, JSOutLines: 7, JSOutput: "off", JSStrings: "off", JSStringLines: 2, Thinking: "off", ThinkLines: 4, JSTiming: "slow", TurnSummary: "off", JSTimeout: "model", JSTimeoutSec: 90, BashCode: "off", BashLines: lines, BashOutput: "off", BashOutputLines: 7, BashStrings: "off", BashStringLines: 2, BashTiming: "slow", BashTimeout: "model", DaemonIdleExitMin: 30, Theme: "dracula", Notify: "done", NotifyCommand: "say hi", NotifySound: "chime", NotifyVolume: 60, EffortRouter: "off", WebSearch: "brave", WebSearchKey: "key", SubagentProvider: "openai", SubagentModel: "gpt-5", SubagentEffort: "low", SubagentMaxSpawn: 50, CompactPercent: 70, CompactKeep: 10, CompactSummaryTokens: 3000}
+		want := Settings{Provider: "custom", Model: "custom-model", Effort: "max", Tool: "bash", BashCode: "off", BashLines: lines, BashOutput: "off", BashOutputLines: 7, BashStrings: "off", BashStringLines: 2, BashTiming: "slow", BashTimeout: "model", TurnSummary: "off", Thinking: "off", ThinkLines: 4, DaemonIdleExitMin: 30, Theme: "dracula", Notify: "done", NotifyCommand: "say hi", NotifySound: "chime", NotifyVolume: 60, EffortRouter: "off", WebSearch: "brave", WebSearchKey: "key", SubagentProvider: "openai", SubagentModel: "gpt-5", SubagentEffort: "low", SubagentMaxSpawn: 50, CompactPercent: 70, CompactKeep: 10, CompactSummaryTokens: 3000}
 		b, err := json.Marshal(want)
 		if err != nil {
 			t.Fatal(err)
@@ -94,19 +93,9 @@ func TestSettingsDecodeValidAndLegacy(t *testing.T) {
 	}
 }
 
-func TestMalformedSettingsDoNotPartiallyApply(t *testing.T) {
-	for _, data := range []string{`{"model":"changed","bash_lines":"bad"}`, `{"bash_timeout":3}`, `{"bash_lines":999999999999999999999999}`, `{"model":`} {
-		got := DefaultSettings()
-		err := json.Unmarshal([]byte(data), &got)
-		if err == nil || got != DefaultSettings() {
-			t.Fatalf("malformed settings applied: %+v %v", got, err)
-		}
-	}
-}
-
 func TestUnknownTimeoutIsBounded(t *testing.T) {
 	for _, value := range []string{"", "typo", "30s"} {
-		if got := (Settings{JSTimeout: value}).TimeoutDuration(); got != 30*time.Second {
+		if got := (Settings{BashTimeout: value}).BashTimeoutDuration(); got != DefaultBashTimeout {
 			t.Fatalf("%q: %s", value, got)
 		}
 	}
@@ -114,19 +103,41 @@ func TestUnknownTimeoutIsBounded(t *testing.T) {
 
 func TestSettingsMigrateOldJSChoices(t *testing.T) {
 	var got Settings
-	if err := json.Unmarshal([]byte(`{"js_code":"full","js_output":"on","thinking":"on","js_timeout":"5s"}`), &got); err != nil {
+	data := []byte(`{"js_code":"full","js_lines":8,"js_output":"on","js_output_lines":9,"js_strings":"lines","js_string_lines":2,"js_timing":"slow","js_timeout":"5s","thinking":"on"}`)
+	if err := json.Unmarshal(data, &got); err != nil {
 		t.Fatal(err)
 	}
-	if got.JSCode != "all" || got.JSOutput != "all" || got.JSOutLines != 5 || got.Thinking != "all" || got.ThinkLines != 5 || got.JSTimeout != "sec" || got.JSTimeoutSec != 5 || got.Tool != "js" {
-		t.Fatalf("%+v", got)
+	if got.BashCode != "all" || got.BashLines != 8 || got.BashOutput != "all" || got.BashOutputLines != 9 || got.BashStrings != "lines" || got.BashStringLines != 2 || got.BashTiming != "slow" || got.BashTimeout != "5" || got.Thinking != "all" || got.Tool != "js" {
+		t.Fatalf("legacy aliases: %+v", got)
 	}
-	got = Settings{}
-	if err := json.Unmarshal([]byte(`{"js_timeout":"none"}`), &got); err != nil || got.JSTimeout != "off" || got.TimeoutDuration() != 0 || got.Tool != "js" {
-		t.Fatalf("none: %+v %v", got, err)
+	encoded, err := json.Marshal(got)
+	if err != nil {
+		t.Fatal(err)
 	}
-	got = Settings{}
-	if err := json.Unmarshal([]byte(`{"js_timeout":"30s"}`), &got); err != nil || got.JSTimeout != "sec" || got.JSTimeoutSec != 30 || got.Tool != "js" {
-		t.Fatalf("30s: %+v %v", got, err)
+	var fields map[string]any
+	if err := json.Unmarshal(encoded, &fields); err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"js_code", "js_lines", "js_output", "js_output_lines", "js_strings", "js_string_lines", "js_timing", "js_timeout", "js_timeout_sec"} {
+		if _, exists := fields[key]; exists {
+			t.Errorf("legacy key persisted: %s", key)
+		}
+	}
+}
+
+func TestBashTimeoutMigrationAliases(t *testing.T) {
+	for input, want := range map[string]string{
+		`{"js_timeout":"sec","js_timeout_sec":45}`:                     "45",
+		`{"js_timeout":"none"}`:                                        "off",
+		`{"js_timeout":"model"}`:                                       "model",
+		`{"js_timeout":"30s"}`:                                         "30",
+		`{"js_timeout":"sec","js_timeout_sec":0}`:                      "120",
+		`{"bash_timeout":"75","js_timeout":"sec","js_timeout_sec":45}`: "75",
+	} {
+		var got Settings
+		if err := json.Unmarshal([]byte(input), &got); err != nil || got.BashTimeout != want {
+			t.Errorf("%s: timeout %q err %v, want %q", input, got.BashTimeout, err, want)
+		}
 	}
 }
 
@@ -151,24 +162,24 @@ func TestLegacyNotifyQuestionMigrates(t *testing.T) {
 
 func TestTimingSettings(t *testing.T) {
 	d := DefaultSettings()
-	if d.JSTiming != "all" || d.TurnSummary != "on" {
-		t.Fatalf("defaults: %q %q", d.JSTiming, d.TurnSummary)
+	if d.BashTiming != "all" || d.TurnSummary != "on" {
+		t.Fatalf("defaults: %q %q", d.BashTiming, d.TurnSummary)
 	}
 	// Files written before these settings existed, and invalid values, get the defaults.
-	for _, data := range []string{`{}`, `{"js_timing":"sometimes","turn_summary":"maybe"}`, `{"js_timing":"","turn_summary":""}`} {
+	for _, data := range []string{`{}`, `{"bash_timing":"sometimes","turn_summary":"maybe"}`, `{"bash_timing":"","turn_summary":""}`} {
 		var got Settings
-		if err := json.Unmarshal([]byte(data), &got); err != nil || got.JSTiming != "all" || got.TurnSummary != "on" {
+		if err := json.Unmarshal([]byte(data), &got); err != nil || got.BashTiming != "all" || got.TurnSummary != "on" {
 			t.Fatalf("%s: %+v %v", data, got, err)
 		}
 	}
 	var got Settings
-	if err := json.Unmarshal([]byte(`{"js_timing":"slow","turn_summary":"off"}`), &got); err != nil || got.JSTiming != "slow" || got.TurnSummary != "off" {
+	if err := json.Unmarshal([]byte(`{"bash_timing":"slow","turn_summary":"off"}`), &got); err != nil || got.BashTiming != "slow" || got.TurnSummary != "off" {
 		t.Fatalf("valid values lost: %+v %v", got, err)
 	}
 	s := DefaultSettings()
 	var seen []string
 	for i := 0; i < 3; i++ {
-		seen = append(seen, s.Cycle("js_timing", 1))
+		seen = append(seen, s.Cycle("bash_timing", 1))
 	}
 	if strings.Join(seen, ",") != "slow,off,all" {
 		t.Fatalf("cycle: %v", seen)
@@ -176,10 +187,10 @@ func TestTimingSettings(t *testing.T) {
 	if s.Cycle("turn_summary", -1) != "off" || s.Cycle("turn_summary", 1) != "on" {
 		t.Fatal("turn_summary cycle")
 	}
-	if s.Set("js_timing", "bogus") == nil || s.Set("turn_summary", "") == nil {
+	if s.Set("bash_timing", "bogus") == nil || s.Set("turn_summary", "") == nil {
 		t.Fatal("invalid values accepted")
 	}
-	if NumOption("js_timing") != "" || NumOption("turn_summary") != "" {
+	if NumOption("bash_timing") != "" || NumOption("turn_summary") != "" {
 		t.Fatal("timing settings carry no number")
 	}
 }

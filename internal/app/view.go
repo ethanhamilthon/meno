@@ -46,12 +46,12 @@ func (a *App) statsText() string {
 }
 
 func (a *App) jsOpts() ui.JSOpts {
-	js := ui.JSOpts{Lines: a.st.Settings.JSLines, OutLines: a.st.Settings.JSOutLines}
-	js.Mode = jsMode(a.st.Settings.JSCode)
-	js.OutMode = jsMode(a.st.Settings.JSOutput)
+	js := ui.JSOpts{Lines: a.st.Settings.BashLines, OutLines: a.st.Settings.BashOutputLines}
+	js.Mode = jsMode(a.st.Settings.BashCode)
+	js.OutMode = jsMode(a.st.Settings.BashOutput)
 	js.ThinkMode = jsMode(a.st.Settings.Thinking)
 	js.ThinkLines = a.st.Settings.ThinkLines
-	switch a.st.Settings.JSTiming {
+	switch a.st.Settings.BashTiming {
 	case "slow":
 		js.Timing = ui.TimingSlow
 	case "off":
@@ -59,8 +59,8 @@ func (a *App) jsOpts() ui.JSOpts {
 	}
 	js.Summary = a.st.Settings.TurnSummary != "off"
 	js.Images = a.imageOpts()
-	js.FoldStrings = a.st.Settings.JSStrings == "lines"
-	js.FoldLines = a.st.Settings.JSStringLines
+	js.FoldStrings = a.st.Settings.BashStrings == "lines"
+	js.FoldLines = a.st.Settings.BashStringLines
 	return js
 }
 

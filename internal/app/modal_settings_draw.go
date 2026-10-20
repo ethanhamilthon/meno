@@ -12,7 +12,7 @@ import (
 // their number ("lines 5", "30 sec").
 func optLabel(s *config.Settings, key, opt string) string {
 	switch {
-	case key == "js_timing" && opt == "slow":
+	case key == "bash_timing" && opt == "slow":
 		return "slow only"
 	case key == "compact_percent":
 		return "at " + strconv.Itoa(s.CompactPercent) + "%"
@@ -20,6 +20,11 @@ func optLabel(s *config.Settings, key, opt string) string {
 		return opt + "%"
 	case (key == "subagent_provider" || key == "subagent_model" || key == "subagent_effort") && opt == "":
 		return "inherit"
+	case key == "bash_timeout" && opt == "seconds":
+		if _, err := strconv.Atoi(s.BashTimeout); err == nil {
+			return s.BashTimeout + " sec"
+		}
+		return "seconds"
 	case opt != config.NumOption(key):
 		return opt
 	case opt == "sec":

@@ -137,7 +137,7 @@ func TestSummaryShrinksToFit(t *testing.T) {
 		prev = l.Width()
 	}
 	// The right side is the first to go, then the details from the end.
-	for w, want := range map[int]string{100: "$0.084", 60: "23s in js", 44: "6 js calls", 30: "7 turns", 20: "1m 24s"} {
+	for w, want := range map[int]string{100: "$0.084", 60: "23s in tools", 44: "6 tool calls", 30: "7 turns", 20: "1m 24s"} {
 		if got := SummaryLines(full, w)[0].Text(); !strings.Contains(got, want) {
 			t.Errorf("width %d lacks %q: %q", w, want, got)
 		}

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Complete the JavaScript-to-bash settings rename. Legacy `js_*` keys still load as aliases, but saved settings use only `bash_*` keys; the bash timeout is seconds, `off`, or `model`.
+
 - Add a SQLite-backed daemon engine with persistent session runs, steering and stop, ask pause/resume, retries and goal modes, subagents, tasks and MCP services. The daemon emits sequenced session events and enforces ephemeral session/mode tokens for agent resource routes. `meno daemon run` now starts this backend.
 - Replace the agent runner's direct JavaScript VM dependency with `agent.ToolRunner`; the existing JavaScript VM implements it without changing in-process TUI behavior.
 - Add concrete typed task, subagent, MCP, web, view, goal, models and ask resource payloads; delegate unowned configuration resources through the engine handler.

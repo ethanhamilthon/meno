@@ -147,7 +147,7 @@ func TestSettingsFileReloadAndValidation(t *testing.T) {
 	if setting.Settings.Effort != "low" || setting.Settings.Theme != "outside" {
 		t.Fatalf("reload: %+v", setting)
 	}
-	if _, err = b.Resource(context.Background(), "PUT", "/v1/settings", "", proto.ResourceRequest{Data: json.RawMessage("{\"settings\":{\"js_lines\":\"bad\"}}")}); err == nil {
+	if _, err = b.Resource(context.Background(), "PUT", "/v1/settings", "", proto.ResourceRequest{Data: json.RawMessage("{\"settings\":{\"bash_lines\":\"bad\"}}")}); err == nil {
 		t.Fatal("expected settings payload validation")
 	}
 }

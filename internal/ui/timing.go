@@ -8,7 +8,7 @@ import (
 	"meno/internal/agent"
 )
 
-// TimingMode says which js calls show how long they took.
+// TimingMode says which tool calls show how long they took.
 type TimingMode int
 
 const (
@@ -85,7 +85,7 @@ func plural(n int, one string) string {
 }
 
 // SummaryLines is what closes a run: its outcome and duration, how many
-// requests and js calls it took, and on the right the tokens, cache hits and
+// requests and tool calls it took, and on the right the tokens, cache hits and
 // cost, all on one line. Parts that do not fit are dropped, the right side
 // first. A failed run says why in a line above.
 func SummaryLines(run *agent.RunStats, w int) []Line {

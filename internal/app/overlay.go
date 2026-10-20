@@ -148,7 +148,7 @@ func (a *App) navKey(k *tcell.EventKey, n int, jk bool) bool {
 
 func (a *App) persistSettings() {
 	for _, rt := range a.rtList {
-		rt.VM.SetTimeout(a.st.Settings.TimeoutDuration())
+		rt.VM.SetTimeout(a.st.Settings.BashTimeoutDuration())
 	}
 	if err := a.store.SaveSettings(a.st.Settings); err != nil {
 		a.notifyErr(err.Error())

@@ -28,14 +28,14 @@ func TestSavedTimingsAndSummaryAreDrawn(t *testing.T) {
 		}
 	}
 	a.st.Settings.TurnSummary = "off"
-	a.st.Settings.JSTiming = "off"
+	a.st.Settings.BashTiming = "off"
 	a.draw()
 	text = screenText(s)
 	if strings.Contains(text, "2 turns") || strings.Contains(text, "50% of") {
 		t.Fatalf("settings ignored:\n%s", text)
 	}
 	// The error background and the model's markdown are on the real screen.
-	a.st.Settings.TurnSummary, a.st.Settings.JSTiming = "on", "all"
+	a.st.Settings.TurnSummary, a.st.Settings.BashTiming = "on", "all"
 	a.st.Session.Append(agent.Turn{Role: llm.RoleAssistant, Text: "| a | b |\n|---|---|\n| **1** | 2 |", CallID: "c2", Code: "bad()", Err: "boom", ElapsedMs: 3})
 	a.draw()
 	_, h := s.Size()
@@ -101,7 +101,7 @@ func TestTurnEndsWithSummaryOnScreenAndInTheDatabase(t *testing.T) {
 	sendAndWait(t, a, "work")
 	a.draw()
 	text := screenText(scr)
-	for _, want := range []string{"all done", "2 turns", "1 js call", "↓2.2k ↑70"} {
+	for _, want := range []string{"all done", "2 turns", "1 tool call", "↓2.2k ↑70"} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("missing %q:\n%s", want, text)
 		}
@@ -123,7 +123,7 @@ func TestTurnEndsWithSummaryOnScreenAndInTheDatabase(t *testing.T) {
 			runs++
 		}
 	}
-	if call.ElapsedMs < 90 || call.LimitMs != 30000 {
+	if call.ElapsedMs < 90 || call.LimitMs != 120000 {
 		t.Fatalf("call timing %+v", call)
 	}
 	if runs != 1 || turns[len(turns)-1].Run == nil || turns[len(turns)-1].Run.Turns != 2 || turns[len(turns)-1].Run.Cost == nil {
@@ -195,7 +195,7 @@ func TestTimedOutCallIsMarkedOnScreen(t *testing.T) {
 	}}
 	a, scr, _ := e2eApp(t, cl)
 	defer scr.Fini()
-	a.st.Settings.JSTimeoutSec = 1
+	a.st.Settings.BashTimeout = "1"
 	a.st.VM.SetTimeout(300 * time.Millisecond)
 	sendAndWait(t, a, "loop")
 	a.draw()

@@ -18,7 +18,7 @@ import (
 // agent loop dependencies.
 func (m *childMgr) build(c *childRun, pr llm.Provider, model, effort, system string, st config.Settings) error {
 	a := m.a
-	vm := jsvm.New(jsvm.Options{Root: c.sess.Cwd, Timeout: st.TimeoutDuration()})
+	vm := jsvm.New(jsvm.Options{Root: c.sess.Cwd, Timeout: st.BashTimeoutDuration()})
 	vm.SetMCP(mcpHost{a.mcp, mcp.ResultStore{Dir: filepath.Join(a.paths.Home, "mcp-results")}, c.sess.ID})
 	vm.SetSessionHost(sessionHost{a: a, sid: c.sess.ID, sess: c.sess, child: true})
 	vm.SetWebSearch(webSearchHost{a: a, sid: c.sess.ID, provider: pr.Name, model: model})
@@ -26,7 +26,7 @@ func (m *childMgr) build(c *childRun, pr llm.Provider, model, effort, system str
 	c.vm = vm
 	c.deps = agent.Deps{
 		Client: a.client(pr), Provider: pr, Model: model, Effort: effort, System: system, Tool: vm,
-		ModelTimeout: st.ModelTimeout(), ToolDesc: prompt.ToolDescription(true), Queue: &c.queue, Events: agent.StoreSource{Store: a.evStore, Session: c.sess.ID},
+		ModelTimeout: st.BashModelTimeout(), ToolDesc: prompt.ToolDescription(true), Queue: &c.queue, Events: agent.StoreSource{Store: a.evStore, Session: c.sess.ID},
 		Cost: c.price, Emit: c.onEmit, Halt: c.halt, Retry: a.providerRetry(pr),
 	}
 	return nil

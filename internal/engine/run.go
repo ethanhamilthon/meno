@@ -156,7 +156,7 @@ func (e *Engine) run(ctx context.Context, s *runState, text string, cont bool) {
 		}
 	}
 	s.prompt = ps
-	vm := jsvm.New(jsvm.Options{Root: s.cwd, Timeout: e.settings.TimeoutDuration()})
+	vm := jsvm.New(jsvm.Options{Root: s.cwd, Timeout: e.settings.BashTimeoutDuration()})
 	vm.SetPolicy(jsvm.Policy{Only: s.modes.Only})
 	vm.SetSessionHost(sessionHost{e, s})
 	vm.SetWebSearch(webHost{e, s})
@@ -174,7 +174,7 @@ func (e *Engine) run(ctx context.Context, s *runState, text string, cont bool) {
 	if info, ok := p.Lookup(e.catalog, model); ok {
 		auto = agent.AutoCompact{Window: info.Context, Percent: e.settings.CompactPercent, Keep: e.settings.CompactKeep, SummaryTokens: e.settings.CompactSummaryTokens}
 	}
-	deps := agent.Deps{Client: e.client(p), Provider: p, Model: model, Effort: effort, System: system, Tool: vm, Thinking: e.settings.Thinking != "off", ModelTimeout: e.settings.ModelTimeout(), ToolDesc: toolDesc, Goal: s.goal, Queue: &s.queue, AutoCompact: auto,
+	deps := agent.Deps{Client: e.client(p), Provider: p, Model: model, Effort: effort, System: system, Tool: vm, Thinking: e.settings.Thinking != "off", ModelTimeout: e.settings.BashModelTimeout(), ToolDesc: toolDesc, Goal: s.goal, Queue: &s.queue, AutoCompact: auto,
 		Cost: func(u llm.Usage) (float64, bool) {
 			mi, ok := p.Lookup(e.catalog, model)
 			if !ok || !mi.CanPrice(u) {
