@@ -14,15 +14,7 @@
 `sessions`, `send` and `tail` start the daemon when it is not running. They let you drive
 meno from scripts and from other agents without the TUI.
 
-The groups the agent uses in its `bash` tool also work from a shell. `meno read`, `edit`,
-`write` and `search` are local and never start the daemon:
-
-- `meno read FILE [START END] [--hash]` prints numbered lines. `--hash` adds the SHA-256 of the whole file.
-- `meno edit FILE OLD NEW` replaces one unique exact match. The JSON form reads a list of edits from stdin and needs `--expect-hash`. All edits succeed or none are written.
-- `meno write FILE` reads stdin. It refuses to replace a file unless you pass `--overwrite`.
-- `meno search PATTERN [DIR]` accepts `--regex`, `--glob G` and `--limit N`.
-
-The groups `mcp`, `tasks`, `ask`, `goal`, `web`, `view` and `models` act on a session
+The groups `mcp`, `tasks`, `ask`, `goal`, `view` and `models` act on a session
 (`MENO_SESSION`), which only an agent call has. See [the agent's tool](tools.md).
 
 Run `meno <group> --help` for help; `--json` gives structured output. Exit codes: 0 success,

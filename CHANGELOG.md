@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- **Removed the file commands.** `meno read`, `edit`, `write` and `search` and the `files` group are gone; the agent uses `cat`, `sed`, heredocs and `rg` or `grep`.
+- **Removed web search.** `meno web`, the Web settings tab and the `websearch` and `websearch_key` settings are gone; the agent reaches the web with `curl` or an MCP server.
+- **Removed effort routing.** The Routing settings tab and the `effort_router*` settings are gone; a run keeps the effort of its session. Old settings files that still hold the removed keys load, and the keys disappear on the next save.
+- **Fixed the error `provider "" is not configured`.** The UI and the engine now read one settings source (`settings.json` first, SQLite only when the file is absent). A session with no provider and model takes the current defaults before its next message; a partial pair or a removed provider is reported and never replaced silently.
+- Removed dead code and trimmed the real-terminal suite and the benchmarks.
+
 ## 0.4.0
 
 - **The agent has one `bash` tool; the JavaScript runtime is gone.** The `js` tool, goja and `internal/jsvm` are removed. Each call runs one command in a fresh `/bin/sh`, and the `meno` command inside it gives the agent files (`read`, `edit`, `write`, `search`), `mcp`, `tasks`, `ask`, `goal`, `web`, `view` and `models`. Old `js` turns are sent to the model as plain text. See [the agent's tool](docs/tools.md).

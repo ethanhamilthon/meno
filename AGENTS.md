@@ -42,18 +42,16 @@ Bash tools, provider APIs, MCP integrations, and SQLite persistence.
 | `internal/app/` | TUI controller, state, input, commands, modals, session/runtime wiring. Start with `app.go`, `state.go`, `runtime.go`, `turn.go`. Text fields outside the composer: `textedit*.go` (`textEdit`), forms in `forms.go`. `:login` (the only providers UI): `login.go` (list), `login_flow.go` (OAuth login modal), `login_oauth.go` (helper glue, the derived `oauth` provider), `login_api.go` (API-key providers, the first-run lock). |
 | `internal/ui/` | Rendering primitives, themes, Markdown, transcript layout, widgets. Start with `render.go`, `transcript.go`, `theme.go`. |
 | `internal/agent/` | Agent loop, events, retries, queues, compaction, sessions. Start with `loop.go`, `session.go`, `sessiondb.go`; history/fork/versioned store in `history.go`, `fork.go`, `kv.go`; steering queue in `events.go`; retrieval in `retrieval_read.go`. |
-| `internal/llm/` | Provider API clients, streaming, native web search, model catalog, usage and protocol types. Start with `types.go`, `http.go`, `chat.go`, `responses.go`, `websearch.go`. |
+| `internal/llm/` | Provider API clients, streaming, model catalog, usage and protocol types. Start with `types.go`, `http.go`, `chat.go`, `responses.go`. |
 | `internal/engine/` | Daemon-owned session runs, steering, resources, Bash calls, and provider reloads. Start with `engine.go`, `run.go`, `events.go`, `resources.go`. |
 | `internal/tools/` | Bash execution, process tasks, filesystem commands, and restricted command parsing. |
 | `internal/client/` | Daemon HTTP/SSE client and session mirror. |
-| `internal/cli/` | The `meno <group>` commands: parsing, local file commands (`files.go`, `file_*.go`), daemon-backed groups (`mcp.go`, `tasks.go`, `interactive.go`, `daemon.go`) behind the `API` interface; `daemonapi/` implements it over the daemon socket and the `MENO_*` environment of a bash call. |
+| `internal/cli/` | The `meno <group>` commands: parsing, daemon-backed groups (`mcp.go`, `tasks.go`, `interactive.go`, `daemon.go`) behind the `API` interface; `daemonapi/` implements it over the daemon socket and the `MENO_*` environment of a bash call. |
 | `internal/clihelp/` | Embedded help texts of the commands (`help/*.md`, golden files in `testdata/`). |
 | `internal/form/` | Shape of the question form that `meno ask` shows to the user. |
-| `internal/routing/` | Per-request effort routing (`model_router.go`, `routing.go`). |
 | `internal/proto/` | Shared daemon API request, response, and event types. |
 | `internal/daemon/` | Daemon lifecycle, socket, HTTP resources, event streams; configuration resources in `cfgsvc/`. |
 | `internal/mcp/` | MCP server lifecycle, transports, JSON-RPC, tool schemas, typed results and the local result/artifact store. Start with `manager.go`, `client.go`, `result.go`, `store.go`. |
-| `internal/websearch/` | Brave, Tavily and keyless DuckDuckGo search backends; `search.go` dispatches by backend. |
 | `internal/prompt/` | System prompt assembly: `prompt.go` (`Build`, inputs), `sections.go` (one XML element per section), `xml.go` (`element`, `escapeBody`), `bash.go` (the Bash prompt and its guidelines) and the Bash tool description (`bash_toolspec.go`). |
 | `internal/config/` | Paths, settings, providers, skills, snippets, MCP configuration, and the read-only `provider.json`/`mcp.json` overlays (`overlay.go`). Start with `paths.go`, `settings.go`, `store.go`, `snippets.go`. |
 | `internal/db/` | Shared SQLite database; additive versioned migrations live in `migrations.go`, opening in `db.go`. |

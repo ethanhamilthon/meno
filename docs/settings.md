@@ -1,10 +1,10 @@
 # Settings (`:settings`)
 
-Settings live in tabs: **General**, **Display**, **Web**, **Notify**, **Routing**,
-**Context**. `Tab` or `]` moves to the next tab, `Shift+Tab` or `[` to the
+Settings live in tabs: **General**, **Display**, **Notify**, **Context**.
+`Tab` or `]` moves to the next tab, `Shift+Tab` or `[` to the
 previous one. `↑`/`↓` or `j`/`k` selects a row; `←`/`→`, space or Enter
-changes a choice; `+`/`-` changes a number. Enter edits a text value (search
-key, notify command), Enter saves it and Esc cancels. Every change is saved at once.
+changes a choice; `+`/`-` changes a number. Enter edits a text value (the
+notify command), Enter saves it and Esc cancels. Every change is saved at once.
 
 | Tab | Setting | Values |
 | --- | --- | --- |
@@ -14,29 +14,15 @@ key, notify command), Enter saves it and Esc cancels. Every change is saved at o
 | Display | bash output | `all`, `lines <n>`, `off` |
 | Display | bash strings | `off`, `lines <n>` — fold heredoc bodies for display only |
 | Display | bash timing | `all`, `slow only`, `off` — which finished bash calls show their duration |
-| Display | bash timeout | `<seconds>` (default `120`), `off`, `model` — maximum run time for bash calls; `model` lets the model set a timeout per call |
 | Display | thinking | `all`, `lines <n>` (the newest rows), `off` |
 | Display | turn summary | `on`, `off` — the line that closes a run |
-| Web | search | `auto`, `brave`, `tavily`, `duckduckgo`, `off` — fallback backend of `meno web search`, see [tools](tools.md) |
-| Web | search key | the Brave or Tavily API key; stored as text and shown masked |
 | Notify | notify | `off`, `question`, `done` — see [notification sounds](notifications.md) |
 | Notify | notify sound | `default`, `bell`, or one of 25 built-in sounds; changing it previews |
 | Notify | notify volume | `20`…`100` percent; previews on change; ignored for a custom command |
 | Notify | notify command | optional shell command that replaces the sound |
-| Routing | effort routing | `off` (default) or `auto` — choose effort for each user request |
-| Routing | effort router model | model ID; required when effort routing is enabled |
-| Routing | effort router provider | provider name; required when effort routing is enabled |
-Effort routing chooses an effort level for each user request. It never changes the model. The level changes only after the router asks for the same different level on two requests in a row. The status bar continues to show the manual level.
-
 | Context | auto compact | the percentage of the context window at which meno compacts before a request |
-| Context | bash timeout | `<n>` seconds (default 120), `off`, `model` — with `model` the tool gets a `timeout` argument |
+| Context | bash timeout | `<seconds>` (default `120`), `off`, `model` — maximum run time of a bash call; with `model` the tool gets a `timeout` argument |
 | Context | daemon idle exit | minutes (default 30); 0 means never |
-
-The search order of `websearch()` is fixed: the provider's own web search (the
-responses protocol has one), then the chosen Brave or Tavily backend, then the
-keyless DuckDuckGo fallback. `auto` tries Brave and then Tavily with the same
-key, so a Tavily key also works without changing the choice. `off` disables
-search and `duckduckgo` skips the paid backends.
 
 ## Files that add to the app
 

@@ -15,12 +15,10 @@ add `--json` for structured output.
 
 | Group | Commands |
 | --- | --- |
-| files | `meno read`, `edit`, `write`, `search`: local files only, no daemon |
 | mcp | `servers`, `tools SERVER`, `call SERVER TOOL [ARGS]`, `results ID`, `add`, `remove`, `restart` |
 | tasks | `start CMD`, `list`, `status ID`, `logs ID`, `wait ID`, `cancel ID` |
 | ask | `meno ask FILE\|-` shows a form to the user and prints the answers |
 | goal | `done SUMMARY`, `blocked REASON` (for the `#goal` mode) |
-| web | `search QUERY` |
 | view | `meno view IMAGE` shows an image to the model |
 | models | the models of the configured providers |
 
@@ -43,13 +41,13 @@ Configured MCP servers are listed in the system prompt with their tool signature
 returns an envelope with `isError` and the content; a tool's own error does not fail the
 command. Large results are stored and can be read again with `meno mcp results ID`.
 
-## Web search and images
+## Files, the web and images
 
-`meno web search` uses the native search of the provider when it has one, and otherwise the
-backend from the `search` setting: Brave, Tavily or keyless DuckDuckGo. `meno view` sends a
+There are no file or web commands. The model reads and edits files with `cat`, `sed`, `rg` or
+`grep` and quoted heredocs, and reaches the web with `curl` or an MCP server. `meno view` sends a
 PNG or JPEG to the model (see [images](ui.md#images)).
 
 ## Skills and instructions
 
-Skills are listed in the system prompt; the model reads one with `cat` or `meno read`. Your
+Skills are listed in the system prompt; the model reads one with `cat`. Your
 `AGENTS.md` files are added to the prompt as described in the [README](../README.md).

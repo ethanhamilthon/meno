@@ -1,7 +1,7 @@
 # meno
 
 A terminal coding agent for individual developers. It has one tool, `bash`;
-the `meno` command inside it gives the agent files, background tasks, web search, images and
+the `meno` command inside it gives the agent background tasks, images, questions to the user and
 your MCP servers. A background daemon owns sessions and runs, so work goes on when you close
 the terminal. The UI is a vim-style TUI built on
 [tcell](https://github.com/gdamore/tcell). Pure Go, no CGO. macOS and Linux
