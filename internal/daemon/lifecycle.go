@@ -32,6 +32,11 @@ func (s *Server) Serve(ctx context.Context) error {
 	}
 	s.listener = listener
 	writePID(s.runDir, s.pid)
+	if s.onStart != nil {
+		if err := s.onStart(ctx); err != nil {
+			return err
+		}
+	}
 	_ = RotateLog(s.logPath)
 	s.http = &http.Server{Handler: s.routes(), ReadHeaderTimeout: 5 * time.Second}
 	go s.stopOnContext(ctx)
@@ -61,6 +66,9 @@ func (s *Server) Stop(reason string) {
 	})
 }
 func (s *Server) cleanup() {
+	if s.onStop != nil {
+		s.onStop()
+	}
 	if s.listener != nil {
 		_ = s.listener.Close()
 	}

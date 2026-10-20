@@ -189,7 +189,7 @@ type GoalRequest struct {
 	Summary string `json:"summary,omitempty"`
 	Reason  string `json:"reason,omitempty"`
 }
-type ModelsRequest struct {
+type SessionModelsRequest struct {
 	Provider string `json:"provider,omitempty"`
 	Refresh  bool   `json:"refresh,omitempty"`
 }

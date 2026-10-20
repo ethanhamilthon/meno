@@ -7,6 +7,7 @@ import (
 	"meno/internal/client"
 	"meno/internal/config"
 	"meno/internal/daemon"
+	"meno/internal/daemon/cfgsvc"
 	"meno/internal/engine"
 	ver "meno/internal/version"
 	"os"
@@ -59,14 +60,15 @@ func daemonCLI(args []string, out, errOut io.Writer) int {
 	}
 }
 func runDaemon(home string, errOut io.Writer) int {
+	service, e := cfgsvc.New(cfgsvc.Options{Paths: config.Paths{Home: home}})
 	hub := daemon.NewHub("", 20000)
 	global := daemon.NewGlobalHub("", 2000)
-	eng, e := engine.New(engine.Options{Home: home, EventHub: hub, GlobalHub: global})
+	eng, e := engine.New(engine.Options{Home: home, EventHub: hub, GlobalHub: global, Resources: service})
 	if e != nil {
 		fmt.Fprintln(errOut, e)
 		return 1
 	}
-	s, e := daemon.New(daemon.Options{Home: home, Version: ver.Label(), Backend: eng, Hub: hub, Global: global, OnStop: eng.Close})
+	s, e := daemon.New(daemon.Options{Home: home, Version: ver.Label(), Backend: eng, Hub: hub, Global: global, OnStart: service.Start, OnStop: func() { eng.Close(); service.Close() }})
 	if e != nil {
 		eng.Close()
 		fmt.Fprintln(errOut, e)
@@ -74,6 +76,7 @@ func runDaemon(home string, errOut io.Writer) int {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	service.SetNotify(func(event string) { s.GlobalHub().Publish("", event, map[string]any{}) })
 	if e = s.Serve(ctx); e != nil {
 		fmt.Fprintln(errOut, "meno: daemon:", e)
 		return 1

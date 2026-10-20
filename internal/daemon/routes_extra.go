@@ -21,9 +21,9 @@ func (s *Server) fileSearch(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	data, _ := json.Marshal(proto.FileSearchRequest{Root: q.Get("root"), Query: q.Get("q")})
 	v, e := s.backend.Resource(r.Context(), r.Method, "/v1/fs/search", r.URL.RawQuery, proto.ResourceRequest{Data: data, Token: bearer(r)})
-	s.result(w, v, e)
+	s.result(w, v.Data, e)
 }
 func (s *Server) debugRequests(w http.ResponseWriter, r *http.Request) {
 	v, e := s.backend.Resource(r.Context(), r.Method, r.URL.Path, r.URL.RawQuery, proto.ResourceRequest{Token: bearer(r)})
-	s.result(w, v, e)
+	s.result(w, v.Data, e)
 }
