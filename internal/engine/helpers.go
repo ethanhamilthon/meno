@@ -13,5 +13,21 @@ func item(s *runState) proto.SessionItem {
 	if s.running {
 		status = s.phase
 	}
-	return proto.SessionItem{ID: sess.ID, Name: sess.DisplayTitle(), Cwd: s.cwd, Model: sess.Model, Status: status, Running: s.running, NeedsYou: s.ask != nil, UpdatedAt: sess.UpdatedAt.UTC().Format(time.RFC3339Nano)}
+	turns := s.session.Len()
+	if s.running || s.compacting {
+		turns = len(s.visibleTurns)
+	}
+	return proto.SessionItem{
+		ID:        sess.ID,
+		Name:      sess.DisplayTitle(),
+		Cwd:       s.cwd,
+		Model:     sess.Model,
+		Provider:  sess.Provider,
+		Effort:    sess.Effort,
+		Status:    status,
+		Running:   s.running,
+		NeedsYou:  s.ask != nil,
+		TurnCount: turns,
+		UpdatedAt: sess.UpdatedAt.UTC().Format(time.RFC3339Nano),
+	}
 }

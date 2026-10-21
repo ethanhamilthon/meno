@@ -54,7 +54,6 @@ type App struct {
 	watchGeneration uint64
 	rts             map[string]*Runtime // every session loaded in this run, by id
 	rtList          []*Runtime          // the same, in creation order
-	dbRows          []proto.SessionItem // sessions the daemon listed for /sessions
 	openURL         func(string) error
 
 	saves                saveQueue       // saves to the daemon, one at a time and in order
@@ -237,8 +236,6 @@ func (a *App) handle(msg any) {
 				rt.Unseen = rt.Session.Completed > rt.Session.ReadThrough
 			}
 		}
-	case sessionsLoaded:
-		a.onSessionsLoaded(m)
 	case modelsLoaded:
 		a.onModelsLoaded(m)
 	case settingsLoaded:

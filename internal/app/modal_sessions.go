@@ -23,6 +23,8 @@ type sessionRow struct {
 	Turns          int
 	Model          string // "gpt-5.5 (openai, effort high)", "" when unknown
 	unseen         bool
+	running        bool
+	needsYou       bool
 	rt             *Runtime
 }
 
@@ -58,12 +60,33 @@ func (a *App) sessionRows() []sessionRow {
 		if rt.Running {
 			updated = time.Now()
 		}
-		rows = append(rows, sessionRow{ID: rt.ID(), Title: rt.sessionTitle(), Cwd: rt.Cwd, UpdatedAt: updated, Turns: rt.Session.Len(), Model: a.runtimeModel(rt), unseen: rt.Unseen, rt: rt})
+		rows = append(rows, sessionRow{
+			ID:        rt.ID(),
+			Title:     rt.sessionTitle(),
+			Cwd:       rt.Cwd,
+			UpdatedAt: updated,
+			Turns:     rt.Session.Len(),
+			Model:     a.runtimeModel(rt),
+			unseen:    rt.Unseen,
+			running:   rt.Running,
+			needsYou:  rt.Ask != nil,
+			rt:        rt,
+		})
 	}
-	for _, s := range a.dbRows {
+	for _, s := range a.globalSessions {
 		if !seen[s.ID] {
 			t, _ := time.Parse(time.RFC3339Nano, s.UpdatedAt)
-			rows = append(rows, sessionRow{ID: s.ID, Title: s.Name, Cwd: s.Cwd, UpdatedAt: t, Model: s.Model, unseen: s.Completed > s.ReadThrough})
+			rows = append(rows, sessionRow{
+				ID:        s.ID,
+				Title:     s.Name,
+				Cwd:       s.Cwd,
+				UpdatedAt: t,
+				Turns:     s.TurnCount,
+				Model:     describeSelection(s.Provider, s.Model, s.Effort),
+				unseen:    s.Completed > s.ReadThrough,
+				running:   s.Running,
+				needsYou:  s.NeedsYou,
+			})
 		}
 	}
 	sort.SliceStable(rows, func(i, j int) bool { return rows[i].UpdatedAt.After(rows[j].UpdatedAt) })
@@ -157,21 +180,22 @@ func (rt *Runtime) status() sessionStatus {
 // blinkOn is the phase of the blinking dots: 500ms on, 500ms off.
 func blinkOn() bool { return time.Now().UnixMilli()/500%2 == 0 }
 
+func dimStatus(on bool, c tcell.Color) tcell.Color {
+	if on {
+		return c
+	}
+	return ui.FgDim
+}
+
 // glyph is the status symbol and its color.
 func (s sessionStatus) glyph() (string, tcell.Color) {
-	dim := func(on bool, c tcell.Color) tcell.Color {
-		if on {
-			return c
-		}
-		return ui.FgDim
-	}
 	switch s {
 	case statusAsk:
 		return "?", ui.Orange
 	case statusRetry:
-		return "●", dim(blinkOn(), ui.Yellow)
+		return "●", dimStatus(blinkOn(), ui.Yellow)
 	case statusRunning:
-		return "●", dim(blinkOn(), ui.Green)
+		return "●", dimStatus(blinkOn(), ui.Green)
 	case statusFailed:
 		return "●", ui.Red
 	case statusUnseen:

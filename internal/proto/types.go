@@ -2,9 +2,9 @@
 package proto
 
 // Protocol is the HTTP API compatibility number. Clients require exact equality.
-// Protocol 5 adds reconstructible session/task changes and bundled configuration.
+// Protocol 6 adds turn count, provider, and effort to session items for picker freshness.
 // Clients and daemons must upgrade together.
-const Protocol = 5
+const Protocol = 6
 
 // Error codes returned in an ErrorEnvelope.
 const (
@@ -56,9 +56,12 @@ type SessionItem struct {
 	Name        string `json:"name,omitempty"`
 	Cwd         string `json:"cwd"`
 	Model       string `json:"model,omitempty"`
+	Provider    string `json:"provider,omitempty"`
+	Effort      string `json:"effort,omitempty"`
 	Status      string `json:"status,omitempty"`
 	Running     bool   `json:"running"`
 	NeedsYou    bool   `json:"needs_you"`
+	TurnCount   int    `json:"turn_count"`
 	UpdatedAt   string `json:"updated_at,omitempty"`
 }
 

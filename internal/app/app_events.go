@@ -16,10 +16,6 @@ type compactDone struct {
 	err  error
 }
 
-type sessionsLoaded struct {
-	list []proto.SessionItem
-	err  error
-}
 type modelsLoaded struct {
 	provider string
 	response proto.ModelsResponse

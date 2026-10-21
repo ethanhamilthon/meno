@@ -1,22 +1,37 @@
 package app
 
 import (
+	"github.com/gdamore/tcell/v2"
+
 	"meno/internal/ui"
 )
+
+func (a *App) sessionGlyph(s sessionRow) (string, tcell.Color) {
+	if s.rt != nil {
+		g, gfg := s.rt.status().glyph()
+		if (s.unseen || s.rt.Unseen) && !(s.rt.Running && s.rt.Retry != nil) && s.rt.Ask == nil {
+			return "●", ui.Blue
+		}
+		return g, gfg
+	}
+	switch {
+	case s.needsYou:
+		return "?", ui.Orange
+	case s.running:
+		return "●", dimStatus(blinkOn(), ui.Green)
+	case s.unseen:
+		return "●", ui.Blue
+	default:
+		return "○", ui.FgDim
+	}
+}
 
 func (a *App) drawSessions(c ui.Canvas, w, h int) {
 	rows, idx := a.sessionsFiltered()
 	items := make([]item, 0, len(idx))
 	for _, i := range idx {
 		s := rows[i]
-		g, gfg := "○", ui.FgDim
-		if s.rt != nil {
-			g, gfg = s.rt.status().glyph()
-		}
-		if s.unseen || s.rt != nil && s.rt.Unseen {
-			g = "●"
-			gfg = ui.Blue
-		}
+		g, gfg := a.sessionGlyph(s)
 		title := s.Title
 		if title == "" {
 			title = "untitled"

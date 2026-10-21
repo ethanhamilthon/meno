@@ -2,8 +2,10 @@ package app
 
 import (
 	"encoding/json"
+	"meno/internal/client"
 	"meno/internal/proto"
 	"testing"
+	"time"
 )
 
 func timelineEvent(seq uint64, typ string, data any) proto.Event {
@@ -47,5 +49,33 @@ func TestTimelineAssistantCommitClearsThinkingButPreservesCalls(t *testing.T) {
 	a.applyWire(rt, timelineEvent(1, proto.EventTurnAdded, proto.TurnAddedData{Turn: proto.Turn{ID: "1", Role: "assistant"}}))
 	if rt.LiveThink != "" || len(rt.LiveCalls) != 1 {
 		t.Fatal("empty assistant boundary lost calls or retained thought")
+	}
+}
+
+func TestProjectionUpdatedAtParsingAndMalformedPreservation(t *testing.T) {
+	a, rt := queueTestApp()
+	validStr := "2026-10-21T15:04:05.123456789Z"
+	validTime, _ := time.Parse(time.RFC3339Nano, validStr)
+
+	u := client.ProjectionUpdate{
+		Changed: client.MetadataChanged,
+		Values: client.MirrorState{
+			Session: proto.SessionItem{ID: rt.ID(), UpdatedAt: validStr},
+		},
+	}
+	a.applyProjection(rt, u)
+	if !rt.Session.UpdatedAt.Equal(validTime) {
+		t.Fatalf("expected UpdatedAt %v, got %v", validTime, rt.Session.UpdatedAt)
+	}
+
+	uBad := client.ProjectionUpdate{
+		Changed: client.MetadataChanged,
+		Values: client.MirrorState{
+			Session: proto.SessionItem{ID: rt.ID(), UpdatedAt: "invalid-timestamp"},
+		},
+	}
+	a.applyProjection(rt, uBad)
+	if !rt.Session.UpdatedAt.Equal(validTime) {
+		t.Fatalf("malformed timestamp erased valid UpdatedAt: %v", rt.Session.UpdatedAt)
 	}
 }

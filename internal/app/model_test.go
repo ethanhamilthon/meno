@@ -100,7 +100,7 @@ func TestSessionsDialogShowsModelOfSelectedRowOnly(t *testing.T) {
 	a.running.Wait()
 	pumpFor(a, 100*time.Millisecond)
 	a.openSessions()
-	pump(t, a, func() bool { return a.dbRows != nil })
+	pump(t, a, func() bool { return len(a.globalSessions) >= 2 })
 	a.refreshSession(a.st.Session.ID())
 	a.running.Wait()
 	pumpFor(a, 100*time.Millisecond)

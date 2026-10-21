@@ -148,7 +148,7 @@ func TestModalDimsEntireBackdrop(t *testing.T) {
 
 func TestSessionSearchTitleDatePathAndClear(t *testing.T) {
 	a, s := visualFixture(t, 120, 36)
-	a.dbRows = []proto.SessionItem{{ID: "test", Name: "Fix compiler", Cwd: "/work/compiler", UpdatedAt: time.Date(2026, 10, 16, 12, 0, 0, 0, time.UTC).Format(time.RFC3339Nano)}}
+	a.globalSessions = []proto.SessionItem{{ID: "test", Name: "Fix compiler", Cwd: "/work/compiler", UpdatedAt: time.Date(2026, 10, 16, 12, 0, 0, 0, time.UTC).Format(time.RFC3339Nano)}}
 	for _, q := range []string{"COMPILER", "/work", "2026-10-16"} {
 		a.st.Query.Set(q)
 		if len(sessionIdx(a)) != 1 {

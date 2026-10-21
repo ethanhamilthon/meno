@@ -6,18 +6,10 @@ import "meno/internal/proto"
 // attention query. Global consumers hydrate state only for meaningful changes.
 func globalSessionChange(typ string, data any) bool {
 	switch typ {
-	case proto.EventStatus, proto.EventAskOpen, proto.EventAskClosed, proto.EventTasksChanged:
+	case proto.EventStatus, proto.EventAskOpen, proto.EventAskClosed, proto.EventTasksChanged, proto.EventTurnAdded:
 		return true
 	case proto.EventSessionChanged:
-		d, ok := data.(proto.ChangedData)
-		if !ok {
-			return false
-		}
-		for _, field := range d.Fields {
-			if field != "history" {
-				return true
-			}
-		}
+		return true
 	}
 	return false
 }

@@ -26,7 +26,16 @@ func (e *Engine) ListSessions(ctx context.Context, q proto.SessionsListRequest) 
 			it = item(s)
 			s.mu.Unlock()
 		} else {
-			it = proto.SessionItem{ID: r.ID, Name: r.Title, Cwd: r.Cwd, Model: r.Model, UpdatedAt: r.UpdatedAt.UTC().Format(time.RFC3339Nano)}
+			it = proto.SessionItem{
+				ID:        r.ID,
+				Name:      r.Title,
+				Cwd:       r.Cwd,
+				Model:     r.Model,
+				Provider:  r.Provider,
+				Effort:    r.Effort,
+				TurnCount: r.Turns,
+				UpdatedAt: r.UpdatedAt.UTC().Format(time.RFC3339Nano),
+			}
 		}
 		it.Completed, it.ReadThrough = e.attention(it.ID)
 		if q.Cwd != "" && it.Cwd != q.Cwd {

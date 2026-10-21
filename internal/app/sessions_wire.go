@@ -170,21 +170,5 @@ func (a *App) onCompactDone(m compactDone) {
 // openSessions lists the sessions of the daemon in the background.
 func (a *App) openSessions() {
 	a.openOverlay(OverSessions)
-	a.spawn(func() {
-		var list proto.SessionsListResponse
-		err := a.rpc(func(ctx context.Context, c *client.Client) error {
-			var e error
-			list, e = c.ListSessions(ctx, proto.SessionsListRequest{Limit: maxSessionRows})
-			return e
-		})
-		a.postEvent(sessionsLoaded{list.Sessions, err})
-	})
-}
-
-func (a *App) onSessionsLoaded(m sessionsLoaded) {
-	if m.err != nil {
-		a.notifyErr("sessions failed: " + m.err.Error())
-		return
-	}
-	a.dbRows = m.list
+	a.invalidateGlobal()
 }

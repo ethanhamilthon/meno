@@ -119,3 +119,104 @@ func TestGlobalUnavailableShowsStaleState(t *testing.T) {
 		t.Fatal("hydration did not restore connection")
 	}
 }
+func TestGlobalHydrationCatalogLifecycleAndFailureRecovery(t *testing.T) {
+	a, _ := queueTestApp()
+	a.globalWatch.generation = 1
+
+	// Initial hydration populates picker catalog
+	initial := []proto.SessionItem{
+		{ID: "s1", Name: "first", Cwd: "/w1", Model: "m1", Provider: "p1", TurnCount: 2},
+		{ID: "s2", Name: "second", Cwd: "/w2", Model: "m2", Provider: "p2", TurnCount: 5},
+	}
+	a.onGlobalSessions(globalSessionsLoaded{generation: 1, rows: initial})
+	rows := a.sessionRows()
+	if len(rows) != 2 || rows[0].Turns != 2 || rows[1].Turns != 5 {
+		t.Fatalf("unexpected rows: %+v", rows)
+	}
+
+	// Rename, turn count, model, cwd change replaces catalog
+	updated := []proto.SessionItem{
+		{ID: "s1", Name: "renamed", Cwd: "/w1-new", Model: "m1-new", Provider: "p1", TurnCount: 4},
+		{ID: "s2", Name: "second", Cwd: "/w2", Model: "m2", Provider: "p2", TurnCount: 5},
+	}
+	a.onGlobalSessions(globalSessionsLoaded{generation: 1, rows: updated})
+	rows = a.sessionRows()
+	if rows[0].Title != "renamed" || rows[0].Cwd != "/w1-new" || rows[0].Turns != 4 {
+		t.Fatalf("updated catalog mismatch: %+v", rows[0])
+	}
+
+	// Create and delete change catalog
+	added := append(updated, proto.SessionItem{ID: "s3", Name: "third", TurnCount: 1})
+	a.onGlobalSessions(globalSessionsLoaded{generation: 1, rows: added})
+	if len(a.sessionRows()) != 3 {
+		t.Fatalf("expected 3 rows after creation, got %d", len(a.sessionRows()))
+	}
+	deleted := []proto.SessionItem{updated[0]}
+	a.onGlobalSessions(globalSessionsLoaded{generation: 1, rows: deleted})
+	if len(a.sessionRows()) != 1 || a.sessionRows()[0].ID != "s1" {
+		t.Fatalf("expected 1 row after deletion, got %+v", a.sessionRows())
+	}
+
+	// Old generation does not roll back accepted state
+	a.globalWatch.generation = 2
+	a.onGlobalSessions(globalSessionsLoaded{generation: 1, rows: initial})
+	if len(a.sessionRows()) != 1 || a.sessionRows()[0].ID != "s1" {
+		t.Fatalf("old generation rolled back state: %+v", a.sessionRows())
+	}
+
+	// Failed hydration preserves rows and marks stale
+	a.onGlobalSessions(globalSessionsLoaded{generation: 2, err: fmt.Errorf("network error")})
+	if !a.globalWatch.stale || len(a.sessionRows()) != 1 {
+		t.Fatalf("failed hydration lost rows or did not mark stale: stale=%v rows=%d", a.globalWatch.stale, len(a.sessionRows()))
+	}
+
+	// Successful retry restores fresh state
+	fresh := []proto.SessionItem{{ID: "s-fresh", Name: "fresh", TurnCount: 10}}
+	a.onGlobalSessions(globalSessionsLoaded{generation: 2, rows: fresh})
+	if a.globalWatch.stale || len(a.sessionRows()) != 1 || a.sessionRows()[0].ID != "s-fresh" {
+		t.Fatalf("recovery failed: stale=%v rows=%+v", a.globalWatch.stale, a.sessionRows())
+	}
+}
+
+func TestGlobalHydrationEventBurstCoalesces(t *testing.T) {
+	entered, release := make(chan struct{}, 5), make(chan struct{}, 5)
+	var hits atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		entered <- struct{}{}
+		<-release
+		fmt.Fprint(w, `{"data":{"sessions":[],"tasks":0}}`)
+	}))
+	defer server.Close()
+	c := &client.Client{HTTP: &http.Client{Transport: &http.Transport{DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+		return (&net.Dialer{}).DialContext(ctx, "tcp", server.Listener.Addr().String())
+	}}}}
+	a := &App{cl: c, events: make(chan any, 10), rts: map[string]*Runtime{}}
+	a.globalWatch.generation = 1
+
+	// Invalidate once: starts in-flight request
+	a.invalidateGlobal()
+	<-entered
+
+	// Fire event burst while request is blocked
+	for i := 0; i < 50; i++ {
+		a.onGlobalWatch(globalWatchEvent{ev: proto.Event{Type: proto.EventGlobalStatus}})
+	}
+	if hits.Load() != 1 {
+		t.Fatalf("expected 1 in-flight hit during burst, got %d", hits.Load())
+	}
+
+	// Complete initial request
+	release <- struct{}{}
+	a.onGlobalSessions((<-a.events).(globalSessionsLoaded))
+
+	// Exactly one trailing request must follow
+	<-entered
+	release <- struct{}{}
+	a.onGlobalSessions((<-a.events).(globalSessionsLoaded))
+	a.running.Wait()
+
+	if hits.Load() != 2 {
+		t.Fatalf("expected exactly 1 initial + 1 trailing request (2 total), got %d", hits.Load())
+	}
+}

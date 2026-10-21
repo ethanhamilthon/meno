@@ -1,5 +1,21 @@
 # Upgrading, data and privacy
 
+## 0.6.4: session picker metadata and freshness
+
+- The sessions picker dialog shows accurate turn counts, model selection details,
+  timestamps, and live attention/activity for persisted sessions without loading
+  their transcripts.
+- Live catalog freshness: turn publications, compaction/history replacement,
+  renames, and deletions invalidate the global catalog. The dialog reflects changes
+  made by other clients or background sessions without closing and reopening.
+- UI catalog consolidation: the picker and global status share a single recoverable
+  event-driven cache (`globalSessions`), eliminating duplicate requests and
+  stale-response races.
+- Attached runtime precedence: active runs and local drafts remain authoritatively
+  projected; global catalog hydration never overwrites in-flight runtime projections.
+- Daemon protocol is **6**. Update both client and daemon so they agree on protocol 6.
+  Existing sessions and settings are preserved without database migration.
+
 ## 0.6.3: daemon/client state and streaming efficiency
 
 - Streaming text, reasoning and command fragments no longer rewrite session history

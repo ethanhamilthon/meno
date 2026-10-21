@@ -37,6 +37,11 @@ func (a *App) applyProjection(rt *Runtime, u client.ProjectionUpdate) {
 		}
 		s.Provider, s.Effort = v.Provider, v.Effort
 		s.Completed, s.ReadThrough = v.Session.Completed, v.Session.ReadThrough
+		if v.Session.UpdatedAt != "" {
+			if t, err := time.Parse(time.RFC3339Nano, v.Session.UpdatedAt); err == nil {
+				s.UpdatedAt = t
+			}
+		}
 		rt.Cwd = v.Cwd
 	}
 	if f&client.ActivityChanged != 0 && !(rt.sending > 0 && rt.Running && !v.Running && u.Reset) {

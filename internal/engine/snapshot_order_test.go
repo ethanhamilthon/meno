@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"encoding/json"
+	"meno/internal/agent"
 	"meno/internal/llm"
 	"meno/internal/proto"
 	"sync"
@@ -47,5 +48,58 @@ func TestSnapshotCursorMatchesState(t *testing.T) {
 		if !seen["1"] {
 			t.Fatalf("iteration %d: user turn lost", i)
 		}
+	}
+}
+
+// Runner-appended turns that are not yet published must not appear in an active
+// session's list count; after publication list and snapshot agree.
+func TestSnapshotAndListDoNotExposeUnpublishedTurns(t *testing.T) {
+	f := &fakeProvider{wait: true, seen: make(chan struct{}, 1)}
+	e, _ := fixture(t, f)
+	id := newSession(t, e)
+	if _, err := e.Message(context.Background(), id, proto.MessageRequest{Text: "first turn", ClientID: "m"}); err != nil {
+		t.Fatal(err)
+	}
+	<-f.seen
+	s, err := e.load(context.Background(), id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.mu.Lock()
+	s.session.Append(agent.Turn{Role: llm.RoleAssistant, Text: "unpublished turn"})
+	s.mu.Unlock()
+
+	list, err := e.ListSessions(context.Background(), proto.SessionsListRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list.Sessions) != 1 || list.Sessions[0].TurnCount != 1 {
+		t.Fatalf("expected visible turn count 1, got %+v", list.Sessions)
+	}
+	snap, err := e.Snapshot(context.Background(), id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if snap.TurnCount != 1 || snap.Session.TurnCount != 1 {
+		t.Fatalf("expected snap turn count 1, got snap=%d session=%d", snap.TurnCount, snap.Session.TurnCount)
+	}
+
+	s.mu.Lock()
+	if s.cancel != nil {
+		s.cancel()
+	}
+	s.mu.Unlock()
+	waitFor(t, e, id, func(st *runState) bool { return !st.running })
+
+	afterList, err := e.ListSessions(context.Background(), proto.SessionsListRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	afterSnap, err := e.Snapshot(context.Background(), id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if afterList.Sessions[0].TurnCount != afterSnap.TurnCount || afterSnap.Session.TurnCount != afterSnap.TurnCount {
+		t.Fatalf("mismatch: list=%d snap=%d session=%d", afterList.Sessions[0].TurnCount, afterSnap.TurnCount, afterSnap.Session.TurnCount)
 	}
 }

@@ -59,8 +59,8 @@ func TestOriginRequiresProtocolBumpFrom060(t *testing.T) {
 	}
 }
 
-func TestCleanupRequiresCoordinatedProtocolFive(t *testing.T) {
-	if Protocol != 5 {
-		t.Fatalf("cleanup wire contract requires protocol 5, got %d", Protocol)
+func TestSessionPickerMetadataRequiresCoordinatedProtocolSix(t *testing.T) {
+	if Protocol != 6 {
+		t.Fatalf("metadata wire contract requires protocol 6, got %d", Protocol)
 	}
 }

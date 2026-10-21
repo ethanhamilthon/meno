@@ -89,6 +89,9 @@ func (a *App) onGlobalSessions(m globalSessionsLoaded) {
 	a.globalWatch.pending = false
 	if m.generation == a.globalWatch.generation {
 		a.globalWatch.stale = m.err != nil
+		if m.err != nil && a.st.Over == OverSessions {
+			a.notifyErr("sessions failed: " + m.err.Error())
+		}
 		if m.err == nil {
 			a.globalSessions, a.globalTasks = m.rows, m.tasks
 			for _, row := range m.rows {

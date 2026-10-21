@@ -25,14 +25,9 @@ func (a *App) rowAttention(r sessionRow) attention {
 		at.done = r.unseen || r.rt.Unseen
 		return at
 	}
-	for _, g := range a.globalSessions {
-		if g.ID == r.ID {
-			at.asking = g.NeedsYou
-			at.running = g.Running && !g.NeedsYou
-			at.done = g.Completed > g.ReadThrough
-		}
-	}
-	at.done = at.done || r.unseen
+	at.asking = r.needsYou
+	at.running = r.running && !r.needsYou
+	at.done = r.unseen
 	return at
 }
 

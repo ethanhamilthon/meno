@@ -12,14 +12,10 @@ import (
 func filterApp(t *testing.T) (*App, tcell.SimulationScreen) {
 	a, scr := newTestApp(t)
 	a.globalSessions = []proto.SessionItem{
-		{ID: "run", Running: true},
-		{ID: "ask", Running: true, NeedsYou: true},
-		{ID: "done", Completed: 2, ReadThrough: 1},
-		{ID: "idle"},
-	}
-	a.dbRows = []proto.SessionItem{
-		{ID: "run", Name: "running one"}, {ID: "ask", Name: "asking one"},
-		{ID: "done", Name: "done one", Completed: 2, ReadThrough: 1}, {ID: "idle", Name: "idle one"},
+		{ID: "run", Name: "running one", Running: true},
+		{ID: "ask", Name: "asking one", Running: true, NeedsYou: true},
+		{ID: "done", Name: "done one", Completed: 2, ReadThrough: 1},
+		{ID: "idle", Name: "idle one"},
 	}
 	return a, scr
 }
