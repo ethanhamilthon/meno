@@ -163,17 +163,6 @@ func (a *App) selection() (provider, model, effort string) {
 	return st.Provider, st.Model, st.Effort
 }
 
-// busyAction describes what keeps a session from being left behind, or "".
-func (rt *Runtime) busyAction() string {
-	switch {
-	case rt.Ask != nil:
-		return "waiting for an answer"
-	case rt.Running:
-		return "running"
-	}
-	return ""
-}
-
 // sessionTitle is the title of a session for lists and messages.
 func (rt *Runtime) sessionTitle() string {
 	t := rt.Session.DisplayTitle()
@@ -181,17 +170,6 @@ func (rt *Runtime) sessionTitle() string {
 		return "new session"
 	}
 	return t
-}
-
-// busySessions lists the sessions with a running turn or a pending question.
-func (a *App) busySessions() []string {
-	var out []string
-	for _, rt := range a.rtList {
-		if what := rt.busyAction(); what != "" {
-			out = append(out, "“"+rt.sessionTitle()+"” ("+what+")")
-		}
-	}
-	return out
 }
 
 // dirExists reports whether dir is an existing directory.
