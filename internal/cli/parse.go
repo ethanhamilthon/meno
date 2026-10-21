@@ -45,11 +45,19 @@ func parseFlags(args []string, takesValue map[string]bool, boolFlags map[string]
 			positional = append(positional, args[i+1:]...)
 			break
 		}
-		if !strings.HasPrefix(arg, "--") {
+		// Accept declared one-letter flags without treating shell arguments
+		// such as -n or -rf as options of the enclosing meno command.
+		short := len(arg) == 2 && strings.HasPrefix(arg, "-") &&
+			(takesValue[arg[1:]] || boolFlags[arg[1:]])
+		if !strings.HasPrefix(arg, "--") && !short {
 			positional = append(positional, arg)
 			continue
 		}
-		name, val, has := strings.Cut(strings.TrimPrefix(arg, "--"), "=")
+		prefix := "--"
+		if short {
+			prefix = "-"
+		}
+		name, val, has := strings.Cut(strings.TrimPrefix(arg, prefix), "=")
 		if boolFlags[name] {
 			if has {
 				return nil, nil, nil, usageError("--" + name + " does not take a value")
@@ -70,7 +78,7 @@ func parseFlags(args []string, takesValue map[string]bool, boolFlags map[string]
 		}
 		i++
 		if i >= len(args) {
-			return nil, nil, nil, usageError("--" + name + " needs a value")
+			return nil, nil, nil, usageError(prefix + name + " needs a value")
 		}
 		val = args[i]
 		if name == "env" {

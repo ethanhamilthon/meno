@@ -9,6 +9,8 @@
 - Unify footer metadata: session left, daemon counts center, model/effort/context right.
 - Fix history selection copy returning to INPUT while leaving the cursor in history.
 - Prevent task continuations from starting a run after engine shutdown begins.
+- Fix declared short flags such as `meno send -s`, preserving literal shell flags
+  and the `--` argument separator.
 
 ## Unreleased
 
