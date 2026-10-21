@@ -166,3 +166,25 @@ func TestRunKeepsTheOriginOfItsWindow(t *testing.T) {
 		t.Fatalf("snapshot origin %q err %v", sn.Origin, err)
 	}
 }
+
+// A snapshot is encoded after the session lock is released, so it must not
+// share the live call list the running turn keeps changing.
+func TestSnapshotDoesNotShareLiveCallsWithTheRun(t *testing.T) {
+	e, _ := fixture(t, done())
+	id := newSession(t, e)
+	s, _ := e.load(context.Background(), id)
+	s.mu.Lock()
+	s.live = proto.LiveState{Calls: []proto.CallState{{CallID: "c1", Command: "ls"}}}
+	s.mu.Unlock()
+	snap, err := e.Snapshot(context.Background(), id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.mu.Lock()
+	s.live.Calls[0].Command = "changed by the run"
+	s.live.Calls = append(s.live.Calls, proto.CallState{CallID: "c2"})
+	s.mu.Unlock()
+	if snap.Live.Calls[0].Command != "ls" || len(snap.Live.Calls) != 1 {
+		t.Fatalf("the snapshot follows the run: %+v", snap.Live.Calls)
+	}
+}

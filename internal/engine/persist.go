@@ -73,3 +73,25 @@ func (e *Engine) adopt(sess *agent.Session) (*runState, error) {
 	e.sessions[sess.ID] = st
 	return st, nil
 }
+
+// cloneLive copies the live state so that a snapshot encoded after the lock is
+// released does not share the call list the run keeps changing in place.
+func cloneLive(l proto.LiveState) proto.LiveState {
+	l.Calls = append([]proto.CallState{}, l.Calls...)
+	for i := range l.Calls {
+		if c := l.Calls[i].Exit; c != nil {
+			v := *c
+			l.Calls[i].Exit = &v
+		}
+	}
+	return l
+}
+
+// cloneRetry copies the retry state for the same reason.
+func cloneRetry(r *proto.RetryState) *proto.RetryState {
+	if r == nil {
+		return nil
+	}
+	v := *r
+	return &v
+}
