@@ -25,14 +25,14 @@ func (a *App) runCommand(raw string) {
 	}
 	name := fields[0]
 	if a.st.Running && interruptsAgent[name] {
-		a.notifyErr("agent is running · :stop it first (or ctrl+c)")
+		a.notifyErr("agent is running · /stop it first (or ctrl+c)")
 		return
 	}
 	args := fields[1:]
 	switch name {
 	case "q", "quit":
 		if busy := a.busySessions(); len(busy) > 0 {
-			a.notifyErr("not quitting: " + strings.Join(busy, ", ") + " · :q! quits anyway")
+			a.notifyErr("not quitting: " + strings.Join(busy, ", ") + " · /q! quits anyway")
 			return
 		}
 		a.quit = true
@@ -91,7 +91,7 @@ func (a *App) runCommand(raw string) {
 	}
 }
 
-// changeDir implements :cd for the current session. arg may be a path
+// changeDir implements /cd for the current session. arg may be a path
 // (relative to the session's directory, or starting with ~) or "-" for the
 // previous directory.
 func (a *App) changeDir(arg string) {
@@ -151,7 +151,7 @@ func (a *App) markUnseen(sid string) {
 }
 
 // animating reports whether something on screen changes without input: a
-// running turn in any session, or the :sessions list with live statuses.
+// running turn in any session, or the /sessions list with live statuses.
 func (a *App) animating() bool {
 	if a.st.Over == OverSessions || a.bgAny() {
 		return true

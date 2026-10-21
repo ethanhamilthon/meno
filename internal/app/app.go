@@ -53,7 +53,7 @@ type App struct {
 
 	rts     map[string]*Runtime // every session loaded in this run, by id
 	rtList  []*Runtime          // the same, in creation order
-	dbRows  []proto.SessionItem // sessions the daemon listed for :sessions
+	dbRows  []proto.SessionItem // sessions the daemon listed for /sessions
 	openURL func(string) error
 
 	saves   saveQueue     // saves to the daemon, one at a time and in order
@@ -61,8 +61,8 @@ type App struct {
 	cfgSeen uint64        // the newest read that was applied
 	flowSeq int           // number of the last login, to tell a stale one from the current
 	closing bool          // Close is running
-	cdKey   string        // input and directory the :cd completions in cdCache belong to
-	cdCache []string      // rows of the :cd completion
+	cdKey   string        // input and directory the /cd completions in cdCache belong to
+	cdCache []string      // rows of the /cd completion
 
 	running  sync.WaitGroup // short background calls
 	watchers sync.WaitGroup // the event streams of followed sessions

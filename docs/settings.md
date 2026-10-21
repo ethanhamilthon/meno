@@ -1,4 +1,4 @@
-# Settings (`:settings`)
+# Settings (`/settings`)
 
 Settings live in tabs: **General**, **Display**, **Notify**, **Context**.
 `Tab` or `]` moves to the next tab, `Shift+Tab` or `[` to the
@@ -36,9 +36,9 @@ notice and the rest still loads.
   `{"gpt-x": {"context": 128000, "input": 1.25, "output": 10, "cache_read": 0.125, "cache_write": 1.5,
   "vision": true, "efforts": ["low", "high"]}}`. Prices are USD per million tokens; a field you leave out
   keeps the value of the model catalog, and a model without a catalog entry is priced only when both
-  `input` and `output` are set. `efforts` replaces the standard levels for that model in `:model`,
+  `input` and `output` are set. `efforts` replaces the standard levels for that model in `/model`,
   `session.models()`; a stored effort the model does not take is replaced by
-  `medium`, `high` or its first level. In `:login` the `run` command has its own field;
+  `medium`, `high` or its first level. In `/login` the `run` command has its own field;
   `models` can only be set in `provider.json` (a saved provider keeps what it has).
 - `mcp.json`: `[{"name", "transport", "command" or "url", "env", "headers", "enabled"}]`;
   `enabled` defaults to true, `transport` to `stdio`.

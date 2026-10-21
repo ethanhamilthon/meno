@@ -1,5 +1,17 @@
 # Upgrading, data and privacy
 
+## 0.5.5: slash commands and padded input
+
+Commands now use `/` instead of `:`, for example `/edit`, `/model` and `/login`.
+Skills use `/skill:<name>`; `/skills` still manages skills. Old colon commands
+and bare `/name` skill references are ordinary text. Saved skill objects remain
+valid, and no database migration is needed. Restart meno after updating.
+
+The dark-gray input has one padding row above and below its text. Activity is a
+subtle green wave on the input background. The unruled footer shows the session
+on the left, global counts in the center, and model/effort/context on the right.
+Copying a history selection now returns the cursor to the input correctly.
+
 ## 0.5.4: shared MCP runtime and compact footer
 
 MCP configuration and agent calls now share one runtime. Restart the daemon after

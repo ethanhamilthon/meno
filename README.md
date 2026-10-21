@@ -47,13 +47,13 @@ every push and pull request on Linux and macOS and installs a snapshot build wit
 
 ## First start
 
-1. `:login` — meno opens it by itself when there is no provider, and it stays open
+1. `/login` — meno opens it by itself when there is no provider, and it stays open
    until one works. Add an **API key** provider (name, base URL such as
    `https://api.openai.com/v1`, key; choose *Responses* or *Chat Completions*), or
    **log in** with your browser to Claude, ChatGPT/Codex, Antigravity, xAI, Meta or
    Kimi (see [accounts](docs/login.md)). Everything you add stays in the list; `space`
    switches an entry off and on, `d` removes it.
-2. `:model` — pick a model (the list comes from the provider's `/models`) and an
+2. `/model` — pick a model (the list comes from the provider's `/models`) and an
    effort level. It applies to the current session.
 3. Type a task in INPUT and press Enter.
 
@@ -63,8 +63,8 @@ every push and pull request on Linux and macOS and installs a snapshot build wit
 | --- | --- |
 | [The agent's tool](docs/tools.md) | the `bash` tool and the `meno` command the model uses: files, tasks, mcp, web, view, ask |
 | [Command line](docs/cli.md), [daemon](docs/daemon.md) | `meno sessions`, `send`, `tail`; the background daemon |
-| [Sessions, history and events](docs/sessions.md) | :new, :fork, :cd, compaction, steering, :stop |
-| [Accounts and providers](docs/login.md) | `:login` |
+| [Sessions, history and events](docs/sessions.md) | /new, /fork, /cd, compaction, steering, /stop |
+| [Accounts and providers](docs/login.md) | `/login` |
 | [Interface](docs/ui.md) | keys, commands, timeline, Markdown, images, tool-call display |
 | [Settings](docs/settings.md), [notifications](docs/notifications.md) | |
 | [Upgrading, data and privacy](docs/upgrading.md) | migrations, where data lives, what is logged |
@@ -74,7 +74,7 @@ Instructions for the agent live in
 `AGENTS.md` in the session's directory; it goes into the system
 prompt. Skills are markdown files in `.meno/skills/` or `~/.meno/skills/`
 (`name.md` or `name/SKILL.md`, optional `name`/`description` header); enabled
-skills are listed in the prompt and `/name` in a message asks for one.
+skills are listed in the prompt and `/skill:<name>` in a message asks for one.
 
 ## Files
 

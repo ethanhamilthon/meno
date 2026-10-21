@@ -16,7 +16,7 @@ var allProtocols = []string{"chat", "responses"}
 var protocols = []string{"chat"}
 
 // 1. First run: no provider, so the login list opens and cannot be closed. Add
-// an API-key provider there, pick a model in :model, talk.
+// an API-key provider there, pick a model in /model, talk.
 func TestFirstRunSetupThroughDialogs(t *testing.T) {
 	f := newFakeLLM(t)
 	f.Handler = func(q *llmReq) { q.Text("first ", "answer") }
@@ -145,7 +145,7 @@ func TestResumeAfterRestart(t *testing.T) {
 	s2.WaitFor("persisted-answer")
 }
 
-// 8. :q ends the process cleanly and gives the terminal back.
+// 8. /q ends the process cleanly and gives the terminal back.
 func TestQuitRestoresTerminal(t *testing.T) {
 	f := newFakeLLM(t)
 	s := start(t, options{fake: f})

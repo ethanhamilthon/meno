@@ -116,7 +116,7 @@ func TestBuildSkillsAndTools(t *testing.T) {
 		Skills: []Skill{{"api-security", "check\nauth  and rate limits", "/p/.meno/skills/api-security.md"}, {"bare", "", "/p/bare.md"}},
 		Tools:  []Tool{{"github", "search-repos", "Search repositories", "{query: string, page?: number}"}}})
 	for _, want := range []string{
-		"<skills>", "- api-security — check auth and rate limits (/p/.meno/skills/api-security.md)", "- bare (/p/bare.md)",
+		"/skill:<name>", "<skills>", "- api-security — check auth and rate limits (/p/.meno/skills/api-security.md)", "- bare (/p/bare.md)",
 		"<mcp-servers>", "- github (1 tool): search_repos",
 	} {
 		if !strings.Contains(out, want) {

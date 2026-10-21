@@ -163,8 +163,8 @@ func TestInsertUpDownMovesBetweenRows(t *testing.T) {
 
 func TestColonIsPlainTextInInsertMode(t *testing.T) {
 	a, _ := visualFixture(t, 60, 20)
-	typeText(a, ":model")
-	if a.st.Mode != ui.ModeInput || string(a.st.Input) != ":model" {
+	typeText(a, "/model")
+	if a.st.Mode != ui.ModeInput || string(a.st.Input) != "/model" {
 		t.Fatalf("mode=%v input=%q", a.st.Mode, string(a.st.Input))
 	}
 }

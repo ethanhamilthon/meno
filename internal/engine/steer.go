@@ -76,7 +76,7 @@ func (e *Engine) wakeIfPending(sid string) {
 		s.requestID = agent.NewID()
 	}
 	// A continuation needs a usable model like a message does. Without one the
-	// events stay pending and the next message or :model repairs the session.
+	// events stay pending and the next message or /model repairs the session.
 	repaired := false
 	if reloadErr == nil {
 		repaired, reloadErr = resolveSelection(s, in)

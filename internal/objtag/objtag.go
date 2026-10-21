@@ -47,7 +47,7 @@ func (o Object) Tag() string {
 func (o Object) Label() string {
 	switch o.Kind {
 	case Skill:
-		return "/" + o.Ref
+		return "/skill:" + o.Ref
 	case Folder:
 		return "@" + filepath.Base(o.Ref) + "/"
 	}

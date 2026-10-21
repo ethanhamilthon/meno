@@ -59,7 +59,7 @@ type options struct {
 	cols, rows int
 	fake       *fakeLLM // preconfigure provider "fake" and model "fake-model" (protocol below)
 	proto      string
-	home       string // reuse a home directory (for :resume across runs)
+	home       string // reuse a home directory (for /resume across runs)
 	firstRun   bool   // no provider yet: meno opens the login list that cannot be closed
 	// jsonDefaults keeps the default provider and model only in settings.json and
 	// leaves the SQLite settings table empty, like a home the daemon has written.
@@ -209,10 +209,10 @@ func (s *session) Type(text string) {
 	}
 }
 
-// Cmd runs a ":command" typed inline in the input.
+// Cmd runs a "/command" typed inline in the input.
 func (s *session) Cmd(c string) {
 	s.t.Helper()
-	s.Type(":" + c)
+	s.Type("/" + c)
 	time.Sleep(60 * time.Millisecond)
 	s.Send(Enter)
 }

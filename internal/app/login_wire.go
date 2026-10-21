@@ -55,7 +55,7 @@ type flowDone struct {
 	err error
 }
 
-// loginServices is what :login offers, in the order of the list. The daemon
+// loginServices is what /login offers, in the order of the list. The daemon
 // knows the same list; this one is only for drawing the rows.
 var loginServices = []loginService{
 	{"claude", "Claude"}, {"codex", "ChatGPT / Codex"}, {"antigravity", "Antigravity"},

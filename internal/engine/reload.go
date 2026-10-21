@@ -7,7 +7,7 @@ import (
 )
 
 // reloadConfig reads settings, providers and servers again. The config service
-// changes them while the daemon runs (a login, :settings, :model), and a run
+// changes them while the daemon runs (a login, /settings, /model), and a run
 // must see what the user saved a moment ago. It is cheap: a few small reads.
 //
 // It returns an error when the settings cannot be read. The last valid snapshot

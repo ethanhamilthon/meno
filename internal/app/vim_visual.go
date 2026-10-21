@@ -200,6 +200,8 @@ func (a *App) visualYank(t vtext, top int, lines bool) {
 	s, _ := a.selOrder(top)
 	a.setReg(joinRngs(t, rs), a.st.VKind == 'V')
 	a.exitVisual()
-	a.setCurG(t.clamp(s, false), top)
+	if s.line >= top {
+		a.setCurG(t.clamp(s, false), top)
+	}
 	a.followCursor()
 }

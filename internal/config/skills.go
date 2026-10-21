@@ -25,7 +25,7 @@ const maxSkillHead = 64 << 10
 
 var skillNameRe = regexp.MustCompile(`[^a-z0-9_-]+`)
 
-// SkillName turns a file or directory name into a name usable as /name.
+// SkillName turns a file or directory name into a name usable as /skill:<name>.
 func SkillName(s string) string {
 	s = strings.ToLower(strings.TrimSpace(s))
 	s = skillNameRe.ReplaceAllString(s, "-")

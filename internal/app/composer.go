@@ -13,8 +13,8 @@ const composerMaxText = 8
 
 const (
 	composerPadX = ui.Gutter
-	// composerPadY is the bottom padding; the top row is the header.
-	composerPadY = 0
+	// composerPadY is the bottom padding; the top row is also padding.
+	composerPadY = 1
 )
 
 // The three placeholders of an empty composer.

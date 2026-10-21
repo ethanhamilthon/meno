@@ -24,7 +24,7 @@ func (a *App) submit() {
 		}
 	}
 	if _, ok := a.currentProvider(); !ok && !a.st.Running {
-		a.notifyErr("provider not configured · select provider and model with :model")
+		a.notifyErr("provider not configured · select provider and model with /model")
 		return
 	}
 	a.clearDraft()

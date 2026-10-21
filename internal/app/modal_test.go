@@ -30,7 +30,7 @@ func TestWelcomeShownWhenEmpty(t *testing.T) {
 	defer scr.Fini()
 	a.draw()
 	out := screenText(scr)
-	for _, want := range []string{"efficient and stable AI harness", "write", "skills", ":help", version.Label(), "gpt-5.5"} {
+	for _, want := range []string{"efficient and stable AI harness", "write", "skills", "/help", version.Label(), "gpt-5.5"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("welcome missing %q:\n%s", want, out)
 		}
@@ -132,12 +132,12 @@ func TestSkillAutocompleteCompletesOnTab(t *testing.T) {
 	a, _ := newTestApp(t)
 	defer a.scr.Fini()
 	a.st.Skills = []config.Skill{{Name: "rate-limit", Desc: "add rl", Enabled: true}, {Name: "unit-tests", Desc: "tests", Enabled: true}}
-	typeRunes(a, "/rat")
+	typeRunes(a, "/skill:rat")
 	if !a.acActive() || len(a.acMatches()) != 1 {
-		t.Fatalf("autocomplete not active for /rat: %v", a.acMatches())
+		t.Fatalf("autocomplete not active for /skill:rat: %v", a.acMatches())
 	}
 	a.onKey(keyK(tcell.KeyTab))
-	if got := labelText(a.st.Input); got != "/rate-limit " {
+	if got := labelText(a.st.Input); got != "/skill:rate-limit " {
 		t.Fatalf("completed to %q", got)
 	}
 }
@@ -146,9 +146,9 @@ func TestSkillAutocompleteEscLeavesInsert(t *testing.T) {
 	a, _ := newTestApp(t)
 	defer a.scr.Fini()
 	a.st.Skills = []config.Skill{{Name: "rate-limit", Desc: "x", Enabled: true}}
-	typeRunes(a, "/r")
+	typeRunes(a, "/skill:r")
 	a.onKey(keyK(tcell.KeyEsc))
-	if a.st.Mode != ui.ModeInput || a.acActive() || string(a.st.Input) != "/r" {
+	if a.st.Mode != ui.ModeInput || a.acActive() || string(a.st.Input) != "/skill:r" {
 		t.Fatalf("esc: mode=%v input=%q", a.st.Mode, string(a.st.Input))
 	}
 }
@@ -172,14 +172,14 @@ func TestVisualModeShowsHintAndSelection(t *testing.T) {
 func TestInlineCommandShowsList(t *testing.T) {
 	a, scr := newTestApp(t)
 	defer scr.Fini()
-	typeRunes(a, "fix :mo")
+	typeRunes(a, "fix /mo")
 	a.draw()
 	out := screenText(scr)
 	_, h := scr.Size()
-	if !strings.Contains(out, "fix :mo") || !strings.Contains(visualRow(scr, h-1), a.ctxLabel()) {
+	if !strings.Contains(out, "fix /mo") || !strings.Contains(visualRow(scr, h-1), a.ctxLabel()) {
 		t.Fatalf("draft missing:\n%s", out)
 	}
-	if !strings.Contains(out, ":model") {
+	if !strings.Contains(out, "/model") {
 		t.Fatalf("command list missing:\n%s", out)
 	}
 }
@@ -196,10 +196,10 @@ func TestEmptyComposerShowsCursor(t *testing.T) {
 func TestCommandEnterRunsCommand(t *testing.T) {
 	a, scr := newTestApp(t)
 	defer scr.Fini()
-	typeRunes(a, ":help")
+	typeRunes(a, "/help")
 	a.onKey(keyK(tcell.KeyEnter))
 	if a.st.Over != OverHelp {
-		t.Fatalf("command :help did not open help overlay (over=%v)", a.st.Over)
+		t.Fatalf("command /help did not open help overlay (over=%v)", a.st.Over)
 	}
 	_ = scr
 }

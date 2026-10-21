@@ -1,6 +1,6 @@
-# Accounts and providers (`:login`)
+# Accounts and providers (`/login`)
 
-`:login` is the one place for providers. The list shows what you have added, then
+`/login` is the one place for providers. The list shows what you have added, then
 everything you can add:
 
 | Entry | What it does |
@@ -14,7 +14,7 @@ Keys: `j`/`k` select, `Enter` adds or edits, `Space` switches an entry off or on
 entry is saved the moment it is valid, and a field you confirm is saved at once. While
 it is incomplete the form says `not saved: …`.
 
-With no working provider meno opens `:login` at start and `Esc` does not close it
+With no working provider meno opens `/login` at start and `Esc` does not close it
 (`Ctrl+C` quits). It closes by itself when a provider can serve a request: an API key
 provider with a key (or a local URL, or a `run` command), or any enabled account.
 
@@ -33,8 +33,8 @@ reported, because it may change the configuration format.
   `$MENO_HOME/cliproxy/auth/` (mode 0600). meno starts it when accounts exist, keeps it
   running when all accounts are off, and restarts it after a failure.
 - Your enabled accounts reach the model as one provider called `oauth`. meno builds it from
-  the accounts and never saves it; `:model` lists their models.
-- In `:login`, select **Login helper: restart** to start it again and reload accounts. The
+  the accounts and never saves it; `/model` lists their models.
+- In `/login`, select **Login helper: restart** to start it again and reload accounts. The
   entry appears when accounts exist or meno cannot reach the helper. The list shows an
   account's disabled reason when the helper provides one.
 
@@ -51,7 +51,7 @@ reported, because it may change the configuration format.
 ## If the helper does not respond
 
 meno tries to restart the helper when an account action fails. If it still does not respond,
-open `:login` and select **Login helper: restart**. The row shows the log file path. meno
+open `/login` and select **Login helper: restart**. The row shows the log file path. meno
 tries delayed restarts after unexpected exits. It stops those attempts after five failures
 in ten minutes. If an account shows `needs a new login`, select it and press `Space` to
 try to enable it, or press `d` twice to remove it and sign in again.

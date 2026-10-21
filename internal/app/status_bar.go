@@ -28,16 +28,18 @@ func (a *App) drawStatus(c ui.Canvas, x, y, w int) {
 	if w <= 0 {
 		return
 	}
-	textColors := a.chromeColors(w, chromeText())
-	ruleColors := a.chromeColors(w, ui.FgFaint)
-	a.chromeText(c, x, y, w, strings.Repeat("─", w), ui.FgFaint, ruleColors)
 	gutter := min(ui.Gutter, max(0, (w-1)/2))
 	lo, hi := x+gutter, x+w-gutter
 	available := max(0, hi-lo)
-	right := ui.Truncate(a.ctxLabel(), available)
+	context := ui.Truncate(a.ctxLabel(), available)
+	model := ui.Truncate(a.footerModel(), max(0, available-ui.TextWidth(context)-3))
+	right := context
+	if model != "" {
+		right = model + " | " + context
+	}
 	rw := ui.TextWidth(right)
 	rx := hi - rw
-	left := ui.Truncate(a.footerModel(), max(0, available-rw-1))
+	left := ui.Truncate(a.composerHeaderLabel(), min(w*composerHeaderMax/100, max(0, available-rw-2)))
 	lw := ui.TextWidth(left)
 	mid := joinSegText(a.globalCounts())
 	if ui.TextWidth(mid) > max(0, available-lw-rw-4) {
@@ -55,9 +57,10 @@ func (a *App) drawStatus(c ui.Canvas, x, y, w int) {
 	if mx < lo+lw+2 || mx+mw > rx-2 {
 		mid = ""
 	}
-	a.chromeText(c, lo, y, lw, left, chromeText(), textColors)
-	a.chromeText(c, rx, y, rw, right, chromeText(), textColors)
+	style := ui.Style{FG: chromeText(), BG: ui.BgTerm}.TCell()
+	c.Text(lo, y, lw, left, style)
+	c.Text(rx, y, rw, right, style)
 	if mid != "" {
-		a.chromeText(c, mx, y, mw, mid, chromeText(), textColors)
+		c.Text(mx, y, mw, mid, style)
 	}
 }

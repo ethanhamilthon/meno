@@ -67,7 +67,7 @@ func (a *App) forkKey(k *tcell.EventKey) {
 
 // forkAt creates a fork of the current session ending at the message hid and
 // opens it. No model is called. A working directory that no longer exists is
-// not replaced silently: the user picks one with :cd and forks again.
+// not replaced silently: the user picks one with /cd and forks again.
 func (a *App) forkAt(turn int) {
 	a.closeOverlay()
 	sid := a.st.Session.ID()

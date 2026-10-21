@@ -23,14 +23,14 @@ func visualRow(s tcell.SimulationScreen, y int) string {
 func TestVisualReferenceBottom(t *testing.T) {
 	a, s := visualFixture(t, 112, 36)
 	a.draw()
-	if a.bottomHeight() != 3 {
-		t.Fatalf("bottom = %d, want 2 composer + 1 status", a.bottomHeight())
+	if a.bottomHeight() != 4 {
+		t.Fatalf("bottom = %d, want 3 composer + 1 status", a.bottomHeight())
 	}
 	for y := 32; y < 35; y++ {
 		for x := 0; x < 112; x++ {
 			_, _, style, _ := s.GetContent(x, y)
 			_, bg, _ := style.Decompose()
-			if bg != ui.BgTerm {
+			if bg != ui.BgPopup {
 				t.Fatalf("composer cell %d,%d background %v", x, y, bg)
 			}
 		}
@@ -52,7 +52,7 @@ func TestVisualReferenceBottom(t *testing.T) {
 	exportVisual(t, s, "main")
 }
 
-func TestNormalModeComposerKeepsTerminalBackground(t *testing.T) {
+func TestInputModeComposerKeepsGrayBackground(t *testing.T) {
 	a, s := visualFixture(t, 112, 36)
 	a.st.Mode = ui.ModeInput
 	a.draw()
@@ -60,7 +60,7 @@ func TestNormalModeComposerKeepsTerminalBackground(t *testing.T) {
 		for x := 0; x < 112; x++ {
 			_, _, style, _ := s.GetContent(x, y)
 			_, bg, _ := style.Decompose()
-			if bg != ui.BgTerm {
+			if bg != ui.BgPopup {
 				t.Fatalf("normal-mode composer cell %d,%d background %v", x, y, bg)
 			}
 		}

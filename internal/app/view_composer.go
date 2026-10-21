@@ -7,15 +7,17 @@ import (
 	"meno/internal/ui"
 )
 
-// drawComposer draws the input band. Text starts below the session header; the
+// drawComposer draws the input band. Text starts below the top padding; the
 // real terminal cursor marks the edit position (see applyCursor).
 func (a *App) drawComposer(c ui.Canvas, x, y, w, h int) {
 	pad := min(composerPadX, max(0, (w-1)/2))
 	textX := x + pad
 	innerW := max(0, w-2*pad)
-	row := y + 1
-	bg := ui.BgTerm
-	a.drawComposerHeader(c, x, y, w)
+	topPad := min(1, max(0, h-1))
+	bottomPad := min(composerPadY, max(0, h-topPad-1))
+	row := y + topPad
+	bg := ui.BgPopup
+	defer a.paintComposerBackground(c, x, y, w, h)
 	a.clampCursor()
 	if len(a.st.Input) == 0 {
 		a.st.ComposerRows = []vrow{{0, 0, false}}
@@ -28,7 +30,7 @@ func (a *App) drawComposer(c ui.Canvas, x, y, w, h int) {
 		return
 	}
 	rows := layoutInput(a.st.Input, max(1, innerW))
-	avail := max(1, h-1-composerPadY)
+	avail := max(1, h-topPad-bottomPad)
 	cr := cursorRow(rows, a.st.Cursor)
 	top := min(max(0, a.st.InputTop), max(0, len(rows)-avail))
 	if cr < top {

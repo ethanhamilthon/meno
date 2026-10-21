@@ -66,7 +66,7 @@ func TestQuitCommand(t *testing.T) {
 	defer scr.Fini()
 	a.runCommand("q")
 	if !a.quit {
-		t.Fatal(":q did not quit")
+		t.Fatal("/q did not quit")
 	}
 }
 

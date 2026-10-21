@@ -6,18 +6,18 @@ import (
 	"unicode"
 )
 
-// cmdTok is the inline command around the cursor: a ':' that starts a word,
+// cmdTok is the inline command around the cursor: a '/' that starts a word,
 // followed by the command name. Commands that take arguments ("cd /tmp",
 // "rename my title") span to the end of the line.
 type cmdTok struct {
 	start, end int
-	query      string // text after ':'
+	query      string // text after '/'
 	args       bool   // a known command name followed by a space
 }
 
 func isCommandName(word string) bool {
 	for _, c := range commandList {
-		if c.name == ":"+word {
+		if c.name == "/"+word && word != "skill:" {
 			return true
 		}
 	}
@@ -34,8 +34,8 @@ func (a *App) cmdToken() (cmdTok, bool) {
 	for ls > 0 && in[ls-1] != '\n' {
 		ls--
 	}
-	for s := c - 1; s >= ls; s-- {
-		if in[s] != ':' || (s > ls && !isBreak(in[s-1])) {
+	for s := ls; s < c; s++ {
+		if in[s] != '/' || (s > ls && !isBreak(in[s-1])) {
 			continue
 		}
 		q := in[s+1 : c]
@@ -55,12 +55,15 @@ func (a *App) cmdToken() (cmdTok, bool) {
 		for e < len(in) && !isBreak(in[e]) {
 			e++
 		}
+		if strings.ContainsAny(string(in[s+1:e]), "/:") {
+			continue
+		}
 		return cmdTok{s, e, string(q), false}, true
 	}
 	return cmdTok{}, false
 }
 
-// cmdQuery is the text after the colon, "" when there is no token.
+// cmdQuery is the text after the slash, "" when there is no token.
 func (a *App) cmdQuery() string {
 	t, _ := a.cmdToken()
 	return t.query

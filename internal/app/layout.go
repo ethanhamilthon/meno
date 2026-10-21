@@ -8,7 +8,7 @@ import (
 )
 
 // Keys that act as commands (vim motions, list navigation, shortcuts of the
-// dialogs, the command name after ":") are matched by their position on the
+// dialogs, the command name after "/") are matched by their position on the
 // keyboard, not by the letter the layout prints on them. So on a Russian or
 // Ukrainian layout "о" is the "j" key. Text typed into the composer, search
 // boxes, forms and command arguments is never translated.

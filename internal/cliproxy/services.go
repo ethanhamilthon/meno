@@ -7,7 +7,7 @@ type Service struct {
 	Files []string // provider names that auth files of this service carry
 }
 
-// Services lists what :login offers, in the order of the list.
+// Services lists what /login offers, in the order of the list.
 var Services = []Service{
 	{ID: "claude", Label: "Claude", Files: []string{"claude", "anthropic"}},
 	{ID: "codex", Label: "ChatGPT / Codex", Files: []string{"codex"}},

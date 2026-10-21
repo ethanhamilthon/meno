@@ -6,7 +6,7 @@ import (
 	"meno/internal/llm"
 )
 
-// The API-key side of :login: providers the user adds by hand. They are saved
+// The API-key side of /login: providers the user adds by hand. They are saved
 // in meno.db and can be edited, switched off and removed.
 
 // usable reports whether a provider can serve a request: it is switched on,
@@ -57,7 +57,7 @@ func (a *App) afterProvidersChanged() {
 		if a.st.Over == OverLogin || a.st.Over == OverLoginFlow {
 			a.closeOverlay()
 		}
-		a.notify("ready · choose a model with :model")
+		a.notify("ready · choose a model with /model")
 	}
 	if !a.st.Locked && a.needProvider() && a.st.Over == OverNone {
 		a.enforceProvider() // the last provider went away

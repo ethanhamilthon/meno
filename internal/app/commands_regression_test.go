@@ -37,7 +37,7 @@ func TestRemovedCommandsAreUnknown(t *testing.T) {
 	}
 	for _, c := range commandList {
 		switch c.name {
-		case ":clear", ":resume", ":cache", ":notify", ":attach", ":theme":
+		case "/clear", "/resume", "/cache", "/notify", "/attach", "/theme":
 			t.Fatalf("%s still in the command list", c.name)
 		}
 	}

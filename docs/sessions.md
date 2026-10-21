@@ -4,32 +4,32 @@ Several sessions run at once. Each has its own conversation, working directory,
 model, effort, counters, pending question and half-typed message;
 providers, MCP servers and settings are shared.
 
-- `:sessions` lists the last 200 sessions of all projects with live statuses: blinking green = running, orange `?` = waiting for an
+- `/sessions` lists the last 200 sessions of all projects with live statuses: blinking green = running, orange `?` = waiting for an
   answer, red = last turn failed, blue = finished while you were elsewhere. The status bar
   counts the other sessions too (see [ui](ui.md#status-bar)).
-- `:new` starts an empty session in the current directory; other sessions keep running.
-- `:fork` makes a new independent session from an earlier message (default: the
+- `/new` starts an empty session in the current directory; other sessions keep running.
+- `/fork` makes a new independent session from an earlier message (default: the
   latest). The boundary is widened to a whole tool-call group; the fork gets the
   history up to it, the summary that was valid *then* (never one that mentions later
   facts), model, effort, and directory as they were. No model call is
   made.
   Files and Git are not rewound; running tasks are not cloned; inherited
   history is not charged as new spending. A missing directory must be chosen with
-  `:cd` first. Sessions created before the version journal existed can be forked as
+  `/cd` first. Sessions created before the version journal existed can be forked as
   conversation only (meno says so).
-- `:rename <name>` renames the session. Until then its name is the start of your first message; the agent cannot rename it.
-- `:cd <path>` changes this session's directory (refused while it runs).
-- `:compact` and the safety net summarize the old part of the context. The full
+- `/rename <name>` renames the session. Until then its name is the start of your first message; the agent cannot rename it.
+- `/cd <path>` changes this session's directory (refused while it runs).
+- `/compact` and the safety net summarize the old part of the context. The full
   original history stays in the database with stable message IDs; the active context
   only moves. The net runs before a request when the estimated input passes
   `compact_percent` (default 80) of a *known* context window, keeps at least
   `compact_keep` (8) messages, aims for a `compact_summary_tokens` (4000) summary, never
   compacts the same unchanged context twice, and fails with an actionable error when a
   request cannot fit.
-- `:stop` / `Ctrl+C` cancel the active root request: its running turn, the bash calls
+- `/stop` / `Ctrl+C` cancel the active root request: its running turn, the bash calls
   still running in the foreground, and its pending events. Background tasks
   (`meno tasks start`, or a call moved to a task by your message) keep running;
-  cancel one with `meno tasks cancel ID`. `:q` refuses while anything runs; `:q!` cancels everything.
+  cancel one with `meno tasks cancel ID`. `/q` refuses while anything runs; `/q!` cancels everything.
 
 ## Steering and events
 

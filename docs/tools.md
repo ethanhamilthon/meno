@@ -40,7 +40,7 @@ and the client. `meno tasks start` has no timeout (an old `--timeout` fails with
 
 ## MCP
 
-The daemon owns one MCP runtime shared by the interface and agent. Use `:mcp`
+The daemon owns one MCP runtime shared by the interface and agent. Use `/mcp`
 to create a server. Changes apply to the agent without restarting the daemon.
 The dialog refreshes running, starting, and error status while open. Environment
 variables and HTTP headers are edited as JSON objects with string values.
@@ -55,7 +55,7 @@ to their session and are removed when that session is deleted.
 
 `meno mcp add SERVER` enables an existing saved definition. `remove` deletes it;
 `restart` reconnects it. Each asks for human approval. Unknown definitions must
-be created with `:mcp`. File definitions remain read-only, but an enabled one
+be created with `/mcp`. File definitions remain read-only, but an enabled one
 can be restarted. File edits require restarting the daemon.
 
 ## Files, the web and images

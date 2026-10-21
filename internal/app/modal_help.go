@@ -12,11 +12,12 @@ import (
 type helpRow struct{ key, desc string }
 
 var helpRows = []helpRow{
-	{"", "modes & navigation"}, {":", "commands, from any word start"}, {"Esc", "close list / keep INPUT"},
-	{":edit", "edit the draft, or history when empty"},
+	{"", "modes & navigation"}, {"/", "commands, from any word start"}, {"Esc", "close list / keep INPUT"},
+	{"/edit", "edit the draft, or history when empty"},
+	{"/skill:<name>", "insert a skill reference"},
 	{"VISUAL Esc", "return to EDIT"}, {"Ctrl+C", "cancel active work"},
-	{":context", "context, tokens, cache and cost"}, {":new", "new session"},
-	{":fork", "fork from a message"}, {":sessions", "switch sessions"}, {":login", "providers and accounts"},
+	{"/context", "context, tokens, cache and cost"}, {"/new", "new session"},
+	{"/fork", "fork from a message"}, {"/sessions", "switch sessions"}, {"/login", "providers and accounts"},
 }
 
 func (a *App) helpKey(k *tcell.EventKey) {

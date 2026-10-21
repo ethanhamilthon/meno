@@ -58,7 +58,7 @@ func TestVisualWelcomeAlignment(t *testing.T) {
 	if row := visualRow(s, top); !strings.Contains(row, tagline) {
 		t.Fatal(row)
 	}
-	if row := visualRow(s, top+18); !strings.Contains(row, ":help") || !strings.Contains(row, "commands") {
+	if row := visualRow(s, top+18); !strings.Contains(row, "/help") || !strings.Contains(row, "commands") {
 		t.Fatal(row)
 	}
 	exportVisual(t, s, "welcome")

@@ -7,11 +7,11 @@ import (
 	"strings"
 )
 
-// maxCdRows bounds how many directories the :cd completion lists.
+// maxCdRows bounds how many directories the /cd completion lists.
 const maxCdRows = 500
 
-// cdRows are the completions of ":cd <partial path>" as command rows
-// (":cd " + path with a trailing slash), and whether the command line is a :cd
+// cdRows are the completions of "/cd <partial path>" as command rows
+// ("/cd " + path with a trailing slash), and whether the command line is a /cd
 // at all. The directory listing is cached per input and working directory, as
 // the rows are asked for on every frame.
 func (a *App) cdRows() ([]string, bool) {
@@ -59,7 +59,7 @@ func completeDirs(cwd, arg string) []string {
 			}
 		}
 		if isDir {
-			out = append(out, ":cd "+typedDir+name+"/")
+			out = append(out, "/cd "+typedDir+name+"/")
 		}
 	}
 	sort.Strings(out)

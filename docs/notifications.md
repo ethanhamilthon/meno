@@ -1,6 +1,6 @@
 # Notification sounds
 
-Open `:settings` and the **Notify** tab:
+Open `/settings` and the **Notify** tab:
 
 | Setting | Values |
 | --- | --- |

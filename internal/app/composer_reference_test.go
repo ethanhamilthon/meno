@@ -11,25 +11,25 @@ import (
 
 func TestReferenceAutocompleteInMiddleOfText(t *testing.T) {
 	a := refFixture(t)
-	a.setInput([]rune("please /api now"))
-	a.st.Cursor = len("please /api")
+	a.setInput([]rune("please /skill:api now"))
+	a.st.Cursor = len("please /skill:api")
 	if !a.acActive() {
-		t.Fatal("popup should open for /api mid-text")
+		t.Fatal("popup should open for /skill:api mid-text")
 	}
 	press(a, tcell.KeyTab, 0)
-	if got := labelText(a.st.Input); got != "please /api-security now" || a.st.Cursor != len("please ")+2 {
+	if got := labelText(a.st.Input); got != "please /skill:api-security now" || a.st.Cursor != len("please ")+2 {
 		t.Fatalf("accepted: %q cursor %d", got, a.st.Cursor)
 	}
 	if a.acActive() {
 		t.Fatal("popup should close after completion")
 	}
 	// Skills use '/', only enabled ones are offered, and a path is not a trigger.
-	a.setInput([]rune("use /a here"))
-	a.st.Cursor = len("use /a")
-	if m := a.acMatches(); len(m) != 1 || m[0].label() != "/api-security" {
+	a.setInput([]rune("use /skill:a here"))
+	a.st.Cursor = len("use /skill:a")
+	if m := a.acMatches(); len(m) != 1 || m[0].label() != "/skill:api-security" {
 		t.Fatalf("skill matches %+v", m)
 	}
-	a.setInput([]rune("use /d"))
+	a.setInput([]rune("use /skill:d"))
 	if len(a.acMatches()) != 0 {
 		t.Fatal("disabled skill offered")
 	}
@@ -41,7 +41,7 @@ func TestReferenceAutocompleteInMiddleOfText(t *testing.T) {
 
 func TestReferenceHighlight(t *testing.T) {
 	a := refFixture(t)
-	a.setInput([]rune("fix with /api-security, ignore /nope and /usr/bin"))
+	a.setInput([]rune("fix with /skill:api-security, ignore /skill:nope and /usr/bin"))
 	toks := a.inputTokens()
 	if len(toks) != 1 || toks[0].name != "api-security" {
 		t.Fatalf("tokens %+v", toks)
@@ -64,18 +64,18 @@ func TestReferenceHighlight(t *testing.T) {
 		f, _, _ := st.Decompose()
 		return f
 	}
-	if fg("/api-security") != ui.Blue || fg("/nope") != ui.FgWhite || fg("/usr/bin") != ui.FgWhite {
+	if fg("/skill:api-security") != ui.Blue || fg("/skill:nope") != ui.FgWhite || fg("/usr/bin") != ui.FgWhite {
 		t.Fatal("wrong highlight colors")
 	}
 }
 
-func TestEnterOnCompleteReferenceSubmitsInsteadOfCompleting(t *testing.T) {
+func TestEnterOnCompleteReferenceSelectsSkill(t *testing.T) {
 	a := refFixture(t)
-	a.setInput([]rune("go /api-security"))
+	a.setInput([]rune("go /skill:api-security"))
 	if !a.acActive() {
 		t.Fatal("popup expected while the word is a valid prefix")
 	}
-	if a.acKey(tcell.NewEventKey(tcell.KeyEnter, 0, 0)) {
-		t.Fatal("enter on an already complete reference should fall through to submit")
+	if !a.acKey(tcell.NewEventKey(tcell.KeyEnter, 0, 0)) || !strings.Contains(a.messageText(), "<skill>api-security</skill>") {
+		t.Fatal("Enter must select a skill object without submitting")
 	}
 }

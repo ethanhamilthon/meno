@@ -98,7 +98,7 @@ type State struct {
 	// FormNote says why the open form is not saved yet (empty = saved).
 	FormNote string
 
-	// Login (:login): the OAuth accounts of the local helper, the running
+	// Login (/login): the OAuth accounts of the local helper, the running
 	// login, and the entry waiting for a second press of d to be removed.
 	Accounts    []oauthAccount
 	AccountsErr string

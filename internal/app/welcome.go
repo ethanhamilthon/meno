@@ -51,7 +51,7 @@ func plural(n int, one, many string) string {
 func (a *App) infoLine(w int) []seg {
 	sep := seg{"   ·   ", ui.FgDim, false}
 	_, model, effort := a.selection()
-	first := []seg{{"no model selected", ui.FgDim, false}, {" · ", ui.FgDim, false}, {":model", ui.Blue, false}}
+	first := []seg{{"no model selected", ui.FgDim, false}, {" · ", ui.FgDim, false}, {"/model", ui.Blue, false}}
 	if model != "" {
 		first = []seg{{model, ui.FgWhite, false}}
 		if effort != "" {
@@ -100,8 +100,8 @@ func keyHints() []seg {
 	return []seg{
 		{"i", ui.Blue, false}, {" write", ui.FgDim, false}, gap,
 		{"/", ui.Purple, false}, {" skills", ui.FgDim, false}, gap,
-		{":", ui.Blue, false}, {" commands", ui.FgDim, false}, gap,
-		{":help", ui.Purple, false}, {" all keys", ui.FgDim, false},
+		{"/", ui.Blue, false}, {" commands", ui.FgDim, false}, gap,
+		{"/help", ui.Purple, false}, {" all keys", ui.FgDim, false},
 	}
 }
 

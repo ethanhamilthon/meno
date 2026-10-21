@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.5
+
+- Use slash commands (`/edit`, `/model`, `/login`) and namespaced skill references
+  (`/skill:<name>`), with distinct command and skill completion.
+- Add a dark-gray input surface with top and bottom padding and a subtle green
+  background activity wave. Remove animated separator rules.
+- Unify footer metadata: session left, daemon counts center, model/effort/context right.
+- Fix history selection copy returning to INPUT while leaving the cursor in history.
+- Prevent task continuations from starting a run after engine shutdown begins.
+
 ## Unreleased
 
 - **Removed the file commands.** `meno read`, `edit`, `write` and `search` and the `files` group are gone; the agent uses `cat`, `sed`, heredocs and `rg` or `grep`.

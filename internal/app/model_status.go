@@ -21,7 +21,7 @@ func (a *App) emptyModelText() string {
 		}
 	}
 	if !active {
-		return "no active providers · use :login"
+		return "no active providers · use /login"
 	}
 	return "no models available"
 }

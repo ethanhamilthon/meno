@@ -31,6 +31,10 @@ func (a *App) cmdKey(k *tcell.EventKey) bool {
 		if k.Modifiers()&(tcell.ModShift|tcell.ModAlt|tcell.ModCtrl) != 0 {
 			return false // newline
 		}
+		if len(rows) > 0 && rows[clampSel(a.st.CmdSel, len(rows))] == "/skill:" {
+			a.cmdComplete("/skill:")
+			return true
+		}
 		a.cmdRun(rows)
 		return true
 	}
@@ -38,7 +42,7 @@ func (a *App) cmdKey(k *tcell.EventKey) bool {
 	return false
 }
 
-// cmdComplete replaces the token with the chosen row (":name" or ":cd path/").
+// cmdComplete replaces the token with the chosen row ("/name" or "/cd path/").
 func (a *App) cmdComplete(row string) {
 	t, ok := a.cmdToken()
 	if !ok {

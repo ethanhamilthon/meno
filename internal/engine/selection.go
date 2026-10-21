@@ -9,7 +9,7 @@ import (
 )
 
 // errNoModel is what a session with nothing usable to run gets.
-const msgNoModel = "No model selected. Choose a provider and model with :model."
+const msgNoModel = "No model selected. Choose a provider and model with /model."
 
 // selectionInput is one consistent view of the defaults and the providers. It
 // is taken before a session lock is held, because the engine lock is never
@@ -60,10 +60,10 @@ func resolveSelection(s *runState, in selectionInput) (bool, error) {
 	}
 	p, ok := in.provider(sess.Provider)
 	if !ok {
-		return false, api(proto.CodeBadRequest, fmt.Sprintf("Provider %q is not configured. Choose another with :model.", sess.Provider))
+		return false, api(proto.CodeBadRequest, fmt.Sprintf("Provider %q is not configured. Choose another with /model.", sess.Provider))
 	}
 	if p.Disabled {
-		return false, api(proto.CodeBadRequest, fmt.Sprintf("Provider %q is disabled. Enable it in :login or choose another with :model.", sess.Provider))
+		return false, api(proto.CodeBadRequest, fmt.Sprintf("Provider %q is disabled. Enable it in /login or choose another with /model.", sess.Provider))
 	}
 	return false, nil
 }

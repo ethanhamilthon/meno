@@ -25,7 +25,7 @@ func (e *Engine) adminMCP(ctx context.Context, s *runState, op, name string) (an
 	}
 	before, err := read()
 	if err != nil {
-		return nil, fmt.Errorf("configured MCP server %q not available; use :mcp to create it: %w", name, err)
+		return nil, fmt.Errorf("configured MCP server %q not available; use /mcp to create it: %w", name, err)
 	}
 	if before.Source != "" && op != "restart" {
 		return nil, api(proto.CodeForbidden, "file-defined MCP configuration is read only")

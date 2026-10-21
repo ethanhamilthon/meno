@@ -2,7 +2,7 @@
 
 Images in the timeline (sent attachments and `view()` results) are drawn with a terminal
 graphics protocol when one is available. Setting `images`: `auto` (default), `off`,
-`kitty`, `sixel`, `iterm` (`:settings`, or `images_protocol` in the settings JSON).
+`kitty`, `sixel`, `iterm` (`/settings`, or `images_protocol` in the settings JSON).
 
 - Every image has a caption line (`▣ Image #1 · 640×480 · png · attachment`). Without
   graphics the caption is all there is.

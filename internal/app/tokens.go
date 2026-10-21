@@ -5,8 +5,8 @@ import (
 	"unicode"
 )
 
-// Skill (/name) references can appear anywhere in the input,
-// as long as the sigil starts a word. A mode (#name) is only the first word.
+// Skill (/skill:name) references can appear anywhere at a word boundary.
+const skillPrefix = "/skill:"
 const (
 	kindSkill = '/'
 )
@@ -20,8 +20,6 @@ type tokSpan struct {
 func isNameRune(r rune) bool {
 	return unicode.IsLetter(r) || unicode.IsDigit(r) || r == '-' || r == '_'
 }
-
-func isSigil(r rune) bool { return r == kindSkill }
 
 func wordStart(in []rune, i int) bool { return i == 0 || unicode.IsSpace(in[i-1]) }
 
@@ -39,19 +37,19 @@ func (a *App) inputTokens() []tokSpan {
 	in := a.st.Input
 	var out []tokSpan
 	for i := 0; i < len(in); i++ {
-		if !isSigil(in[i]) || !wordStart(in, i) {
+		if in[i] != kindSkill || !wordStart(in, i) || !strings.HasPrefix(string(in[i:]), skillPrefix) {
 			continue
 		}
-		e := i + 1
+		e := i + len(skillPrefix)
 		for e < len(in) && isNameRune(in[e]) {
 			e++
 		}
-		// "/api-security/foo" is a path, not a skill reference.
+		// A suffix path is not a skill reference.
 		if e < len(in) && in[e] == '/' {
 			i = e
 			continue
 		}
-		name := string(in[i+1 : e])
+		name := string(in[i+len(skillPrefix) : e])
 		ok := name != "" && (in[i] == kindSkill && a.skillEnabled(name))
 		if ok {
 			out = append(out, tokSpan{i, e, in[i], name})
@@ -81,14 +79,18 @@ func (a *App) acToken() (acToken, bool) {
 	for s > 0 && isNameRune(in[s-1]) {
 		s--
 	}
-	if s == 0 || !isSigil(in[s-1]) || !wordStart(in, s-1) {
+	start := s - len(skillPrefix)
+	if start < 0 || string(in[start:s]) != skillPrefix || !wordStart(in, start) {
 		return acToken{}, false
 	}
 	e := c
 	for e < len(in) && isNameRune(in[e]) {
 		e++
 	}
-	return acToken{start: s - 1, end: e, kind: in[s-1], prefix: strings.ToLower(string(in[s:c]))}, true
+	if e < len(in) && in[e] == '/' {
+		return acToken{}, false
+	}
+	return acToken{start: start, end: e, kind: kindSkill, prefix: strings.ToLower(string(in[s:c]))}, true
 }
 
 type acItem struct {
@@ -96,7 +98,12 @@ type acItem struct {
 	name, desc string
 }
 
-func (it acItem) label() string { return string(it.kind) + it.name }
+func (it acItem) label() string {
+	if it.kind == kindSkill {
+		return skillPrefix + it.name
+	}
+	return string(it.kind) + it.name
+}
 
 func (a *App) acMatches() []acItem {
 	if a.pickOpen() {

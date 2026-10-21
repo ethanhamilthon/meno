@@ -12,10 +12,10 @@ import (
 	"meno/internal/ui"
 )
 
-// maxSessionRows is how many sessions the :sessions dialog lists.
+// maxSessionRows is how many sessions the /sessions dialog lists.
 const maxSessionRows = 200
 
-// sessionRow is one line of the :sessions dialog: a session loaded in this
+// sessionRow is one line of the /sessions dialog: a session loaded in this
 // run (rt is set; its live state is shown) or one that is only in the database.
 type sessionRow struct {
 	ID, Title, Cwd string

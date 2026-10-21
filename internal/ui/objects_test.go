@@ -24,10 +24,10 @@ func TestSentMessageShowsObjectLabelsAndKeepsOldTextAlone(t *testing.T) {
 		all = append(all, b.String())
 	}
 	text := strings.Join(all, "\n")
-	if !strings.Contains(text, "look at @main.go and /not/a/tag.go then /review") {
+	if !strings.Contains(text, "look at @main.go and /not/a/tag.go then /skill:review") {
 		t.Fatalf("labels:\n%s", text)
 	}
-	if strings.Join(blue, "|") != "@main.go|/review" {
+	if strings.Join(blue, "|") != "@main.go|/skill:review" {
 		t.Fatalf("only objects are highlighted: %v", blue)
 	}
 	if !strings.Contains(text, "legacy path /proj/old.go stays plain, <file-link>relative.go</file-link> too") {

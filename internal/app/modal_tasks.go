@@ -12,7 +12,7 @@ import (
 	"meno/internal/ui"
 )
 
-// tasksView is the :tasks dialog: the tasks of the current session as the
+// tasksView is the /tasks dialog: the tasks of the current session as the
 // daemon last said, and the log of the opened one.
 type tasksView struct {
 	Logs     []taskLogLine

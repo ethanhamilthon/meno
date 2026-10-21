@@ -12,7 +12,7 @@ import (
 func (a *App) modelLabel() string {
 	_, model, effort := a.selection()
 	if model == "" {
-		return "no model selected · :model"
+		return "no model selected · /model"
 	}
 	if effort == "" {
 		return model
@@ -61,8 +61,8 @@ func (a *App) drawCommandRows(c ui.Canvas, x, y, w, rows int) {
 	cells := make([]acCell, len(all))
 	for i, name := range all {
 		if cd {
-			// ":cd /a/b/" shows as "b/" with the parent as the description.
-			p := strings.TrimSuffix(strings.TrimPrefix(name, ":cd "), "/")
+			// "/cd /a/b/" shows as "b/" with the parent as the description.
+			p := strings.TrimSuffix(strings.TrimPrefix(name, "/cd "), "/")
 			cells[i] = acCell{filepath.Base(p) + "/", filepath.Dir(p), ui.FgWhite}
 			continue
 		}
@@ -86,7 +86,7 @@ func commandRows(a *App) []string {
 	}
 	var out []string
 	for _, c := range commandList {
-		if strings.HasPrefix(c.name, ":"+a.cmdQuery()) {
+		if strings.HasPrefix(c.name, "/"+a.cmdQuery()) {
 			out = append(out, c.name)
 		}
 	}
@@ -98,25 +98,26 @@ type cmdDef struct {
 }
 
 var commandList = []cmdDef{
-	{":context", "context, tokens, cache and cost"},
-	{":edit", "navigate and edit draft or transcript"},
-	{":new", "new session"},
-	{":fork", "fork at a message"},
-	{":rename", "rename this session"},
-	{":tasks", "background processes"},
-	{":sessions", "switch session"},
-	{":cd", "change directory"},
-	{":model", "model & effort"},
-	{":skills", "load skills"},
-	{":mcp", "mcp servers"},
-	{":login", "accounts & api keys"},
-	{":settings", "settings"},
-	{":compact", "compact context"},
-	{":export", "export markdown"},
-	{":stop", "stop this turn"},
-	{":help", "keys & commands"},
-	{":q", "quit meno"},
-	{":q!", "quit, stopping all turns"},
+	{"/context", "context, tokens, cache and cost"},
+	{"/edit", "navigate and edit draft or transcript"},
+	{"/new", "new session"},
+	{"/fork", "fork at a message"},
+	{"/rename", "rename this session"},
+	{"/tasks", "background processes"},
+	{"/sessions", "switch session"},
+	{"/cd", "change directory"},
+	{"/model", "model & effort"},
+	{"/skills", "load skills"},
+	{"/skill:", "insert a skill reference"},
+	{"/mcp", "mcp servers"},
+	{"/login", "accounts & api keys"},
+	{"/settings", "settings"},
+	{"/compact", "compact context"},
+	{"/export", "export markdown"},
+	{"/stop", "stop this turn"},
+	{"/help", "keys & commands"},
+	{"/q", "quit meno"},
+	{"/q!", "quit, stopping all turns"},
 }
 
 func jsMode(v string) ui.JSMode {

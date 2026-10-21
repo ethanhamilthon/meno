@@ -236,11 +236,25 @@ func (e *Engine) HasWork(context.Context) bool {
 }
 
 func (e *Engine) launch(ctx context.Context, s *runState, text string, cont bool) {
+	// Admission and the positive WaitGroup delta share Close's lock. Once closed
+	// is set, no callback can add a run after Close starts waiting for zero.
+	e.mu.Lock()
+	if e.closed {
+		e.mu.Unlock()
+		s.mu.Lock()
+		if s.cancel != nil {
+			s.cancel()
+		}
+		s.running, s.phase = false, ""
+		s.mu.Unlock()
+		return
+	}
+	e.runs.Add(1)
+	e.mu.Unlock()
 	// The run keeps the model the session had when it started: a model picked
 	// a moment later applies to the next request.
 	s.mu.Lock()
 	s.pinProvider, s.pinModel, s.pinEffort = s.session.Provider, s.session.Model, s.session.Effort
 	s.mu.Unlock()
-	e.runs.Add(1)
 	safe.Go(func() { defer e.runs.Done(); e.run(ctx, s, text, cont) }, func(err error) { e.finish(s, err) })
 }

@@ -20,7 +20,7 @@ import (
 type Runtime struct {
 	Session   *sessView
 	Cwd       string // working directory of this session
-	PrevCwd   string // directory before the last :cd, for ":cd -"
+	PrevCwd   string // directory before the last /cd, for "/cd -"
 	RunEffort string // effort of the request in flight, when the daemon routes it
 	RequestID string // the request being worked on
 	lines     lineCache
@@ -83,7 +83,7 @@ type Runtime struct {
 	watch func() // stops the event stream of this session
 }
 
-// taskRow is a background task of the session in the :tasks list.
+// taskRow is a background task of the session in the /tasks list.
 type taskRow struct {
 	ID, Name, Command, Status, Started string
 	Exit                               *int
@@ -152,7 +152,7 @@ func (a *App) switchTo(rt *Runtime) {
 
 // selection is the model of the current session: provider name, model id and
 // reasoning effort. A session that never had one uses the default from the
-// settings, which is the last model picked with :model.
+// settings, which is the last model picked with /model.
 func (a *App) selection() (provider, model, effort string) {
 	// Only a wholly unset session previews the defaults, as the daemon will
 	// resolve it. A partial pair is shown as it is: the user must pick a model.

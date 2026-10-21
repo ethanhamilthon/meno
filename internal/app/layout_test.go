@@ -29,7 +29,7 @@ func TestUnicodeInputAndCommandArguments(t *testing.T) {
 	if string(a.st.Input) != "привет" {
 		t.Fatal(string(a.st.Input))
 	}
-	vimKeys(a, " :cd /tmp/проект")
+	vimKeys(a, " /cd /tmp/проект")
 	if a.cmdQuery() != "cd /tmp/проект" {
 		t.Fatal(a.cmdQuery())
 	}

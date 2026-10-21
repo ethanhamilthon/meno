@@ -137,13 +137,6 @@ func (a *App) acKey(k *tcell.EventKey) bool {
 		if k.Modifiers()&(tcell.ModShift|tcell.ModAlt|tcell.ModCtrl) != 0 {
 			return false // newline
 		}
-		// A reference that is already complete should be sent, not re-completed.
-		if t, ok := a.acToken(); ok && n > 0 {
-			it := m[clampSel(a.st.Sel, n)]
-			if string(a.st.Input[t.start:t.end]) == it.label() {
-				return false
-			}
-		}
 		a.acAccept()
 		return true
 	}

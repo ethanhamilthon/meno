@@ -10,7 +10,7 @@ import (
 	"meno/internal/llm"
 )
 
-// :login is the one place for providers: accounts that signed in with OAuth,
+// /login is the one place for providers: accounts that signed in with OAuth,
 // providers added with an API key, and the choices to add more of either.
 
 func (a *App) loginKey(k *tcell.EventKey) {

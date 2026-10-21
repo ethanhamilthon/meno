@@ -61,7 +61,7 @@ func TestEditModeTimelineIsReadOnlyAndVIsGone(t *testing.T) {
 		t.Fatal(a.lastNotice())
 	}
 	for _, c := range commandList {
-		if c.name == ":v" || c.name == ":visual" {
+		if c.name == "/v" || c.name == "/visual" {
 			t.Fatal("old command listed")
 		}
 	}

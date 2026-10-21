@@ -155,10 +155,10 @@ func (a *App) setCwd(rt *Runtime, dir string) {
 	})
 }
 
-// renameSession handles ":rename <name>".
+// renameSession handles "/rename <name>".
 func (a *App) renameSession(arg string) {
 	if arg == "" {
-		a.notify("usage: :rename <name> · now: " + a.st.Session.DisplayTitle())
+		a.notify("usage: /rename <name> · now: " + a.st.Session.DisplayTitle())
 		return
 	}
 	a.st.Session.setTitle(arg)
@@ -175,7 +175,7 @@ func (a *App) renameSession(arg string) {
 func (a *App) compact() {
 	rt := a.st.Runtime
 	if rt.Running {
-		a.notifyErr("agent is running · :stop it first (or ctrl+c)")
+		a.notifyErr("agent is running · /stop it first (or ctrl+c)")
 		return
 	}
 	sid := rt.ID()

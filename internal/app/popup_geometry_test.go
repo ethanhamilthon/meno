@@ -46,12 +46,12 @@ func TestAutocompleteTwoColumnsFillDownThenRight(t *testing.T) {
 	a, s := visualFixture(t, 100, 40)
 	a.st.Mode = ui.ModeInput
 	a.st.Skills = skillsN(8)
-	a.setInput([]rune("/"))
+	a.setInput([]rune("/skill:"))
 	a.drawAutocompleteRows(ui.Canvas{S: s}, 0, 0, 100, 10)
 	// 8 items: 4 rows, left column p00..p03, right column p04..p07.
 	for row := 0; row < 4; row++ {
 		line := visualRow(s, row)
-		l, r := fmt.Sprintf("/p%02d", row), fmt.Sprintf("/p%02d", row+4)
+		l, r := fmt.Sprintf("/skill:p%02d", row), fmt.Sprintf("/skill:p%02d", row+4)
 		li, ri := strings.Index(line, l), strings.Index(line, r)
 		if li < 0 || ri < 0 || li >= 50 || ri < 50 {
 			t.Fatalf("row %d: %q (left %d right %d)", row, line, li, ri)
@@ -76,7 +76,7 @@ func TestAutocompleteTwoColumnsFillDownThenRight(t *testing.T) {
 func TestAutocompleteShortListUsesFullWidth(t *testing.T) {
 	a, s := visualFixture(t, 100, 40)
 	a.st.Skills = skillsN(5)
-	a.setInput([]rune("/"))
+	a.setInput([]rune("/skill:"))
 	a.drawAutocompleteRows(ui.Canvas{S: s}, 0, 0, 100, 10)
 	_, _, st, _ := s.GetContent(99, 0)
 	_, bg, _ := st.Decompose()
@@ -92,7 +92,7 @@ func TestAutocompleteScrollsByPages(t *testing.T) {
 	a, s := visualFixture(t, 100, 40)
 	a.st.Mode = ui.ModeInput
 	a.st.Skills = skillsN(40)
-	a.setInput([]rune("/"))
+	a.setInput([]rune("/skill:"))
 	for i := 0; i < 30; i++ {
 		a.acKey(keyK(tcell.KeyDown))
 	}
@@ -101,11 +101,11 @@ func TestAutocompleteScrollsByPages(t *testing.T) {
 	}
 	a.drawAutocompleteRows(ui.Canvas{S: s}, 0, 0, 100, 5)
 	// 5 rows x 2 columns = pages of 10: sel 30 is on the page p30..p39.
-	if !strings.Contains(visualRow(s, 0), "/p30") || !strings.Contains(visualRow(s, 4), "/p34") {
+	if !strings.Contains(visualRow(s, 0), "/skill:p30") || !strings.Contains(visualRow(s, 4), "/skill:p34") {
 		t.Fatalf("selected completion not in viewport: %q", visualRow(s, 0))
 	}
 	a.acKey(keyK(tcell.KeyEnter))
-	if labelText(a.st.Input) != "/p30 " {
+	if labelText(a.st.Input) != "/skill:p30 " {
 		t.Fatalf("input %q", labelText(a.st.Input))
 	}
 }

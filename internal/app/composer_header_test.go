@@ -9,45 +9,13 @@ import (
 	"meno/internal/ui"
 )
 
-func TestComposerHeaderDrawsTitleAtRight(t *testing.T) {
-	a, screen := visualFixture(t, 88, 12)
-	a.st.Session.Title = "session title"
-	a.draw()
-	row := visualRow(screen, 12-a.bottomHeight())
-	if !strings.HasSuffix(row, "session title──") {
-		t.Fatalf("name must end before the right gutter: %q", row)
-	}
-	cells := []rune(row)
-	if got := string(cells[:88-ui.Gutter-ui.TextWidth("session title")-1]); strings.Trim(got, "─") != "" {
-		t.Fatalf("rule contains unexpected cells: %q", got)
-	}
-	for x := 0; x < 88; x++ {
-		glyph, _, style, _ := screen.GetContent(x, 12-a.bottomHeight())
-		fg, bg, _ := style.Decompose()
-		if bg != ui.BgTerm {
-			t.Fatalf("header cell %d background %v", x, bg)
-		}
-		nameStart := 88 - ui.Gutter - ui.TextWidth("session title")
-		if glyph != ' ' && fg != ui.FgFaint && fg != chromeText() {
-			t.Fatalf("cell %d foreground %v", x, fg)
-		}
-		if x < nameStart-1 && glyph != '─' {
-			t.Fatalf("header cell %d = %q, want rule", x, glyph)
-		}
-	}
-}
-
-func TestComposerHeaderTruncatesAtThirtyPercent(t *testing.T) {
+func TestComposerFooterTitleTruncates(t *testing.T) {
 	a, screen := visualFixture(t, 88, 12)
 	a.st.Session.Title = strings.Repeat("long session name ", 8)
 	a.draw()
-	row := visualRow(screen, 12-a.bottomHeight())
-	name := strings.Trim(strings.TrimLeft(row, "─"), "─ ")
-	if !strings.HasSuffix(name, "…") {
-		t.Fatalf("truncated name has no ellipsis: %q", row)
-	}
-	if width := ui.TextWidth(name); width > 88*composerHeaderMax/100 {
-		t.Fatalf("name width %d exceeds 30%% cap", width)
+	row := visualRow(screen, 11)
+	if !strings.Contains(row, "…") || strings.Contains(row, "─") {
+		t.Fatalf("footer %q", row)
 	}
 }
 
@@ -57,7 +25,7 @@ func TestComposerHeaderUsesFolderWithoutTitle(t *testing.T) {
 	a.st.Session.Title = ""
 	a.st.Cwd = filepath.Join(t.TempDir(), "project")
 	a.draw()
-	if !strings.HasSuffix(visualRow(screen, 10-a.bottomHeight()), "project──") {
+	if !strings.HasPrefix(strings.TrimSpace(visualRow(screen, 9)), "project") {
 		t.Fatal("empty session did not show its folder")
 	}
 	a.st.Session.Title = "untitled"
@@ -89,8 +57,8 @@ func TestComposerHeaderHomeAndNarrowWidth(t *testing.T) {
 	a.st.Session.Title = strings.Repeat("wide title", 4)
 	a.scr.SetSize(3, 10)
 	a.draw()
-	row := visualRow(screen, 10-a.bottomHeight())
-	if row != "───" {
+	row := visualRow(screen, 9)
+	if strings.Contains(row, "─") {
 		t.Fatalf("narrow header %q", row)
 	}
 }
@@ -101,9 +69,9 @@ func TestComposerHeightIncludesHeaderWithoutGrowing(t *testing.T) {
 		input string
 		want  int
 	}{
-		{"", 2},
-		{"one row", 2},
-		{strings.Repeat("line\n", 7) + "line", 9},
+		{"", 3},
+		{"one row", 3},
+		{strings.Repeat("line\n", 7) + "line", 10},
 	}
 	for _, tc := range cases {
 		a.setInput([]rune(tc.input))
@@ -114,7 +82,7 @@ func TestComposerHeightIncludesHeaderWithoutGrowing(t *testing.T) {
 		for y := 20 - 1 - a.composerHeight(); y < 19; y++ {
 			for x := 0; x < 80; x++ {
 				_, _, style, _ := screen.GetContent(x, y)
-				if _, bg, _ := style.Decompose(); bg != ui.BgTerm {
+				if _, bg, _ := style.Decompose(); bg != ui.BgPopup {
 					t.Fatalf("composer cell %d,%d background %v", x, y, bg)
 				}
 			}
@@ -122,13 +90,8 @@ func TestComposerHeightIncludesHeaderWithoutGrowing(t *testing.T) {
 	}
 }
 
-func TestComposerHeaderNarrowWidthDoesNotPanic(t *testing.T) {
-	a, screen := visualFixture(t, 3, 8)
+func TestComposerNarrowWidthDoesNotPanic(t *testing.T) {
+	a, _ := visualFixture(t, 3, 8)
 	a.st.Session.Title = strings.Repeat("界", 10)
 	a.draw()
-	// Also call the helper directly with the minimum supported width.
-	a.drawComposerHeader(ui.Canvas{S: screen}, 0, 0, 3)
-	if got := visualRow(screen, 0); got != "───" {
-		t.Fatalf("narrow header %q", got)
-	}
 }

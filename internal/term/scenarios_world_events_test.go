@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-// A model picked with :model applies to this session; the next request carries
+// A model picked with /model applies to this session; the next request carries
 // the new model and a model-changed event.
 func TestModelSwitchProducesSystemEvent(t *testing.T) {
 	f := newFakeLLM(t)
@@ -36,7 +36,7 @@ func TestModelSwitchProducesSystemEvent(t *testing.T) {
 	}
 }
 
-// 23. :cd changes the directory of the session; the model hears about it with
+// 23. /cd changes the directory of the session; the model hears about it with
 // the next message.
 func TestCdProducesSystemEvent(t *testing.T) {
 	f := newFakeLLM(t)
