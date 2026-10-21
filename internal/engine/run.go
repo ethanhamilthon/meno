@@ -86,11 +86,11 @@ func (e *Engine) Message(ctx context.Context, id string, q proto.MessageRequest)
 	e.publish(id, proto.EventTurnAdded, proto.TurnAddedData{Turn: turnWire(turns[len(turns)-1])})
 	e.publish(id, proto.EventStatus, proto.StatusData{Running: true, Phase: "preparing", RequestID: rid, Origin: q.Origin})
 	if repaired {
-		e.publish(id, proto.EventSessionChanged, proto.ChangedData{Fields: []string{"provider", "model", "effort"}})
+		e.publishSessionChanged(s, "provider", "model", "effort")
 	}
 	if named {
 		// The first message names the session; windows show it now, not at the end of the run.
-		e.publish(id, proto.EventSessionChanged, proto.ChangedData{Fields: []string{"name"}})
+		e.publishSessionChanged(s, "name")
 	}
 	e.launch(runCtx, s, q.Text, false)
 	return proto.MessageResponse{RequestID: rid}, nil

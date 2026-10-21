@@ -16,7 +16,7 @@ type snap struct {
 const maxUndo = 200
 
 func (a *App) snapshot() snap {
-	return snap{in: append([]rune(nil), a.st.Input...), cur: a.st.Cursor, imgs: append([]draftImage(nil), a.st.Images...)}
+	return a.st.Runtime.snapshot()
 }
 
 func (a *App) restore(s snap) {

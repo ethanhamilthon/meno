@@ -41,7 +41,7 @@ func (a *App) openTasks() {
 	a.refreshTasks()
 }
 
-// refreshTasks reloads the session and the open log off the UI goroutine.
+// refreshTasks reloads the open log; session task lists arrive through the watcher.
 func (a *App) refreshTasks() {
 	if a.st.Over != OverTasks || a.st.TasksUI.inflight {
 		return
@@ -70,7 +70,6 @@ func (a *App) refreshTasks() {
 				return nil
 			})
 		}
-		a.refreshSession(sid)
 		a.postEvent(tasksLoaded{sid: sid, id: logID, logs: logs})
 	})
 }

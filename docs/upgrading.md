@@ -1,5 +1,19 @@
 # Upgrading, data and privacy
 
+## 0.6.3: daemon/client state and streaming efficiency
+
+- Streaming text, reasoning and command fragments no longer rewrite session history
+  in SQLite or trigger global-status reads/events. Completed boundaries remain durable.
+- Session metadata and tasks update through ordered events instead of repeated
+  snapshots. Snapshots still recover missing events, daemon restarts and compaction.
+- One client projection owns session state; background sessions do not borrow the
+  active composer. Global counters use a recoverable event subscription, not polling.
+- Configuration refreshes use one bundled request; existing configuration routes,
+  provider-key redaction and per-window overrides are retained.
+- Daemon protocol is **5**. Finish active work, close old windows, update, and
+  reopen meno so client and daemon use the same protocol. Existing session data
+  and settings are preserved; no database migration or reset is required.
+
 ## 0.6.2: timeline, steering, request export and safe updates
 
 - Timeline text shares a common left anchor: command titles, source, output,

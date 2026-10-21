@@ -28,11 +28,17 @@ func (e *Engine) finish(s *runState, err error) {
 	s.visibleQueue = nil
 	requestID, metrics := s.requestID, s.metrics
 	s.mu.Unlock()
+	if turns := s.session.Snapshot(); len(turns) > 0 {
+		s.mu.Lock()
+		s.visibleTurns = wireTurns(turns)
+		s.mu.Unlock()
+		e.publish(id, proto.EventTurnUpdated, proto.TurnAddedData{Turn: turnWire(turns[len(turns)-1])})
+	}
 	e.publishQueueCommitted(s)
 	if saveErr != nil {
 		e.publish(id, proto.EventError, proto.ErrorData{Message: saveErr.Error()})
 	}
-	e.publish(id, proto.EventSessionChanged, proto.ChangedData{Fields: []string{"run", "unread"}})
+	e.publishSessionChanged(s, "run", "unread")
 	e.publish(id, proto.EventStatus, proto.StatusData{Running: false, RequestID: requestID})
 	if err != nil && errors.Is(err, context.Canceled) {
 		e.publish(id, proto.EventAborted, proto.DoneData{RequestID: requestID})

@@ -13,15 +13,7 @@ func (s *Service) skillsResource(method, path string, req proto.ResourceRequest)
 		if method != "GET" {
 			return nil, notFound("unsupported skills route")
 		}
-		list, err := s.store.LoadSkills()
-		if err != nil {
-			return nil, err
-		}
-		out := make([]proto.ConfigSkill, 0, len(list))
-		for _, x := range list {
-			out = append(out, proto.ConfigSkill{Name: x.Name, Scope: x.Scope, Desc: x.Desc, Path: x.Path, Enabled: x.Enabled})
-		}
-		return proto.SkillsResponse{Skills: out}, nil
+		return s.skillsResponse()
 	}
 	if len(parts) != 2 || parts[1] != "enabled" || (method != "PUT" && method != "PATCH") {
 		return nil, notFound("unsupported skills route")

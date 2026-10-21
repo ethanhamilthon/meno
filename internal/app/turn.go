@@ -95,18 +95,17 @@ func (a *App) onSendResult(m sendResult) {
 		a.replaceGone(rt, m.msg)
 		return
 	}
-	a.inRT(m.sid, func() {
-		if m.err != nil {
-			rt.Running, rt.Phase = false, ""
-			rt.Queued = nil
-			a.notifyFailure("not sent: " + m.err.Error() + " · esc to dismiss")
-			a.restoreDraft([]msgDraft{m.msg})
-			return
-		}
-		if m.resp.RequestID != "" {
-			rt.RequestID = m.resp.RequestID
-		}
-	})
+	if m.err != nil {
+		rt.Running, rt.Phase = false, ""
+		rt.Queued = nil
+		a.noticeFor(rt, "not sent: "+m.err.Error()+" · esc to dismiss", true, true)
+		a.restoreDraftFor(rt, []msgDraft{m.msg})
+		a.saveDraftFor(rt)
+		return
+	}
+	if m.resp.RequestID != "" {
+		rt.RequestID = m.resp.RequestID
+	}
 }
 
 // abortTurn asks the daemon to stop the run of the current session.
@@ -143,32 +142,4 @@ func (a *App) scrollBy(d int) {
 
 func (a *App) clearLive() {
 	a.st.LiveText, a.st.LiveThink, a.st.LiveCalls = "", "", nil
-}
-
-// liveCall finds the live call with this id. Chat streams may deliver code
-// before the id is known: such a call is adopted by the first event that has
-// one.
-func (a *App) liveCall(id string) *liveCall {
-	calls := a.st.LiveCalls
-	for i := range calls {
-		if id != "" && calls[i].ID == id {
-			return &calls[i]
-		}
-	}
-	if n := len(calls); n > 0 && calls[n-1].ID == "" && !calls[n-1].Running {
-		calls[n-1].ID = id
-		return &calls[n-1]
-	}
-	a.st.LiveCalls = append(a.st.LiveCalls, liveCall{ID: id})
-	return &a.st.LiveCalls[len(a.st.LiveCalls)-1]
-}
-
-func (a *App) dropLiveCall(id string) {
-	out := a.st.LiveCalls[:0]
-	for _, c := range a.st.LiveCalls {
-		if c.ID != id {
-			out = append(out, c)
-		}
-	}
-	a.st.LiveCalls = out
 }

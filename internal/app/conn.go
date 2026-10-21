@@ -2,29 +2,23 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"meno/internal/client"
-	"meno/internal/proto"
 	"meno/internal/safe"
 )
 
-// wireEv is one event of a session stream, delivered to the UI goroutine.
-type wireEv struct {
-	sid string
-	ev  proto.Event
+// projectionEv is an immutable accepted update for one watcher generation.
+type projectionEv struct {
+	sid        string
+	generation uint64
+	update     client.ProjectionUpdate
 }
-
-// wireLost tells the UI that a session stream broke and could not be resumed.
 type wireLost struct {
-	sid string
-	err error
-}
-
-// snapshotEv delivers a fresh snapshot (after attach or resync).
-type snapshotEv struct {
-	sid  string
-	snap proto.Snapshot
+	sid        string
+	generation uint64
+	err        error
 }
 
 // rpc runs fn against the daemon with a time limit. It blocks, so call it off
@@ -57,17 +51,22 @@ func (a *App) spawn(fn func()) {
 // stream, and again whenever the daemon asks for a resync.
 func (a *App) watch(sid string) (stop func()) {
 	ctx, cancel := context.WithCancel(context.Background())
+	a.watchGeneration++
+	generation := a.watchGeneration
+	a.rts[sid].generation = generation
 	a.watchers.Add(1)
 	go func() {
 		defer safe.Recover(a.reportPanic)
 		defer a.watchers.Done()
-		mirror := &client.Mirror{}
-		err := a.cl.AttachWith(ctx, sid, mirror, func(sn proto.Snapshot) { a.postEvent(snapshotEv{sid, sn}) }, func(e proto.Event) error {
-			a.postEvent(wireEv{sid, e})
+		err := a.cl.Follow(ctx, sid, func(u client.ProjectionUpdate) error {
+			a.postEvent(projectionEv{sid: sid, generation: generation, update: u})
 			return nil
 		})
-		if err != nil && ctx.Err() == nil {
-			a.postEvent(wireLost{sid, err})
+		if ctx.Err() == nil {
+			if err == nil {
+				err = fmt.Errorf("daemon stream closed")
+			}
+			a.postEvent(wireLost{sid: sid, generation: generation, err: err})
 		}
 	}()
 	return cancel

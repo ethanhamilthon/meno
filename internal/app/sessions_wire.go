@@ -67,50 +67,9 @@ func (a *App) openSession(id string) {
 	}
 	rt := a.newRuntime(s, cwd)
 	rt.watch = a.watch(id)
-	a.onSnapshot(snapshotEv{id, sn})
+
 	a.switchTo(rt)
 	a.notify("session opened")
-}
-
-// refreshSession re-reads a session after the daemon said something about it
-// changed (title, directory, tasks).
-func (a *App) refreshSession(sid string) {
-	a.spawn(func() {
-		var sn proto.Snapshot
-		err := a.rpc(func(ctx context.Context, c *client.Client) error {
-			var e error
-			sn, e = c.Snapshot(ctx, sid)
-			return e
-		})
-		a.postEvent(sessionRefreshed{sid, sn, err})
-	})
-}
-
-// onSessionRefreshed applies the parts of a snapshot that are not live: the
-// title, the directory, the model and the background work.
-func (a *App) onSessionRefreshed(m sessionRefreshed) {
-	rt := a.rts[m.sid]
-	if rt == nil || m.err != nil {
-		return
-	}
-	sn := m.snap
-	if !rt.order.snapshot(sn, false) {
-		return
-	}
-	rt.Session.Completed, rt.Session.ReadThrough = sn.Session.Completed, sn.Session.ReadThrough
-	if !rt.Running && !sn.Running {
-		rt.Session.load(sn)
-		rt.lines = lineCache{}
-	}
-	rt.Session.Title = sn.Session.Name
-	if rt.Session.Title == "untitled" {
-		rt.Session.Title = ""
-	}
-	rt.Session.Provider, rt.Session.Model, rt.Session.Effort = sn.Provider, sn.Model, sn.Effort
-	if sn.Cwd != "" {
-		rt.Cwd = sn.Cwd
-	}
-	a.setTasks(rt, sn.Tasks)
 }
 
 // patchSession changes metadata of the current session in the daemon.
@@ -196,15 +155,16 @@ func (a *App) compact() {
 }
 
 func (a *App) onCompactDone(m compactDone) {
-	a.inRT(m.sid, func() {
-		a.st.Running, a.st.Phase = false, ""
-		if m.err != nil {
-			a.notifyErr("compact failed: " + m.err.Error())
-			return
-		}
-		a.notify("context compacted · " + itoa(m.resp.Removed) + " turns folded into a summary")
-		a.refreshSession(m.sid)
-	})
+	rt := a.rts[m.sid]
+	if rt == nil {
+		return
+	}
+	rt.Running, rt.Phase = false, ""
+	if m.err != nil {
+		a.noticeFor(rt, "compact failed: "+m.err.Error(), true, false)
+		return
+	}
+	a.noticeFor(rt, "context compacted · "+itoa(m.resp.Removed)+" turns folded into a summary", false, false)
 }
 
 // openSessions lists the sessions of the daemon in the background.

@@ -7,7 +7,6 @@ import (
 
 	"meno/internal/agent"
 	"meno/internal/proc"
-	"meno/internal/proto"
 	"meno/internal/tools"
 )
 
@@ -74,7 +73,7 @@ func (c *fgCall) Cancel() { c.fg.Cancel() }
 func (c *fgCall) Promote() (string, bool) {
 	t, ok := c.fg.Promote()
 	if ok {
-		c.e.publish(c.session, proto.EventTasksChanged, []string{t.ID})
+		c.e.publishTasksChanged(c.session)
 	}
 	return t.ID, ok
 }

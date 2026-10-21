@@ -43,6 +43,10 @@ func defaultNotifyCommand(goos string) string {
 
 // signal tells the user that the current session needs them (see wantSignal).
 func (a *App) signal(event string) {
+	a.signalFor(a.st.Runtime, event)
+}
+
+func (a *App) signalFor(rt *Runtime, event string) {
 	s := a.st.Settings
 	if !wantSignal(s.Notify, event) {
 		return
@@ -53,8 +57,8 @@ func (a *App) signal(event string) {
 	}
 	volume := s.NotifyVolume
 	env := []string{"MENO_NOTIFY_EVENT=" + event}
-	if a.st.Session != nil {
-		env = append(env, "MENO_NOTIFY_SESSION="+a.st.Session.ID(), "MENO_NOTIFY_TITLE="+a.st.Session.DisplayTitle())
+	if rt != nil && rt.Session != nil {
+		env = append(env, "MENO_NOTIFY_SESSION="+rt.ID(), "MENO_NOTIFY_TITLE="+rt.Session.DisplayTitle())
 	}
 	if a.notifier != nil {
 		a.notifier(cmd, env)

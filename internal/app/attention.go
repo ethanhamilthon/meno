@@ -8,37 +8,12 @@ import (
 	"time"
 )
 
-type globalSessionsLoaded struct {
-	rows  []proto.SessionItem
-	tasks int
-	err   error
-}
 type completionRead struct {
 	sid     string
 	through int64
 	err     error
 }
 
-func (a *App) refreshGlobalState() {
-	if a.cl == nil || a.globalPending || time.Since(a.globalRefresh) < time.Second {
-		return
-	}
-	a.globalRefresh = time.Now()
-	a.globalPending = true
-	a.spawn(func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
-		defer cancel()
-		r, err := a.cl.Resource(ctx, "GET", "/v1/session-state", "", proto.ResourceRequest{})
-		var state struct {
-			Sessions []proto.SessionItem `json:"sessions"`
-			Tasks    int                 `json:"tasks"`
-		}
-		if err == nil {
-			err = json.Unmarshal(r.Data, &state)
-		}
-		a.postEvent(globalSessionsLoaded{state.Sessions, state.Tasks, err})
-	})
-}
 func (a *App) acknowledgeVisible() {
 	s := a.st.Session
 	if a.unfocused || a.cl == nil || a.st.Running || a.st.LiveText != "" || s == nil || a.st.Over != OverNone || a.st.Scroll != 0 || s.Completed <= s.ReadThrough || a.ackPending {

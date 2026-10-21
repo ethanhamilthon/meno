@@ -9,6 +9,7 @@ const (
 	EventCallStart      = "call_start"
 	EventCallEnd        = "call_end"
 	EventTurnAdded      = "turn_added"
+	EventTurnUpdated    = "turn_updated"
 	EventRequest        = "request"
 	EventUsage          = "usage"
 	EventRetry          = "retry"

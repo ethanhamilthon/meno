@@ -1,49 +1,11 @@
 package app
 
 import (
-	"encoding/json"
-	"time"
-
+	"meno/internal/client"
 	"meno/internal/llm"
 	"meno/internal/proto"
+	"time"
 )
-
-// onSnapshot replaces what a session shows with the daemon's snapshot.
-func (a *App) onSnapshot(m snapshotEv) {
-	rt := a.rts[m.sid]
-	if rt == nil {
-		return
-	}
-	sn := m.snap
-	if !rt.order.snapshot(sn, true) {
-		return
-	}
-	rt.Session.load(sn)
-	rt.Cwd = sn.Cwd
-	// A snapshot taken before my message reached the daemon must not stop a run
-	// I just started.
-	if !(rt.sending > 0 && rt.Running && !sn.Running) {
-		rt.Running, rt.Phase, rt.RequestID = sn.Running, sn.Phase, sn.RequestID
-		rt.Queued = append([]string(nil), sn.Queued...)
-	}
-	rt.LiveText, rt.LiveThink, rt.LiveCalls = sn.Live.Text, sn.Live.Thinking, nil
-	rt.LiveBase = len(rt.Session.turns)
-	for _, c := range sn.Live.Calls {
-		lc := liveCall{ID: c.CallID, Code: c.Command, Title: c.Title, Running: c.Exit == nil}
-		if c.Delta != "" && lc.Code == "" {
-			lc.Code = c.Delta
-		}
-		if c.TaskID != "" {
-			continue // moved to a task: it no longer runs in the foreground
-		}
-		rt.LiveCalls = append(rt.LiveCalls, lc)
-	}
-	rt.Spent, rt.Context, rt.Unpriced = sn.Spent, sn.Context, sn.Unpriced
-	rt.Saved = true
-	a.setTasks(rt, sn.Tasks)
-	a.setAsk(rt, sn.Ask)
-	rt.Retry = retryFromWire(sn.Retry)
-}
 
 func retryFromWire(r *proto.RetryState) *retryState {
 	if r == nil {
@@ -52,156 +14,99 @@ func retryFromWire(r *proto.RetryState) *retryState {
 	return &retryState{Attempt: r.Attempt, Max: r.Attempt, Until: time.Now().Add(time.Duration(r.InMS) * time.Millisecond), Reason: briefReason(r.Reason)}
 }
 
-// onWire applies one event of a session stream to its runtime.
-func (a *App) onWire(m wireEv) {
+// onProjection adapts accepted client state for drawing; no wire reduction occurs here.
+func (a *App) onProjection(m projectionEv) {
 	rt := a.rts[m.sid]
-	if rt == nil {
+	if rt == nil || rt.generation != m.generation {
 		return
 	}
-	if !rt.order.event(m.ev) {
-		return
+	u := m.update
+	if u.Reset {
+		a.setConnLost(m.sid, false)
 	}
-	a.inRT(m.sid, func() { a.applyWire(rt, m.ev) })
+	a.applyProjection(rt, u)
 }
 
-func decode[T any](raw json.RawMessage) (T, bool) {
-	var v T
-	return v, json.Unmarshal(raw, &v) == nil
-}
-
-func (a *App) applyWire(rt *Runtime, e proto.Event) {
-	if e.Type != proto.EventRetry && e.Type != proto.EventUsage && e.Type != proto.EventHello {
-		rt.Retry = nil
+func (a *App) applyProjection(rt *Runtime, u client.ProjectionUpdate) {
+	f, v := u.Changed, u.Values
+	if f&client.MetadataChanged != 0 {
+		s := rt.Session
+		s.id, s.Title, s.Cwd, s.Model = v.Session.ID, v.Session.Name, v.Cwd, v.Model
+		if s.Title == "untitled" {
+			s.Title = ""
+		}
+		s.Provider, s.Effort = v.Provider, v.Effort
+		s.Completed, s.ReadThrough = v.Session.Completed, v.Session.ReadThrough
+		rt.Cwd = v.Cwd
 	}
-	switch e.Type {
-	case proto.EventTextDelta:
-		if d, ok := decode[proto.TextDeltaData](e.Data); ok {
-			rt.LiveBase = rt.Session.Len()
-			rt.LiveText += d.Text
-			rt.Phase = "writing"
+	if f&client.ActivityChanged != 0 && !(rt.sending > 0 && rt.Running && !v.Running && u.Reset) {
+		rt.Running, rt.Phase, rt.RequestID = v.Running, v.Phase, v.RequestID
+	}
+	if f&client.TurnsChanged != 0 {
+		if u.Reset {
+			rt.Session.turns = nil
+			rt.lines = lineCache{}
 		}
-	case proto.EventThinkDelta:
-		if d, ok := decode[proto.TextDeltaData](e.Data); ok {
-			rt.LiveBase = rt.Session.Len()
-			rt.LiveThink += d.Text
-			rt.Phase = "thinking"
-		}
-	case proto.EventCallDelta:
-		if d, ok := decode[proto.CallDeltaData](e.Data); ok {
-			rt.LiveBase = rt.Session.Len()
-			rt.Phase = "writing"
-			a.liveCall(d.CallID).Code += d.Delta
-		}
-	case proto.EventCallStart:
-		if d, ok := decode[proto.CallStartData](e.Data); ok {
-			lc := a.liveCall(d.CallID)
-			lc.Code, lc.Title, lc.Running = d.Command, d.Title, true
-			if d.Title != "" {
-				rt.Title = d.Title
-			}
-			lc.Started = time.Now()
-			rt.Phase = "running"
-		}
-	case proto.EventCallEnd:
-		if d, ok := decode[proto.CallEndData](e.Data); ok {
-			a.dropLiveCall(d.CallID)
-			rt.RunJS++
-			if len(a.st.LiveCalls) == 0 {
-				rt.Phase = "thinking"
-			}
-		}
-	case proto.EventTurnAdded:
-		if d, ok := decode[proto.TurnAddedData](e.Data); ok {
-			added := rt.Session.add(d.Turn)
-			if added && d.Turn.Role == "assistant" {
-				rt.LiveText, rt.LiveThink = "", ""
-			}
-		}
-	case proto.EventStatus:
-		if d, ok := decode[proto.StatusData](e.Data); ok {
-			if !d.Running && staleRuntimeRun(rt, d.RequestID) {
-				break
-			}
-			if d.Running && d.RequestID != "" {
-				rt.RequestID = d.RequestID
-			}
-			if d.Running && !rt.Running {
-				if d.Origin != "" && d.Origin != a.instance {
-					a.notify("a turn was started from another window")
+		for _, t := range v.Turns {
+			replaced := false
+			for i := range rt.Session.turns {
+				if t.ID != "" && rt.Session.turns[i].ID == t.ID {
+					rt.Session.turns[i] = turnFromWire(t)
+					replaced = true
+					break
 				}
-				rt.RunStart, rt.RunTurns, rt.RunJS, rt.RunUsage0 = time.Now(), 0, 0, rt.Usage
-				rt.Title = ""
 			}
-			rt.Running, rt.Phase = d.Running, d.Phase
+			if !replaced {
+				rt.Session.add(t)
+			}
 		}
-	case proto.EventRequest:
-		rt.Phase = "thinking"
-	case proto.EventUsage:
-		if d, ok := decode[proto.UsageData](e.Data); ok {
-			a.addUsage(rt, d)
-		}
-	case proto.EventRetry:
-		if d, ok := decode[proto.RetryData](e.Data); ok {
-			a.clearLive()
-			rt.Phase = "retrying"
-			rt.Retry = &retryState{Attempt: d.Attempt, Max: d.Max, Until: time.Now().Add(time.Duration(d.InMS) * time.Millisecond), Reason: briefReason(d.Reason)}
-			a.notify("retry " + itoa(d.Attempt) + "/" + itoa(d.Max) + " in " + fmtWait(time.Duration(d.InMS)*time.Millisecond) + " — " + rt.Retry.Reason)
-		}
-	case proto.EventInjected:
-		if d, ok := decode[proto.InjectedData](e.Data); ok {
-			rt.Queued = append([]string(nil), d.Queued...)
-		}
-	case proto.EventError:
-		if d, ok := decode[proto.ErrorData](e.Data); ok {
-			rt.LastErr = true
-			a.notifyErr(d.Message)
-		}
-	case proto.EventAborted:
-		if d, ok := decode[proto.DoneData](e.Data); ok && staleRuntimeRun(rt, d.RequestID) {
-			break
-		}
-		a.refreshSession(rt.ID())
-		a.clearLive()
-		rt.Phase, rt.Running = "", false
-		a.markUnseen(rt.ID())
-		a.signal("")
-	case proto.EventDone:
-		if d, ok := decode[proto.DoneData](e.Data); ok && staleRuntimeRun(rt, d.RequestID) {
-			break
-		}
-		a.refreshSession(rt.ID())
-		a.clearLive()
-		rt.Phase, rt.Running = "", false
-		a.markUnseen(rt.ID())
-		a.signal("done")
-		a.refreshSession(rt.ID()) // the daemon names a session after its first message
-	case proto.EventAskOpen:
-		if d, ok := decode[proto.AskForm](e.Data); ok {
-			a.setAsk(rt, &d)
-		}
-	case proto.EventAskClosed:
-		if d, ok := decode[proto.AskClosedData](e.Data); ok && rt.Ask != nil && rt.Ask.ID == d.AskID {
-			a.closeAsk(rt.Ask)
-		}
-	case proto.EventSessionChanged, proto.EventTasksChanged:
-		a.refreshSession(rt.ID())
 	}
+	if f&client.LiveChanged != 0 {
+		started := map[string]time.Time{}
+		for _, c := range rt.LiveCalls {
+			started[c.ID] = c.Started
+		}
+		rt.LiveText, rt.LiveThink = v.Live.Text, v.Live.Thinking
+		rt.LiveBase = rt.Session.Len()
+		rt.LiveCalls = nil
+		for _, c := range v.Live.Calls {
+			if c.TaskID != "" {
+				continue
+			}
+			code := c.Command
+			if code == "" {
+				code = c.Delta
+			}
+			rt.LiveCalls = append(rt.LiveCalls, liveCall{ID: c.CallID, Code: code, Title: c.Title, Running: v.StartedCalls[c.CallID], Started: started[c.CallID]})
+		}
+	}
+	if f&client.QueueChanged != 0 {
+		rt.Queued = v.Queued
+	}
+	if f&client.TasksChanged != 0 {
+		a.setTasks(rt, v.Tasks)
+	}
+	if f&client.AskChanged != 0 {
+		a.setAsk(rt, v.Ask)
+	}
+	if f&client.RetryChanged != 0 {
+		rt.Retry = retryFromWire(v.Retry)
+		if rt.Retry != nil && v.RetryMax > 0 {
+			rt.Retry.Max = v.RetryMax
+		}
+	}
+	if f&client.UsageChanged != 0 {
+		rt.Spent, rt.Context, rt.Unpriced = v.Spent, v.Context, v.Unpriced
+		rt.Usage = usageFromProjection(v.TotalUsage)
+		rt.LastUsage = usageFromProjection(v.LastUsage)
+	}
+	if f&client.ErrorChanged != 0 {
+		rt.LastErr = v.LastError != ""
+	}
+	rt.Saved = true
+	a.projectionEffects(rt, u.Effects)
 }
 
-// addUsage counts one answered request into the totals of the session.
-func (a *App) addUsage(rt *Runtime, d proto.UsageData) {
-	rt.RunTurns++
-	u := llm.Usage{In: int(d.InputTokens), Out: int(d.OutputTokens), Cached: int(d.Cached), CacheWrite: int(d.CacheWrite), CacheReported: d.CacheKnown}
-	rt.Usage.In += u.In
-	rt.Usage.Out += u.Out
-	rt.Usage.Cached += u.Cached
-	rt.Usage.CacheWrite += u.CacheWrite
-	rt.Usage.CacheReported = rt.Usage.CacheReported || u.CacheReported
-	rt.LastUsage = u
-	rt.Context = u.In + u.Out
-	if d.Priced {
-		rt.Spent += d.Cost
-	} else if u.In > 0 || u.Out > 0 {
-		rt.Unpriced = true
-	}
+func usageFromProjection(d proto.UsageData) llm.Usage {
+	return llm.Usage{In: int(d.InputTokens), Out: int(d.OutputTokens), Cached: int(d.Cached), CacheWrite: int(d.CacheWrite), CacheReported: d.CacheKnown}
 }

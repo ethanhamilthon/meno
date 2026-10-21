@@ -18,14 +18,14 @@ import (
 // what it needs as arguments and reports back through events carrying the
 // session id.
 type Runtime struct {
-	order     wireOrder
-	Session   *sessView
-	Cwd       string // working directory of this session
-	PrevCwd   string // directory before the last /cd, for "/cd -"
-	RunEffort string // effort of the request in flight, when the daemon routes it
-	RequestID string // the request being worked on
-	lines     lineCache
-	Pick      *pickState // the @ picker, nil when closed
+	generation uint64
+	Session    *sessView
+	Cwd        string // working directory of this session
+	PrevCwd    string // directory before the last /cd, for "/cd -"
+	RunEffort  string // effort of the request in flight, when the daemon routes it
+	RequestID  string // the request being worked on
+	lines      lineCache
+	Pick       *pickState // the @ picker, nil when closed
 	// Tasks are the background work of the session, as the daemon last said.
 	Tasks []taskRow
 
@@ -121,21 +121,6 @@ func (a *App) dropRuntime(rt *Runtime) {
 	}
 }
 
-// inRT runs fn with the session sid as the current one, so that the handlers
-// written for "the current session" serve events of a background session too.
-// The screen keeps showing what it showed; only a.st.Runtime is swapped for
-// the duration of fn.
-func (a *App) inRT(sid string, fn func()) {
-	rt := a.rts[sid]
-	if rt == nil {
-		return
-	}
-	prev := a.st.Runtime
-	a.st.Runtime = rt
-	defer func() { a.st.Runtime = prev }()
-	fn()
-}
-
 // switchTo puts a session on screen.
 func (a *App) switchTo(rt *Runtime) {
 	a.st.Mode = ui.ModeInput
@@ -156,9 +141,13 @@ func (a *App) switchTo(rt *Runtime) {
 // reasoning effort. A session that never had one uses the default from the
 // settings, which is the last model picked with /model.
 func (a *App) selection() (provider, model, effort string) {
+	return a.selectionFor(a.st.Runtime)
+}
+
+func (a *App) selectionFor(rt *Runtime) (provider, model, effort string) {
 	// Only a wholly unset session previews the defaults, as the daemon will
 	// resolve it. A partial pair is shown as it is: the user must pick a model.
-	if s := a.st.Session; s != nil && (s.Provider != "" || s.Model != "") {
+	if s := rt.Session; s != nil && (s.Provider != "" || s.Model != "") {
 		return s.Provider, s.Model, s.Effort
 	}
 	st := a.st.Settings

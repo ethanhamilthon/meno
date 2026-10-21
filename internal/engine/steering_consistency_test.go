@@ -97,6 +97,8 @@ func TestSteeringSnapshotBeforeNextDelta(t *testing.T) {
 	}
 	p.next <- struct{}{}
 	waitFor(t, e, id, func(s *runState) bool { return !s.running })
+	// Snapshot waits for the complete finish commit, including terminal events.
+	final, _ := e.Snapshot(ctx, id)
 	ch, stop, _ := h.Subscribe(id, snap.Seq, "boot")
 	defer stop()
 	for len(ch) > 0 {
@@ -105,7 +107,6 @@ func TestSteeringSnapshotBeforeNextDelta(t *testing.T) {
 			observers[i].Apply(ev)
 		}
 	}
-	final, _ := e.Snapshot(ctx, id)
 	for i := range observers {
 		state := observers[i].Snapshot()
 		if len(state.Turns) != len(final.Turns) || len(state.Queued) != 0 || state.Live.Text != "" || state.Running {

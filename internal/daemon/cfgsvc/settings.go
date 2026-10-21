@@ -46,11 +46,7 @@ func (s *Service) settingsResource(method string, req proto.ResourceRequest) (an
 		return s.patchSettings(req)
 	}
 	if method == "GET" {
-		v, err := s.readSettings()
-		if err != nil {
-			return nil, err
-		}
-		return proto.SettingsResponse{Settings: settingsWire(v)}, nil
+		return s.settingsResponse()
 	}
 	s.settingsMu.Lock()
 	defer s.settingsMu.Unlock()

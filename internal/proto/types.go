@@ -2,9 +2,9 @@
 package proto
 
 // Protocol is the HTTP API compatibility number. Clients require exact equality.
-// Protocol 4 adds message origin (incompatible with older strict decoders)
-// and atomic idle-only shutdown for safe updates.
-const Protocol = 4
+// Protocol 5 adds reconstructible session/task changes and bundled configuration.
+// Clients and daemons must upgrade together.
+const Protocol = 5
 
 // Error codes returned in an ErrorEnvelope.
 const (
@@ -133,6 +133,8 @@ type Snapshot struct {
 	Retry      *RetryState    `json:"retry,omitempty"`
 	Metrics    Metrics        `json:"metrics"`
 	Queued     []string       `json:"queued,omitempty"` // messages waiting for the next step
+	TotalUsage *UsageData     `json:"total_usage,omitempty"`
+	LastUsage  *UsageData     `json:"last_usage,omitempty"`
 	Spent      float64        `json:"spent,omitempty"`
 	Context    int            `json:"context,omitempty"`
 	Unpriced   bool           `json:"unpriced,omitempty"`

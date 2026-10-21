@@ -58,3 +58,9 @@ func TestOriginRequiresProtocolBumpFrom060(t *testing.T) {
 		t.Fatal("new requests require a protocol bump beyond 0.6.0")
 	}
 }
+
+func TestCleanupRequiresCoordinatedProtocolFive(t *testing.T) {
+	if Protocol != 5 {
+		t.Fatalf("cleanup wire contract requires protocol 5, got %d", Protocol)
+	}
+}

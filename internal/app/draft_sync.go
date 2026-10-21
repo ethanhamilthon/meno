@@ -73,3 +73,23 @@ func (a *App) restoreDrafts() {
 	a.setInput(a.runesFromText(strings.Join(texts, "\n\n")))
 	a.notify("restored " + strconv.Itoa(len(list)) + " draft(s)")
 }
+
+// saveDraftFor persists a background composer without changing active state.
+func (a *App) saveDraftFor(rt *Runtime) {
+	if rt == a.st.Runtime {
+		a.saveDraft()
+		return
+	}
+	if a.instance == "" {
+		return
+	}
+	f := draftFile{Client: a.instance, Session: rt.ID(), Text: externalText(rt.Input), Cursor: rt.Cursor}
+	data := map[string][]byte{}
+	for _, im := range rt.Images {
+		f.Images = append(f.Images, im.attachment)
+		data[im.SHA] = im.Data
+	}
+	if err := a.drafts().Save(f, data); err != nil {
+		a.noticeFor(rt, "draft not saved: "+err.Error(), true, false)
+	}
+}

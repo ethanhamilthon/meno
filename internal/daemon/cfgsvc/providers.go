@@ -15,15 +15,7 @@ func (s *Service) providerResource(ctx context.Context, method, path, rawQuery s
 	parts := splitResource(strings.TrimPrefix(path, "/providers"))
 	if len(parts) == 0 {
 		if method == "GET" {
-			ps, err := s.providers()
-			if err != nil {
-				return nil, err
-			}
-			out := make([]proto.ConfigProvider, 0, len(ps))
-			for _, p := range ps {
-				out = append(out, providerWire(p))
-			}
-			return proto.ProvidersResponse{Providers: out}, nil
+			return s.providersResponse()
 		}
 		if method == "POST" {
 			request, err := decode[proto.ProviderRequest](req.Data)

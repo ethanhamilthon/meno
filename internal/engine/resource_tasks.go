@@ -47,7 +47,7 @@ func (e *Engine) taskResource(ctx context.Context, s *runState, tail []string, m
 		env := append(base, mapEnv(data["env"])...)
 		t, err := e.tasks.Start(proc.StartOptions{Session: s.session.ID, Owner: owner, Name: stringValue(data, "name"), Command: cmd, Cwd: cwd, Env: env, Notify: notify})
 		if err == nil {
-			e.publish(s.session.ID, proto.EventTasksChanged, []string{t.ID})
+			e.publishTasksChanged(s.session.ID)
 		}
 		return t, err
 	case "status":
@@ -66,7 +66,7 @@ func (e *Engine) taskResource(ctx context.Context, s *runState, tail []string, m
 	case "cancel":
 		t, err := e.tasks.Cancel(s.session.ID, id)
 		if err == nil {
-			e.publish(s.session.ID, proto.EventTasksChanged, []string{id})
+			e.publishTasksChanged(s.session.ID)
 		}
 		return t, err
 	}

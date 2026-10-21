@@ -63,31 +63,12 @@ func firstGraphemeLen(rs []rune) int {
 	return 0
 }
 
-func (a *App) clampCursor() {
-	a.st.Cursor = min(max(0, a.st.Cursor), len(a.st.Input))
-}
+func (a *App) clampCursor() { a.st.Runtime.clampCursor() }
 
-// setInput replaces the whole input and puts the cursor at its end.
-func (a *App) setInput(rs []rune) {
-	a.st.InLog = false
-	a.st.Input = rs
-	a.st.Cursor = len(rs)
-	a.st.WantSet = false
-	a.st.Sel = 0
-}
+// setInput replaces the active composer and puts the cursor at its end.
+func (a *App) setInput(rs []rune) { a.setInputFor(a.st.Runtime, rs) }
 
-func (a *App) insertAtCursor(rs []rune) {
-	a.clampCursor()
-	c := a.st.Cursor
-	out := make([]rune, 0, len(a.st.Input)+len(rs))
-	out = append(out, a.st.Input[:c]...)
-	out = append(out, rs...)
-	out = append(out, a.st.Input[c:]...)
-	a.st.Input = out
-	a.st.Cursor = c + len(rs)
-	a.st.WantSet = false
-	a.st.Sel = 0
-}
+func (a *App) insertAtCursor(rs []rune) { a.insertAtCursorFor(a.st.Runtime, rs) }
 
 func (a *App) insertNewline() { a.insertAtCursor([]rune{'\n'}) }
 

@@ -21,6 +21,12 @@ func (e *Engine) readCompletion(ctx context.Context, id string, raw json.RawMess
 	if err := json.Unmarshal(raw, &q); err != nil {
 		return proto.ResourceResponse{}, api(proto.CodeBadRequest, "invalid read acknowledgment")
 	}
+	s, err := e.load(ctx, id)
+	if err != nil {
+		return proto.ResourceResponse{}, notFound(err)
+	}
+	s.commit.Lock()
+	defer s.commit.Unlock()
 	d, err := e.store.DB()
 	if err != nil {
 		return proto.ResourceResponse{}, err
@@ -29,7 +35,7 @@ func (e *Engine) readCompletion(ctx context.Context, id string, raw json.RawMess
 	if err != nil {
 		return proto.ResourceResponse{}, err
 	}
-	e.publish(id, proto.EventSessionChanged, proto.ChangedData{Fields: []string{"unread"}})
+	e.publishSessionChanged(s, "unread")
 	b, _ := json.Marshal(map[string]bool{"ok": true})
 	return proto.ResourceResponse{Data: b}, nil
 }

@@ -74,7 +74,7 @@ func TestWireDoesNotStealCommandFocus(t *testing.T) {
 	a, s := newTestApp(t)
 	defer s.Fini()
 	a.st.Mode = ui.ModeEdit
-	a.inRT(a.st.Session.ID(), func() { a.st.Phase = "thinking" })
+	a.st.Runtime.Phase = "thinking"
 	if a.st.Mode != ui.ModeEdit {
 		t.Fatal("event stole command focus")
 	}

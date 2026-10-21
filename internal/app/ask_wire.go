@@ -25,13 +25,10 @@ func (a *App) setAsk(rt *Runtime, f *proto.AskForm) {
 	}
 	st.draft = draft{Input: rt.Input, Cursor: rt.Cursor, Mode: rt.Mode, Undo: rt.Undo, Redo: rt.Redo, InsBase: rt.InsBase}
 	rt.Ask = st
-	a.inRT(rt.ID(), func() {
-		a.setInput(nil)
-		a.st.Undo, a.st.Redo, a.st.InsBase = nil, nil, a.snapshot()
-		a.st.Mode = ui.ModeInput
-		a.st.Scroll = 0
-	})
-	a.signal("question")
+	a.setInputFor(rt, nil)
+	rt.Undo, rt.Redo, rt.InsBase = nil, nil, rt.snapshot()
+	rt.Mode, rt.Scroll = ui.ModeInput, 0
+	a.signalFor(rt, "question")
 }
 
 // closeAsk removes the form and gives the composer its text back.
@@ -43,13 +40,11 @@ func (a *App) closeAskFor(rt *Runtime, st *askState) {
 	}
 	rt.Ask = nil
 	d := st.draft
-	a.inRT(rt.ID(), func() {
-		a.setInput(d.Input)
-		a.st.Cursor = d.Cursor
-		a.st.Undo, a.st.Redo, a.st.InsBase = d.Undo, d.Redo, d.InsBase
-		a.st.Mode = d.Mode
-		a.clampCursor()
-	})
+	a.setInputFor(rt, d.Input)
+	rt.Cursor = d.Cursor
+	rt.Undo, rt.Redo, rt.InsBase = d.Undo, d.Redo, d.InsBase
+	rt.Mode = d.Mode
+	rt.clampCursor()
 }
 
 // answerAsk sends the answers (or a cancel) to the daemon and closes the form.

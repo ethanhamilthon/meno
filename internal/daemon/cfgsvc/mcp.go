@@ -33,15 +33,7 @@ func (s *Service) mcpResource(ctx context.Context, method, path string, req prot
 	parts := splitResource(strings.TrimPrefix(path, "/mcp/servers"))
 	if len(parts) == 0 {
 		if method == "GET" {
-			list, warnings, e := s.serverDefinitions()
-			if e != nil {
-				return nil, e
-			}
-			out := make([]proto.ConfigMCPServer, 0, len(list))
-			for _, x := range list {
-				out = append(out, s.mcpWire(x))
-			}
-			return proto.McpServersResponse{Servers: out, Warnings: warnings}, nil
+			return s.mcpResponse()
 		}
 		if method == "POST" {
 			request, e := decode[proto.McpServerRequest](req.Data)

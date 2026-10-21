@@ -190,37 +190,6 @@ func (e *Engine) Close() {
 	e.tasks.Shutdown()
 }
 
-func (e *Engine) publish(id, typ string, data any) {
-	if e.events != nil {
-		e.events.Publish(id, typ, data)
-	}
-	if e.global != nil {
-		completed, read := e.attention(id)
-		e.global.Publish(id, proto.EventGlobalStatus, proto.GlobalStatus{SessionID: id, Running: e.running(id), NeedsYou: e.needsYou(id), DoneUnseen: completed > read})
-	}
-}
-func (e *Engine) running(id string) bool {
-	e.mu.Lock()
-	s := e.sessions[id]
-	e.mu.Unlock()
-	if s == nil {
-		return false
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.running
-}
-func (e *Engine) needsYou(id string) bool {
-	e.mu.Lock()
-	s := e.sessions[id]
-	e.mu.Unlock()
-	if s == nil {
-		return false
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.ask != nil
-}
 func (e *Engine) load(ctx context.Context, id string) (*runState, error) {
 	e.mu.Lock()
 	if e.closed {

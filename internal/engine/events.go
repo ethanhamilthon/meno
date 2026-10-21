@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"context"
 	"meno/internal/agent"
 	"meno/internal/proto"
 	"strings"
@@ -89,7 +88,16 @@ func (e *Engine) agentEvent(s *runState, ev agent.Ev) {
 	if ev.Kind == agent.EvInjected {
 		e.publishQueue(s, proto.InjectedData{})
 	}
-	_ = e.save(s)
+	// Fragments are live-only. Do not copy history or enter persistence on the
+	// hot streaming path, even when runner-owned history has changed.
+	if isFragment(ev.Kind) {
+		s.mu.Unlock()
+		e.translate(id, ev)
+		return
+	}
+	if persistEvent(ev.Kind, s.session.Len() > s.published) {
+		_ = e.save(s)
+	}
 	turns := s.session.Snapshot()
 	// History is a published projection: runner appends happen before Emit,
 	// so snapshots must not read the mutable runner history mid-publication.
@@ -155,18 +163,8 @@ func (e *Engine) translate(id string, ev agent.Ev) {
 		e.publish(id, proto.EventRetry, proto.RetryData{Attempt: ev.Attempt, Max: ev.Max, InMS: ev.Delay.Milliseconds(), Reason: ev.Err})
 	case agent.EvUsage:
 		e.publish(id, proto.EventUsage, e.usageData(id, ev))
-	case agent.EvAborted:
-		e.publish(id, proto.EventAborted, map[string]any{})
 	case agent.EvError:
 		e.publish(id, proto.EventError, proto.ErrorData{Message: ev.Err})
-	case agent.EvDone:
-		s, err := e.load(context.Background(), id)
-		if err == nil {
-			s.mu.Lock()
-			metrics := s.metrics
-			requestID := s.requestID
-			s.mu.Unlock()
-			e.publish(id, proto.EventDone, proto.DoneData{RequestID: requestID, Metrics: metrics})
-		}
+		// Done/aborted are published once by finish, after final stats and attention.
 	}
 }

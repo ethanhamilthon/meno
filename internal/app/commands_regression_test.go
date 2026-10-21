@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"meno/internal/agent"
 	"meno/internal/db"
@@ -46,6 +47,13 @@ func TestRemovedCommandsAreUnknown(t *testing.T) {
 func TestSessionsCommandReportsListingFailure(t *testing.T) {
 	a, s := newTestApp(t)
 	defer s.Fini()
+	// Quiesce hydration before deliberately replacing the database. Otherwise a
+	// concurrent initial read can reopen it between CloseAll and corruption.
+	a.globalWatch.stop()
+	a.st.Runtime.watch()
+	a.watchers.Wait()
+	pumpFor(a, 20*time.Millisecond)
+	a.running.Wait()
 	db.CloseAll()
 	_ = os.Remove(filepath.Join(a.paths.Home, "meno.db-wal"))
 	_ = os.Remove(filepath.Join(a.paths.Home, "meno.db-shm"))

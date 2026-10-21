@@ -30,25 +30,6 @@ func TestTimelineRejectsStaleSnapshotAndReplayedTurn(t *testing.T) {
 	}
 }
 
-func TestTimelineBootChangeAndSequenceGap(t *testing.T) {
-	var o wireOrder
-	snap := func(boot string, seq uint64) proto.Snapshot {
-		return proto.Snapshot{Seq: seq, Version: proto.SessionVersion{BootID: boot, Revision: seq}}
-	}
-	if !o.snapshot(snap("old", 10), true) || !o.snapshot(snap("new", 1), true) {
-		t.Fatal("new boot rejected")
-	}
-	if o.snapshot(snap("old", 20), true) {
-		t.Fatal("retired boot refresh accepted")
-	}
-	if o.event(proto.Event{Seq: 3, BootID: "new"}) {
-		t.Fatal("sequence gap accepted")
-	}
-	if !o.snapshot(snap("new", 3), true) || !o.event(proto.Event{Seq: 4, BootID: "new"}) {
-		t.Fatal("resync did not restore ordering")
-	}
-}
-
 func TestTimelineOldRunStatusCannotStopNewRun(t *testing.T) {
 	a, rt := queueTestApp()
 	rt.RequestID = "new"

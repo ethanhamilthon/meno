@@ -25,8 +25,8 @@ func (c *Client) SearchFiles(ctx context.Context, q proto.FileSearchRequest) (pr
 	return v, e
 }
 
-// Config reads an opaque daemon-owned settings or configuration resource.
-func (c *Client) Config(ctx context.Context, method, path string, data []byte) (proto.ConfigResponse, error) {
+// ConfigResource reads an opaque daemon-owned settings or configuration resource.
+func (c *Client) ConfigResource(ctx context.Context, method, path string, data []byte) (proto.ConfigResponse, error) {
 	in := proto.ResourceRequest{}
 	if len(data) > 0 {
 		in.Data = data

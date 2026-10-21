@@ -7,7 +7,6 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
-	"strings"
 	"unicode"
 
 	"meno/internal/attach"
@@ -38,15 +37,17 @@ var imageTokenRe = regexp.MustCompile(`\[Image #(\d+)\]`)
 func (a *App) attachDir() string { return filepath.Join(a.paths.Home, "attachments") }
 
 // imageSpans are the [Image #N] tokens in the input that have an attached image.
-func (a *App) imageSpans() []tokSpan {
-	if len(a.st.Images) == 0 {
+func (a *App) imageSpans() []tokSpan { return imageSpansFor(a.st.Runtime) }
+
+func imageSpansFor(rt *Runtime) []tokSpan {
+	if len(rt.Images) == 0 {
 		return nil
 	}
 	have := map[int]bool{}
-	for _, im := range a.st.Images {
+	for _, im := range rt.Images {
 		have[im.N] = true
 	}
-	in := a.st.Input
+	in := rt.Input
 	var out []tokSpan
 	for i := 0; i < len(in); i++ {
 		if in[i] != '[' {
@@ -79,22 +80,24 @@ func (a *App) imageSpans() []tokSpan {
 }
 
 // prune forgets draft images whose token is no longer in the input.
-func (a *App) pruneImages() {
-	if len(a.st.Images) == 0 {
+func (a *App) pruneImages() { a.pruneImagesFor(a.st.Runtime) }
+
+func (a *App) pruneImagesFor(rt *Runtime) {
+	if len(rt.Images) == 0 {
 		return
 	}
 	live := map[int]bool{}
-	for _, s := range a.imageSpans() {
+	for _, s := range imageSpansFor(rt) {
 		n, _ := strconv.Atoi(s.name)
 		live[n] = true
 	}
-	kept := a.st.Images[:0:0]
-	for _, im := range a.st.Images {
+	kept := rt.Images[:0:0]
+	for _, im := range rt.Images {
 		if live[im.N] {
 			kept = append(kept, im)
 		}
 	}
-	a.st.Images = kept
+	rt.Images = kept
 }
 
 // imageEndingAt is the token whose last rune is just before c.
@@ -154,50 +157,7 @@ func (a *App) draftMessage(text string) msgDraft {
 
 // imagesAllowed reports whether the model of this session takes images; it
 // says no only when the catalog knows that it does not.
-func (a *App) imagesAllowed() bool {
-	if info, ok := a.modelInfo(); ok && info.Vision != nil && !*info.Vision {
-		a.notifyErr("model " + modelOf(a) + " does not accept images")
-		return false
-	}
-	return true
-}
-
-// setDraft replaces the composer text and its images.
-func (a *App) setDraft(m msgDraft, data map[string][]byte) {
-	a.setInput(a.runesFromText(m.Text))
-	a.st.Images = nil
-	for _, at := range m.Attachments {
-		a.st.Images = append(a.st.Images, draftImage{attachment: at, Data: data[at.SHA]})
-	}
-}
-
-// restoreDraft puts queued messages back into the composer, after what is
-// already there.
-func (a *App) restoreDraft(rest []msgDraft) {
-	if len(rest) == 0 {
-		return
-	}
-	a.pruneImages()
-	data := map[string][]byte{}
-	for _, im := range a.st.Images {
-		data[im.SHA] = im.Data
-	}
-	for _, m := range rest {
-		for k, v := range m.data {
-			data[k] = v
-		}
-	}
-	var texts []string
-	var atts []attachment
-	if cur := a.messageText(); strings.TrimSpace(cur) != "" {
-		texts = append(texts, cur)
-	}
-	for _, m := range rest {
-		texts = append(texts, m.Text)
-		atts = append(atts, m.Attachments...)
-	}
-	a.setDraft(msgDraft{Text: strings.Join(texts, "\n\n"), Attachments: atts}, data)
-}
+func (a *App) imagesAllowed() bool { return a.imagesAllowedFor(a.st.Runtime) }
 
 // recallQueue takes the queued messages back from the daemon into the composer
 // for editing.
@@ -231,32 +191,4 @@ func (a *App) recallQueue() bool {
 	}
 	a.restoreDraft(back)
 	return len(taken) > 0
-}
-
-// insertImage adds a prepared image to the draft and puts its token in the
-// input.
-func (a *App) insertImage(img attach.Image, after bool) {
-	if a.st.Ask != nil {
-		a.notifyErr("can't attach an image while the agent asks a question")
-		return
-	}
-	a.pruneImages()
-	if len(a.st.Images) >= attach.MaxImages {
-		a.notifyErr("at most " + itoa(attach.MaxImages) + " images per message")
-		return
-	}
-	if !a.imagesAllowed() {
-		return
-	}
-	n := 1
-	for _, im := range a.st.Images {
-		n = max(n, im.N+1)
-	}
-	a.st.Images = append(a.st.Images, draftImage{
-		attachment: attachment{N: n, Mime: img.Mime, SHA: img.SHA, W: img.W, H: img.H},
-		Data:       img.Data,
-	})
-	tok := []rune("[Image #" + itoa(n) + "]")
-	a.clampCursor()
-	a.insertAtCursor(append(tok, ' '))
 }

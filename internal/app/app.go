@@ -20,12 +20,11 @@ import (
 type App struct {
 	lastFrame         frameState
 	unfocused         bool
-	globalPending     bool
 	mcpPending        bool
 	mcpRefresh        time.Time
 	mcpWarning        string
 	commandFailed     bool
-	globalRefresh     time.Time
+	globalWatch       globalWatchState
 	globalSessions    []proto.SessionItem
 	globalTasks       int
 	ackPending        bool
@@ -52,26 +51,28 @@ type App struct {
 
 	imgs imageMgr // inline terminal graphics
 
-	rts     map[string]*Runtime // every session loaded in this run, by id
-	rtList  []*Runtime          // the same, in creation order
-	dbRows  []proto.SessionItem // sessions the daemon listed for /sessions
-	openURL func(string) error
+	watchGeneration uint64
+	rts             map[string]*Runtime // every session loaded in this run, by id
+	rtList          []*Runtime          // the same, in creation order
+	dbRows          []proto.SessionItem // sessions the daemon listed for /sessions
+	openURL         func(string) error
 
-	saves       saveQueue       // saves to the daemon, one at a time and in order
-	cfgSeq      atomic.Uint64   // numbers the reads of the daemon config
-	connLost    map[string]bool // sessions whose daemon stream broke and has not recovered
-	instance    string          // identity of this window for draft files
-	draftSaved  string
-	draftFailed bool
-	stopAllAsk  time.Time               // when /stop-all asked for confirmation
-	cfgSeen     uint64                  // the newest read that was applied
-	cfgBase     config.Settings         // settings as the daemon last reported them: the base of field patches
-	win         windowState             // what belongs to this window only: setting overrides, status-bar layout
-	cfgProv     map[string]llm.Provider // own providers as the daemon last reported them
-	flowSeq     int                     // number of the last login, to tell a stale one from the current
-	closing     bool                    // Close is running
-	cdKey       string                  // input and directory the /cd completions in cdCache belong to
-	cdCache     []string                // rows of the /cd completion
+	saves                saveQueue       // saves to the daemon, one at a time and in order
+	cfgSeq               atomic.Uint64   // numbers the reads of the daemon config
+	connLost             map[string]bool // sessions whose daemon stream broke and has not recovered
+	instance             string          // identity of this window for draft files
+	draftSaved           string
+	draftFailed          bool
+	stopAllAsk           time.Time // when /stop-all asked for confirmation
+	cfgPending, cfgDirty bool
+	cfgSeen              uint64                  // the newest read that was applied
+	cfgBase              config.Settings         // settings as the daemon last reported them: the base of field patches
+	win                  windowState             // what belongs to this window only: setting overrides, status-bar layout
+	cfgProv              map[string]llm.Provider // own providers as the daemon last reported them
+	flowSeq              int                     // number of the last login, to tell a stale one from the current
+	closing              bool                    // Close is running
+	cdKey                string                  // input and directory the /cd completions in cdCache belong to
+	cdCache              []string                // rows of the /cd completion
 
 	running  sync.WaitGroup // short background calls
 	watchers sync.WaitGroup // the event streams of followed sessions
@@ -112,6 +113,7 @@ func New(scr tcell.Screen, paths config.Paths, cl *client.Client) (*App, error) 
 	a.st.Runtime.watch = a.watch(sess.ID())
 	a.reportWarnings()
 	a.announceDrafts()
+	a.startGlobalWatch()
 	return a, nil
 }
 
@@ -127,6 +129,9 @@ func (a *App) Close() {
 		if rt.watch != nil {
 			rt.watch()
 		}
+	}
+	if a.globalWatch.stop != nil {
+		a.globalWatch.stop()
 	}
 	a.running.Wait()
 	a.watchers.Wait()
@@ -199,14 +204,13 @@ func (a *App) handle(msg any) {
 	case *tcell.EventResize:
 		// tcell already resized and invalidated its buffer; a full Sync() clears
 		// the terminal and causes visible flicker.
-	case wireEv:
-		a.onWire(m)
-	case snapshotEv:
-		a.setConnLost(m.sid, false)
-		a.onSnapshot(m)
+	case projectionEv:
+		a.onProjection(m)
 	case wireLost:
-		a.setConnLost(m.sid, true)
-		a.notifyErr("lost the daemon stream of a session: " + m.err.Error())
+		if rt := a.rts[m.sid]; rt != nil && rt.generation == m.generation {
+			a.setConnLost(m.sid, true)
+			a.noticeFor(rt, "lost the daemon stream of a session: "+m.err.Error(), true, false)
+		}
 	case imageDecoded:
 		a.imgs.placed = ""
 	case pickResults:
@@ -217,19 +221,14 @@ func (a *App) handle(msg any) {
 		a.notifyErr(m.text)
 	case updateAvailable:
 		a.onUpdateAvailable(m.tag)
-	case globalSessionsLoaded:
-		a.globalPending = false
-		if m.err == nil {
-			a.globalSessions = m.rows
-			a.globalTasks = m.tasks
-			for _, row := range m.rows {
-				if rt := a.rts[row.ID]; rt != nil && rt.Session != nil {
-					rt.Session.Completed = row.Completed
-					rt.Session.ReadThrough = row.ReadThrough
-					rt.Unseen = row.Completed > row.ReadThrough
-				}
-			}
+	case globalRetry:
+		if m.generation == a.globalWatch.generation {
+			a.invalidateGlobal()
 		}
+	case globalWatchEvent:
+		a.onGlobalWatch(m)
+	case globalSessionsLoaded:
+		a.onGlobalSessions(m)
 	case completionRead:
 		a.ackPending = false
 		if m.err == nil {
@@ -256,8 +255,6 @@ func (a *App) handle(msg any) {
 		a.onCompactDone(m)
 	case sendResult:
 		a.onSendResult(m)
-	case sessionRefreshed:
-		a.onSessionRefreshed(m)
 	case uiCall:
 		m.fn()
 		close(m.done)
@@ -277,7 +274,6 @@ func (a *App) handle(msg any) {
 	case waveTick:
 	case tick:
 		a.saveDraft()
-		a.refreshGlobalState()
 		a.refreshMCPStatus()
 		a.refreshTasks()
 		if a.pruneNotices() {

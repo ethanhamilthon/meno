@@ -96,7 +96,7 @@ func (e *Engine) wakeIfPending(sid string) {
 	s.mu.Unlock()
 	e.publish(sid, proto.EventStatus, proto.StatusData{Running: true, Phase: "preparing", RequestID: rid})
 	if repaired {
-		e.publish(sid, proto.EventSessionChanged, proto.ChangedData{Fields: []string{"provider", "model", "effort"}})
+		e.publishSessionChanged(s, "provider", "model", "effort")
 	}
 	e.launch(ctx, s, "", true)
 }
@@ -110,7 +110,7 @@ func (e *Engine) isClosed() bool {
 // onTaskFinished turns a finished task into a steering event. A task the agent
 // or a stop cancelled needs no news.
 func (e *Engine) onTaskFinished(t proc.Task) {
-	e.publish(t.Session, proto.EventTasksChanged, []string{t.ID})
+	e.publishTasksChanged(t.Session)
 	if !t.Notify || t.Status == proc.Cancelled {
 		return
 	}

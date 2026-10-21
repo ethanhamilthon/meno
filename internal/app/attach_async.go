@@ -58,13 +58,15 @@ func (a *App) attachFile(path string, after bool) {
 }
 
 func (a *App) onImageReady(m imageReady) {
-	a.inRT(m.sid, func() {
-		if m.err != nil {
-			a.notifyErr(m.err.Error())
-			return
-		}
-		a.insertImage(m.img, m.after)
-	})
+	rt := a.rts[m.sid]
+	if rt == nil {
+		return
+	}
+	if m.err != nil {
+		a.imageError(rt, m.err.Error())
+		return
+	}
+	a.insertImageFor(rt, m.img, m.after)
 }
 
 func userHome() string {

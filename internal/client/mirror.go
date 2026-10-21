@@ -1,7 +1,6 @@
 package client
 
 import (
-	"encoding/json"
 	"sync"
 
 	"meno/internal/proto"
@@ -9,12 +8,16 @@ import (
 
 // Mirror is the client-side session state rebuilt from a snapshot and ordered events.
 type Mirror struct {
-	mu    sync.RWMutex
-	State MirrorState
+	mu      sync.RWMutex
+	State   MirrorState
+	retired map[string]bool
 }
 
 // MirrorState contains view-ready session and live-run state.
 type MirrorState struct {
+	StartedCalls                 map[string]bool
+	RetryMax                     int
+	LastUsage, TotalUsage        proto.UsageData
 	Session                      proto.SessionItem
 	Cwd, Model, Phase, RequestID string
 	Running                      bool
@@ -35,202 +38,48 @@ type MirrorState struct {
 	LastError                    string
 }
 
-// Load replaces all state from a consistent snapshot.
-func (m *Mirror) Load(s proto.Snapshot) {
+// Load accepts a consistent snapshot, rejecting stale and retired boots.
+func (m *Mirror) Load(s proto.Snapshot) { m.LoadUpdate(s) }
+
+func (m *Mirror) LoadUpdate(s proto.Snapshot) (ProjectionUpdate, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if s.Version.Revision == 0 {
 		s.Version.Revision = s.Seq
 	}
-	// A snapshot older than the state already applied would roll it back.
-	if m.State.Version.Newer(s.Version) {
-		return
+	old := m.State.Version
+	if m.retired[s.Version.BootID] || old.Newer(s.Version) {
+		return ProjectionUpdate{}, false
 	}
-	m.State = MirrorState{Session: s.Session, Cwd: s.Cwd, Model: s.Model, Phase: s.Phase, RequestID: s.RequestID, Running: s.Running, Seq: s.Seq, Turns: append([]proto.Turn(nil), s.Turns...), Live: s.Live, Ask: s.Ask, Retry: s.Retry, Metrics: s.Metrics, Queued: append([]string(nil), s.Queued...), Provider: s.Provider, Effort: s.Effort, Spent: s.Spent, Context: s.Context, Unpriced: s.Unpriced, Tasks: append([]proto.Task(nil), s.Tasks...), Version: s.Version, LastError: s.LastError}
-	m.State.Live = cloneLiveState(s.Live)
-	if s.Ask != nil {
-		ask := *s.Ask
-		ask.Questions = append([]proto.AskQuestion(nil), s.Ask.Questions...)
-		m.State.Ask = &ask
+	if old.BootID != "" && old.BootID != s.Version.BootID {
+		if m.retired == nil {
+			m.retired = map[string]bool{}
+		}
+		m.retired[old.BootID] = true
 	}
-	if s.Retry != nil {
-		retry := *s.Retry
-		m.State.Retry = &retry
+	m.State = MirrorState{Session: s.Session, Cwd: s.Cwd, Model: s.Model, Phase: s.Phase, RequestID: s.RequestID, Running: s.Running, Seq: s.Seq, Turns: cloneTurns(s.Turns), Live: cloneLiveState(s.Live), Ask: cloneAsk(s.Ask), Retry: cloneRetry(s.Retry), Metrics: s.Metrics, Queued: append([]string(nil), s.Queued...), Provider: s.Provider, Effort: s.Effort, Spent: s.Spent, Context: s.Context, Unpriced: s.Unpriced, Tasks: cloneTasks(s.Tasks), Version: s.Version, LastError: s.LastError, StartedCalls: map[string]bool{}}
+	if s.TotalUsage != nil {
+		m.State.TotalUsage = *s.TotalUsage
 	}
+	if s.LastUsage != nil {
+		m.State.LastUsage = *s.LastUsage
+	}
+	for _, c := range s.Live.Calls {
+		m.State.StartedCalls[c.CallID] = c.Exit == nil
+	}
+	return m.projection(AllChanged, true, m.State.Turns, ProjectionEffects{}), true
 }
 
-// Snapshot returns an isolated copy of the current view state.
+// Snapshot returns a fully isolated copy for explicit readers, not token delivery.
 func (m *Mirror) Snapshot() MirrorState {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	s := m.State
-	s.Queued = append([]string(nil), s.Queued...)
-	s.Turns = append([]proto.Turn(nil), s.Turns...)
-	if s.Ask != nil {
-		ask := *s.Ask
-		ask.Questions = append([]proto.AskQuestion(nil), s.Ask.Questions...)
-		s.Ask = &ask
-	}
-	if s.Retry != nil {
-		retry := *s.Retry
-		s.Retry = &retry
-	}
-	s.Tasks = append([]proto.Task(nil), s.Tasks...)
-	s.Live.Calls = append([]proto.CallState(nil), s.Live.Calls...)
+	s.Turns, s.Live, s.Ask, s.Retry = cloneTurns(s.Turns), cloneLiveState(s.Live), cloneAsk(s.Ask), cloneRetry(s.Retry)
+	s.Tasks, s.Queued, s.StartedCalls = cloneTasks(s.Tasks), append([]string(nil), s.Queued...), cloneStarted(s.StartedCalls)
 	return s
 }
-
-// Apply updates view state from one stream event. Sequence gaps request a fresh snapshot.
-func (m *Mirror) Apply(e proto.Event) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	s := &m.State
-	if e.Type == proto.EventResync {
-		s.NeedsResync = true
-		return
-	}
-	if e.BootID != "" && s.Version.BootID != "" && e.BootID != s.Version.BootID {
-		s.NeedsResync = true
-		return
-	}
-	if e.Seq > 0 && e.Seq <= s.Seq {
-		return
-	}
-	if e.Seq > 0 && s.Seq > 0 && e.Seq != s.Seq+1 {
-		s.NeedsResync = true
-		return
-	}
-	if e.Seq > s.Seq {
-		s.Seq = e.Seq
-		s.Version.Revision = e.Seq
-		if e.BootID != "" {
-			s.Version.BootID = e.BootID
-		}
-	}
-	switch e.Type {
-	case proto.EventTextDelta:
-		var d proto.TextDeltaData
-		if json.Unmarshal(e.Data, &d) == nil {
-			s.Live.Text += d.Text
-		}
-	case proto.EventThinkDelta:
-		var d proto.TextDeltaData
-		if json.Unmarshal(e.Data, &d) == nil {
-			s.Live.Thinking += d.Text
-		}
-	case proto.EventCallStart:
-		var d proto.CallStartData
-		if json.Unmarshal(e.Data, &d) == nil {
-			s.Live.Calls = append(s.Live.Calls, proto.CallState{CallID: d.CallID, Command: d.Command, Title: d.Title})
-		}
-	case proto.EventCallDelta:
-		var d proto.CallDeltaData
-		if json.Unmarshal(e.Data, &d) == nil {
-			if c := m.call(d.CallID); c != nil {
-				c.Delta += d.Delta
-			}
-		}
-	case proto.EventCallEnd:
-		var d proto.CallEndData
-		if json.Unmarshal(e.Data, &d) == nil {
-			calls := s.Live.Calls[:0]
-			for _, c := range s.Live.Calls {
-				if c.CallID != d.CallID {
-					calls = append(calls, c)
-				}
-			}
-			s.Live.Calls = calls
-		}
-	case proto.EventTurnAdded:
-		var d proto.TurnAddedData
-		if json.Unmarshal(e.Data, &d) == nil {
-			if d.Turn.ID != "" && d.Turn.ID != "0" && hasTurn(s.Turns, d.Turn.ID) {
-				break // replayed after a snapshot that already holds it
-			}
-			s.Turns = append(s.Turns, d.Turn)
-			if d.Turn.Role == "assistant" {
-				s.Live.Text, s.Live.Thinking = "", ""
-			}
-		}
-	case proto.EventStatus:
-		var d proto.StatusData
-		if json.Unmarshal(e.Data, &d) == nil {
-			if !d.Running && staleRun(s, d.RequestID) {
-				break
-			}
-			if d.Running && d.RequestID != "" {
-				s.RequestID = d.RequestID
-			}
-			s.Running = d.Running
-			s.Phase = d.Phase
-		}
-	case proto.EventAskOpen:
-		var d proto.AskForm
-		if json.Unmarshal(e.Data, &d) == nil {
-			s.Ask = &d
-		}
-	case proto.EventAskClosed:
-		var d proto.AskClosedData
-		if json.Unmarshal(e.Data, &d) == nil && s.Ask != nil && s.Ask.AskID == d.AskID {
-			s.Ask = nil
-		}
-	case proto.EventRetry:
-		var d proto.RetryState
-		if json.Unmarshal(e.Data, &d) == nil {
-			s.Retry = &d
-			s.Live = proto.LiveState{}
-		}
-	case proto.EventUsage:
-		var d proto.UsageData
-		if json.Unmarshal(e.Data, &d) == nil {
-			s.Metrics.InputTokens += d.InputTokens
-			s.Metrics.OutputTokens += d.OutputTokens
-			s.Metrics.Cost += d.Cost
-			s.Context = int(d.InputTokens + d.OutputTokens)
-			if d.Priced {
-				s.Spent += d.Cost
-			} else if d.InputTokens+d.OutputTokens > 0 {
-				s.Unpriced = true
-			}
-		}
-	case proto.EventTasksChanged:
-		s.NeedsResync = true
-	case proto.EventInjected:
-		var d proto.InjectedData
-		if json.Unmarshal(e.Data, &d) == nil {
-			s.Queued = append([]string(nil), d.Queued...)
-		}
-	case proto.EventError:
-		var d proto.ErrorData
-		if json.Unmarshal(e.Data, &d) == nil {
-			s.LastError = d.Message
-		}
-	case proto.EventDone, proto.EventAborted:
-		var d proto.DoneData
-		if json.Unmarshal(e.Data, &d) == nil && staleRun(s, d.RequestID) {
-			break
-		}
-		s.Live = proto.LiveState{}
-		s.Running = false
-		s.Phase = ""
-		s.Retry = nil
-		if e.Type == proto.EventDone {
-			s.LastError = "" // a success clears an old failure
-		}
-	case proto.EventSessionChanged:
-		// The event names changed fields; it does not carry the new values.
-		// Keep what is known and ask for a fresh snapshot.
-		s.NeedsResync = true
-	}
-}
-func (m *Mirror) call(id string) *proto.CallState {
-	for i := range m.State.Live.Calls {
-		if m.State.Live.Calls[i].CallID == id {
-			return &m.State.Live.Calls[i]
-		}
-	}
-	return nil
-}
+func (m *Mirror) NeedsResync() bool { m.mu.RLock(); defer m.mu.RUnlock(); return m.State.NeedsResync }
 
 func hasTurn(turns []proto.Turn, id string) bool {
 	for _, t := range turns {
@@ -251,5 +100,11 @@ func staleRun(s *MirrorState, rid string) bool {
 // while the caller of Load still reads the snapshot it passed in.
 func cloneLiveState(l proto.LiveState) proto.LiveState {
 	l.Calls = append([]proto.CallState(nil), l.Calls...)
+	for i := range l.Calls {
+		if l.Calls[i].Exit != nil {
+			n := *l.Calls[i].Exit
+			l.Calls[i].Exit = &n
+		}
+	}
 	return l
 }

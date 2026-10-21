@@ -19,7 +19,7 @@ func TestMirrorSnapshotAndEvents(t *testing.T) {
 	event(5, proto.EventCallDelta, proto.CallDeltaData{CallID: "c", Delta: "echo"})
 	event(6, proto.EventUsage, proto.Metrics{InputTokens: 10})
 	s := m.Snapshot()
-	if !s.Running || s.Phase != "thinking" || s.Live.Thinking != "hmm" || s.Live.Calls[0].Delta != "echo" || s.Metrics.InputTokens != 10 {
+	if !s.Running || s.Phase != "writing" || s.Live.Thinking != "hmm" || s.Live.Calls[0].Delta != "echo" || s.Metrics.InputTokens != 10 {
 		t.Fatalf("state %#v", s)
 	}
 }

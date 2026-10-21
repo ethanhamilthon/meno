@@ -99,6 +99,7 @@ type InjectedData struct {
 
 // ChangedData lists resource identifiers that changed.
 type ChangedData struct {
-	IDs    []string `json:"ids,omitempty"`
-	Fields []string `json:"fields,omitempty"`
+	IDs      []string         `json:"ids,omitempty"`
+	Fields   []string         `json:"fields,omitempty"`
+	Metadata *SessionMetadata `json:"metadata,omitempty"`
 }

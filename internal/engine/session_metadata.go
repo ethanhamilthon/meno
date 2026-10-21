@@ -23,6 +23,8 @@ func (e *Engine) Snapshot(ctx context.Context, id string) (proto.Snapshot, error
 	}
 	out := proto.Snapshot{Session: item(s), AgentToken: s.token.value, Cwd: s.cwd, Model: s.session.Model, Running: s.running, Phase: s.phase, RequestID: s.requestID, Origin: s.origin, TurnCount: len(turns), Live: cloneLive(s.live), Ask: askWire(s.ask), Retry: cloneRetry(s.retry), Metrics: s.metrics, Seq: 0, Tasks: []proto.Task{},
 		Spent: s.session.Metrics.Spent, Context: s.session.Metrics.Context, Unpriced: s.session.Metrics.Unpriced, Provider: s.session.Provider, Effort: s.session.Effort}
+	out.TotalUsage = usageProjection(s.session.Metrics.Usage)
+	out.LastUsage = usageProjection(s.session.Metrics.LastUsage)
 	if !s.running {
 		out.LastError = s.lastErr
 	}
@@ -84,9 +86,9 @@ func (e *Engine) PatchSession(ctx context.Context, id string, q proto.PatchSessi
 		s.mu.Unlock()
 		return proto.SessionItem{}, err
 	}
-	result := item(s)
 	s.mu.Unlock()
-	e.publish(id, proto.EventSessionChanged, proto.ChangedData{Fields: []string{"name", "cwd", "model", "effort"}})
+	result := e.sessionMetadata(s).Session
+	e.publishSessionChanged(s, "name", "cwd", "model", "effort")
 	return result, nil
 }
 func (e *Engine) DeleteSession(ctx context.Context, id string) error {

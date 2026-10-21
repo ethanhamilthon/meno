@@ -24,5 +24,8 @@ func (a *App) connLabel() string {
 	if a.offline() {
 		return "offline · state may be stale"
 	}
+	if a.globalWatch.stale {
+		return "global state may be stale"
+	}
 	return ""
 }

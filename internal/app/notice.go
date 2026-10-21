@@ -25,19 +25,29 @@ const (
 var noticeNow = time.Now
 
 func (a *App) addNotice(text string, isErr bool) {
+	a.noticeFor(a.st.Runtime, text, isErr, false)
+}
+
+// noticeFor records background failures without changing active command or scroll state.
+func (a *App) noticeFor(rt *Runtime, text string, isErr, sticky bool) {
 	if text == "" {
 		return
 	}
-	n := notice{Text: text, Err: isErr, At: noticeNow()}
-	if a.st.Session != nil {
-		n.Session = a.st.Session.ID()
-		n.After = a.st.Session.Len()
+	n := notice{Text: text, Err: isErr, Sticky: sticky, At: noticeNow()}
+	if rt != nil && rt.Session != nil {
+		n.Session = rt.ID()
+		n.After = rt.Session.Len()
 	}
 	a.st.Notices = append(a.st.Notices, n)
 	if len(a.st.Notices) > maxNotices {
 		a.st.Notices = a.st.Notices[len(a.st.Notices)-maxNotices:]
 	}
-	a.st.Scroll = 0
+	if rt != nil {
+		rt.Scroll = 0
+	}
+	if rt == a.st.Runtime && isErr {
+		a.commandFailed = true
+	}
 }
 
 func (a *App) notify(text string)    { a.addNotice(text, false) }

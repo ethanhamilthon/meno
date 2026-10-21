@@ -45,10 +45,20 @@ func (a *App) loadAll() error {
 
 // refreshConfig re-reads the configuration in the background.
 func (a *App) refreshConfig() {
+	if a.cfgPending {
+		a.cfgDirty = true
+		return
+	}
+	a.cfgPending = true
 	a.spawn(func() { a.postEvent(a.fetchConfig()) })
 }
 
 func (a *App) onSettingsLoaded(m settingsLoaded) {
+	a.cfgPending = false
+	if a.cfgDirty {
+		a.cfgDirty = false
+		defer a.refreshConfig()
+	}
 	if m.err != nil {
 		a.notifyErr("config: " + m.err.Error())
 		return
@@ -78,32 +88,20 @@ func (a *App) applyConfig(m settingsLoaded) {
 func (a *App) fetchConfig() settingsLoaded {
 	out := settingsLoaded{seq: a.cfgSeq.Add(1)}
 	out.err = a.rpc(func(ctx context.Context, c *client.Client) error {
-		s, err := c.Settings(ctx)
+		bundle, err := c.Config(ctx)
 		if err != nil {
 			return err
 		}
-		out.settings = settingsFromWire(s.Settings)
-		ps, err := c.Providers(ctx)
-		if err != nil {
-			return err
-		}
-		for _, p := range ps.Providers {
+		out.settings = settingsFromWire(bundle.Settings.Settings)
+		for _, p := range bundle.Providers.Providers {
 			out.providers = append(out.providers, providerFromWire(p))
 		}
-		ms, err := c.McpServers(ctx)
-		if err != nil {
-			return err
-		}
 		out.info = map[string]mcpInfo{}
-		for _, s := range ms.Servers {
+		for _, s := range bundle.MCP.Servers {
 			out.servers = append(out.servers, serverFromWire(s))
 			out.info[s.Name] = mcpInfo{Running: s.Running, Starting: s.Starting, Err: s.Error}
 		}
-		sk, err := c.Skills(ctx)
-		if err != nil {
-			return err
-		}
-		for _, k := range sk.Skills {
+		for _, k := range bundle.Skills.Skills {
 			out.skills = append(out.skills, config.Skill{Name: k.Name, Scope: k.Scope, Desc: k.Desc, Path: k.Path, Enabled: k.Enabled})
 		}
 		return nil

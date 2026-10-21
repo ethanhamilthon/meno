@@ -105,6 +105,8 @@ func (s *Service) Resource(ctx context.Context, method, path, query string, req 
 	var data any
 	var err error
 	switch {
+	case path == "/config":
+		data, err = s.bundleResource(method)
 	case path == "/settings":
 		data, err = s.settingsResource(method, req)
 	case path == "/providers" || strings.HasPrefix(path, "/providers/"):

@@ -69,6 +69,5 @@ func (e *Engine) Compact(ctx context.Context, id string, q proto.CompactRequest)
 	}
 	e.publishAgentTurns(id, s.session.Snapshot())
 	e.publish(id, proto.EventInjected, proto.InjectedData{Kind: "compact", Queued: queued})
-	e.publish(id, proto.EventSessionChanged, proto.ChangedData{Fields: []string{"history"}})
 	return proto.CompactResponse{Removed: before - after, Summary: summary}, nil
 }
