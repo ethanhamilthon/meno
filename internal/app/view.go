@@ -66,6 +66,10 @@ func (a *App) drawCommandRows(c ui.Canvas, x, y, w, rows int) {
 			cells[i] = acCell{filepath.Base(p) + "/", filepath.Dir(p), ui.FgWhite}
 			continue
 		}
+		if sk, ok := skillRowName(name); ok {
+			cells[i] = acCell{name, a.skillDesc(sk), ui.Blue}
+			continue
+		}
 		cells[i] = acCell{name, cmdDesc(name), ui.FgWhite}
 	}
 	drawAcGrid(c, x, y, w, rows, cells, a.st.CmdSel)
@@ -90,7 +94,7 @@ func commandRows(a *App) []string {
 			out = append(out, c.name)
 		}
 	}
-	return out
+	return append(out, a.skillRows(a.cmdQuery())...)
 }
 
 type cmdDef struct {

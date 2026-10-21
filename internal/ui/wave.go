@@ -6,13 +6,10 @@ import (
 	"github.com/gdamore/tcell/v2"
 )
 
-// Wave geometry. A wave has a hard left edge and a soft right fade; it moves to
-// the right. The next wave starts when the previous hard edge passes
-// waveSpawn of the width, so at most two waves are visible.
-const (
-	waveSpawn = 0.65
-	waveSpeed = 30.0 // columns per second
-)
+// Wave geometry. A wave is a raised-cosine pulse: it rises and falls smoothly
+// on both sides, and it travels to the right around a ring as wide as the
+// field, so it leaves at the right edge and enters at the left without a jump.
+const waveSpeed = 30.0 // columns per second
 
 func waveLen(n int) float64 { return math.Max(8, float64(n)*0.35) }
 
@@ -22,22 +19,19 @@ func WaveIntensity(n int, t float64) []float64 {
 		return nil
 	}
 	length := waveLen(n)
-	period := waveSpawn*float64(n) + length
-	x := math.Mod(math.Max(0, t)*waveSpeed, period)
+	period := math.Max(float64(n), length)
+	head := math.Mod(math.Max(0, t)*waveSpeed, period)
 	out := make([]float64, n)
-	for j := 0; j < 3; j++ {
-		head := x - length + float64(j)*period
-		if head >= float64(n) || head+length <= 0 {
+	for c := range out {
+		// Distance behind the head, measured around the ring.
+		d := math.Mod(head-float64(c)-0.5, period)
+		if d < 0 {
+			d += period
+		}
+		if d >= length {
 			continue
 		}
-		for c := range out {
-			d := float64(c) - head
-			if d < 0 || d > length {
-				continue
-			}
-			u := d / length
-			out[c] = math.Max(out[c], 1-u*u*(3-2*u))
-		}
+		out[c] = 0.5 * (1 - math.Cos(2*math.Pi*d/length))
 	}
 	return out
 }

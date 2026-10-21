@@ -9,7 +9,7 @@ import (
 
 func TestSkillNamespaceNeverExecutesApplicationCommand(t *testing.T) {
 	a := refFixture(t)
-	for _, input := range []string{"/skill:", "/skill: ", "/skill:unknown", "/skill:disabled", "/skill:api-security/file", "/api-security"} {
+	for _, input := range []string{"/skill:", "/skill: ", "/skill:unknown", "/skill:disabled", "/skill:api-security/file"} {
 		a.setInput([]rune(input))
 		if a.cmdActive() {
 			t.Errorf("%q activated a command", input)
@@ -72,5 +72,20 @@ func TestComposerWavePreservesWideTextAndSelection(t *testing.T) {
 	_, bg, _ := style.Decompose()
 	if bg != ui.BgSelect {
 		t.Fatal("wave overwrote selection")
+	}
+}
+
+// A bare skill name after the slash offers the skill; choosing it inserts the
+// object and never runs an application command or sends the draft.
+func TestBareSkillNameOffersSkillNotCommand(t *testing.T) {
+	a := refFixture(t)
+	a.setInput([]rune("/api-security"))
+	rows := commandRows(a)
+	if len(rows) != 1 || rows[0] != "/skill:api-security" {
+		t.Fatalf("rows %v", rows)
+	}
+	a.onKey(enter())
+	if !strings.Contains(a.messageText(), "<skill>api-security</skill>") || a.st.Running || a.st.Over != OverNone {
+		t.Fatalf("draft %q running=%v over=%v", a.messageText(), a.st.Running, a.st.Over)
 	}
 }

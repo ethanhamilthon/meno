@@ -24,7 +24,7 @@ func (a *App) cmdKey(k *tcell.EventKey) bool {
 		return true
 	case tcell.KeyTab:
 		if len(rows) > 0 {
-			a.cmdComplete(rows[clampSel(a.st.CmdSel, len(rows))])
+			a.cmdPick(rows[clampSel(a.st.CmdSel, len(rows))])
 		}
 		return true
 	case tcell.KeyEnter:
@@ -34,6 +34,12 @@ func (a *App) cmdKey(k *tcell.EventKey) bool {
 		if len(rows) > 0 && rows[clampSel(a.st.CmdSel, len(rows))] == "/skill:" {
 			a.cmdComplete("/skill:")
 			return true
+		}
+		if len(rows) > 0 {
+			if name, ok := skillRowName(rows[clampSel(a.st.CmdSel, len(rows))]); ok {
+				a.cmdInsertSkill(name)
+				return true
+			}
 		}
 		a.cmdRun(rows)
 		return true

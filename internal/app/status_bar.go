@@ -2,7 +2,6 @@ package app
 
 import (
 	"meno/internal/ui"
-	"strings"
 )
 
 func (a *App) ctxLabel() string {
@@ -41,29 +40,17 @@ func (a *App) drawStatus(c ui.Canvas, x, y, w int) {
 	rx := hi - rw
 	left := ui.Truncate(a.composerHeaderLabel(), min(w*composerHeaderMax/100, max(0, available-rw-2)))
 	lw := ui.TextWidth(left)
-	mid := joinSegText(a.globalCounts())
-	if c := a.connLabel(); c != "" {
-		mid = c
+	mid := a.statusMid()
+	if barSegsWidth(mid) > max(0, available-lw-rw-4) {
+		mid = compactSegs(mid)
 	}
-	if ui.TextWidth(mid) > max(0, available-lw-rw-4) {
-		parts := strings.Split(mid, " | ")
-		for i, p := range parts {
-			fields := strings.Fields(p)
-			if len(fields) == 2 {
-				parts[i] = fields[0] + strings.ToLower(fields[1][:1])
-			}
-		}
-		mid = strings.Join(parts, " | ")
-	}
-	mw := ui.TextWidth(mid)
+	mw := barSegsWidth(mid)
 	mx := x + (w-mw)/2
 	if mx < lo+lw+2 || mx+mw > rx-2 {
-		mid = ""
+		mid = nil
 	}
 	style := ui.Style{FG: chromeText(), BG: ui.BgTerm}.TCell()
 	c.Text(lo, y, lw, left, style)
 	c.Text(rx, y, rw, right, style)
-	if mid != "" {
-		c.Text(mx, y, mw, mid, style)
-	}
+	drawBarSegs(c, mx, y, mw, mid)
 }
