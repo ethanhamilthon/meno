@@ -71,7 +71,8 @@ type runState struct {
 	compacting       bool            // a compaction holds the history; a second one is rejected
 	cancelled        map[string]bool // root requests that were stopped; their events never wake the session
 	published        int
-	persisted        bool // the session is in the database; a new one is only in memory until its first message
+	origin           string // window that started the running turn (advisory)
+	persisted        bool   // the session is in the database; a new one is only in memory until its first message
 	// commit serializes a state change with the publication of its events, so a
 	// snapshot cursor always matches the state it was read with. Lock order:
 	// commit before mu; never hold commit across provider or socket I/O.

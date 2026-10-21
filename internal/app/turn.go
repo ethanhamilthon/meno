@@ -19,7 +19,7 @@ func (a *App) submit() {
 	}
 	if a.offline() {
 		// The draft stays in the composer; nothing is sent over a broken stream.
-		a.notifyErr("offline · not sent · your draft is kept")
+		a.notifyFailure("offline · not sent · your draft is kept · esc to dismiss")
 		return
 	}
 	msg := a.draftMessage(text)
@@ -49,7 +49,7 @@ func (a *App) clearDraft() {
 func (a *App) send(msg msgDraft) {
 	rt := a.st.Runtime
 	sid := rt.ID()
-	req := proto.MessageRequest{Text: msg.Text, ClientID: newClientID()}
+	req := proto.MessageRequest{Text: msg.Text, ClientID: newClientID(), Origin: a.instance}
 	for _, at := range msg.Attachments {
 		req.Attachments = append(req.Attachments, proto.Attachment{Name: "image", MIME: at.Mime, Data: base64Of(msg.data[at.SHA])})
 	}
@@ -98,7 +98,7 @@ func (a *App) onSendResult(m sendResult) {
 		if m.err != nil {
 			rt.Running, rt.Phase = false, ""
 			rt.Queued = nil
-			a.notifyErr("not sent: " + m.err.Error())
+			a.notifyFailure("not sent: " + m.err.Error() + " · esc to dismiss")
 			a.restoreDraft([]msgDraft{m.msg})
 			return
 		}

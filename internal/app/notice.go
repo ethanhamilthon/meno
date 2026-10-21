@@ -9,6 +9,7 @@ type notice struct {
 	After   int    // number of session turns before it
 	Text    string
 	Err     bool
+	Sticky  bool // a failure the user must see: it stays until dismissed with Esc
 	At      time.Time
 }
 
@@ -42,6 +43,32 @@ func (a *App) addNotice(text string, isErr bool) {
 func (a *App) notify(text string)    { a.addNotice(text, false) }
 func (a *App) notifyErr(text string) { a.commandFailed = true; a.addNotice(text, true) }
 
+// notifyFailure is an error that is not allowed to fade: a message that was not
+// sent stays on screen until the user closes it.
+func (a *App) notifyFailure(text string) {
+	a.notifyErr(text)
+	if n := len(a.st.Notices); n > 0 {
+		a.st.Notices[n-1].Sticky = true
+	}
+}
+
+// dismissNotices removes the sticky failures of the current session and says
+// whether there were any.
+func (a *App) dismissNotices() bool {
+	if a.st.Session == nil {
+		return false
+	}
+	kept := a.st.Notices[:0]
+	for _, n := range a.st.Notices {
+		if !(n.Sticky && n.Session == a.st.Session.ID()) {
+			kept = append(kept, n)
+		}
+	}
+	gone := len(kept) != len(a.st.Notices)
+	a.st.Notices = kept
+	return gone
+}
+
 // currentNotices are the notices of the active session.
 func (a *App) currentNotices() []notice {
 	if a.st.Session == nil {
@@ -71,7 +98,7 @@ func (a *App) pruneNotices() bool {
 		if n.Err {
 			ttl = noticeErrTTL
 		}
-		if now.Sub(n.At) < ttl {
+		if now.Sub(n.At) < ttl || n.Sticky {
 			kept = append(kept, n)
 		}
 	}

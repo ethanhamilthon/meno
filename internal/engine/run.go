@@ -65,6 +65,7 @@ func (e *Engine) Message(ctx context.Context, id string, q proto.MessageRequest)
 	}
 	rid := agent.NewID()
 	s.requestID = rid
+	s.origin = q.Origin
 	s.lastErr = "" // the outcome of the previous run no longer applies
 	s.running = true
 	s.phase = "preparing"
@@ -78,7 +79,7 @@ func (e *Engine) Message(ctx context.Context, id string, q proto.MessageRequest)
 	s.published = len(turns)
 	s.mu.Unlock()
 	e.publish(id, proto.EventTurnAdded, proto.TurnAddedData{Turn: turnWire(turns[len(turns)-1])})
-	e.publish(id, proto.EventStatus, proto.StatusData{Running: true, Phase: "preparing", RequestID: rid})
+	e.publish(id, proto.EventStatus, proto.StatusData{Running: true, Phase: "preparing", RequestID: rid, Origin: q.Origin})
 	if repaired {
 		e.publish(id, proto.EventSessionChanged, proto.ChangedData{Fields: []string{"provider", "model", "effort"}})
 	}

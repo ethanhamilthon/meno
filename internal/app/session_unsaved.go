@@ -30,7 +30,7 @@ func sessionGone(err error) bool {
 func (a *App) replaceGone(old *Runtime, msg msgDraft) {
 	s, err := a.createSession(old.Cwd)
 	if err != nil {
-		a.notifyErr("not sent: " + err.Error())
+		a.notifyFailure("not sent: " + err.Error() + " · esc to dismiss")
 		a.restoreDraft([]msgDraft{msg})
 		return
 	}

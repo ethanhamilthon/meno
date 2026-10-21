@@ -6,7 +6,7 @@ anywhere in the text. Arrows pick a row, Tab completes it, Enter runs it and
 removes the `/command` from the draft; the rest of the draft stays. Esc closes the
 list and keeps the text. A command that fails keeps its text for correction.
 URLs and paths (`http://x`, `/tmp/project`, `a/b`) are ordinary text.
-Use `/skill:<name>` to insert a skill reference; `/skills` manages skills.
+Use `/skill:<name>` to insert a skill reference; `/skills` manages skills. A bare name works too: `/pla` lists the enabled skills that start with `pla`, and Enter or Tab inserts the skill as one object without running or sending anything. A command with the same name wins. Skills marked `disable-model-invocation: true` are never offered to the model, only through this selection.
 Old colon commands and bare `/name` skill references are ordinary text. Esc without a list keeps INPUT, the draft, and the cursor. Only `/edit`
 enters EDIT. There is no NORMAL or COMMAND mode.
 
@@ -64,6 +64,7 @@ Labels and counts use dim gray. Typed input stays bright.
 - done: sessions with unread completed runs, including failures/stops.
 
 Counts cover the whole daemon, not only the current project. Zero counts are hidden.
+Each counter keeps its own color on a narrow bar too, where it shrinks to `2r`; click one to open `/sessions` filtered to it. When the stream of the session breaks, the center reads `offline · state may be stale` in the warning color.
 A session may have a new running request and an older unread completion. Blue
 completion markers survive restart/reconnect and clear across UIs only after the
 result is visible, not merely when a session is opened. Scrolling upward or opening

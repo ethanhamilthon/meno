@@ -15,11 +15,11 @@ import (
 // shared value is loaded again instead of being overwritten.
 func (a *App) persistSettings() {
 	a.cfgSeen = a.cfgSeq.Add(1) // reads begun before this edit are older than it
-	fields, expect := settingsDelta(a.cfgBase, a.st.Settings)
+	fields, expect := settingsDelta(a.cfgBase, a.sharedSettings())
 	if len(fields) == 0 {
 		return
 	}
-	a.cfgBase = a.st.Settings // the next edit is measured from this one
+	a.cfgBase = a.sharedSettings() // the next edit is measured from this one
 	a.pushSave(func() {
 		err := a.rpc(func(ctx context.Context, c *client.Client) error {
 			_, err := c.PatchSettings(ctx, fields, expect)

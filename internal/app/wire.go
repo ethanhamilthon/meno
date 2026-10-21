@@ -115,6 +115,9 @@ func (a *App) applyWire(rt *Runtime, e proto.Event) {
 	case proto.EventStatus:
 		if d, ok := decode[proto.StatusData](e.Data); ok {
 			if d.Running && !rt.Running {
+				if d.Origin != "" && d.Origin != a.instance {
+					a.notify("a turn was started from another window")
+				}
 				rt.RunStart, rt.RunTurns, rt.RunJS, rt.RunUsage0 = time.Now(), 0, 0, rt.Usage
 				rt.Title = ""
 			}

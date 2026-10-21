@@ -68,6 +68,7 @@ func (a *App) applyConfig(m settingsLoaded) {
 	a.st.Settings, a.st.Providers, a.st.Servers, a.st.Skills = m.settings, m.providers, m.servers, m.skills
 	a.st.ServerInfo = m.info
 	a.cfgBase = m.settings
+	a.applyOverrides()
 	a.cfgProv = map[string]llm.Provider{}
 	for _, p := range m.providers {
 		a.cfgProv[p.Name] = p

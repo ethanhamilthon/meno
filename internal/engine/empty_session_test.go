@@ -134,3 +134,35 @@ func usedSession(t *testing.T, e *Engine) string {
 	}
 	return id
 }
+
+// A run names the window that started it, in the status event and in the
+// snapshot a late window reads; a run without an origin stays anonymous.
+func TestRunKeepsTheOriginOfItsWindow(t *testing.T) {
+	f := &fakeProvider{wait: true, seen: make(chan struct{}, 1)}
+	e, hub := fixture(t, f)
+	id := newSession(t, e)
+	ch, stop, _ := hub.Subscribe(id, 0, "boot")
+	defer stop()
+	if _, err := e.Message(context.Background(), id, proto.MessageRequest{Text: "go", ClientID: "r1", Origin: "window-a"}); err != nil {
+		t.Fatal(err)
+	}
+	<-f.seen
+	var got string
+	for len(ch) > 0 {
+		ev := <-ch
+		if ev.Type == proto.EventStatus {
+			var d proto.StatusData
+			_ = json.Unmarshal(ev.Data, &d)
+			if d.Running && d.Origin != "" {
+				got = d.Origin
+			}
+		}
+	}
+	if got != "window-a" {
+		t.Fatalf("status origin %q", got)
+	}
+	sn, err := e.Snapshot(context.Background(), id)
+	if err != nil || sn.Origin != "window-a" {
+		t.Fatalf("snapshot origin %q err %v", sn.Origin, err)
+	}
+}

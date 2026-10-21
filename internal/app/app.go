@@ -66,6 +66,7 @@ type App struct {
 	stopAllAsk  time.Time               // when /stop-all asked for confirmation
 	cfgSeen     uint64                  // the newest read that was applied
 	cfgBase     config.Settings         // settings as the daemon last reported them: the base of field patches
+	win         windowState             // what belongs to this window only: setting overrides, status-bar layout
 	cfgProv     map[string]llm.Provider // own providers as the daemon last reported them
 	flowSeq     int                     // number of the last login, to tell a stale one from the current
 	closing     bool                    // Close is running

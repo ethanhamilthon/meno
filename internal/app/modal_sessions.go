@@ -78,6 +78,9 @@ func (a *App) sessionsFiltered() ([]sessionRow, []int) {
 	q := a.st.Query.String()
 	return rows, filterIdx(len(rows), func(i int) bool {
 		s := rows[i]
+		if !a.matchesFilter(s, a.st.AttnFilter) {
+			return false
+		}
 		return containsFold(s.Title, q) || containsFold(s.Cwd, q) || containsFold(tildePath(s.Cwd), q) || containsFold(s.UpdatedAt.Format("2006-01-02"), q)
 	})
 }
@@ -89,6 +92,10 @@ func (a *App) sessionsKey(k *tcell.EventKey) {
 	case k.Key() == tcell.KeyCtrlU:
 		a.st.Query.Reset()
 		a.st.Sel = 0
+	case k.Key() == tcell.KeyTab:
+		a.setFilter(a.st.AttnFilter + 1)
+	case k.Key() == tcell.KeyBacktab:
+		a.setFilter(a.st.AttnFilter - 1)
 	case k.Key() == tcell.KeyEnter:
 		if len(idx) > 0 {
 			a.openSession(rows[idx[clampSel(a.st.Sel, len(idx))]].ID)

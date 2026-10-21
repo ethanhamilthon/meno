@@ -3,6 +3,9 @@ package app
 import (
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/gdamore/tcell/v2"
 
 	"meno/internal/agent"
 	"meno/internal/llm"
@@ -29,5 +32,26 @@ func TestNoticesGoToTimelineNotInput(t *testing.T) {
 	i, j, k := strings.Index(out, "hi"), strings.Index(out, "first"), strings.Index(out, "answer")
 	if !(i < j && j < k && k < strings.Index(out, "second")) {
 		t.Fatalf("order:\n%s", out)
+	}
+}
+
+// A message that was not sent stays on screen past the usual lifetime of a
+// notice, until the user dismisses it; ordinary notices still fade.
+func TestFailureNoticeStaysUntilDismissed(t *testing.T) {
+	a, scr := newTestApp(t)
+	defer scr.Fini()
+	now := time.Now()
+	noticeNow = func() time.Time { return now }
+	defer func() { noticeNow = time.Now }()
+	a.notifyFailure("not sent: boom")
+	a.notify("fades")
+	now = now.Add(time.Minute)
+	a.pruneNotices()
+	if got := a.currentNotices(); len(got) != 1 || !got[0].Sticky {
+		t.Fatalf("notices after a minute: %+v", got)
+	}
+	a.onKey(keyK(tcell.KeyEsc))
+	if len(a.currentNotices()) != 0 {
+		t.Fatal("esc did not dismiss the failure")
 	}
 }

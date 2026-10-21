@@ -116,6 +116,12 @@ func (a *App) settingsKey(k *tcell.EventKey) {
 		a.cycleSetting(step)
 	case k.Key() == tcell.KeyRight:
 		a.cycleSetting(1)
+	case isKey(k, 's'):
+		a.st.LocalScope = !a.st.LocalScope
+		return
+	case isKey(k, 'r'):
+		a.resetLocal()
+		return
 	case k.Rune() == '+' || k.Rune() == '=' || k.Rune() == '-':
 		key := settingRows[clampSel(a.st.Sel, len(settingRows))].key
 		if config.NumOption(key) == "" {
@@ -141,6 +147,7 @@ func (a *App) settingTextKey(k *tcell.EventKey) {
 			a.notifyErr(err.Error())
 			return
 		}
+		a.noteSettingEdit(key)
 		a.endEdit()
 		if key == "notify_command" {
 			a.previewNotifySound()
@@ -182,6 +189,7 @@ func (a *App) cycleSetting(step int) {
 	n := len(opts)
 	next := opts[((idx+step)%n+n)%n]
 	_ = a.st.Settings.Set(key, next)
+	a.noteSettingEdit(key)
 	switch key {
 	case "theme":
 		if !ui.SetTheme(a.st.Settings.Theme) {
@@ -189,6 +197,7 @@ func (a *App) cycleSetting(step int) {
 		}
 	case "notify_sound":
 		a.st.Settings.NotifyCommand = ""
+		a.noteSettingEdit("notify_command")
 		a.previewNotifySound()
 	case "notify_volume":
 		a.previewNotifySound()

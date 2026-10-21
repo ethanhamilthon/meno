@@ -56,6 +56,7 @@ type StatusData struct {
 	Running   bool   `json:"running"`
 	Phase     string `json:"phase"`
 	RequestID string `json:"request_id,omitempty"` // the run this status belongs to
+	Origin    string `json:"origin,omitempty"`     // the window that started the run
 }
 
 // AskClosedData closes an ask form.

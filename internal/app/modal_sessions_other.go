@@ -58,5 +58,5 @@ func (a *App) drawSessions(c ui.Canvas, w, h int) {
 		b.put(c, 4, 4, "no matching sessions", ui.FgDim, ui.BgPopup)
 	}
 	drawItems(c, b, 4, items, clampSel(a.st.Sel, len(items)))
-	b.hint(c, "↑/↓ select · enter open · ctrl+u clear · esc close")
+	b.hint(c, "↑/↓ select · enter open · tab filter: "+filterNames[a.st.AttnFilter]+" · ctrl+u clear · esc close")
 }

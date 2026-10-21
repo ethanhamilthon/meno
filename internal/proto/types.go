@@ -124,6 +124,7 @@ type Snapshot struct {
 	Running    bool           `json:"running"`
 	Phase      string         `json:"phase,omitempty"`
 	RequestID  string         `json:"request_id,omitempty"`
+	Origin     string         `json:"origin,omitempty"` // the window that started the running turn
 	Seq        uint64         `json:"seq"`
 	Version    SessionVersion `json:"version"`
 	TurnCount  int            `json:"turn_count"`

@@ -120,7 +120,11 @@ func (a *App) drawSettings(c ui.Canvas, w, h int) {
 		}
 		y++
 	}
-	hint := "tab switch · ↑/↓ select · ←/→ change · +/- lines/sec · esc close"
+	scope := "s scope: shared"
+	if a.st.LocalScope {
+		scope = "s scope: this window"
+	}
+	hint := "tab switch · ↑/↓ select · ←/→ change · " + scope + " · r reset · esc close"
 	if a.st.Editing {
 		hint = "type the key · enter save · esc cancel"
 	} else if config.TextSetting(settingRows[clampSel(a.st.Sel, len(settingRows))].key) {

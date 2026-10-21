@@ -37,6 +37,9 @@ type MessageRequest struct {
 	Text        string       `json:"text"`
 	Attachments []Attachment `json:"attachments,omitempty"`
 	ClientID    string       `json:"client_id"`
+	// Origin is the stable identity of the sending window, unlike ClientID, which
+	// names one request. Advisory: it only tells other windows who started a run.
+	Origin string `json:"origin,omitempty"`
 }
 
 // MessageResponse identifies a started or queued request.

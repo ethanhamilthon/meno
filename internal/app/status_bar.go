@@ -52,5 +52,6 @@ func (a *App) drawStatus(c ui.Canvas, x, y, w int) {
 	style := ui.Style{FG: chromeText(), BG: ui.BgTerm}.TCell()
 	c.Text(lo, y, lw, left, style)
 	c.Text(rx, y, rw, right, style)
+	a.win.statusMidX, a.win.statusMidSegs = mx, mid
 	drawBarSegs(c, mx, y, mw, mid)
 }

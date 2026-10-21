@@ -61,7 +61,12 @@ type State struct {
 
 	// EffortPick is the effort chosen in the model picker but not applied yet
 	// ("" until the user presses ←/→). Enter applies it; Esc drops it.
-	EffortPick    string
+	EffortPick string
+	// LocalScope makes edits of look and notification settings apply to this
+	// window only (toggled with "s" in /settings).
+	LocalScope bool
+	// AttnFilter narrows /sessions to running, asking or done sessions.
+	AttnFilter    int
 	OverlayOrigin ui.Mode
 	Over          Overlay
 	// UpdateTag is the newer release the background check found ("" if none).

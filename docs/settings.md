@@ -6,6 +6,8 @@ previous one. `↑`/`↓` or `j`/`k` selects a row; `←`/`→`, space or Enter
 changes a choice; `+`/`-` changes a number. Enter edits a text value (the
 notify command), Enter saves it and Esc cancels. Every change is saved at once.
 
+Look and signal settings (`theme`, `notify`, `notify sound`, `notify volume`, `notify command`) can be kept for one window: press `s` to switch the scope between *shared* and *this window*, and change the setting. A window override is never sent to the daemon and survives a refresh of the shared settings; an edit in the shared scope replaces it. `r` drops every override of the window.
+
 | Tab | Setting | Values |
 | --- | --- | --- |
 | General | theme | `default` or a custom theme from `theme.json`; live preview |

@@ -44,6 +44,14 @@ func (a *App) onMouse(m *tcell.EventMouse) {
 		return
 	}
 	x, y := m.Position()
+	if b&tcell.Button1 != 0 && !a.mouse.down {
+		if _, h := a.scr.Size(); y == h-1 {
+			if f := a.counterAt(x); f > filterAll {
+				a.openSessionsFiltered(f)
+				return
+			}
+		}
+	}
 	switch {
 	case b&tcell.Button1 != 0 && !a.mouse.down:
 		a.mousePress(x, y)

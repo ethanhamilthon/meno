@@ -11,6 +11,16 @@ Restart the daemon after updating. No data is deleted or migrated.
   message, the typed text is sent in a fresh session.
 - **The name appears at once.** A session is named when its first message is
   sent, not when the run ends.
+- **Skills after the slash.** `/pla` finds the skill `plan`; Enter or Tab inserts it
+  as one object and never runs or sends. A command with the same name wins.
+- **Status bar.** Counters keep their colors on narrow terminals and a click opens
+  `/sessions` with that filter; `Tab` in `/sessions` cycles all, running, asking,
+  done. Failures to send stay on screen until Esc.
+- **Smoother wave.** The running pulse now rises and falls smoothly and wraps around
+  without a jump.
+- **Per-window settings.** Theme and notification settings can be kept for one
+  window (`s` in `/settings`); `r` returns to the shared defaults.
+- **Origin.** A run records which window started it; other windows say so.
 - **`meno ask` form.** The bash tool description and `meno help ask` now show the
   JSON form and the answer shape.
 
