@@ -15,6 +15,9 @@ func (a *App) onSnapshot(m snapshotEv) {
 		return
 	}
 	sn := m.snap
+	if !rt.order.snapshot(sn, true) {
+		return
+	}
 	rt.Session.load(sn)
 	rt.Cwd = sn.Cwd
 	// A snapshot taken before my message reached the daemon must not stop a run
@@ -53,6 +56,9 @@ func retryFromWire(r *proto.RetryState) *retryState {
 func (a *App) onWire(m wireEv) {
 	rt := a.rts[m.sid]
 	if rt == nil {
+		return
+	}
+	if !rt.order.event(m.ev) {
 		return
 	}
 	a.inRT(m.sid, func() { a.applyWire(rt, m.ev) })
@@ -100,20 +106,25 @@ func (a *App) applyWire(rt *Runtime, e proto.Event) {
 		if d, ok := decode[proto.CallEndData](e.Data); ok {
 			a.dropLiveCall(d.CallID)
 			rt.RunJS++
-			rt.LiveText, rt.LiveThink = "", ""
 			if len(a.st.LiveCalls) == 0 {
 				rt.Phase = "thinking"
 			}
 		}
 	case proto.EventTurnAdded:
 		if d, ok := decode[proto.TurnAddedData](e.Data); ok {
-			rt.Session.add(d.Turn)
-			if d.Turn.Role == "assistant" && d.Turn.Content != "" || d.Turn.Run != nil {
+			added := rt.Session.add(d.Turn)
+			if added && d.Turn.Role == "assistant" {
 				rt.LiveText, rt.LiveThink = "", ""
 			}
 		}
 	case proto.EventStatus:
 		if d, ok := decode[proto.StatusData](e.Data); ok {
+			if !d.Running && staleRuntimeRun(rt, d.RequestID) {
+				break
+			}
+			if d.Running && d.RequestID != "" {
+				rt.RequestID = d.RequestID
+			}
 			if d.Running && !rt.Running {
 				if d.Origin != "" && d.Origin != a.instance {
 					a.notify("a turn was started from another window")
@@ -140,20 +151,24 @@ func (a *App) applyWire(rt *Runtime, e proto.Event) {
 		if d, ok := decode[proto.InjectedData](e.Data); ok {
 			rt.Queued = append([]string(nil), d.Queued...)
 		}
-		a.clearLive()
-		rt.Phase = "thinking"
 	case proto.EventError:
 		if d, ok := decode[proto.ErrorData](e.Data); ok {
 			rt.LastErr = true
 			a.notifyErr(d.Message)
 		}
 	case proto.EventAborted:
+		if d, ok := decode[proto.DoneData](e.Data); ok && staleRuntimeRun(rt, d.RequestID) {
+			break
+		}
 		a.refreshSession(rt.ID())
 		a.clearLive()
 		rt.Phase, rt.Running = "", false
 		a.markUnseen(rt.ID())
 		a.signal("")
 	case proto.EventDone:
+		if d, ok := decode[proto.DoneData](e.Data); ok && staleRuntimeRun(rt, d.RequestID) {
+			break
+		}
 		a.refreshSession(rt.ID())
 		a.clearLive()
 		rt.Phase, rt.Running = "", false

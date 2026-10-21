@@ -55,6 +55,7 @@ func (e *Engine) newState(sess *agent.Session, persisted bool) (*runState, error
 	}
 	st := &runState{persisted: persisted, cancelled: map[string]bool{}, session: sess, cwd: sess.Cwd, env: map[string]string{}, changed: time.Now(), token: tokenState{value: tok, groups: groupsFor(nil)}}
 	st.published = len(sess.Snapshot())
+	st.visibleTurns = wireTurns(sess.Snapshot())
 	return st, nil
 }
 

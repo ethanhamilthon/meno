@@ -17,24 +17,23 @@ func (e *Engine) Snapshot(ctx context.Context, id string) (proto.Snapshot, error
 	s.commit.Lock()
 	defer s.commit.Unlock()
 	s.mu.Lock()
-	turns := s.session.Snapshot()
+	turns := append([]proto.Turn(nil), s.visibleTurns...)
+	if !s.running && !s.compacting {
+		turns = wireTurns(s.session.Snapshot())
+	}
 	out := proto.Snapshot{Session: item(s), AgentToken: s.token.value, Cwd: s.cwd, Model: s.session.Model, Running: s.running, Phase: s.phase, RequestID: s.requestID, Origin: s.origin, TurnCount: len(turns), Live: cloneLive(s.live), Ask: askWire(s.ask), Retry: cloneRetry(s.retry), Metrics: s.metrics, Seq: 0, Tasks: []proto.Task{},
 		Spent: s.session.Metrics.Spent, Context: s.session.Metrics.Context, Unpriced: s.session.Metrics.Unpriced, Provider: s.session.Provider, Effort: s.session.Effort}
 	if !s.running {
 		out.LastError = s.lastErr
 	}
-	for _, m := range s.queue.Items() {
-		out.Queued = append(out.Queued, m.Text)
-	}
+	out.Queued = append([]string(nil), s.visibleQueue...)
 	s.mu.Unlock()
 	out.Session.Completed, out.Session.ReadThrough = e.attention(id)
 	if e.events != nil {
 		out.Seq = e.events.Sequence(id)
 		out.Version = e.version(out.Seq)
 	}
-	for _, t := range turns {
-		out.Turns = append(out.Turns, turnWire(t))
-	}
+	out.Turns = turns
 	tasks, _ := e.tasks.List(id, true)
 	for _, t := range tasks {
 		out.Tasks = append(out.Tasks, taskWire(t))
@@ -47,6 +46,8 @@ func (e *Engine) PatchSession(ctx context.Context, id string, q proto.PatchSessi
 	if err != nil {
 		return proto.SessionItem{}, notFound(err)
 	}
+	s.commit.Lock()
+	defer s.commit.Unlock()
 	s.mu.Lock()
 	if q.Name != nil {
 		n, er := agent.NormalizeTitle(*q.Name)

@@ -260,7 +260,7 @@ func (s *responsesStream) handle(e SSEEvent, emit func(Event)) error {
 				}
 			}
 		}
-		emit(Event{Kind: EvDone, Usage: u})
+		emit(Event{Kind: EvDone, Usage: u, UsageReported: ev.Response != nil && ev.Response.Usage != nil})
 	}
 	return nil
 }

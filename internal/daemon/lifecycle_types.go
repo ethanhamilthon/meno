@@ -42,6 +42,8 @@ type Server struct {
 	onStop                                         func()
 	http                                           *http.Server
 	listener                                       net.Listener
+	admission                                      sync.RWMutex
+	stopping                                       bool
 	stopOnce                                       sync.Once
 	done                                           chan struct{}
 	lock                                           *os.File

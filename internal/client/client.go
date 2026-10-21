@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"golang.org/x/sys/unix"
+	"meno/internal/daemon"
 	"meno/internal/proto"
 	"net"
 	"net/http"
@@ -45,6 +46,14 @@ func New(home string) *Client {
 func Ensure(ctx context.Context, o Options) (*Client, error) {
 	if o.Home == "" {
 		return nil, errors.New("MENO_HOME or home path is required")
+	}
+	transition, err := daemon.AcquireTransition(ctx, o.Home)
+	if err != nil {
+		return nil, fmt.Errorf("waiting for update/startup: %w", err)
+	}
+	defer transition.Close()
+	if err := daemon.CheckExecutable(); err != nil {
+		return nil, err
 	}
 	c := New(o.Home)
 	if e := c.check(ctx); e == nil {

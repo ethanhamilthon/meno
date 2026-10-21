@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"os"
+	"sync"
 	"time"
 
 	"meno/internal/llm"
@@ -83,11 +84,12 @@ type RunStats struct {
 const KindView = "view"
 
 type RequestUsage struct {
-	Provider string    `json:"provider"`
-	Model    string    `json:"model"`
-	Usage    llm.Usage `json:"usage"`
-	Cost     *float64  `json:"cost,omitempty"`
-	Time     time.Time `json:"time"`
+	Record   *RequestRecord `json:"record,omitempty"`
+	Provider string         `json:"provider"`
+	Model    string         `json:"model"`
+	Usage    llm.Usage      `json:"usage"`
+	Cost     *float64       `json:"cost,omitempty"`
+	Time     time.Time      `json:"time"`
 }
 
 type Metrics struct {
@@ -99,11 +101,13 @@ type Metrics struct {
 }
 
 type Session struct {
-	Requests []RequestUsage `json:"requests,omitempty"`
-	Metrics  Metrics        `json:"metrics"`
-	ID       string         `json:"id"`
-	Title    string         `json:"title"`
-	Cwd      string         `json:"cwd"`
+	requestMu      sync.Mutex
+	requestConfigs map[string]RequestConfig
+	Requests       []RequestUsage `json:"requests,omitempty"`
+	Metrics        Metrics        `json:"metrics"`
+	ID             string         `json:"id"`
+	Title          string         `json:"title"`
+	Cwd            string         `json:"cwd"`
 	// Provider, Model and Effort are the model this session talks to; each
 	// session has its own. Sessions saved before this was per session may have
 	// only Model.

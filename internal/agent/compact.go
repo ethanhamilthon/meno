@@ -13,6 +13,8 @@ const keepTail = 4
 
 // CompactOptions tune a summary-generating compaction.
 type CompactOptions struct {
+	// RecordChanged persists attempt boundaries without treating them as usage.
+	RecordChanged func()
 	Keep          int // recent messages that stay in the active context (default 4)
 	SummaryTokens int // target size of the summary (0 = unbounded)
 	// The request the session is sent with. When System is set, the summary is
@@ -62,17 +64,32 @@ func CompactWith(ctx context.Context, cl llm.Client, p llm.Provider, model strin
 	}
 	instruction := summaryInstruction(o.SummaryTokens)
 	var summary string
+	step, attempt := NewID(), 0
+	ask := func(req llm.Request) (string, error) {
+		attempt++
+		id := s.startRequest(req, step, attempt, "compaction")
+		if o.RecordChanged != nil {
+			o.RecordChanged()
+		}
+		reports := reportUsage
+		text, err := askSummary(ctx, cl, req, reports, func(u llm.Usage) { s.requestUsage(id, u) })
+		s.endRequest(id, err, ctx.Err() != nil)
+		if o.RecordChanged != nil {
+			o.RecordChanged()
+		}
+		return text, err
+	}
 	if o.System != "" {
 		req := llm.Request{Provider: p, Model: model, Effort: o.Effort, System: o.System, Tools: true, ToolDescription: o.ToolDesc, ToolName: o.ToolName,
 			Msgs: append(s.msgsOf(all[:cut]), llm.Msg{Role: llm.RoleUser, Text: instruction + "\nThe last " + strconv.Itoa(len(tail)) + " messages stay as they are and are not part of this summary. Answer with the summary as text; do not call any tool."})}
-		summary, err = askSummary(ctx, cl, req, reportUsage)
+		summary, err = ask(req)
 		if err != nil && ctx.Err() != nil {
 			return before, before, ctx.Err()
 		}
 	}
 	if o.System == "" || err != nil {
 		req := llm.Request{Provider: p, Model: model, Msgs: []llm.Msg{{Role: llm.RoleUser, Text: instruction + "\n" + b.String()}}}
-		summary, err = askSummary(ctx, cl, req, reportUsage)
+		summary, err = ask(req)
 	}
 	if err != nil {
 		return before, before, err

@@ -102,3 +102,30 @@ output and thought display. Display settings never change what is executed.
 each, PNG or JPEG, scaled to 1568 px. The agent can look with `meno view PATH`. With a
 capable terminal the timeline shows the pictures themselves, see
 [terminal graphics](graphics.md); otherwise a text block names number, size and type.
+
+## Exporting a session
+
+`/export [path]` writes Markdown asynchronously. The default is `meno-session.md`
+in the session's working directory; relative paths use that same directory.
+Switching sessions while export runs does not change its source or destination.
+
+The export contains the saved conversation, including archived turns retained
+through compaction, tool source/results, available system events, and a table of
+model requests. Each logical step has separate numbered attempts for retries;
+summary-generation requests are labeled `compaction`. Historical provider, model,
+effort, and effective system prompt/function definitions are retained per request,
+with shared configurations printed once. Current session settings are labeled
+separately and are never substituted for missing historical details.
+
+Input tokens already include cache reads and writes: do not add cache counts to
+input again. `unavailable` means the provider did not report the data (or older
+session data did not retain it), not zero. A reported zero remains zero. Exports
+made during active work stop at the last persisted event, mark incomplete work,
+and do not include uncommitted streaming output. Interrupted attempts may lack a
+final outcome or usage. Older sessions can have unavailable request details or
+partial conversation history; the export warns rather than inventing data.
+
+**Privacy:** system prompts can contain private project instructions and local
+paths. Review exports before sharing. Export does not include provider API keys,
+authorization headers, raw provider configuration, opaque replay state, or image
+bytes; text intentionally present in prompts and the conversation is not redacted.

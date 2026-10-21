@@ -49,6 +49,8 @@ const (
 	EvInjected = "injected"
 	// EvRequest: a model request is about to be sent; Req is that request.
 	EvRequest = "request"
+	// EvRequestRecord persists changed attempt metadata without adding usage.
+	EvRequestRecord = "request_record"
 	// EvRetry: the request failed and will be sent again; whatever it streamed
 	// so far is void.
 	EvRetry = "retry"

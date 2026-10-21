@@ -95,6 +95,7 @@ func ForkSession(dir, srcID string, hid int64, cwd string) (*Session, string, er
 			active = append(active, t)
 		}
 	}
+	copyRequestAncestry(fork, src, boundary)
 	fork.Turns = active
 	log := newSafeLog(active, boundary)
 	log.archive, log.sums = head, revs

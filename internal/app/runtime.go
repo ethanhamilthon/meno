@@ -18,6 +18,7 @@ import (
 // what it needs as arguments and reports back through events carrying the
 // session id.
 type Runtime struct {
+	order     wireOrder
 	Session   *sessView
 	Cwd       string // working directory of this session
 	PrevCwd   string // directory before the last /cd, for "/cd -"

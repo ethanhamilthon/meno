@@ -2,9 +2,9 @@
 package proto
 
 // Protocol is the HTTP API compatibility number. Clients require exact equality.
-// Protocol 3 adds SessionVersion in snapshots, request IDs on status and error
-// events, session lifecycle events and field-scoped settings PATCH.
-const Protocol = 3
+// Protocol 4 adds message origin (incompatible with older strict decoders)
+// and atomic idle-only shutdown for safe updates.
+const Protocol = 4
 
 // Error codes returned in an ErrorEnvelope.
 const (

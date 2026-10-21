@@ -1,5 +1,49 @@
 # Upgrading, data and privacy
 
+## 0.6.2: timeline, steering, request export and safe updates
+
+- Timeline text shares a common left anchor: command titles, source, output,
+  messages, reasoning, image captions, notices and run summaries. Long tool rows
+  wrap inside the gutters without losing text; Markdown/source indentation stays.
+- Steering consumption and live-response boundaries stay consistent across events,
+  snapshots and reconnects. Replayed turns are identified by ID, not by their text.
+- `/export [path]` includes recorded system prompts, tool definitions and per-attempt
+  model/effort/token accounting, including retries and compaction. Older sessions
+  explicitly mark unavailable details. Prompts can contain private project content;
+  review exports before sharing. Provider credentials are not exported.
+- Daemon protocol is **4**. Before updating from 0.6.1 or older, finish active work,
+  close meno windows, stop the old daemon, update, then launch meno again.
+- Request configurations are stored additively in the existing database. Historical
+  instructions cannot be reconstructed for requests made before this release.
+
+### Updating the executable and daemon
+
+With an updater that includes the automatic-stop lifecycle, `meno update`
+checks the release, downloads and verifies the executable, then asks the daemon
+for an atomic idle-only shutdown. Active runs, queued work or background tasks
+block the update: finish or stop them and retry. There is no update force flag.
+A failed download or verification leaves the running daemon untouched. A failed
+shutdown prevents installation. No available update leaves the runtime unchanged.
+
+A successful update leaves the daemon **stopped**; the updater does not restart
+it. Close already-open meno windows and launch meno again to start the new daemon
+from the installed executable. An old UI is not upgraded in place. Concurrent
+startup is serialized with installation, and an old client that detects a
+replaced executable asks you to reopen it instead of restarting itself.
+The selected `MENO_HOME` determines which daemon is stopped; sessions, settings,
+credentials and stored results are preserved.
+
+If replacement fails after shutdown, the old executable is retained and the
+daemon stays stopped. Reopen meno to start it again; there is no automatic
+restart or claimed rollback. If shutdown or cleanup cannot be confirmed, the
+command returns an error rather than reporting a successful update.
+
+An older installed updater cannot gain this behavior retroactively. For an old
+updater, finish work, close all meno windows, run `meno daemon stop`, update, and
+launch meno again. A running daemon without the atomic idle-shutdown endpoint is
+refused by the new updater with the same manual instructions. Protocol 4 also
+prevents clients sending `origin` to the strict protocol-3 request decoder.
+
 ## 0.6.1: sessions are stored with their first message
 
 Restart the daemon after updating (the protocol is unchanged). A new session

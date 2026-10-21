@@ -53,7 +53,13 @@ func (s *Server) Serve(ctx context.Context) error {
 	}
 	return err
 }
-func (s *Server) stopOnContext(ctx context.Context) { <-ctx.Done(); s.Stop("signal") }
+func (s *Server) stopOnContext(ctx context.Context) {
+	select {
+	case <-ctx.Done():
+		s.Stop("signal")
+	case <-s.done:
+	}
+}
 
 // Stop publishes bye and stops HTTP listeners.
 func (s *Server) Stop(reason string) {
@@ -72,9 +78,7 @@ func (s *Server) Stop(reason string) {
 	})
 }
 func (s *Server) cleanup() {
-	if s.onStop != nil {
-		s.onStop()
-	}
+	s.Stop("serve ended")
 	if s.listener != nil {
 		_ = s.listener.Close()
 	}

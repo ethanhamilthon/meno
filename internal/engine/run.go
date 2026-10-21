@@ -31,6 +31,10 @@ func (e *Engine) Message(ctx context.Context, id string, q proto.MessageRequest)
 	s.commit.Lock()
 	defer s.commit.Unlock()
 	s.mu.Lock()
+	if s.compacting {
+		s.mu.Unlock()
+		return proto.MessageResponse{}, api(proto.CodeConflict, "session is being compacted")
+	}
 	if s.ask != nil {
 		s.mu.Unlock()
 		return proto.MessageResponse{}, api(proto.CodeConflict, "session is waiting for an ask answer")
@@ -77,6 +81,7 @@ func (e *Engine) Message(ctx context.Context, id string, q proto.MessageRequest)
 	named := untitled && s.session.Title != "" && s.session.Title != "untitled"
 	turns := s.session.Snapshot()
 	s.published = len(turns)
+	s.visibleTurns = wireTurns(turns)
 	s.mu.Unlock()
 	e.publish(id, proto.EventTurnAdded, proto.TurnAddedData{Turn: turnWire(turns[len(turns)-1])})
 	e.publish(id, proto.EventStatus, proto.StatusData{Running: true, Phase: "preparing", RequestID: rid, Origin: q.Origin})
@@ -195,49 +200,6 @@ func (e *Engine) run(ctx context.Context, s *runState, text string, cont bool) {
 	e.finish(s, err)
 }
 
-func (e *Engine) finish(s *runState, err error) {
-	id := s.session.ID
-	s.commit.Lock()
-	defer s.commit.Unlock()
-	s.mu.Lock()
-	s.running = false
-	s.phase = ""
-	s.cancel = nil
-	s.retry = nil
-	s.live = proto.LiveState{Calls: []proto.CallState{}}
-	if err != nil && !errors.Is(err, context.Canceled) {
-		s.lastErr = err.Error()
-	}
-	saveErr := agent.SaveCompletion(e.home, s.session)
-	queued := s.queue.Take()
-	requestID, metrics := s.requestID, s.metrics
-	s.mu.Unlock()
-	if saveErr != nil {
-		e.publish(id, proto.EventError, proto.ErrorData{Message: saveErr.Error()})
-	}
-	e.publish(id, proto.EventSessionChanged, proto.ChangedData{Fields: []string{"run", "unread"}})
-	e.publish(id, proto.EventStatus, proto.StatusData{Running: false, RequestID: requestID})
-	if err != nil && errors.Is(err, context.Canceled) {
-		e.publish(id, proto.EventAborted, map[string]any{})
-	} else if err != nil {
-		e.publish(id, proto.EventError, proto.ErrorData{RequestID: requestID, Message: err.Error()})
-	} else {
-		e.publish(id, proto.EventDone, proto.DoneData{RequestID: requestID, Metrics: metrics})
-	}
-	if len(queued) > 0 && err == nil {
-		s.mu.Lock()
-		msg := agent.Combine(queued)
-		s.session.Append(agent.Turn{Role: llm.RoleUser, Text: msg.Text, Attachments: msg.Attachments, Time: time.Now().UTC()})
-		_ = e.save(s)
-		ctx, cancel := context.WithCancel(context.Background())
-		s.cancel = cancel
-		s.running = true
-		s.phase = "preparing"
-		s.requestID = agent.NewID()
-		s.mu.Unlock()
-		e.launch(ctx, s, msg.Text, false)
-	}
-}
 func (e *Engine) HasWork(context.Context) bool {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -267,11 +229,20 @@ func (e *Engine) launch(ctx context.Context, s *runState, text string, cont bool
 		return
 	}
 	e.runs.Add(1)
+	e.activeRuns++
 	e.mu.Unlock()
 	// The run keeps the model the session had when it started: a model picked
 	// a moment later applies to the next request.
 	s.mu.Lock()
 	s.pinProvider, s.pinModel, s.pinEffort = s.session.Provider, s.session.Model, s.session.Effort
 	s.mu.Unlock()
-	safe.Go(func() { defer e.runs.Done(); e.run(ctx, s, text, cont) }, func(err error) { e.finish(s, err) })
+	safe.Go(func() {
+		defer func() {
+			e.mu.Lock()
+			e.activeRuns--
+			e.mu.Unlock()
+			e.runs.Done()
+		}()
+		e.run(ctx, s, text, cont)
+	}, func(err error) { e.finish(s, err) })
 }

@@ -40,6 +40,9 @@ func TestEnsureStartsSingleDaemon(t *testing.T) {
 			t.Fatal(e)
 		}
 	}
+	// Keep daemon cleanup in this test's scope: a nested subtest would kill
+	// the replacement before the parent verifies its PID and shuts it down.
+	testUpdateNextLaunch(t, home, bin)
 	data, e := os.ReadFile(filepath.Join(home, "run", "daemon.pid"))
 	if e != nil {
 		t.Fatal(e)

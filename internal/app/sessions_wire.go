@@ -94,6 +94,9 @@ func (a *App) onSessionRefreshed(m sessionRefreshed) {
 		return
 	}
 	sn := m.snap
+	if !rt.order.snapshot(sn, false) {
+		return
+	}
 	rt.Session.Completed, rt.Session.ReadThrough = sn.Session.Completed, sn.Session.ReadThrough
 	if !rt.Running && !sn.Running {
 		rt.Session.load(sn)

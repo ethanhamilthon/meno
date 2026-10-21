@@ -237,4 +237,10 @@ ALTER TABLE sessions ADD COLUMN tool TEXT NOT NULL DEFAULT 'js';
  completed INTEGER NOT NULL DEFAULT 0,
  read_through INTEGER NOT NULL DEFAULT 0
  );`,
+	`ALTER TABLE requests ADD COLUMN details TEXT NOT NULL DEFAULT '';
+ CREATE TABLE request_configs (
+ session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+ id TEXT NOT NULL, data TEXT NOT NULL,
+ PRIMARY KEY(session_id,id)
+ ) WITHOUT ROWID;`,
 }

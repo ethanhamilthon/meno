@@ -17,13 +17,15 @@ func bashHeader(t Turn, w int, opts JSOpts) Line {
 	if opts.Running {
 		elapsed = FmtDur(opts.Elapsed)
 	}
-	// The rule glyphs may use the gutter; the title starts at column Gutter and
-	// the elapsed time ends before the right gutter.
-	if w < TextWidth(elapsed)+2*Gutter+2 {
-		return Line{Segs: []Seg{{Text: Truncate(elapsed, max(0, w-2*Gutter)), FG: FgFaint}}, BG: BgTerm}
+	// The title shares the body anchor; only the rule uses the outer gutter.
+	// The right gutter is excluded even though this row is drawn full-width.
+	available := max(0, w-Gutter)
+	lead := "─── "
+	if available < TextWidth(lead)+TextWidth(elapsed)+1 {
+		return Line{Segs: []Seg{{Text: "  " + Truncate(elapsed, TranscriptTextWidth(w)), FG: FgFaint}}, BG: BgTerm}
 	}
-	title = Truncate(title, max(0, w-TextWidth(elapsed)-6))
-	gap := max(0, w-TextWidth(title)-TextWidth(elapsed)-6)
-	text := "─ " + title + " " + strings.Repeat("─", gap) + " " + elapsed + " ─"
-	return Line{Segs: []Seg{{Text: Truncate(text, w), FG: FgFaint}}, BG: BgTerm, FullWidth: true}
+	title = Truncate(title, max(0, available-TextWidth(lead)-TextWidth(elapsed)-2))
+	gap := max(0, available-TextWidth(lead)-TextWidth(title)-TextWidth(elapsed)-2)
+	text := lead + title + " " + strings.Repeat("─", gap) + " " + elapsed
+	return Line{Segs: []Seg{{Text: text, FG: FgFaint}}, BG: BgTerm, FullWidth: true}
 }

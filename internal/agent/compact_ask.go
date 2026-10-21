@@ -22,7 +22,7 @@ func summaryInstruction(tokens int) string {
 // askSummary sends one summary request and returns the trimmed text. A
 // request the model answered with a tool call or with nothing is an error, so
 // the caller can try the other way.
-func askSummary(ctx context.Context, cl llm.Client, req llm.Request, reportUsage []func(llm.Usage)) (string, error) {
+func askSummary(ctx context.Context, cl llm.Client, req llm.Request, reportUsage []func(llm.Usage), recordUsage func(llm.Usage)) (string, error) {
 	var sum strings.Builder
 	var streamErr error
 	called := false
@@ -31,6 +31,9 @@ func askSummary(ctx context.Context, cl llm.Client, req llm.Request, reportUsage
 		case llm.EvError:
 			streamErr = errors.New(e.Text)
 		case llm.EvDone:
+			if recordUsage != nil && (e.UsageReported || e.Usage != (llm.Usage{})) {
+				recordUsage(e.Usage)
+			}
 			for _, report := range reportUsage {
 				if report != nil {
 					report(e.Usage)

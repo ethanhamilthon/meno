@@ -16,6 +16,7 @@ func queuedText(s *runState) []string {
 // Queue updates do not change global session status.
 func (e *Engine) publishQueue(s *runState, data proto.InjectedData) {
 	data.Queued = queuedText(s)
+	s.visibleQueue = append([]string(nil), data.Queued...)
 	if e.events != nil {
 		e.events.Publish(s.session.ID, proto.EventInjected, data)
 	}

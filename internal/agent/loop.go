@@ -163,8 +163,10 @@ type call struct {
 
 // streamOnce asks the model once (with retries) and returns the calls it made.
 func (r *Runner) streamOnce(ctx context.Context, s *Session) (calls []call, replay llm.Msg, err error) {
+	step, attempt := NewID(), 0
 	err = r.withRetry(ctx, s, func() error {
-		calls, replay, err = r.streamAttempt(ctx, s)
+		attempt++
+		calls, replay, err = r.streamAttempt(ctx, s, step, attempt)
 		return err
 	})
 	return calls, replay, err

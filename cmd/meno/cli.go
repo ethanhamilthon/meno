@@ -1,16 +1,11 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"os"
-	"os/signal"
-	"path/filepath"
-	"time"
 
 	menocli "meno/internal/cli"
-	"meno/internal/update"
 )
 
 // cli runs a command line other than the bare "meno" and returns the exit code.
@@ -47,33 +42,4 @@ func cli(args []string, out, errOut io.Writer) int {
 	}
 	fmt.Fprintf(errOut, "meno: unknown command %q\nRun 'meno -h' for usage.\n", args[0])
 	return 1
-}
-
-func runUpdate(out io.Writer) error {
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer stop()
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
-	defer cancel()
-	c := update.Client{Version: version}
-	latest, err := c.Latest(ctx)
-	if err != nil {
-		return err
-	}
-	if !update.Newer(version, latest) {
-		fmt.Fprintf(out, "meno %s is up to date (latest release: %s)\n", version, latest)
-		return nil
-	}
-	exe, err := os.Executable()
-	if err != nil {
-		return err
-	}
-	if p, err := filepath.EvalSymlinks(exe); err == nil {
-		exe = p
-	}
-	fmt.Fprintf(out, "updating meno %s -> %s\n", version, latest)
-	if err := c.Install(ctx, latest, exe); err != nil {
-		return err
-	}
-	fmt.Fprintf(out, "updated %s\n", exe)
-	return nil
 }

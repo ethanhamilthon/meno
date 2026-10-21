@@ -7,7 +7,7 @@ import (
 	"meno/internal/llm"
 )
 
-func (r *Runner) streamAttempt(ctx context.Context, s *Session) ([]call, llm.Msg, error) {
+func (r *Runner) streamAttempt(ctx context.Context, s *Session, step string, attempt int) ([]call, llm.Msg, error) {
 	var calls []call
 	replay := llm.Msg{Role: llm.RoleAssistant}
 	var streamErr error
@@ -15,6 +15,7 @@ func (r *Runner) streamAttempt(ctx context.Context, s *Session) ([]call, llm.Msg
 		Provider: r.D.Provider, Model: r.D.Model, Effort: r.D.Effort,
 		System: r.D.System, Msgs: s.ToMsgs(), Tools: true, ToolDescription: r.D.ToolDesc, ToolName: r.D.ToolName,
 	}
+	id := s.startRequest(req, step, attempt, "conversation")
 	r.sent = req.Msgs
 	r.emit(s, Ev{Kind: EvRequest, Req: &req})
 	if r.D.DebugPayload != nil {
@@ -63,6 +64,9 @@ func (r *Runner) streamAttempt(ctx context.Context, s *Session) ([]call, llm.Msg
 		case llm.EvError:
 			streamErr = errors.New(e.Text)
 		case llm.EvDone:
+			if e.UsageReported || e.Usage != (llm.Usage{}) {
+				s.requestUsage(id, e.Usage)
+			}
 			r.calibrate(s, e.Usage)
 			r.emit(s, Ev{Kind: EvUsage, Usage: e.Usage, Provider: r.D.Provider, Model: r.D.Model})
 		}
@@ -70,6 +74,8 @@ func (r *Runner) streamAttempt(ctx context.Context, s *Session) ([]call, llm.Msg
 	if err == nil {
 		err = streamErr
 	}
+	s.endRequest(id, err, ctx.Err() != nil)
+	r.emit(s, Ev{Kind: EvRequestRecord})
 	return calls, replay, err
 }
 

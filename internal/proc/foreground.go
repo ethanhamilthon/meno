@@ -39,7 +39,7 @@ func (s *Supervisor) Launch(o LaunchOptions) (*Foreground, error) {
 	admitted := true
 	defer func() {
 		if admitted {
-			s.wg.Done() // the process never reached superviseForeground
+			s.release() // the process never reached superviseForeground
 		}
 	}()
 	t := Task{ID: "t" + newID(), Session: o.Session, Owner: o.Owner, Name: o.Name, Command: o.Command, Cwd: o.Cwd,
@@ -108,7 +108,7 @@ func (f *Foreground) Promote() (Task, bool) {
 }
 
 func (s *Supervisor) superviseForeground(r *running, split *lineSplitter) {
-	defer s.wg.Done()
+	defer s.release()
 	<-r.call.Done()
 	res, _ := r.call.Wait()
 	split.flush(r.log)

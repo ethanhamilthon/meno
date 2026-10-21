@@ -52,6 +52,7 @@ func (chatClient) Stream(ctx context.Context, req Request, emit func(Event)) err
 	defer resp.Body.Close()
 	calls := map[int]*chatCall{}
 	var usage Usage
+	usageReported := false
 	finished, done := false, false
 
 	err = ReadSSE(resp.Body, func(e SSEEvent) error {
@@ -107,6 +108,7 @@ func (chatClient) Stream(ctx context.Context, req Request, emit func(Event)) err
 			}
 		}
 		if c.Usage != nil {
+			usageReported = true
 			usage = Usage{In: c.Usage.PromptTokens, Out: c.Usage.CompletionTokens}
 			if d := c.Usage.Details; d != nil && (d.Cached != nil || d.CacheWrite != nil) {
 				usage.CacheReported = true
@@ -142,7 +144,7 @@ func (chatClient) Stream(ctx context.Context, req Request, emit func(Event)) err
 			emit(Event{Kind: EvTool, CallID: cc.id, Name: cc.name, Arguments: cc.args, Code: parseCode(cc.args)})
 		}
 	}
-	emit(Event{Kind: EvDone, Usage: usage})
+	emit(Event{Kind: EvDone, Usage: usage, UsageReported: usageReported})
 	return nil
 }
 

@@ -187,39 +187,3 @@ func (a *App) animating() bool {
 	}
 	return false
 }
-
-func (a *App) exportSession(args []string) {
-	name := "meno-session.md"
-	if len(args) > 0 {
-		name = args[0]
-	}
-	path := name
-	if !filepath.IsAbs(path) {
-		path = filepath.Join(a.st.Cwd, path)
-	}
-	var b strings.Builder
-	for _, t := range a.st.Session.Turns() {
-		switch {
-		case t.Role == ui.RoleUser && t.Kind == ui.KindView:
-			b.WriteString("*" + t.Text + "*\n\n")
-		case t.Role == ui.RoleUser:
-			b.WriteString("## User\n\n" + t.Text + "\n\n")
-		case t.Code != "":
-			b.WriteString("```sh\n" + t.Code + "\n```\n\n")
-			if t.Output != "" {
-				b.WriteString("```\n" + t.Output + "\n```\n\n")
-			}
-		case t.Text != "":
-			b.WriteString("## Assistant\n\n" + t.Text + "\n\n")
-		}
-	}
-	if err := writeFile(path, b.String()); err != nil {
-		a.notifyErr("export failed: " + err.Error())
-		return
-	}
-	shown := name
-	if !filepath.IsAbs(name) {
-		shown = "./" + name
-	}
-	a.notify("session saved to " + shown)
-}

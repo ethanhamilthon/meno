@@ -46,15 +46,18 @@ type ToolCall struct {
 }
 
 type Event struct {
-	Kind      string
-	Text      string
-	CallID    string
-	Code      string
-	Usage     Usage
-	Err       error
-	Name      string
-	Arguments string
-	Item      json.RawMessage
+	// UsageReported distinguishes a provider usage object with all zero counts
+	// from a successful response that did not include accounting.
+	UsageReported bool
+	Kind          string
+	Text          string
+	CallID        string
+	Code          string
+	Usage         Usage
+	Err           error
+	Name          string
+	Arguments     string
+	Item          json.RawMessage
 }
 
 const (

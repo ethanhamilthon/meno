@@ -9,6 +9,8 @@ import (
 
 func (e *Engine) agentEvent(s *runState, ev agent.Ev) {
 	id := s.session.ID
+	s.commit.Lock()
+	defer s.commit.Unlock()
 	s.mu.Lock()
 	switch ev.Kind {
 	case agent.EvText:
@@ -52,6 +54,7 @@ func (e *Engine) agentEvent(s *runState, ev agent.Ev) {
 		}
 		s.phase = "thinking"
 	case agent.EvRetry:
+		s.live = proto.LiveState{Calls: []proto.CallState{}}
 		s.retry = &proto.RetryState{Attempt: ev.Attempt, InMS: ev.Delay.Milliseconds(), Reason: ev.Err}
 	case agent.EvUsage:
 		s.metrics.InputTokens += int64(ev.Usage.In)
@@ -88,6 +91,14 @@ func (e *Engine) agentEvent(s *runState, ev agent.Ev) {
 	}
 	_ = e.save(s)
 	turns := s.session.Snapshot()
+	// History is a published projection: runner appends happen before Emit,
+	// so snapshots must not read the mutable runner history mid-publication.
+	from := min(s.published, len(turns))
+	for _, t := range turns[from:] {
+		if t.Role == "assistant" {
+			s.live.Text, s.live.Thinking = "", ""
+		}
+	}
 	s.mu.Unlock()
 	e.publishAgentTurns(id, turns)
 	e.translate(id, ev)
@@ -115,23 +126,6 @@ func removeCall(a []proto.CallState, id string) []proto.CallState {
 	return o
 }
 func exitCode(string) *int { v := 1; return &v }
-
-func (e *Engine) publishAgentTurns(id string, turns []agent.Turn) {
-	s, err := e.load(context.Background(), id)
-	if err != nil {
-		return
-	}
-	s.mu.Lock()
-	from := s.published
-	if from > len(turns) {
-		from = len(turns)
-	}
-	s.published = len(turns)
-	s.mu.Unlock()
-	for _, t := range turns[from:] {
-		e.publish(id, proto.EventTurnAdded, proto.TurnAddedData{Turn: turnWire(t)})
-	}
-}
 
 func (e *Engine) translate(id string, ev agent.Ev) {
 	switch ev.Kind {

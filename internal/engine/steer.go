@@ -46,6 +46,8 @@ func (e *Engine) wakeIfPending(sid string) {
 	}
 	reloadErr := e.reloadConfig()
 	in := e.selectionInput()
+	s.commit.Lock()
+	defer s.commit.Unlock()
 	s.mu.Lock()
 	if s.running || s.ask != nil || e.isClosed() {
 		s.mu.Unlock()

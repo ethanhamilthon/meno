@@ -74,11 +74,12 @@ type Supervisor struct {
 	hooks Hooks
 	limit int64
 
-	mu      sync.Mutex
-	live    map[string]*running
-	waiters map[string]int // tasks someone is waiting for right now
-	closing bool
-	wg      sync.WaitGroup
+	mu          sync.Mutex
+	live        map[string]*running
+	waiters     map[string]int // tasks someone is waiting for right now
+	closing     bool
+	outstanding atomic.Int64
+	wg          sync.WaitGroup
 }
 
 type running struct {
@@ -104,19 +105,6 @@ func (s *Supervisor) SetLogLimit(n int64) { s.limit = n }
 
 func (s *Supervisor) logPath(session, id string) string {
 	return filepath.Join(s.dir, session, id+".log")
-}
-
-// admit reserves a supervisor slot unless shutdown has begun. The check and the
-// wg.Add share one lock with Shutdown's closing flag, so a process is either
-// refused or counted before Shutdown can finish waiting.
-func (s *Supervisor) admit() bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.closing {
-		return false
-	}
-	s.wg.Add(1)
-	return true
 }
 
 // register makes r visible to Shutdown. It reports true when shutdown started
@@ -151,7 +139,7 @@ func (s *Supervisor) Start(o StartOptions) (Task, error) {
 	admitted := true
 	defer func() {
 		if admitted {
-			s.wg.Done() // the process never reached supervise
+			s.release() // the process never reached supervise
 		}
 	}()
 	t := Task{ID: "t" + newID(), Session: o.Session, Owner: o.Owner, Name: o.Name, Command: o.Command, Cwd: o.Cwd,
@@ -202,7 +190,7 @@ func (s *Supervisor) Start(o StartOptions) (Task, error) {
 }
 
 func (s *Supervisor) supervise(r *running, pumps *sync.WaitGroup) {
-	defer s.wg.Done()
+	defer s.release()
 	pumps.Wait() // output is drained before Wait closes the pipes
 	err := r.cmd.Wait()
 	r.log.close()

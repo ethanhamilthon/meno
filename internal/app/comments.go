@@ -83,7 +83,11 @@ func (a *App) selectionReference(top int) (commentref.Reference, error) {
 			flush()
 			cur = &commentref.Segment{SessionID: sid, TurnID: src.TurnID, CallID: src.CallID, Part: src.Part}
 		}
-		parts = append(parts, strings.TrimRight(text, " "))
+		// Source/output spaces are content, including at a wrapped row boundary.
+		if src.Part == commentref.PartAssistant {
+			text = strings.TrimRight(text, " ")
+		}
+		parts = append(parts, text)
 	}
 	flush()
 	var keep []commentref.Segment

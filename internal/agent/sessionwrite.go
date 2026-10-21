@@ -112,12 +112,16 @@ func writeSessionTx(tx *sql.Tx, s *Session) (pend Pending, err error) {
 			return pend, err
 		}
 	}
-	req, err := tx.Prepare("INSERT INTO requests(session_id,seq,provider,model,usage,cost,time) VALUES(?,?,?,?,?,?,?)")
+	req, err := tx.Prepare("INSERT INTO requests(session_id,seq,provider,model,usage,cost,time,details) VALUES(?,?,?,?,?,?,?,?)")
 	if err != nil {
 		return pend, err
 	}
 	defer req.Close()
-	for i, r := range s.Requests {
+	records, configs := s.requestSnapshot()
+	if err := writeRequestConfigs(tx, s.ID, configs); err != nil {
+		return pend, err
+	}
+	for i, r := range records {
 		usage, merr := json.Marshal(r.Usage)
 		if merr != nil {
 			return pend, merr
@@ -126,7 +130,11 @@ func writeSessionTx(tx *sql.Tx, s *Session) (pend Pending, err error) {
 		if r.Cost != nil {
 			cost = *r.Cost
 		}
-		if _, err = req.Exec(s.ID, i, r.Provider, r.Model, string(usage), cost, ts(r.Time)); err != nil {
+		details, merr := marshalOrEmpty(r.Record, r.Record == nil)
+		if merr != nil {
+			return pend, merr
+		}
+		if _, err = req.Exec(s.ID, i, r.Provider, r.Model, string(usage), cost, ts(r.Time), details); err != nil {
 			return pend, err
 		}
 	}

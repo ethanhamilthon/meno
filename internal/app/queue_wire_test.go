@@ -34,8 +34,8 @@ func TestInjectedReplacesQueuedMessages(t *testing.T) {
 		if len(rt.Queued) != len(queued) || len(queued) > 0 && !reflect.DeepEqual(rt.Queued, queued) {
 			t.Fatalf("queue %q, want %q", rt.Queued, queued)
 		}
-		if rt.LiveText != "" || rt.LiveThink != "" || len(rt.LiveCalls) != 0 || rt.Phase != "thinking" {
-			t.Fatalf("stale live state after injection: %+v", rt)
+		if rt.LiveText != "old text" || rt.LiveThink != "old thought" || len(rt.LiveCalls) != 1 {
+			t.Fatalf("queue notification discarded live state: %+v", rt)
 		}
 		if len(queued) == 0 && a.queueHeight() != 0 {
 			t.Fatal("the queue panel remains visible after consumption")
@@ -79,7 +79,7 @@ func TestInjectedUpdatesBackgroundSessionQueue(t *testing.T) {
 	background := &Runtime{Session: &sessView{id: "background"}, Queued: []string{"consumed"}, Running: true}
 	a.rts[background.ID()] = background
 	a.onWire(wireEv{sid: background.ID(), ev: injectedEvent(t, []string{})})
-	if len(background.Queued) != 0 || background.Phase != "thinking" {
+	if len(background.Queued) != 0 {
 		t.Fatal("the background session kept its consumed message")
 	}
 	if a.st.Runtime != current || !reflect.DeepEqual(current.Queued, []string{"current"}) || current.LiveText != "current text" {

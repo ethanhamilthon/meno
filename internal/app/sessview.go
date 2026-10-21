@@ -63,7 +63,17 @@ func (s *sessView) load(sn proto.Snapshot) {
 }
 
 // add appends a turn the daemon stored.
-func (s *sessView) add(t proto.Turn) { s.turns = append(s.turns, turnFromWire(t)) }
+func (s *sessView) add(t proto.Turn) bool {
+	if t.ID != "" && t.ID != "0" {
+		for _, existing := range s.turns {
+			if existing.ID == t.ID {
+				return false
+			}
+		}
+	}
+	s.turns = append(s.turns, turnFromWire(t))
+	return true
+}
 
 // turnFromWire converts a wire turn into what the transcript draws.
 func turnFromWire(t proto.Turn) ui.Turn {

@@ -5,12 +5,9 @@ import (
 	"bufio"
 	"compress/gzip"
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -41,47 +38,12 @@ func (c Client) install(ctx context.Context, tag, exe, goos, goarch string) erro
 // it against the checksum list and writes the binary from it to dest, replacing
 // a file that is there. A failed download leaves dest as it was.
 func (c Client) InstallAsset(ctx context.Context, tag string, a Asset, dest string) error {
-	base := c.downloadBase(tag)
-	sums, err := c.fetchAll(ctx, base+"/"+a.Sums)
+	p, err := c.PrepareAsset(ctx, tag, a, dest)
 	if err != nil {
-		return fmt.Errorf("cannot download the checksums of %s: %w", tag, err)
-	}
-	name, want := findArchive(string(sums), a.Suffix)
-	if name == "" {
-		return fmt.Errorf("release %s has no build for %s", tag, strings.TrimSuffix(strings.TrimPrefix(a.Suffix, "_"), ".tar.gz"))
-	}
-	dir := filepath.Dir(dest)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
-	tmp, err := os.CreateTemp(dir, ".meno-update-*")
-	if err != nil {
-		return fmt.Errorf("cannot write to %s (%w); reinstall with install.sh or rerun with the needed rights", dir, err)
-	}
-	defer os.Remove(tmp.Name())
-	defer tmp.Close()
-	resp, err := c.get(ctx, base+"/"+name)
-	if err != nil {
-		return fmt.Errorf("download failed: %w", err)
-	}
-	defer resp.Body.Close()
-	sum := sha256.New()
-	if err := extract(io.TeeReader(resp.Body, sum), tmp, a.Binary); err != nil {
-		return err
-	}
-	// The tar reader stops at the end of the archive: take in the rest so the
-	// hash covers every byte.
-	_, _ = io.Copy(io.Discard, io.TeeReader(resp.Body, sum))
-	if got := hex.EncodeToString(sum.Sum(nil)); got != want {
-		return fmt.Errorf("checksum mismatch for %s: got %s, want %s", name, got, want)
-	}
-	if err := tmp.Chmod(0o755); err != nil {
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		return err
-	}
-	return os.Rename(tmp.Name(), dest)
+	defer p.Close()
+	return p.Commit(ctx)
 }
 
 // findArchive returns the archive in a SHA256SUMS listing whose name ends in

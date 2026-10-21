@@ -1,0 +1,104 @@
+# Session: 
+
+Session ID: 
+
+Working directory: 
+
+Cutoff: 0001-01-01T00:00:00Z
+
+Current session settings (not historical request settings): provider unavailable; model current; effort unavailable.
+
+## Model requests
+
+A step is a logical request; retries are separate attempts. Input includes cache reads and writes; do not add them again. `unavailable` is not zero.
+
+| Step / attempt | Purpose | Provider | Model | Effort | Configuration | Outcome | Input | Output | Cached input | Cache write |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| s / 1 | unavailable | unavailable | old | unavailable | [abc](#configuration-abc) | failed | unavailable | unavailable | unavailable | unavailable |
+| s / 2 | unavailable | unavailable | old | unavailable | [abc](#configuration-abc) | completed | 12 | 2 | unavailable | unavailable |
+| next / 1 | unavailable | unavailable | new | unavailable | [abc](#configuration-abc) | completed | 0 | 0 | 0 | 0 |
+
+## Request boundaries
+
+- Request ``, step `s`, attempt 1: before history ID 0; started unavailable; ended unavailable.
+- Request ``, step `s`, attempt 2: before history ID 0; started unavailable; ended unavailable.
+- Request ``, step `next`, attempt 1: before history ID 0; started unavailable; ended unavailable.
+
+## Request configurations
+
+### Configuration abc
+
+System prompt:
+
+````text
+prompt
+```
+inside
+````
+
+Function definition:
+
+```json
+{
+  "description": "Run a shell command in the session working directory.",
+  "name": "bash",
+  "parameters": {
+    "properties": {
+      "command": {
+        "description": "Shell command to run.",
+        "type": "string"
+      },
+      "title": {
+        "description": "Short English action label, without secrets or command arguments.",
+        "type": "string"
+      }
+    },
+    "required": [
+      "command",
+      "title"
+    ],
+    "type": "object"
+  },
+  "type": "function"
+}
+```
+
+## Conversation
+
+### User — history 1
+
+System event:
+
+```text
+system event
+```
+
+hello
+
+### Assistant — history 2
+
+explanation
+
+Tool call: `c1`
+
+````sh
+echo '```'
+````
+
+````text
+```
+result
+````
+
+### Assistant — history 3
+
+Tool call: `c2`
+
+```sh
+pwd
+```
+
+```text
+/work
+```
+

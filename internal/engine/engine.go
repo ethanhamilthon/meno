@@ -71,6 +71,8 @@ type runState struct {
 	compacting       bool            // a compaction holds the history; a second one is rejected
 	cancelled        map[string]bool // root requests that were stopped; their events never wake the session
 	published        int
+	visibleTurns     []proto.Turn // published history, never runner-owned mutable state
+	visibleQueue     []string
 	origin           string // window that started the running turn (advisory)
 	persisted        bool   // the session is in the database; a new one is only in memory until its first message
 	// commit serializes a state change with the publication of its events, so a
@@ -83,26 +85,27 @@ type runState struct {
 // Engine owns loaded sessions, agent loops, tool services and event translation.
 // Construct it with New and pass it to daemon.New as its Backend.
 type Engine struct {
-	events2   *agent.EventStore // durable steering queue
-	home      string
-	sock      string // the daemon socket, handed to agent calls as MENO_SOCK
-	paths     config.Paths
-	store     *config.Store
-	settings  config.Settings
-	providers []llm.Provider
-	servers   []mcp.Server
-	catalog   map[string]llm.ModelInfo
-	mcp       *mcp.Manager
-	tasks     *proc.Supervisor
-	events    EventHub
-	global    GlobalEventHub
-	resources ResourceHandler
-	client    func(llm.Provider) llm.Client
-	mu        sync.Mutex
-	sessions  map[string]*runState
-	ids       map[string]idResult
-	closed    bool
-	runs      sync.WaitGroup
+	events2    *agent.EventStore // durable steering queue
+	home       string
+	sock       string // the daemon socket, handed to agent calls as MENO_SOCK
+	paths      config.Paths
+	store      *config.Store
+	settings   config.Settings
+	providers  []llm.Provider
+	servers    []mcp.Server
+	catalog    map[string]llm.ModelInfo
+	mcp        *mcp.Manager
+	tasks      *proc.Supervisor
+	events     EventHub
+	global     GlobalEventHub
+	resources  ResourceHandler
+	client     func(llm.Provider) llm.Client
+	mu         sync.Mutex
+	sessions   map[string]*runState
+	ids        map[string]idResult
+	closed     bool
+	runs       sync.WaitGroup
+	activeRuns int
 }
 type idResult struct {
 	value any

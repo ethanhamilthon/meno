@@ -35,6 +35,9 @@ func (e *Engine) sessionResource(ctx context.Context, method, path, query string
 		return proto.ResourceResponse{}, notFound(err)
 	}
 	group := parts[1]
+	if group == "export" && method == "GET" && len(parts) == 2 && q.Token == "" {
+		return e.exportResource(ctx, id)
+	}
 	if group == "read" && method == "POST" {
 		return e.readCompletion(ctx, id, q.Data)
 	}

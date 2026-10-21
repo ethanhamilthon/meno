@@ -13,6 +13,7 @@ func (s *Server) routes() http.Handler {
 	m := http.NewServeMux()
 	m.HandleFunc("GET /v1/hello", s.hello)
 	m.HandleFunc("POST /v1/shutdown", s.shutdown)
+	m.HandleFunc("POST /v1/shutdown/idle", s.shutdownIdle)
 	m.HandleFunc("GET /v1/sessions", s.list)
 	m.HandleFunc("POST /v1/sessions", s.create)
 	m.HandleFunc("GET /v1/sessions/{id}", s.snapshot)
@@ -28,7 +29,7 @@ func (s *Server) routes() http.Handler {
 	m.HandleFunc("GET /v1/events", s.globalEvents)
 	s.registerExtraRoutes(m)
 	m.Handle("/v1/", s.resourceHandler())
-	return m
+	return s.mutationGate(m)
 }
 func (s *Server) hello(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, proto.Hello{Protocol: proto.Protocol, Version: s.version, BootID: s.bootID, PID: s.pid, StartedAt: s.started.UTC().Format("2006-01-02T15:04:05.999999999Z07:00")})

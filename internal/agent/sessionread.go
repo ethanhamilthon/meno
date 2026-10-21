@@ -69,16 +69,16 @@ func readSession(db *sql.DB, id string) (*Session, error) {
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	rq, err := db.Query("SELECT provider,model,usage,cost,time FROM requests WHERE session_id = ? ORDER BY seq", id)
+	rq, err := db.Query("SELECT provider,model,usage,cost,time,details FROM requests WHERE session_id = ? ORDER BY seq", id)
 	if err != nil {
 		return nil, err
 	}
 	defer rq.Close()
 	for rq.Next() {
 		var r RequestUsage
-		var usage, when string
+		var usage, when, details string
 		var cost sql.NullFloat64
-		if err := rq.Scan(&r.Provider, &r.Model, &usage, &cost, &when); err != nil {
+		if err := rq.Scan(&r.Provider, &r.Model, &usage, &cost, &when, &details); err != nil {
 			return nil, err
 		}
 		if err := json.Unmarshal([]byte(usage), &r.Usage); err != nil {
@@ -88,10 +88,19 @@ func readSession(db *sql.DB, id string) (*Session, error) {
 			c := cost.Float64
 			r.Cost = &c
 		}
+		if details != "" {
+			if err := json.Unmarshal([]byte(details), &r.Record); err != nil {
+				return nil, err
+			}
+		}
 		r.Time = parseTS(when)
 		s.Requests = append(s.Requests, r)
 	}
-	return &s, rq.Err()
+	if err := rq.Err(); err != nil {
+		return nil, err
+	}
+	s.requestConfigs, err = readRequestConfigs(db, id)
+	return &s, err
 }
 
 func listSessions(db *sql.DB, limit int) ([]SessionInfo, error) {

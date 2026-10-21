@@ -45,7 +45,7 @@ func CodeLinesOpt(code string, bg tcell.Color, width, max int, o CodeOpts) []Lin
 		}
 		for _, r := range rows {
 			if max > 0 && len(out) == max {
-				return append(out, Line{Segs: []Seg{{Text: "  …", FG: FgDim}}, BG: bg})
+				return append(out, Line{Segs: []Seg{{Text: "…", FG: FgDim}}, BG: bg})
 			}
 			r.BG = bg
 			out = append(out, r)

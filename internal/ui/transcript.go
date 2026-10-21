@@ -51,7 +51,7 @@ type JSOpts struct {
 
 func BuildLines(turns []Turn, w int, js JSOpts) []Line {
 	var out []Line
-	wrapW := w - padX*2
+	wrapW := TranscriptTextWidth(w)
 	separate := false
 	for _, t := range turns {
 		think := ""
@@ -66,34 +66,30 @@ func BuildLines(turns []Turn, w int, js JSOpts) []Line {
 			separate = TurnHasMessage(t, js)
 		}
 		if think != "" && t.Role == RoleAssistant {
-			out = append(out, thinkingLines(think, wrapW-2, js)...)
+			out = append(out, thinkingLines(think, wrapW, js)...)
 			if t.Text != "" || t.Code != "" {
 				out = append(out, Band(BgTerm))
 			}
 		}
 		switch {
 		case t.Role == RoleUser && t.Kind == KindEvent:
-			out = append(out, WrapLines("⇢ "+eventSummary(t.Text), wrapW-2, func(s string) Line {
-				return Plain("  "+s, FgDim, BgTerm)
-			})...)
+			out = append(out, transcriptRows(eventSummary(t.Text), "⇢", w)...)
 		case t.Role == RoleUser && t.Kind == KindView:
-			out = append(out, WrapLines("◌ "+t.Text, wrapW-2, func(s string) Line {
-				return Plain("  "+s, FgDim, BgTerm)
-			})...)
+			out = append(out, transcriptRows(t.Text, "◌", w)...)
 			for _, at := range t.Attachments {
 				out = append(out, imageBlock(at, "view()", w, js.Images)...)
 			}
 		case t.Role == RoleUser:
 			out = append(out, Band(BgUser))
 			shown := t.Text
-			out = append(out, WrapLines(withObjectLabels(shown), wrapW-2, userLineMaker())...)
+			out = append(out, WrapLines(withObjectLabels(shown), wrapW, userLineMaker())...)
 			out = append(out, Band(BgUser))
 			for _, at := range t.Attachments {
 				out = append(out, imageBlock(at, "attachment", w, js.Images)...)
 			}
 		case t.Code != "":
 			if t.Text != "" {
-				out = append(out, mark(MarkdownLines(t.Text, wrapW-2, "◇"), t, commentref.PartAssistant, 2)...)
+				out = append(out, mark(MarkdownLines(t.Text, wrapW, "◇"), t, commentref.PartAssistant, 2)...)
 			}
 			block := jsBlock(t, w, js)
 			if t.Text != "" && len(block) > 0 {
@@ -101,13 +97,13 @@ func BuildLines(turns []Turn, w int, js JSOpts) []Line {
 			}
 			out = append(out, block...)
 		case t.Role == RoleAssistant && t.Text != "":
-			out = append(out, mark(MarkdownLines(t.Text, wrapW-2, "◆"), t, commentref.PartAssistant, 2)...)
+			out = append(out, mark(MarkdownLines(t.Text, wrapW, "◆"), t, commentref.PartAssistant, 2)...)
 		}
 		if t.Run != nil {
 			if len(out) > 0 {
 				out = append(out, Band(BgTerm))
 			}
-			out = append(out, SummaryLines(t.Run, wrapW)...)
+			out = append(out, transcriptSummary(t.Run, w)...)
 		}
 	}
 	return out
@@ -127,7 +123,7 @@ func jsBlock(t Turn, w int, js JSOpts) []Line {
 		case js.Running || js.Streaming:
 			bg = BgJSRun
 		}
-		lines := CodeLinesOpt(t.Code, bg, w-2, max, CodeOpts{Plain: js.Streaming})
+		lines := CodeLinesOpt(t.Code, bg, TranscriptTextWidth(w), max, CodeOpts{Plain: js.Streaming})
 		for i := range lines {
 			lines[i].Segs = append([]Seg{{Text: "  ", FG: FgDim}}, lines[i].Segs...)
 		}
@@ -145,14 +141,14 @@ func jsBlock(t Turn, w int, js JSOpts) []Line {
 
 func outputLines(t Turn, w int) []Line {
 	if t.Err != "" {
-		return WrapLines("error: "+t.Err, w, func(s string) Line {
+		return WrapLines("error: "+t.Err, TranscriptTextWidth(w), func(s string) Line {
 			return Plain("  "+s, Red, BgTerm)
 		})
 	}
 	if t.Output == "" {
 		return nil
 	}
-	return WrapLines(t.Output, w, func(s string) Line {
+	return WrapLines(t.Output, TranscriptTextWidth(w), func(s string) Line {
 		return Plain("  "+s, FgDim, BgTerm)
 	})
 }

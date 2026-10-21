@@ -39,6 +39,9 @@ type MirrorState struct {
 func (m *Mirror) Load(s proto.Snapshot) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if s.Version.Revision == 0 {
+		s.Version.Revision = s.Seq
+	}
 	// A snapshot older than the state already applied would roll it back.
 	if m.State.Version.Newer(s.Version) {
 		return
@@ -86,12 +89,23 @@ func (m *Mirror) Apply(e proto.Event) {
 		s.NeedsResync = true
 		return
 	}
+	if e.BootID != "" && s.Version.BootID != "" && e.BootID != s.Version.BootID {
+		s.NeedsResync = true
+		return
+	}
+	if e.Seq > 0 && e.Seq <= s.Seq {
+		return
+	}
 	if e.Seq > 0 && s.Seq > 0 && e.Seq != s.Seq+1 {
 		s.NeedsResync = true
 		return
 	}
 	if e.Seq > s.Seq {
 		s.Seq = e.Seq
+		s.Version.Revision = e.Seq
+		if e.BootID != "" {
+			s.Version.BootID = e.BootID
+		}
 	}
 	switch e.Type {
 	case proto.EventTextDelta:
@@ -119,21 +133,24 @@ func (m *Mirror) Apply(e proto.Event) {
 	case proto.EventCallEnd:
 		var d proto.CallEndData
 		if json.Unmarshal(e.Data, &d) == nil {
-			if c := m.call(d.CallID); c != nil {
-				c.Output = d.Output
-				c.Exit = &d.Exit
-				c.ElapsedMS = d.ElapsedMS
-				c.TaskID = d.TaskID
+			calls := s.Live.Calls[:0]
+			for _, c := range s.Live.Calls {
+				if c.CallID != d.CallID {
+					calls = append(calls, c)
+				}
 			}
+			s.Live.Calls = calls
 		}
 	case proto.EventTurnAdded:
 		var d proto.TurnAddedData
 		if json.Unmarshal(e.Data, &d) == nil {
-			if d.Turn.ID != "" && hasTurn(s.Turns, d.Turn.ID) {
+			if d.Turn.ID != "" && d.Turn.ID != "0" && hasTurn(s.Turns, d.Turn.ID) {
 				break // replayed after a snapshot that already holds it
 			}
 			s.Turns = append(s.Turns, d.Turn)
-			s.Live = proto.LiveState{Calls: []proto.CallState{}}
+			if d.Turn.Role == "assistant" {
+				s.Live.Text, s.Live.Thinking = "", ""
+			}
 		}
 	case proto.EventStatus:
 		var d proto.StatusData
@@ -161,6 +178,7 @@ func (m *Mirror) Apply(e proto.Event) {
 		var d proto.RetryState
 		if json.Unmarshal(e.Data, &d) == nil {
 			s.Retry = &d
+			s.Live = proto.LiveState{}
 		}
 	case proto.EventUsage:
 		var d proto.UsageData
@@ -192,6 +210,7 @@ func (m *Mirror) Apply(e proto.Event) {
 		if json.Unmarshal(e.Data, &d) == nil && staleRun(s, d.RequestID) {
 			break
 		}
+		s.Live = proto.LiveState{}
 		s.Running = false
 		s.Phase = ""
 		s.Retry = nil

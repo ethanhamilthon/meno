@@ -38,7 +38,7 @@ Bash tools, provider APIs, MCP integrations, and SQLite persistence.
 
 | Path | Responsibility / starting points |
 | --- | --- |
-| `cmd/meno/main.go` | CLI entry point; terminal setup and application lifecycle. |
+| `cmd/meno/main.go` | CLI entry point; terminal setup and application lifecycle. Update orchestration: `cmd/meno/update.go`. |
 | `internal/app/` | TUI controller, state, input, commands, modals, session/runtime wiring. Start with `app.go`, `state.go`, `runtime.go`, `turn.go`. Local drafts: `draft_store.go` (files), `draft_sync.go` (composer glue). Stream state: `connection.go`. Text fields outside the composer: `textedit*.go` (`textEdit`), forms in `forms.go`. Slash completion of skills: `slash_completion.go`; status-bar segments and clicks: `status_segs.go`, `attention_filter.go`; per-window setting overrides: `local_preferences.go`. `/login` (the only providers UI): `login.go` (list), `login_flow.go` (OAuth login modal), `login_oauth.go` (helper glue, the derived `oauth` provider), `login_api.go` (API-key providers, the first-run lock). |
 | `internal/ui/` | Rendering primitives, themes, Markdown, transcript layout, widgets. Start with `render.go`, `transcript.go`, `theme.go`. |
 | `internal/agent/` | Agent loop, events, retries, queues, compaction, sessions. Start with `loop.go`, `session.go`, `sessiondb.go`; history, fork and the versioned store in `history.go`, `fork.go`; the steering queue in `queue.go`, events in `events.go`. |
@@ -50,7 +50,7 @@ Bash tools, provider APIs, MCP integrations, and SQLite persistence.
 | `internal/clihelp/` | Embedded help texts of the commands (`help/*.md`, golden files in `testdata/`). |
 | `internal/form/` | Shape of the question form that `meno ask` shows to the user. |
 | `internal/proto/` | Shared daemon API request, response, and event types. |
-| `internal/daemon/` | Daemon lifecycle, socket, HTTP resources, event streams; configuration resources in `cfgsvc/`. |
+| `internal/daemon/` | Daemon lifecycle, socket, HTTP resources, event streams; startup/update serialization in `transition.go`, idle-only admission in `update_shutdown.go`; configuration resources in `cfgsvc/`. |
 | `internal/web/` | `meno web` service: URL/IP policy (`policy.go`), bounded fetch and HTML to text (`fetch.go`), search through a configured backend (`search.go`). The provider side of search is `internal/llm/search.go`; the daemon resource is `internal/engine/resource_web.go`. |
 | `internal/commentref/` | Self-contained quotation payload of the Comments feature: `Encode`, `Decode`, `Label`, the 16 KiB limit. Rows know their source through `ui/source.go`; the composer side is `app/comments.go`. |
 | `internal/mcp/` | MCP server lifecycle, transports, JSON-RPC, tool schemas, typed results and the local result/artifact store. Start with `manager.go`, `manager_start.go`, `client.go`, `discovery.go`, `result.go`, `store.go`. The config service owns the shared manager lifecycle; the engine only uses it. |
@@ -58,7 +58,7 @@ Bash tools, provider APIs, MCP integrations, and SQLite persistence.
 | `internal/config/` | Paths, settings, providers, skills, MCP configuration, and the read-only `provider.json`/`mcp.json` overlays (`overlay.go`). Start with `paths.go`, `settings.go`, `store.go`. |
 | `internal/db/` | Shared SQLite database; versioned migrations live in `migrations.go`, opening in `db.go`, clean 0.5 epoch backup in `epoch.go`. |
 | `internal/proc/` | Process supervisor for foreground bash calls and background tasks (`foreground.go`: launch, promote to a task, cancel): process groups, bounded rotating disk logs, durable task results; `daemon.go` runs the provider `run` commands. |
-| `internal/update/` | `meno update` and the start-up check: latest GitHub release (the release page redirect, API as fallback), SHA-256 verified install (`Asset`/`InstallAsset`, also used for cliproxyapi), cached check in `$MENO_HOME/update.json`. |
+| `internal/update/` | `meno update` and the start-up check: latest GitHub release (the release page redirect, API as fallback), SHA-256 verified staged install (`Prepare`/`PrepareAsset` then `Prepared.Commit`; `InstallAsset` also used for cliproxyapi), cached check in `$MENO_HOME/update.json`. |
 | `internal/cliproxy/` | The cliproxyapi helper behind OAuth logins: install and update from its GitHub releases (`install.go`), config and command (`config.go`), state/keys (`manager.go`), management API client for logins and accounts (`api.go`), the six services (`services.go`). The process itself runs under `proc.Daemons`. |
 | `internal/version/` | Single version source: `VERSION` file (embedded); `Label()` feeds the welcome screen and help title, `Number()` feeds `--version`. Bump it for every release. |
 | `internal/store/` | Reusable JSON loading and atomic saving; `json.go`. |

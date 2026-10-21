@@ -36,7 +36,7 @@ func (a *App) transcriptWithSelection(w int) []ui.Line {
 			if n.Err {
 				fg = ui.Red
 			}
-			appendLines(ui.WrapLines(n.Text, max(1, w-2*ui.PadX-2), func(s string) ui.Line {
+			appendLines(ui.WrapLines(n.Text, ui.TranscriptTextWidth(w), func(s string) ui.Line {
 				return ui.Plain("  "+s, fg, ui.BgTerm)
 			}), true)
 		}

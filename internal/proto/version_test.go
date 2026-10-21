@@ -39,3 +39,22 @@ func TestOriginIsOptionalOnTheWire(t *testing.T) {
 		t.Fatalf("old status: %+v %v", st, err)
 	}
 }
+
+// omitempty does not make a populated new field compatible with an old strict
+// decoder. A compatibility bump must keep these peers from sending requests.
+func TestOriginRequiresProtocolBumpFrom060(t *testing.T) {
+	b, _ := json.Marshal(MessageRequest{Text: "hi", ClientID: "c", Origin: "window"})
+	var old struct {
+		Text        string       `json:"text"`
+		Attachments []Attachment `json:"attachments,omitempty"`
+		ClientID    string       `json:"client_id"`
+	}
+	decoder := json.NewDecoder(strings.NewReader(string(b)))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&old); err == nil || !strings.Contains(err.Error(), `unknown field "origin"`) {
+		t.Fatalf("old decoder error: %v", err)
+	}
+	if Protocol <= 3 {
+		t.Fatal("new requests require a protocol bump beyond 0.6.0")
+	}
+}
