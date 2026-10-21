@@ -71,6 +71,15 @@ func TestSteeringQueueClearsBeforeRunFinishes(t *testing.T) {
 		t.Fatalf("queued message is not visible: %q", a.st.Queued)
 	}
 	release(cl.releaseFirst)
+	t.Cleanup(func() {
+		if t.Failed() {
+			rt := a.st.Runtime
+			cl.mu.Lock()
+			req := cl.requests
+			cl.mu.Unlock()
+			t.Logf("DEBUG requests=%d running=%v phase=%q queued=%v turns=%d sending=%d calls=%d last=%q notice=%q", req, rt.Running, rt.Phase, rt.Queued, rt.Session.Len(), rt.sending, len(rt.LiveCalls), lastRole(rt), a.lastNotice())
+		}
+	})
 	pump(t, a, func() bool {
 		select {
 		case <-cl.second:
@@ -100,4 +109,12 @@ func lastAssistantText(a *App) string {
 		}
 	}
 	return ""
+}
+
+func lastRole(rt *Runtime) string {
+	n := rt.Session.Len()
+	if n == 0 {
+		return ""
+	}
+	return rt.Session.turns[n-1].Role + ":" + rt.Session.turns[n-1].Text
 }
