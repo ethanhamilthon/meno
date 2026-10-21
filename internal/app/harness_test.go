@@ -138,14 +138,26 @@ func cursorVisible(s tcell.SimulationScreen) bool {
 }
 
 // runDone is true when the last message was answered: the daemon has stored the
-// answer and the run is over.
+// answer and the run is over. A finished background task can add one more event
+// turn after the answer, so the answer need not be the very last turn.
 func runDone(a *App) bool {
 	rt := a.st.Runtime
-	if rt.Running || len(rt.Queued) > 0 {
+	if rt.Running || len(rt.Queued) > 0 || rt.sending > 0 {
 		return false
 	}
-	n := rt.Session.Len()
-	return n >= 2 && rt.Session.turns[n-1].Role == "assistant"
+	turns := rt.Session.turns
+	if len(turns) < 2 {
+		return false
+	}
+	for i := len(turns) - 1; i >= 1; i-- {
+		if turns[i].Role == "assistant" {
+			return true
+		}
+		if turns[i].Role == "user" && !strings.HasPrefix(turns[i].Text, "<event ") {
+			return false
+		}
+	}
+	return false
 }
 
 // settle processes events until the first snapshot of the session arrived, so

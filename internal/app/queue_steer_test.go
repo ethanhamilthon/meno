@@ -83,5 +83,21 @@ func TestSteeringQueueClearsBeforeRunFinishes(t *testing.T) {
 		t.Fatal("the queue must clear while the next request is still running")
 	}
 	release(cl.releaseSecond)
-	pump(t, a, func() bool { return runDone(a) })
+	// Under load the first call can be promoted to a task, and its end then
+	// arrives as one more turn after the answer; the run is over once the model
+	// answered and nothing is running or queued.
+	pump(t, a, func() bool {
+		return !a.st.Running && len(a.st.Queued) == 0 && assistantTurns(a) > 0 && lastAssistantText(a) == "done"
+	})
+}
+
+// lastAssistantText is the text of the newest answer the session shows.
+func lastAssistantText(a *App) string {
+	turns := a.st.Session.turns
+	for i := len(turns) - 1; i >= 0; i-- {
+		if turns[i].Role == "assistant" && turns[i].Text != "" {
+			return turns[i].Text
+		}
+	}
+	return ""
 }
