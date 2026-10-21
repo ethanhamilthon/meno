@@ -90,6 +90,10 @@ func (a *App) onSendResult(m sendResult) {
 		return
 	}
 	rt.sending = max(0, rt.sending-1)
+	if sessionGone(m.err) {
+		a.replaceGone(rt, m.msg)
+		return
+	}
 	a.inRT(m.sid, func() {
 		if m.err != nil {
 			rt.Running, rt.Phase = false, ""

@@ -10,7 +10,7 @@ import (
 
 func TestDurableReadAcknowledgmentDoesNotClearNewerRun(t *testing.T) {
 	e, _ := fixture(t, &fakeProvider{})
-	id := newSession(t, e)
+	id := usedSession(t, e)
 	s, err := e.load(context.Background(), id)
 	if err != nil {
 		t.Fatal(err)
@@ -63,7 +63,7 @@ func TestRemovedFeatureResourcesFail(t *testing.T) {
 
 func TestGlobalStateCountsPendingAskSeparately(t *testing.T) {
 	e, _ := fixture(t, &fakeProvider{})
-	id := newSession(t, e)
+	id := usedSession(t, e)
 	s, err := e.load(context.Background(), id)
 	if err != nil {
 		t.Fatal(err)

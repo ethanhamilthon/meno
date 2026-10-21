@@ -99,7 +99,13 @@ func listSessions(db *sql.DB, limit int) ([]SessionInfo, error) {
 		(SELECT COUNT(1) FROM turns t WHERE t.session_id = s.id),
 		(SELECT COUNT(1) FROM turns t WHERE t.session_id = s.id AND (t.code <> '' OR t.call_id <> '')),
 		s.provider, s.model, s.effort, s.tool
-		FROM sessions s WHERE s.kind = 'main' ORDER BY s.updated_at DESC LIMIT ?`, limit)
+		FROM sessions s WHERE s.kind = 'main' AND (
+			EXISTS (SELECT 1 FROM turns t WHERE t.session_id = s.id)
+			OR s.summary <> ''
+			OR EXISTS (SELECT 1 FROM history h WHERE h.session_id = s.id)
+			OR EXISTS (SELECT 1 FROM tasks k WHERE k.session_id = s.id)
+			OR EXISTS (SELECT 1 FROM events v WHERE v.session_id = s.id))
+		ORDER BY s.updated_at DESC LIMIT ?`, limit)
 	if err != nil {
 		return nil, err
 	}

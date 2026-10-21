@@ -36,7 +36,6 @@ func (a *App) newSession() {
 		return
 	}
 	rt := a.newRuntime(s, cwd)
-	rt.Saved = true
 	rt.watch = a.watch(s.ID())
 	a.switchTo(rt)
 }

@@ -88,11 +88,19 @@ func TestSkillsDialogExplainsWhereToPutSkills(t *testing.T) {
 }
 
 func TestSessionsOverlayListsTheCurrentSession(t *testing.T) {
-	a, scr := newTestApp(t)
+	cl := &scriptedClient{turns: [][]llm.Event{{{Kind: llm.EvText, Text: "ok"}, {Kind: llm.EvDone}}}}
+	a, scr, _ := e2eApp(t, cl)
 	defer scr.Fini()
 	a.openSessions()
 	a.draw()
-	if text := screenText(scr); !strings.Contains(text, "new session") || !strings.Contains(text, "current") {
+	if text := screenText(scr); strings.Contains(text, "new session") || strings.Contains(text, "current") {
+		t.Fatalf("a session without a message is listed:\n%s", text)
+	}
+	a.closeOverlay()
+	say(t, a, "hello overlay")
+	a.openSessions()
+	a.draw()
+	if text := screenText(scr); !strings.Contains(text, "hello overlay") || !strings.Contains(text, "current") {
 		t.Fatalf("sessions overlay not rendered:\n%s", text)
 	}
 	a.st.Query.Set("nothing like this")

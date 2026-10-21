@@ -98,6 +98,7 @@ func (e *Engine) DeleteSession(ctx context.Context, id string) error {
 		s.mu.Unlock()
 		return api(proto.CodeConflict, "session has active work")
 	}
+	unsaved := !s.persisted
 	s.mu.Unlock()
 	d, err := e.store.DB()
 	if err != nil {
@@ -109,6 +110,9 @@ func (e *Engine) DeleteSession(ctx context.Context, id string) error {
 		delete(e.sessions, id)
 		e.mu.Unlock()
 		err = (mcp.ResultStore{Dir: e.paths.File("mcp-results")}).DeleteSession(id)
+		if unsaved {
+			return err
+		}
 		e.announce(proto.EventSessionDeleted, id, "")
 	}
 	return err

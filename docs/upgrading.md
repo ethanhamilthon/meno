@@ -1,5 +1,12 @@
 # Upgrading, data and privacy
 
+## 0.6.1: sessions are stored with their first message
+
+Restart the daemon after updating (the protocol is unchanged). A new session
+lives in the daemon's memory until its first message; nothing is written before.
+Empty sessions that older versions stored stay in the database but are no longer
+listed. Nothing is deleted or migrated.
+
 ## 0.6.0: shared sessions, drafts, quotes and web access
 
 Restart the daemon after updating: the protocol is now 3, and an old daemon is

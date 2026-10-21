@@ -5,7 +5,7 @@ const bashDescription = `Run one shell command in a fresh shell in the session w
 Use the meno CLI to interact with Meno:
 - meno mcp: servers, tools SERVER, call SERVER TOOL [ARGS], results ID, add/remove/restart.
 - meno tasks: start CMD, list, status ID, logs ID, wait ID, cancel ID.
-- meno ask FILE|-: ask the user a question using a form JSON file or stdin.
+- meno ask FILE|-: ask the user a question using a form JSON file or stdin. Form: {"questions":[{"id":"q1","text":"...","type":"single|multi|text","options":[{"id":"a","label":"..."}],"recommendation":"optional"}],"timeout":seconds?}. Options are required for single and multi, forbidden for text. Prints {id, selected, text} answers as JSON.
 - meno view IMAGE: inspect an image.
 - meno models [--provider --refresh]: list models.
 - meno sessions [--cwd DIR]: list sessions.

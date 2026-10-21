@@ -11,7 +11,7 @@ func TestDirectoryChangesArePublished(t *testing.T) {
 	e, _ := fixture(t, &fakeProvider{})
 	g := daemon.NewGlobalHub("boot", 100)
 	e.global = g
-	id := newSession(t, e)
+	id := usedSession(t, e)
 	if err := e.DeleteSession(context.Background(), id); err != nil {
 		t.Fatal(err)
 	}

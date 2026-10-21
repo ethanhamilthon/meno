@@ -78,7 +78,7 @@ type Runtime struct {
 
 	Unseen  bool // a turn finished while another session was on screen
 	LastErr bool // the last turn ended with an error
-	Saved   bool // the session is in the database (the daemon has it)
+	Saved   bool // the first snapshot of the session arrived
 
 	watch func() // stops the event stream of this session
 }
@@ -144,8 +144,9 @@ func (a *App) switchTo(rt *Runtime) {
 	}
 	a.st.Runtime = rt
 	// An empty session nobody used is not worth keeping around.
-	if prev != nil && prev.Empty() && prev.Idle() && !prev.Saved && len(prev.Input) == 0 {
+	if prev != nil && prev.Empty() && prev.Idle() && len(prev.Input) == 0 && len(prev.Tasks) == 0 {
 		a.dropRuntime(prev)
+		a.forgetEmpty(prev.ID()) // the daemon holds it in memory only
 	}
 	a.reloadSkills() // the project skills depend on the directory
 }

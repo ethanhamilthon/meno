@@ -64,10 +64,7 @@ func (e *Engine) CreateSession(ctx context.Context, q proto.SessionCreateRequest
 	sess := agent.NewSession(abs, model)
 	sess.Provider = e.cfg().Provider
 	sess.Effort = e.cfg().Effort
-	if err = agent.SaveSession(e.home, sess); err != nil {
-		return proto.SessionCreateResponse{}, err
-	}
-	s, err := e.load(ctx, sess.ID)
+	s, err := e.adopt(sess)
 	if err != nil {
 		return proto.SessionCreateResponse{}, err
 	}
@@ -76,6 +73,5 @@ func (e *Engine) CreateSession(ctx context.Context, q proto.SessionCreateRequest
 	s.token.groups = groupsFor(nil)
 	result := proto.SessionCreateResponse{Session: item(s)}
 	s.mu.Unlock()
-	e.announce(proto.EventSessionCreated, sess.ID, "")
 	return result, nil
 }

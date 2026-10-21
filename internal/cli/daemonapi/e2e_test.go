@@ -152,12 +152,16 @@ func asAPI(err error, target **cli.APIError) bool {
 func TestSessionsListAndSend(t *testing.T) {
 	_, _, sess, api := start(t, &scripted{steps: [][]llm.Event{{{Kind: llm.EvText, Text: "pong"}, {Kind: llm.EvDone}}}})
 	items, err := api.Sessions("")
-	if err != nil || len(items) != 1 || items[0].ID != sess.Session.ID {
-		t.Fatalf("sessions %v %v", items, err)
+	if err != nil || len(items) != 0 {
+		t.Fatalf("a session without a message must not be listed: %v %v", items, err)
 	}
 	res, err := api.Send(cli.SendRequest{Text: "ping", SessionID: sess.Session.ID})
 	if err != nil || !res.Done || !strings.Contains(res.Text, "pong") {
 		t.Fatalf("send %+v %v", res, err)
+	}
+	items, err = api.Sessions("")
+	if err != nil || len(items) != 1 || items[0].ID != sess.Session.ID {
+		t.Fatalf("sessions after the first message %v %v", items, err)
 	}
 }
 
@@ -165,5 +169,17 @@ func TestAgentGoalAndViewWithoutActiveGoal(t *testing.T) {
 	_, _, _, api := start(t, &scripted{})
 	if _, err := api.Models("", false); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestSendNewCreatesExactlyOneListedSession(t *testing.T) {
+	_, _, _, api := start(t, &scripted{steps: [][]llm.Event{{{Kind: llm.EvText, Text: "pong"}, {Kind: llm.EvDone}}}})
+	res, err := api.Send(cli.SendRequest{Text: "ping", New: true})
+	if err != nil || res.SessionID == "" || !res.Done {
+		t.Fatalf("send %+v %v", res, err)
+	}
+	items, err := api.Sessions("")
+	if err != nil || len(items) != 1 || items[0].ID != res.SessionID {
+		t.Fatalf("sessions %v %v", items, err)
 	}
 }

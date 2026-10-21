@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.6.1
+
+Restart the daemon after updating. No data is deleted or migrated.
+
+- **No empty sessions.** A session is created in the daemon's memory and stored
+  only when its first message is sent. Opening meno or `/new` no longer leaves
+  empty entries in `/sessions` or `meno sessions`. Empty entries stored by older
+  versions are hidden, not deleted. If the daemon restarts before the first
+  message, the typed text is sent in a fresh session.
+- **The name appears at once.** A session is named when its first message is
+  sent, not when the run ends.
+- **`meno ask` form.** The bash tool description and `meno help ask` now show the
+  JSON form and the answer shape.
+
 ## 0.6.0
 
 Restart the daemon after updating (protocol 3). No data is reset or migrated.

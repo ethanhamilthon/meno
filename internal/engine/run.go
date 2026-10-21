@@ -58,6 +58,7 @@ func (e *Engine) Message(ctx context.Context, id string, q proto.MessageRequest)
 		s.mu.Unlock()
 		return proto.MessageResponse{}, err
 	}
+	untitled := s.session.Title == "" || s.session.Title == "untitled"
 	if err = e.appendMessage(s, q); err != nil {
 		s.mu.Unlock()
 		return proto.MessageResponse{}, err
@@ -72,6 +73,7 @@ func (e *Engine) Message(ctx context.Context, id string, q proto.MessageRequest)
 	runCtx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
 	_ = e.save(s)
+	named := untitled && s.session.Title != "" && s.session.Title != "untitled"
 	turns := s.session.Snapshot()
 	s.published = len(turns)
 	s.mu.Unlock()
@@ -79,6 +81,10 @@ func (e *Engine) Message(ctx context.Context, id string, q proto.MessageRequest)
 	e.publish(id, proto.EventStatus, proto.StatusData{Running: true, Phase: "preparing", RequestID: rid})
 	if repaired {
 		e.publish(id, proto.EventSessionChanged, proto.ChangedData{Fields: []string{"provider", "model", "effort"}})
+	}
+	if named {
+		// The first message names the session; windows show it now, not at the end of the run.
+		e.publish(id, proto.EventSessionChanged, proto.ChangedData{Fields: []string{"name"}})
 	}
 	e.launch(runCtx, s, q.Text, false)
 	return proto.MessageResponse{RequestID: rid}, nil

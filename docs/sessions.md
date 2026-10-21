@@ -7,7 +7,7 @@ providers, MCP servers and settings are shared.
 - `/sessions` lists the last 200 sessions of all projects with live statuses: blinking green = running, orange `?` = waiting for an
   answer, red = last turn failed, blue = finished while you were elsewhere. The status bar
   counts the other sessions too (see [ui](ui.md#status-bar)).
-- `/new` starts an empty session in the current directory; other sessions keep running.
+- `/new` starts an empty session in the current directory; other sessions keep running. A session is stored (and listed) only when its first message is sent; an empty one is not kept. Its name appears as soon as that message is sent.
 - `/fork` makes a new independent session from an earlier message (default: the
   latest). The boundary is widened to a whole tool-call group; the fork gets the
   history up to it, the summary that was valid *then* (never one that mentions later

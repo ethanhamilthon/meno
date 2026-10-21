@@ -71,6 +71,7 @@ type runState struct {
 	compacting       bool            // a compaction holds the history; a second one is rejected
 	cancelled        map[string]bool // root requests that were stopped; their events never wake the session
 	published        int
+	persisted        bool // the session is in the database; a new one is only in memory until its first message
 	// commit serializes a state change with the publication of its events, so a
 	// snapshot cursor always matches the state it was read with. Lock order:
 	// commit before mu; never hold commit across provider or socket I/O.
@@ -216,7 +217,6 @@ func (e *Engine) needsYou(id string) bool {
 	defer s.mu.Unlock()
 	return s.ask != nil
 }
-func (e *Engine) save(s *runState) error { return agent.SaveSession(e.home, s.session) }
 func (e *Engine) load(ctx context.Context, id string) (*runState, error) {
 	e.mu.Lock()
 	if e.closed {
@@ -232,13 +232,10 @@ func (e *Engine) load(ctx context.Context, id string) (*runState, error) {
 	if err != nil {
 		return nil, err
 	}
-	sess.AttachDir = e.paths.File("attachments")
-	tok, err := newToken()
+	st, err := e.newState(sess, true)
 	if err != nil {
 		return nil, err
 	}
-	st := &runState{cancelled: map[string]bool{}, session: sess, cwd: sess.Cwd, env: map[string]string{}, changed: time.Now(), token: tokenState{value: tok, groups: groupsFor(nil)}}
-	st.published = len(sess.Snapshot())
 	e.mu.Lock()
 	if old := e.sessions[id]; old != nil {
 		e.mu.Unlock()

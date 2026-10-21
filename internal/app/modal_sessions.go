@@ -50,7 +50,7 @@ func (a *App) sessionRows() []sessionRow {
 	seen := map[string]bool{}
 	var rows []sessionRow
 	for _, rt := range a.rtList {
-		if rt.Empty() && rt != a.st.Runtime && !rt.Running {
+		if rt.Empty() && !rt.Running {
 			continue
 		}
 		seen[rt.ID()] = true

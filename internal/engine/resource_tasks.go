@@ -38,6 +38,10 @@ func (e *Engine) taskResource(ctx context.Context, s *runState, tail []string, m
 		}
 		notify := boolValue(data, "notify", true)
 		s.mu.Lock()
+		if err := e.ensureSaved(s); err != nil {
+			s.mu.Unlock()
+			return nil, err
+		}
 		owner, base := s.requestID, envSlice(s.env)
 		s.mu.Unlock()
 		env := append(base, mapEnv(data["env"])...)

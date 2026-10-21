@@ -233,7 +233,7 @@ func TestCrashRecoveryMarksTasksInterrupted(t *testing.T) {
 func TestTokenIsEphemeral(t *testing.T) {
 	f := &fakeProvider{}
 	e, _ := fixture(t, f)
-	id := newSession(t, e)
+	id := usedSession(t, e)
 	snap, err := e.Snapshot(context.Background(), id)
 	if err != nil {
 		t.Fatal(err)
