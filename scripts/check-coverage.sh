@@ -2,7 +2,7 @@
 # Fails when a package's statement coverage is below its floor in
 # scripts/coverage-floors.txt. Usage: scripts/check-coverage.sh [floors-file]
 floors=${1:-scripts/coverage-floors.txt}
-out=$(go test ./... -cover 2>&1) || { echo "$out" | grep -E -- "^(FAIL|--- FAIL|panic)|_test.go:[0-9]+|DEBUG" | head -40; echo "tests failed"; exit 1; }
+out=$(go test ./... -cover 2>&1) || { echo "$out" | grep -E -- "^(FAIL|--- FAIL|panic)|(_test|testing)\.go:[0-9]+|DEBUG" | head -40; echo "tests failed"; exit 1; }
 status=0
 while read -r pkg min; do
 	case "$pkg" in ''|'#'*) continue;; esac

@@ -61,6 +61,7 @@ func (a *App) send(msg msgDraft) {
 	}
 	if !rt.Running {
 		rt.Running, rt.Phase, rt.LastErr = true, "preparing", false
+		rt.RequestID = ""
 		rt.RunStart, rt.RunTurns, rt.RunJS, rt.RunUsage0 = nowFn(), 0, 0, rt.Usage
 		rt.Title, rt.Scroll = "", 0
 		a.clearLive()

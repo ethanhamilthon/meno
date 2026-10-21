@@ -52,6 +52,7 @@ type Service struct {
 	files          map[string]fileStamp
 	settings       config.Settings
 	settingsLoaded bool
+	bg             sync.WaitGroup
 	ctx            context.Context
 	cancel         context.CancelFunc
 	knownModels    map[string][]llm.Model

@@ -30,7 +30,11 @@ func (s *Service) Start(ctx context.Context) error {
 			go s.recoverHelper(runCtx)
 		}
 	}
-	go s.refreshMetadata(runCtx)
+	s.bg.Add(1)
+	go func() {
+		defer s.bg.Done()
+		s.refreshMetadata(runCtx)
+	}()
 	providers, err := s.providers()
 	if err != nil {
 		cancel()
@@ -39,7 +43,12 @@ func (s *Service) Start(ctx context.Context) error {
 	for _, p := range providers {
 		if p.Active() && !p.Managed() {
 			s.syncProvider(p)
-			go s.refreshModels(runCtx, p)
+			prov := p
+			s.bg.Add(1)
+			go func() {
+				defer s.bg.Done()
+				s.refreshModels(runCtx, prov)
+			}()
 		}
 	}
 	servers, err := s.servers()
@@ -69,6 +78,7 @@ func (s *Service) Close() {
 	s.mu.Unlock()
 	s.daemons.StopAll()
 	s.mcp.StopAll()
+	s.bg.Wait()
 }
 
 func (s *Service) refreshMetadata(ctx context.Context) {
@@ -79,7 +89,7 @@ func (s *Service) refreshMetadata(ctx context.Context) {
 	callCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 	catalog, err := fetch(callCtx)
-	if err != nil {
+	if err != nil || ctx.Err() != nil {
 		return
 	}
 	_ = s.store.SaveCatalog(catalog)

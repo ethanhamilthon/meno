@@ -38,7 +38,14 @@ func TestExportAsyncCapturesSessionAndDestination(t *testing.T) {
 	a.newSession()
 	a.st.Cwd = t.TempDir()
 	path := filepath.Join(cwd, "meno-session.md")
-	pump(t, a, func() bool { _, err := os.Stat(path); return err == nil })
+	pump(t, a, func() bool {
+		for _, n := range a.currentNotices() {
+			if strings.Contains(n.Text, "session saved to") {
+				return true
+			}
+		}
+		return false
+	})
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)

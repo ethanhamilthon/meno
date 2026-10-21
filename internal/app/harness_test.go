@@ -35,7 +35,11 @@ func startRig(t testing.TB, home string, model llm.Client) *rig {
 	t.Helper()
 	hub, global := daemon.NewHub("t", 5000), daemon.NewGlobalHub("t", 200)
 	manager := mcp.NewManager()
-	svc, err := cfgsvc.New(cfgsvc.Options{MCP: manager, Paths: config.Paths{Home: home}})
+	svc, err := cfgsvc.New(cfgsvc.Options{
+		MCP:           manager,
+		Paths:         config.Paths{Home: home},
+		FetchMetadata: func(context.Context) (map[string]llm.ModelInfo, error) { return map[string]llm.ModelInfo{}, nil },
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
