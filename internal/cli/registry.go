@@ -1,6 +1,6 @@
 package cli
 
-var commandNames = []string{"mcp", "tasks", "ask", "view", "models", "daemon", "sessions", "send", "tail"}
+var commandNames = []string{"mcp", "tasks", "ask", "view", "models", "daemon", "sessions", "send", "tail", "doctor", "web"}
 
 func containsString(items []string, value string) bool {
 	for _, item := range items {

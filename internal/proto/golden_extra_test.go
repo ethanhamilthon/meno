@@ -11,7 +11,7 @@ func TestRequestAndResponseJSONGoldens(t *testing.T) {
 		v    any
 		want string
 	}{
-		{"snapshot_response", Snapshot{Seq: 1, Live: LiveState{}}, `{"session":{"id":"","cwd":"","running":false,"needs_you":false},"cwd":"","running":false,"seq":1,"turn_count":0,"live":{},"metrics":{},"task_count":0}`},
+		{"snapshot_response", Snapshot{Seq: 1, Live: LiveState{}}, `{"session":{"id":"","cwd":"","running":false,"needs_you":false},"cwd":"","running":false,"seq":1,"version":{"boot_id":"","revision":0},"turn_count":0,"live":{},"metrics":{},"task_count":0}`},
 		{"turn_page", TurnsPage{Turns: []Turn{{Role: "user", Content: "hi"}}, From: 0, Next: 1, Total: 1}, `{"turns":[{"role":"user","content":"hi"}],"from":0,"next":1,"total":1}`},
 		{"stop", StopRequest{RequestID: "r"}, `{"request_id":"r"}`},
 		{"compact", CompactRequest{ClientID: "c", Keep: 8}, `{"client_id":"c","keep":8}`},

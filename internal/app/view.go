@@ -116,8 +116,9 @@ var commandList = []cmdDef{
 	{"/export", "export markdown"},
 	{"/stop", "stop this turn"},
 	{"/help", "keys & commands"},
-	{"/q", "quit meno"},
-	{"/q!", "quit, stopping all turns"},
+	{"/drafts", "restore unsent drafts of earlier windows"},
+	{"/stop-all", "stop every running turn (asks to confirm)"},
+	{"/q", "leave meno; work keeps running"},
 }
 
 func jsMode(v string) ui.JSMode {

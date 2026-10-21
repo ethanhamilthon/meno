@@ -29,7 +29,7 @@ providers, MCP servers and settings are shared.
 - `/stop` / `Ctrl+C` cancel the active root request: its running turn, the bash calls
   still running in the foreground, and its pending events. Background tasks
   (`meno tasks start`, or a call moved to a task by your message) keep running;
-  cancel one with `meno tasks cancel ID`. `/q` refuses while anything runs; `/q!` cancels everything.
+  cancel one with `meno tasks cancel ID`. `/q` (and the legacy `/q!`) only detaches the terminal; runs and tasks keep going. `/stop-all` cancels every running turn after a repeated confirmation.
 
 ## Steering and events
 
@@ -47,3 +47,15 @@ If an event of an old request arrives during a new one it joins the new one, and
 started because of it belongs to the new request. The model sees events in
 `<event source=… from=… kind=…>` wrappers with escaped content. After a crash nothing is restarted. Unfinished
 tasks are marked interrupted.
+
+## Several windows
+
+Any number of terminals can watch and drive the same daemon. Shared: history, the
+queue, the running turn, tasks, the model and directory of a session, providers and
+MCP, and which finished turns you have read. Local to each window: the draft, the
+cursor, the scroll position and the selected session. Anyone can send or stop; a
+stop names the request it was meant for, so it cannot hit a newer one.
+
+When the stream of a session breaks, the status bar says `offline · state may be
+stale` and sending is held back with your draft kept; it clears on the next fresh
+snapshot. `/drafts` restores drafts left by earlier windows.

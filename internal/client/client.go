@@ -21,6 +21,9 @@ import (
 type Client struct {
 	Home, Socket string
 	HTTP         *http.Client
+	// IdleTimeout closes an event stream that sends nothing (not even a
+	// keepalive) for this long, so the stream reconnects. Zero means 45s.
+	IdleTimeout time.Duration
 }
 
 // Options configures daemon discovery and startup. StartTimeout defaults to five seconds.

@@ -1,5 +1,7 @@
 package proto
 
+import "encoding/json"
+
 // ConfigSettings is the daemon wire form of config.Settings.
 type ConfigSettings struct {
 	Provider             string `json:"provider"`
@@ -23,6 +25,8 @@ type ConfigSettings struct {
 	CompactKeep          int    `json:"compact_keep"`
 	CompactSummaryTokens int    `json:"compact_summary_tokens"`
 	ImagesProtocol       string `json:"images_protocol"`
+	WebSearch            string `json:"web_search"`
+	WebAllowLocal        bool   `json:"web_allow_local"`
 }
 
 type SettingsRequest struct {
@@ -30,4 +34,13 @@ type SettingsRequest struct {
 }
 type SettingsResponse struct {
 	Settings ConfigSettings `json:"settings"`
+}
+
+// SettingsPatch changes only the named settings fields. Expect holds the value
+// the client last saw for each field; when the stored value differs, the field
+// was changed elsewhere and the patch is rejected with a conflict, never applied
+// over the other edit.
+type SettingsPatch struct {
+	Fields map[string]json.RawMessage `json:"fields"`
+	Expect map[string]json.RawMessage `json:"expect,omitempty"`
 }

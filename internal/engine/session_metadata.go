@@ -14,10 +14,15 @@ func (e *Engine) Snapshot(ctx context.Context, id string) (proto.Snapshot, error
 	if err != nil {
 		return proto.Snapshot{}, notFound(err)
 	}
+	s.commit.Lock()
+	defer s.commit.Unlock()
 	s.mu.Lock()
 	turns := s.session.Snapshot()
 	out := proto.Snapshot{Session: item(s), AgentToken: s.token.value, Cwd: s.cwd, Model: s.session.Model, Running: s.running, Phase: s.phase, RequestID: s.requestID, TurnCount: len(turns), Live: s.live, Ask: askWire(s.ask), Retry: s.retry, Metrics: s.metrics, Seq: 0, Tasks: []proto.Task{},
 		Spent: s.session.Metrics.Spent, Context: s.session.Metrics.Context, Unpriced: s.session.Metrics.Unpriced, Provider: s.session.Provider, Effort: s.session.Effort}
+	if !s.running {
+		out.LastError = s.lastErr
+	}
 	for _, m := range s.queue.Items() {
 		out.Queued = append(out.Queued, m.Text)
 	}
@@ -25,6 +30,7 @@ func (e *Engine) Snapshot(ctx context.Context, id string) (proto.Snapshot, error
 	out.Session.Completed, out.Session.ReadThrough = e.attention(id)
 	if e.events != nil {
 		out.Seq = e.events.Sequence(id)
+		out.Version = e.version(out.Seq)
 	}
 	for _, t := range turns {
 		out.Turns = append(out.Turns, turnWire(t))
@@ -103,6 +109,7 @@ func (e *Engine) DeleteSession(ctx context.Context, id string) error {
 		delete(e.sessions, id)
 		e.mu.Unlock()
 		err = (mcp.ResultStore{Dir: e.paths.File("mcp-results")}).DeleteSession(id)
+		e.announce(proto.EventSessionDeleted, id, "")
 	}
 	return err
 }

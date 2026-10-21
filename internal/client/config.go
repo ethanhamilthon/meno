@@ -44,6 +44,35 @@ func (c *Client) PutSettings(ctx context.Context, v proto.ConfigSettings) (proto
 	return configDecode[proto.SettingsResponse](raw)
 }
 
+// PatchSettings changes only the named fields. A field whose stored value no
+// longer equals the one in expect is rejected as a conflict.
+func (c *Client) PatchSettings(ctx context.Context, fields, expect map[string]any) (proto.SettingsResponse, error) {
+	enc := func(in map[string]any) (map[string]json.RawMessage, error) {
+		out := map[string]json.RawMessage{}
+		for k, v := range in {
+			b, err := json.Marshal(v)
+			if err != nil {
+				return nil, err
+			}
+			out[k] = b
+		}
+		return out, nil
+	}
+	f, err := enc(fields)
+	if err != nil {
+		return proto.SettingsResponse{}, err
+	}
+	x, err := enc(expect)
+	if err != nil {
+		return proto.SettingsResponse{}, err
+	}
+	raw, e := c.configCall(ctx, "PATCH", "/v1/settings", proto.SettingsPatch{Fields: f, Expect: x})
+	if e != nil {
+		return proto.SettingsResponse{}, e
+	}
+	return configDecode[proto.SettingsResponse](raw)
+}
+
 // Providers reads all configured providers, including read-only overlays.
 func (c *Client) Providers(ctx context.Context) (proto.ProvidersResponse, error) {
 	raw, e := c.configCall(ctx, "GET", "/v1/providers", nil)

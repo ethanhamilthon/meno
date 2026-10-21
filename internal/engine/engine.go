@@ -68,9 +68,14 @@ type runState struct {
 	pinProvider      string // provider, model and effort the running request started with
 	pinModel         string
 	pinEffort        string
+	compacting       bool            // a compaction holds the history; a second one is rejected
 	cancelled        map[string]bool // root requests that were stopped; their events never wake the session
 	published        int
-	mu               sync.Mutex
+	// commit serializes a state change with the publication of its events, so a
+	// snapshot cursor always matches the state it was read with. Lock order:
+	// commit before mu; never hold commit across provider or socket I/O.
+	commit sync.Mutex
+	mu     sync.Mutex
 }
 
 // Engine owns loaded sessions, agent loops, tool services and event translation.
@@ -252,7 +257,7 @@ func newToken() (string, error) {
 }
 func groupsFor(names []string) map[string]bool {
 	m := map[string]bool{}
-	for _, g := range []string{"tasks", "mcp", "view", "models", "ask", "help"} {
+	for _, g := range []string{"tasks", "mcp", "view", "models", "ask", "help", "web"} {
 		m[g] = true
 	}
 	return m

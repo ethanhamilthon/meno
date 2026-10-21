@@ -4,7 +4,9 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"time"
 
 	"meno/internal/client"
 	"meno/internal/proto"
@@ -30,15 +32,14 @@ func (a *App) runCommand(raw string) {
 	}
 	args := fields[1:]
 	switch name {
-	case "q", "quit":
-		if busy := a.busySessions(); len(busy) > 0 {
-			a.notifyErr("not quitting: " + strings.Join(busy, ", ") + " · /q! quits anyway")
-			return
-		}
+	case "q", "quit", "q!", "quit!":
+		// Leaving only detaches this terminal: runs and tasks stay in the daemon.
+		// "q!" used to cancel everything; it is kept as an alias of the safe exit.
 		a.quit = true
-	case "q!", "quit!":
-		a.cancelAll()
-		a.quit = true
+	case "drafts":
+		a.restoreDrafts()
+	case "stop-all":
+		a.stopAll()
 	case "edit":
 		if len(args) != 0 {
 			a.notifyErr("edit takes no arguments")
@@ -132,6 +133,29 @@ func (a *App) changeDir(arg string) {
 }
 
 // cancelAll stops the running turn of every followed session.
+// stopAll cancels every running turn, but only after the same command is
+// repeated within ten seconds: bulk cancellation is never implicit.
+func (a *App) stopAll() {
+	var running []string
+	for _, rt := range a.rtList {
+		if rt.Running {
+			running = append(running, "“"+rt.sessionTitle()+"”")
+		}
+	}
+	if len(running) == 0 {
+		a.notify("no turn is running")
+		return
+	}
+	if now := nowFn(); a.stopAllAsk.IsZero() || now.Sub(a.stopAllAsk) > 10*time.Second {
+		a.stopAllAsk = now
+		a.notifyErr("this stops " + strings.Join(running, ", ") + " · repeat /stop-all within 10s to confirm")
+		return
+	}
+	a.stopAllAsk = time.Time{}
+	a.cancelAll()
+	a.notify("stopped " + strconv.Itoa(len(running)) + " turn(s)")
+}
+
 func (a *App) cancelAll() {
 	for _, rt := range a.rtList {
 		if rt.Running {

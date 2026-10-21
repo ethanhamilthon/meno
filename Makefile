@@ -2,7 +2,7 @@ GO ?= go
 BIN ?= meno
 DEV_HOME ?= $(HOME)/.meno-dev
 
-.PHONY: version build install run clean-home test race vet fmt size check term bench clean
+.PHONY: version build install run clean-home test race vet fmt size check term bench cover bench-compare clean
 
 build:
 	$(GO) build -o $(BIN) ./cmd/meno
@@ -49,6 +49,14 @@ term:
 # Deterministic benchmarks; compare runs with benchstat.
 bench:
 	$(GO) test -run '^$$' -bench . -benchmem ./internal/ui ./internal/app
+
+# Per-package coverage floors (scripts/coverage-floors.txt).
+cover:
+	@scripts/check-coverage.sh
+
+# Compares benchmarks with another revision: make bench-compare BASE=origin/main
+bench-compare:
+	@scripts/check-bench.sh $(or $(BASE),HEAD~1)
 
 clean:
 	rm -f $(BIN)

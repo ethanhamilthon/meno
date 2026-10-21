@@ -29,6 +29,8 @@ type Line struct {
 	Aside []Seg
 	// Image is set on the first of the rows reserved for an inline picture.
 	Image *ImageRef
+	// Source ties the row to the saved turn it shows; nil for decoration.
+	Source *Source
 }
 
 // Text is the plain text of the line (what the user sees, without the left padding).

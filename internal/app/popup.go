@@ -10,11 +10,23 @@ import (
 // row above and below it so every dialog has a padding of 1.
 type box struct{ x, y, w, h, oy, oh int }
 
-// modalWidth is shared by every dialog, regardless of its contents.
+// modalWidth is the half-screen width, the floor for every dialog on a wide screen.
 func modalWidth(sw int) int { return min(max(0, sw), max(1, sw/2)) }
 
-func centered(sw, sh, _, h int) box {
-	w := modalWidth(sw)
+// dialogWidth fits a dialog to its content on the screen it is on. On a wide
+// screen it keeps the calm half-screen width (or the requested width when the
+// content needs more); on a narrow one it takes nearly the whole row, because
+// half of 60 columns cannot hold a key hint, and never exceeds the screen.
+func dialogWidth(sw, want int) int {
+	w := max(modalWidth(sw), min(want, sw-4))
+	if sw < 100 {
+		w = max(w, sw-4)
+	}
+	return min(max(w, 1), max(sw, 0))
+}
+
+func centered(sw, sh, want, h int) box {
+	w := dialogWidth(sw, want)
 	oh := max(0, min(h+2, sh))
 	oy := (sh - oh) / 2
 	return box{x: (sw - w) / 2, y: oy + 1, w: w, h: max(0, oh-2), oy: oy, oh: oh}

@@ -25,4 +25,6 @@ const (
 	EventResync         = "resync"
 	EventBye            = "bye"
 	EventGlobalStatus   = "global_status"
+	EventSessionCreated = "session_created" // global stream: a session appeared (create or fork)
+	EventSessionDeleted = "session_deleted" // global stream: tombstone of a removed session
 )

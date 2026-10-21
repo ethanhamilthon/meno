@@ -17,6 +17,11 @@ func (a *App) submit() {
 	if text == "" {
 		return
 	}
+	if a.offline() {
+		// The draft stays in the composer; nothing is sent over a broken stream.
+		a.notifyErr("offline · not sent · your draft is kept")
+		return
+	}
 	msg := a.draftMessage(text)
 	if len(msg.Attachments) > 0 {
 		if !a.imagesAllowed() {
@@ -28,6 +33,7 @@ func (a *App) submit() {
 		return
 	}
 	a.clearDraft()
+	a.saveDraft()
 	a.send(msg)
 }
 

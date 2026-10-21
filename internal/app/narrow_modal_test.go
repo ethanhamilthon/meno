@@ -71,7 +71,12 @@ func TestNarrowHelpHeaderAndCommands(t *testing.T) {
 			found = true
 			a.st.Sel = i
 			a.draw()
-			if !strings.Contains(screenText(s), r.key+strings.Repeat(" ", 10-len(r.key))+want) {
+			// The dialog is nearly full width here, so the key column is the wide one.
+			pad := 16
+			if len(r.key) > pad {
+				pad = len(r.key)
+			}
+			if !strings.Contains(screenText(s), r.key+strings.Repeat(" ", pad-len(r.key))+want) {
 				t.Fatalf("command description clipped: %q", want)
 			}
 		}

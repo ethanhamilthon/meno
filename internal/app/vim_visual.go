@@ -92,6 +92,12 @@ func (a *App) selSpan(top, l, n int) (lo, hi int, ok bool) {
 }
 
 func (a *App) onVisualKey(k *tcell.EventKey) {
+	if k.Key() == tcell.KeyEnter && a.st.AnchorLog {
+		t, top := a.doc()
+		_ = t
+		a.commentSelection(top)
+		return
+	}
 	r := a.vimRune(k, true)
 	if r == 0 {
 		switch k.Key() {
@@ -185,7 +191,15 @@ func (a *App) execVisual(c vcmd) {
 		}
 	case "y", "Y":
 		a.visualYank(t, top, c.key == "Y")
-	case "d", "x", "X", "D", "c", "s", "C", "S", "p", "P", "~", "u", "U", "J", "r":
+	case "c":
+		if a.st.AnchorLog || a.st.InLog {
+			// A selection in the conversation: "c" quotes it. In the draft it
+			// still changes the text, as before.
+			a.commentSelection(top)
+			return
+		}
+		a.visualEdit(t, top, c)
+	case "d", "x", "X", "D", "s", "C", "S", "p", "P", "~", "u", "U", "J", "r":
 		a.visualEdit(t, top, c)
 	case "gu", "gU", "g~", "gJ":
 		a.visualEdit(t, top, vcmd{key: map[string]string{"gu": "u", "gU": "U", "g~": "~", "gJ": "J"}[c.key]})

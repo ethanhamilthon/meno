@@ -48,11 +48,17 @@ func (c *Client) Stream(ctx context.Context, sessionID string, after uint64, boo
 			return fmt.Errorf("event stream returned HTTP %d", resp.StatusCode)
 		}
 		streamCtx, cancel := context.WithCancel(ctx)
-		if resp.Request != nil {
-			resp.Request = resp.Request.WithContext(streamCtx)
-		}
-		go closeWhenIdle(streamCtx, cancel)
+		// The request itself was made with ctx, so cancelling streamCtx does not
+		// interrupt a blocked body read: close the body when it ends.
+		go func() { <-streamCtx.Done(); resp.Body.Close() }()
+		idle := make(chan struct{}, 1)
+		go closeWhenIdle(streamCtx, cancel, c.idleTimeout(), idle)
+		var cbErr error
 		e = c.readSSE(resp, func(ev proto.Event) error {
+			select {
+			case idle <- struct{}{}:
+			default:
+			}
 			if ev.Type != proto.EventHello && ev.Seq > after {
 				after = ev.Seq
 			}
@@ -74,10 +80,17 @@ func (c *Client) Stream(ctx context.Context, sessionID string, after uint64, boo
 			if ev.Type == proto.EventBye {
 				return errStreamClosed
 			}
-			return receive(ev)
+			if err := receive(ev); err != nil {
+				cbErr = err
+				return err
+			}
+			return nil
 		})
 		cancel()
 		resp.Body.Close()
+		if cbErr != nil {
+			return cbErr
+		}
 		if e == errStreamClosed {
 			return nil
 		}
@@ -104,13 +117,34 @@ func eventURL(path string, after uint64, boot string) string {
 	}
 	return u
 }
-func closeWhenIdle(ctx context.Context, cancel context.CancelFunc) {
-	timer := time.NewTimer(45 * time.Second)
+func (c *Client) idleTimeout() time.Duration {
+	if c.IdleTimeout > 0 {
+		return c.IdleTimeout
+	}
+	return 45 * time.Second
+}
+
+// closeWhenIdle cancels the stream when nothing arrives for d. Every received
+// event (the daemon also sends keepalives) restarts the wait through seen.
+func closeWhenIdle(ctx context.Context, cancel context.CancelFunc, d time.Duration, seen <-chan struct{}) {
+	timer := time.NewTimer(d)
 	defer timer.Stop()
-	select {
-	case <-ctx.Done():
-	case <-timer.C:
-		cancel()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-seen:
+			if !timer.Stop() {
+				select {
+				case <-timer.C:
+				default:
+				}
+			}
+			timer.Reset(d)
+		case <-timer.C:
+			cancel()
+			return
+		}
 	}
 }
 func nextDelay(d time.Duration) time.Duration {

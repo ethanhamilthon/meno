@@ -26,16 +26,19 @@ grapheme boundaries. Visual wrapping does not change stored text.
 | --- | --- |
 | Enter / Shift+Enter | Send / insert newline in INPUT |
 | Enter during a run | Queue steering for the next model request |
-| Ctrl+C | Stop this session's active work |
+| Ctrl+C | Stop this session's active work (quits on the first-run screen) |
 | Ctrl+V, drag/drop, @ | Image attachment / file picker in INPUT |
 | /edit | Vim-style navigation and editing of the draft (history when the draft is empty); no selection until `v` |
 | v / V / Ctrl+V in EDIT | Start a selection; Esc returns to EDIT |
+| Enter or c on a selection in the conversation | Attach it to the draft as a [comment](comments.md) |
+| /drafts | Restore unsent drafts left by earlier windows |
+| ←/→ in /model | Preview an effort; Enter applies, Esc cancels |
 | Esc in EDIT | Return to INPUT |
 | Esc in INPUT (no command list) | Keep typing without changing the draft |
 | /new /sessions /fork /rename /cd /compact /export | Session actions |
 | /model /settings /skills /mcp /login /tasks | Model and management dialogs |
 | /context | ctx/max, spent, in/out and cache hit for the last turn, the session and the current request |
-| /stop /q /q! | Stop, quit, or quit and cancel work |
+| /stop /q /stop-all | Stop this turn; leave (work keeps running); stop every turn after confirmation. `/q!` is an alias of `/q` |
 
 VISUAL retains motions, counts, text objects and copy. History is read-only.
 Completed copy/edit returns to INPUT, with the cursor in the composer even

@@ -8,18 +8,22 @@ import (
 
 // snap is an undo point of the input.
 type snap struct {
-	in  []rune
-	cur int
+	in   []rune
+	cur  int
+	imgs []draftImage // the images the tokens refer to, so undo restores them too
 }
 
 const maxUndo = 200
 
 func (a *App) snapshot() snap {
-	return snap{append([]rune(nil), a.st.Input...), a.st.Cursor}
+	return snap{in: append([]rune(nil), a.st.Input...), cur: a.st.Cursor, imgs: append([]draftImage(nil), a.st.Images...)}
 }
 
 func (a *App) restore(s snap) {
 	a.st.Input, a.st.Cursor, a.st.WantSet = append([]rune(nil), s.in...), s.cur, false
+	if s.imgs != nil {
+		a.st.Images = append([]draftImage(nil), s.imgs...)
+	}
 }
 
 // pushUndo records s as an undo point and drops the redo history.

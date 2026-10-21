@@ -11,6 +11,7 @@ import (
 
 	"meno/internal/client"
 	"meno/internal/config"
+	"meno/internal/llm"
 	"meno/internal/proto"
 	"meno/internal/safe"
 	"meno/internal/ui"
@@ -56,13 +57,20 @@ type App struct {
 	dbRows  []proto.SessionItem // sessions the daemon listed for /sessions
 	openURL func(string) error
 
-	saves   saveQueue     // saves to the daemon, one at a time and in order
-	cfgSeq  atomic.Uint64 // numbers the reads of the daemon config
-	cfgSeen uint64        // the newest read that was applied
-	flowSeq int           // number of the last login, to tell a stale one from the current
-	closing bool          // Close is running
-	cdKey   string        // input and directory the /cd completions in cdCache belong to
-	cdCache []string      // rows of the /cd completion
+	saves       saveQueue       // saves to the daemon, one at a time and in order
+	cfgSeq      atomic.Uint64   // numbers the reads of the daemon config
+	connLost    map[string]bool // sessions whose daemon stream broke and has not recovered
+	instance    string          // identity of this window for draft files
+	draftSaved  string
+	draftFailed bool
+	stopAllAsk  time.Time               // when /stop-all asked for confirmation
+	cfgSeen     uint64                  // the newest read that was applied
+	cfgBase     config.Settings         // settings as the daemon last reported them: the base of field patches
+	cfgProv     map[string]llm.Provider // own providers as the daemon last reported them
+	flowSeq     int                     // number of the last login, to tell a stale one from the current
+	closing     bool                    // Close is running
+	cdKey       string                  // input and directory the /cd completions in cdCache belong to
+	cdCache     []string                // rows of the /cd completion
 
 	running  sync.WaitGroup // short background calls
 	watchers sync.WaitGroup // the event streams of followed sessions
@@ -84,6 +92,7 @@ func New(scr tcell.Screen, paths config.Paths, cl *client.Client) (*App, error) 
 		events: make(chan any, 512), rts: map[string]*Runtime{},
 	}
 	a.openURL = openBrowser
+	a.instance = newInstanceID()
 	a.waveEpoch = time.Now()
 	a.st = NewState()
 	scr.EnableFocus()
@@ -101,6 +110,7 @@ func New(scr tcell.Screen, paths config.Paths, cl *client.Client) (*App, error) 
 	a.st.Runtime = a.newRuntime(sess, paths.Cwd)
 	a.st.Runtime.watch = a.watch(sess.ID())
 	a.reportWarnings()
+	a.announceDrafts()
 	return a, nil
 }
 
@@ -108,6 +118,7 @@ func New(scr tcell.Screen, paths config.Paths, cl *client.Client) (*App, error) 
 // stops a run or a task.
 func (a *App) Close() {
 	a.closing = true
+	a.saveDraft() // the last edits are on disk before the window goes away
 	a.cancelFlow()
 	a.clearImages()
 	a.closeOnce.Do(func() { close(a.done) })
@@ -190,8 +201,10 @@ func (a *App) handle(msg any) {
 	case wireEv:
 		a.onWire(m)
 	case snapshotEv:
+		a.setConnLost(m.sid, false)
 		a.onSnapshot(m)
 	case wireLost:
+		a.setConnLost(m.sid, true)
 		a.notifyErr("lost the daemon stream of a session: " + m.err.Error())
 	case imageDecoded:
 		a.imgs.placed = ""
@@ -260,6 +273,7 @@ func (a *App) handle(msg any) {
 		}
 	case waveTick:
 	case tick:
+		a.saveDraft()
 		a.refreshGlobalState()
 		a.refreshMCPStatus()
 		a.refreshTasks()

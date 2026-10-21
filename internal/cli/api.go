@@ -27,6 +27,9 @@ type API interface {
 	Sessions(cwd string) ([]Session, error)
 	Send(SendRequest) (SendResult, error)
 	Tail(id string) ([]Event, error)
+	Doctor(DoctorRequest) (DoctorReport, error)
+	WebSearch(query string) (WebSearchResult, error)
+	WebFetch(url string) (WebPage, error)
 }
 
 // APIError identifies a daemon error that maps to a CLI exit code.

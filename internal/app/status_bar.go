@@ -42,6 +42,9 @@ func (a *App) drawStatus(c ui.Canvas, x, y, w int) {
 	left := ui.Truncate(a.composerHeaderLabel(), min(w*composerHeaderMax/100, max(0, available-rw-2)))
 	lw := ui.TextWidth(left)
 	mid := joinSegText(a.globalCounts())
+	if c := a.connLabel(); c != "" {
+		mid = c
+	}
 	if ui.TextWidth(mid) > max(0, available-lw-rw-4) {
 		parts := strings.Split(mid, " | ")
 		for i, p := range parts {

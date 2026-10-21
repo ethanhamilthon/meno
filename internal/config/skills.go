@@ -18,6 +18,9 @@ type Skill struct {
 	Desc    string `json:"desc"`
 	Path    string `json:"path"`
 	Enabled bool   `json:"enabled"`
+	// ManualOnly is the skill's `disable-model-invocation: true`: the model is
+	// not told about it; only an explicit /skill:name selection uses it.
+	ManualOnly bool `json:"manual_only,omitempty"`
 }
 
 // maxSkillHead bounds how much of a skill file is read to find its description.
@@ -100,7 +103,8 @@ func readSkill(path, fallback, scope string) (Skill, bool) {
 	if desc == "" {
 		desc = strings.Join(strings.Fields(firstLine(body)), " ")
 	}
-	return Skill{Name: name, Scope: scope, Desc: desc, Path: path}, true
+	manual := strings.EqualFold(strings.TrimSpace(meta["disable-model-invocation"]), "true")
+	return Skill{Name: name, Scope: scope, Desc: desc, Path: path, ManualOnly: manual}, true
 }
 
 // scanSkillDir finds "name.md" files and "name/SKILL.md" directories.

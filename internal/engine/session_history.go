@@ -36,6 +36,7 @@ func (e *Engine) Fork(ctx context.Context, id string, q proto.ForkRequest) (prot
 	src.mu.Lock()
 	s.env = cloneMap(src.env)
 	src.mu.Unlock()
+	e.announce(proto.EventSessionCreated, child.ID, id)
 	return proto.ForkResponse{Session: item(s)}, nil
 }
 func (e *Engine) Turns(ctx context.Context, id string, q proto.TurnsPageRequest) (proto.TurnsPage, error) {

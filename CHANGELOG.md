@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.6.0
+
+Restart the daemon after updating (protocol 3). No data is reset or migrated.
+
+- **Several windows stay consistent.** A snapshot now carries a version and the
+  cursor of the state it was read with; the client drops older snapshots, replayed
+  turns and the late end of an old run. Sessions that are created, forked or
+  deleted reach every window. Queue recalls and the last run outcome are shared.
+- **Fixed lost work.** A provider error is no longer reported as done; a stream
+  consumer's error is returned instead of reconnecting; a closed stream is an
+  interruption, not success. Compaction keeps messages that arrive while it runs
+  and a second compaction is refused. Images sent during a run reach the model.
+  Two clients answering one question can no longer both win.
+- **Settings and providers.** Settings are saved as field patches with conflict
+  detection; a provider is deleted only on an explicit delete.
+- **Drafts.** Unsent drafts and their images are saved per window and recovered with
+  `/drafts` after a crash. Undo restores deleted images.
+- **Leaving.** `/q` and `/q!` only detach; `/stop-all` stops every turn after a
+  repeated confirmation; Ctrl+C quits the first-run screen. A broken stream shows
+  `offline` and keeps your draft.
+- **Comments.** Quote saved assistant text, code, output and errors into a message
+  with Enter or `c` in a selection. See docs/comments.md.
+- **`meno web` returns, rebuilt.** `meno web search|fetch` runs in the daemon under an
+  address policy (no private, loopback or metadata destinations unless allowed), with
+  size, time and redirect limits. Search uses the one provider you set in `web_search`;
+  it is never chosen for you. This is a new implementation: the old `websearch`
+  settings and Web tab stay removed.
+- **`meno doctor`** is a read-only health check with suggested fixes.
+- **Interface.** Model effort is a preview until Enter; dialogs use nearly the full
+  width on narrow terminals; task logs scroll, page, wrap and copy; a pending question
+  can be left with Ctrl+O without answering it.
+- **Prompt.** Working rules moved into the system prompt; the bash description only
+  describes the tool. Skills with `disable-model-invocation: true` are manual only.
+- **Process logs.** The disk budget now counts escaped bytes; admission of new
+  processes is atomic with shutdown; a silent event stream is closed and resumed.
+- **Gates.** Per-package coverage floors (`make cover`) and a relative benchmark
+  comparison (`make bench-compare`).
+
 ## 0.5.5
 
 - Use slash commands (`/edit`, `/model`, `/login`) and namespaced skill references

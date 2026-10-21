@@ -44,7 +44,14 @@ func (c *Client) AttachWith(ctx context.Context, id string, mirror *Mirror, onSn
 				mirror.Apply(ev)
 			}
 			if receive != nil {
-				return receive(ev)
+				if err := receive(ev); err != nil {
+					return err
+				}
+			}
+			// The mirror cannot rebuild some changes from the event alone (a
+			// gap, a tasks or session change): take a new snapshot.
+			if mirror != nil && mirror.Snapshot().NeedsResync {
+				return errResync
 			}
 			return nil
 		})

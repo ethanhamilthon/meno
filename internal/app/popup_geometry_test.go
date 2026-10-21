@@ -13,12 +13,21 @@ import (
 	"github.com/gdamore/tcell/v2"
 )
 
-func TestUnifiedModalGeometry(t *testing.T) {
-	for _, size := range [][2]int{{112, 36}, {80, 24}, {40, 12}, {1, 1}, {0, 0}} {
+func TestModalGeometryFitsTheScreen(t *testing.T) {
+	for _, size := range [][2]int{{112, 36}, {96, 30}, {80, 24}, {60, 20}, {48, 16}, {40, 12}, {1, 1}, {0, 0}} {
 		for _, requested := range []int{0, 66, 73, 80, 660} {
 			b := centered(size[0], size[1], requested, 50)
-			if b.w != modalWidth(size[0]) || b.oh != min(52, size[1]) || b.h != max(0, b.oh-2) || b.x != (size[0]-b.w)/2 || b.oy != (size[1]-b.oh)/2 || b.y != b.oy+1 {
+			if b.w < 0 || b.w > size[0] || b.oh != min(52, size[1]) || b.h != max(0, b.oh-2) || b.x != (size[0]-b.w)/2 || b.oy != (size[1]-b.oh)/2 || b.y != b.oy+1 {
 				t.Fatalf("size %v request %d: %+v", size, requested, b)
+			}
+			if size[0] >= 100 && b.w < modalWidth(size[0]) {
+				t.Fatalf("a wide screen keeps at least the half-screen width: size %v %+v", size, b)
+			}
+			if size[0] >= 20 && size[0] < 100 && b.w < size[0]-4 {
+				t.Fatalf("a narrow screen uses nearly the full row: size %v %+v", size, b)
+			}
+			if size[0] >= 100 && requested > 0 && requested <= size[0]-4 && b.w < requested {
+				t.Fatalf("content that needs %d columns must get them: size %v %+v", requested, size, b)
 			}
 		}
 	}

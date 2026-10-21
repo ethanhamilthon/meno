@@ -1,5 +1,41 @@
 # Upgrading, data and privacy
 
+## 0.6.0: shared sessions, drafts, quotes and web access
+
+Restart the daemon after updating: the protocol is now 3, and an old daemon is
+refused with `run meno daemon restart`. Nothing in your data is reset. The
+database, session files, keys, provider and MCP overlays and stored MCP results
+are read as before; new data is only added.
+
+- **Several windows.** History, the queue, runs, tasks, providers and MCP are
+  shared by every window. The draft, cursor, scroll position and selected session
+  are yours alone. Snapshots carry a version, so a late refresh can never roll a
+  window back, and a turn is never shown twice or lost when a window attaches in
+  the middle of a run. See [sessions](sessions.md).
+- **Leaving.** `/q` (and the old `/q!`) only leaves this terminal; runs and
+  tasks go on. `/stop` stops the current turn. `/stop-all` stops every running
+  turn and asks you to repeat it within ten seconds. On the first-run screen
+  Ctrl+C quits.
+- **Drafts survive.** An unsent draft is saved under `$MENO_HOME/drafts/`
+  (private files, one per window and session, images stored next to them). After
+  a crash or restart meno starts a NEW session as before and tells you that
+  drafts exist; `/drafts` puts them in the composer. Undo now brings deleted
+  images back.
+- **Settings.** The settings dialog sends only the fields you changed. A field
+  someone else changed first is reported as a conflict and reloaded instead of
+  being overwritten. A provider is only deleted when you delete it.
+- **Comments.** Select text in the conversation (EDIT, `v`) and press Enter or
+  `c` to attach it as a quote. See [comments](comments.md).
+- **Web.** `meno web search` and `meno web fetch`, see [web](web.md), and
+  `meno doctor` for a read-only health check, see [cli](cli.md).
+- **Prompt.** The working rules (editing, verification, output) now live once in
+  the system prompt; the bash tool description only describes the tool.
+- **Skills.** A skill with `disable-model-invocation: true` is not offered to the
+  model; it works only through an explicit `/skill:name`.
+
+Rollback: the new files (`drafts/`) are plain additions and an older meno ignores
+them. Do not restore an older `meno.db` over a live database.
+
 ## 0.5.5: slash commands and padded input
 
 Commands now use `/` instead of `:`, for example `/edit`, `/model` and `/login`.

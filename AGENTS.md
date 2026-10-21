@@ -39,18 +39,20 @@ Bash tools, provider APIs, MCP integrations, and SQLite persistence.
 | Path | Responsibility / starting points |
 | --- | --- |
 | `cmd/meno/main.go` | CLI entry point; terminal setup and application lifecycle. |
-| `internal/app/` | TUI controller, state, input, commands, modals, session/runtime wiring. Start with `app.go`, `state.go`, `runtime.go`, `turn.go`. Text fields outside the composer: `textedit*.go` (`textEdit`), forms in `forms.go`. `/login` (the only providers UI): `login.go` (list), `login_flow.go` (OAuth login modal), `login_oauth.go` (helper glue, the derived `oauth` provider), `login_api.go` (API-key providers, the first-run lock). |
+| `internal/app/` | TUI controller, state, input, commands, modals, session/runtime wiring. Start with `app.go`, `state.go`, `runtime.go`, `turn.go`. Local drafts: `draft_store.go` (files), `draft_sync.go` (composer glue). Stream state: `connection.go`. Text fields outside the composer: `textedit*.go` (`textEdit`), forms in `forms.go`. `/login` (the only providers UI): `login.go` (list), `login_flow.go` (OAuth login modal), `login_oauth.go` (helper glue, the derived `oauth` provider), `login_api.go` (API-key providers, the first-run lock). |
 | `internal/ui/` | Rendering primitives, themes, Markdown, transcript layout, widgets. Start with `render.go`, `transcript.go`, `theme.go`. |
-| `internal/agent/` | Agent loop, events, retries, queues, compaction, sessions. Start with `loop.go`, `session.go`, `sessiondb.go`; history/fork/versioned store in `history.go`, `fork.go`, `kv.go`; steering queue in `events.go`; retrieval in `retrieval_read.go`. |
+| `internal/agent/` | Agent loop, events, retries, queues, compaction, sessions. Start with `loop.go`, `session.go`, `sessiondb.go`; history, fork and the versioned store in `history.go`, `fork.go`; the steering queue in `queue.go`, events in `events.go`. |
 | `internal/llm/` | Provider API clients, streaming, model catalog, usage and protocol types. Start with `types.go`, `http.go`, `chat.go`, `responses.go`. |
-| `internal/engine/` | Daemon-owned session runs, steering, resources, Bash calls, and provider reloads. Start with `engine.go`, `run.go`, `events.go`, `resources.go`. |
+| `internal/engine/` | Daemon-owned session runs, steering, resources, Bash calls, and provider reloads. Start with `engine.go`, `run.go`, `events.go`, `resources.go`. Per-session ordering: `session_commit.go` (the commit lock and `SessionVersion`), `lifecycle.go` (create/delete events). |
 | `internal/tools/` | Bash execution, process tasks, filesystem commands, and restricted command parsing. |
 | `internal/client/` | Daemon HTTP/SSE client and session mirror. |
-| `internal/cli/` | The `meno <group>` commands: parsing, daemon-backed groups (`mcp.go`, `tasks.go`, `interactive.go`, `daemon.go`) behind the `API` interface; `daemonapi/` implements it over the daemon socket and the `MENO_*` environment of a bash call. |
+| `internal/cli/` | The `meno <group>` commands (including `doctor.go`, `web.go`): parsing, daemon-backed groups (`mcp.go`, `tasks.go`, `interactive.go`, `daemon.go`) behind the `API` interface; `daemonapi/` implements it over the daemon socket and the `MENO_*` environment of a bash call. |
 | `internal/clihelp/` | Embedded help texts of the commands (`help/*.md`, golden files in `testdata/`). |
 | `internal/form/` | Shape of the question form that `meno ask` shows to the user. |
 | `internal/proto/` | Shared daemon API request, response, and event types. |
 | `internal/daemon/` | Daemon lifecycle, socket, HTTP resources, event streams; configuration resources in `cfgsvc/`. |
+| `internal/web/` | `meno web` service: URL/IP policy (`policy.go`), bounded fetch and HTML to text (`fetch.go`), search through a configured backend (`search.go`). The provider side of search is `internal/llm/search.go`; the daemon resource is `internal/engine/resource_web.go`. |
+| `internal/commentref/` | Self-contained quotation payload of the Comments feature: `Encode`, `Decode`, `Label`, the 16 KiB limit. Rows know their source through `ui/source.go`; the composer side is `app/comments.go`. |
 | `internal/mcp/` | MCP server lifecycle, transports, JSON-RPC, tool schemas, typed results and the local result/artifact store. Start with `manager.go`, `manager_start.go`, `client.go`, `discovery.go`, `result.go`, `store.go`. The config service owns the shared manager lifecycle; the engine only uses it. |
 | `internal/prompt/` | System prompt (identity, skills, project AGENTS.md, MCP servers, environment): `prompt.go` (inputs), `bash.go` (`Build`), `sections.go`, `xml.go`. The bash tool description with the editing, verification and output rules: `bash_toolspec.go`, `bash_rules.go`. |
 | `internal/config/` | Paths, settings, providers, skills, MCP configuration, and the read-only `provider.json`/`mcp.json` overlays (`overlay.go`). Start with `paths.go`, `settings.go`, `store.go`. |

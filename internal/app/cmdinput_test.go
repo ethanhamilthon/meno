@@ -108,7 +108,7 @@ func TestTabCompletesAndUndoRestoresToken(t *testing.T) {
 		t.Fatalf("draft %q", string(a.st.Input))
 	}
 	a.setInput([]rune("hi /tasks"))
-	a.st.InsBase = snap{[]rune("hi /tasks"), 9}
+	a.st.InsBase = snap{in: []rune("hi /tasks"), cur: 9}
 	a.onKey(enter())
 	if string(a.st.Input) != "hi " {
 		t.Fatalf("draft %q", string(a.st.Input))

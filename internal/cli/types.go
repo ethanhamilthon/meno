@@ -120,3 +120,52 @@ type Event struct {
 	Type     string         `json:"type"`
 	Data     map[string]any `json:"data,omitempty"`
 }
+
+// Check is one finding of `meno doctor`. Status is ok, warn or error; Fix is a
+// suggestion only, doctor never repairs anything by itself.
+type Check struct {
+	Name   string `json:"name"`
+	Status string `json:"status"`
+	Detail string `json:"detail,omitempty"`
+	Fix    string `json:"fix,omitempty"`
+}
+
+// DoctorRequest selects optional checks. Probe allows bounded network calls.
+type DoctorRequest struct {
+	Probe bool `json:"probe,omitempty"`
+}
+
+// DoctorReport is the result of all checks; Status is the worst check status.
+type DoctorReport struct {
+	Status string  `json:"status"`
+	Checks []Check `json:"checks"`
+}
+
+// WebPage is a fetched page as text. URL is what was asked for, FinalURL where
+// the redirects ended.
+type WebPage struct {
+	URL       string `json:"url"`
+	FinalURL  string `json:"final_url"`
+	Title     string `json:"title,omitempty"`
+	Type      string `json:"content_type,omitempty"`
+	Status    int    `json:"status"`
+	Text      string `json:"text"`
+	Truncated bool   `json:"truncated,omitempty"`
+	Notice    string `json:"notice,omitempty"`
+}
+
+// WebSource is a page a search answer cites.
+type WebSource struct {
+	Title string `json:"title,omitempty"`
+	URL   string `json:"url"`
+}
+
+// WebSearchResult is a search answer with its sources.
+type WebSearchResult struct {
+	Query    string      `json:"query"`
+	Answer   string      `json:"answer"`
+	Sources  []WebSource `json:"sources,omitempty"`
+	Provider string      `json:"provider,omitempty"`
+	Model    string      `json:"model,omitempty"`
+	Notice   string      `json:"notice,omitempty"`
+}

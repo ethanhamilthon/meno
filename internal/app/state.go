@@ -59,6 +59,9 @@ type retryState struct {
 type State struct {
 	*Runtime
 
+	// EffortPick is the effort chosen in the model picker but not applied yet
+	// ("" until the user presses ←/→). Enter applies it; Esc drops it.
+	EffortPick    string
 	OverlayOrigin ui.Mode
 	Over          Overlay
 	// UpdateTag is the newer release the background check found ("" if none).

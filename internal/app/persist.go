@@ -10,16 +10,24 @@ import (
 	"meno/internal/proto"
 )
 
-// persistSettings sends the settings to the daemon, which stores them.
+// persistSettings sends the fields that changed to the daemon. A field that
+// someone else changed meanwhile is a conflict: the user sees it and the
+// shared value is loaded again instead of being overwritten.
 func (a *App) persistSettings() {
 	a.cfgSeen = a.cfgSeq.Add(1) // reads begun before this edit are older than it
-	s := a.st.Settings
+	fields, expect := settingsDelta(a.cfgBase, a.st.Settings)
+	if len(fields) == 0 {
+		return
+	}
+	a.cfgBase = a.st.Settings // the next edit is measured from this one
 	a.pushSave(func() {
-		if err := a.rpc(func(ctx context.Context, c *client.Client) error {
-			_, err := c.PutSettings(ctx, settingsToWire(s))
+		err := a.rpc(func(ctx context.Context, c *client.Client) error {
+			_, err := c.PatchSettings(ctx, fields, expect)
 			return err
-		}); err != nil {
+		})
+		if err != nil {
 			a.postEvent(errNotice{text: "settings: " + err.Error()})
+			a.postEvent(a.fetchConfig())
 		}
 	})
 }
@@ -27,7 +35,14 @@ func (a *App) persistSettings() {
 // persistProviders sends every provider the user owns to the daemon.
 func (a *App) persistProviders() {
 	a.cfgSeen = a.cfgSeq.Add(1)
-	own := config.OwnProviders(a.st.Providers)
+	// Only entries this client changed are sent; the others may have been
+	// edited elsewhere and must not be overwritten by a stale copy.
+	var own []llm.Provider
+	for _, p := range config.OwnProviders(a.st.Providers) {
+		if old, ok := a.cfgProv[p.Name]; !ok || string(mustJSON(providerToWire(old))) != string(mustJSON(providerToWire(p))) {
+			own = append(own, p)
+		}
+	}
 	a.pushSave(func() {
 		err := a.rpc(func(ctx context.Context, c *client.Client) error { return syncProviders(ctx, c, own) })
 		if err != nil {
@@ -58,13 +73,10 @@ func syncProviders(ctx context.Context, c *client.Client, own []llm.Provider) er
 			return err
 		}
 	}
-	for name, p := range have {
-		if !keep[name] && p.Source != llm.SourceFile && p.Source != llm.SourceOAuth {
-			if err = c.DeleteProvider(ctx, name); err != nil {
-				return err
-			}
-		}
-	}
+	// A provider that is missing from the list is never deleted here: an
+	// absent entry may simply be one this client has not seen yet. Deletion
+	// is an explicit request (deleteProvider).
+	_ = keep
 	return nil
 }
 

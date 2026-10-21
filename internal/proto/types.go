@@ -2,7 +2,9 @@
 package proto
 
 // Protocol is the HTTP API compatibility number. Clients require exact equality.
-const Protocol = 2
+// Protocol 3 adds SessionVersion in snapshots, request IDs on status and error
+// events, session lifecycle events and field-scoped settings PATCH.
+const Protocol = 3
 
 // Error codes returned in an ErrorEnvelope.
 const (
@@ -115,28 +117,30 @@ type Metrics struct {
 
 // Snapshot is a consistent session view at one event sequence.
 type Snapshot struct {
-	Session    SessionItem `json:"session"`
-	AgentToken string      `json:"agent_token,omitempty"`
-	Cwd        string      `json:"cwd"`
-	Model      string      `json:"model,omitempty"`
-	Running    bool        `json:"running"`
-	Phase      string      `json:"phase,omitempty"`
-	RequestID  string      `json:"request_id,omitempty"`
-	Seq        uint64      `json:"seq"`
-	TurnCount  int         `json:"turn_count"`
-	Live       LiveState   `json:"live"`
-	Ask        *AskForm    `json:"ask,omitempty"`
-	Retry      *RetryState `json:"retry,omitempty"`
-	Metrics    Metrics     `json:"metrics"`
-	Queued     []string    `json:"queued,omitempty"` // messages waiting for the next step
-	Spent      float64     `json:"spent,omitempty"`
-	Context    int         `json:"context,omitempty"`
-	Unpriced   bool        `json:"unpriced,omitempty"`
-	Provider   string      `json:"provider,omitempty"`
-	Effort     string      `json:"effort,omitempty"`
-	TaskCount  int         `json:"task_count"`
-	Turns      []Turn      `json:"turns,omitempty"`
-	Tasks      []Task      `json:"tasks,omitempty"`
+	Session    SessionItem    `json:"session"`
+	AgentToken string         `json:"agent_token,omitempty"`
+	Cwd        string         `json:"cwd"`
+	Model      string         `json:"model,omitempty"`
+	Running    bool           `json:"running"`
+	Phase      string         `json:"phase,omitempty"`
+	RequestID  string         `json:"request_id,omitempty"`
+	Seq        uint64         `json:"seq"`
+	Version    SessionVersion `json:"version"`
+	TurnCount  int            `json:"turn_count"`
+	Live       LiveState      `json:"live"`
+	Ask        *AskForm       `json:"ask,omitempty"`
+	Retry      *RetryState    `json:"retry,omitempty"`
+	Metrics    Metrics        `json:"metrics"`
+	Queued     []string       `json:"queued,omitempty"` // messages waiting for the next step
+	Spent      float64        `json:"spent,omitempty"`
+	Context    int            `json:"context,omitempty"`
+	Unpriced   bool           `json:"unpriced,omitempty"`
+	Provider   string         `json:"provider,omitempty"`
+	Effort     string         `json:"effort,omitempty"`
+	LastError  string         `json:"last_error,omitempty"` // outcome of the last finished run; empty after a success
+	TaskCount  int            `json:"task_count"`
+	Turns      []Turn         `json:"turns,omitempty"`
+	Tasks      []Task         `json:"tasks,omitempty"`
 }
 
 // PatchSessionRequest updates session metadata.

@@ -31,13 +31,19 @@ type MirrorState struct {
 	Unpriced                     bool
 	Tasks                        []proto.Task
 	NeedsResync                  bool
+	Version                      proto.SessionVersion
+	LastError                    string
 }
 
 // Load replaces all state from a consistent snapshot.
 func (m *Mirror) Load(s proto.Snapshot) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.State = MirrorState{Session: s.Session, Cwd: s.Cwd, Model: s.Model, Phase: s.Phase, RequestID: s.RequestID, Running: s.Running, Seq: s.Seq, Turns: append([]proto.Turn(nil), s.Turns...), Live: s.Live, Ask: s.Ask, Retry: s.Retry, Metrics: s.Metrics, Queued: append([]string(nil), s.Queued...), Provider: s.Provider, Effort: s.Effort, Spent: s.Spent, Context: s.Context, Unpriced: s.Unpriced, Tasks: append([]proto.Task(nil), s.Tasks...)}
+	// A snapshot older than the state already applied would roll it back.
+	if m.State.Version.Newer(s.Version) {
+		return
+	}
+	m.State = MirrorState{Session: s.Session, Cwd: s.Cwd, Model: s.Model, Phase: s.Phase, RequestID: s.RequestID, Running: s.Running, Seq: s.Seq, Turns: append([]proto.Turn(nil), s.Turns...), Live: s.Live, Ask: s.Ask, Retry: s.Retry, Metrics: s.Metrics, Queued: append([]string(nil), s.Queued...), Provider: s.Provider, Effort: s.Effort, Spent: s.Spent, Context: s.Context, Unpriced: s.Unpriced, Tasks: append([]proto.Task(nil), s.Tasks...), Version: s.Version, LastError: s.LastError}
 }
 
 // Snapshot returns an isolated copy of the current view state.
@@ -113,12 +119,21 @@ func (m *Mirror) Apply(e proto.Event) {
 	case proto.EventTurnAdded:
 		var d proto.TurnAddedData
 		if json.Unmarshal(e.Data, &d) == nil {
+			if d.Turn.ID != "" && hasTurn(s.Turns, d.Turn.ID) {
+				break // replayed after a snapshot that already holds it
+			}
 			s.Turns = append(s.Turns, d.Turn)
 			s.Live = proto.LiveState{Calls: []proto.CallState{}}
 		}
 	case proto.EventStatus:
 		var d proto.StatusData
 		if json.Unmarshal(e.Data, &d) == nil {
+			if !d.Running && staleRun(s, d.RequestID) {
+				break
+			}
+			if d.Running && d.RequestID != "" {
+				s.RequestID = d.RequestID
+			}
 			s.Running = d.Running
 			s.Phase = d.Phase
 		}
@@ -157,17 +172,26 @@ func (m *Mirror) Apply(e proto.Event) {
 		if json.Unmarshal(e.Data, &d) == nil {
 			s.Queued = append([]string(nil), d.Queued...)
 		}
+	case proto.EventError:
+		var d proto.ErrorData
+		if json.Unmarshal(e.Data, &d) == nil {
+			s.LastError = d.Message
+		}
 	case proto.EventDone, proto.EventAborted:
+		var d proto.DoneData
+		if json.Unmarshal(e.Data, &d) == nil && staleRun(s, d.RequestID) {
+			break
+		}
 		s.Running = false
 		s.Phase = ""
 		s.Retry = nil
-	case proto.EventSessionChanged:
-		var d proto.SessionItem
-		if json.Unmarshal(e.Data, &d) == nil {
-			s.Session = d
-			s.Cwd = d.Cwd
-			s.Model = d.Model
+		if e.Type == proto.EventDone {
+			s.LastError = "" // a success clears an old failure
 		}
+	case proto.EventSessionChanged:
+		// The event names changed fields; it does not carry the new values.
+		// Keep what is known and ask for a fresh snapshot.
+		s.NeedsResync = true
 	}
 }
 func (m *Mirror) call(id string) *proto.CallState {
@@ -177,4 +201,19 @@ func (m *Mirror) call(id string) *proto.CallState {
 		}
 	}
 	return nil
+}
+
+func hasTurn(turns []proto.Turn, id string) bool {
+	for _, t := range turns {
+		if t.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
+// staleRun reports an event of a run that is no longer the active one: a late
+// terminal event of an old run must not end a request that started after it.
+func staleRun(s *MirrorState, rid string) bool {
+	return rid != "" && s.RequestID != "" && s.Running && rid != s.RequestID
 }

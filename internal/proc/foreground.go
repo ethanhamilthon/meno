@@ -33,12 +33,15 @@ func (s *Supervisor) Launch(o LaunchOptions) (*Foreground, error) {
 	if st, err := os.Stat(o.Cwd); err != nil || !st.IsDir() {
 		return nil, fmt.Errorf("working directory %q is not a directory", o.Cwd)
 	}
-	s.mu.Lock()
-	closing := s.closing
-	s.mu.Unlock()
-	if closing {
+	if !s.admit() {
 		return nil, errors.New("meno is shutting down")
 	}
+	admitted := true
+	defer func() {
+		if admitted {
+			s.wg.Done() // the process never reached superviseForeground
+		}
+	}()
 	t := Task{ID: "t" + newID(), Session: o.Session, Owner: o.Owner, Name: o.Name, Command: o.Command, Cwd: o.Cwd,
 		Status: Running, Notify: true, Started: time.Now().UTC()}
 	lw, err := newLogWriter(s.logPath(t.Session, t.ID), s.limit)
@@ -59,11 +62,12 @@ func (s *Supervisor) Launch(o LaunchOptions) (*Foreground, error) {
 		return nil, err
 	}
 	r := &running{task: t, done: make(chan struct{}), log: lw, call: call}
-	s.mu.Lock()
-	s.live[t.ID] = r
-	s.mu.Unlock()
-	s.wg.Add(1)
+	late := s.register(r)
+	admitted = false // superviseForeground now owns the wg slot
 	go s.superviseForeground(r, &split)
+	if late {
+		s.terminate(r)
+	}
 	return &Foreground{s: s, r: r}, nil
 }
 

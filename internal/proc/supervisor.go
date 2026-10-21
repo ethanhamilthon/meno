@@ -106,6 +106,33 @@ func (s *Supervisor) logPath(session, id string) string {
 	return filepath.Join(s.dir, session, id+".log")
 }
 
+// admit reserves a supervisor slot unless shutdown has begun. The check and the
+// wg.Add share one lock with Shutdown's closing flag, so a process is either
+// refused or counted before Shutdown can finish waiting.
+func (s *Supervisor) admit() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closing {
+		return false
+	}
+	s.wg.Add(1)
+	return true
+}
+
+// register makes r visible to Shutdown. It reports true when shutdown started
+// before r was registered: Shutdown's snapshot missed it, so the caller must
+// terminate it.
+func (s *Supervisor) register(r *running) (late bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.live[r.task.ID] = r
+	if s.closing {
+		r.cancelled = true
+		return true
+	}
+	return false
+}
+
 // Start launches the command with /bin/sh -c in its own process group, stdin
 // closed, and returns once the process exists. Everything is validated first.
 func (s *Supervisor) Start(o StartOptions) (Task, error) {
@@ -118,12 +145,15 @@ func (s *Supervisor) Start(o StartOptions) (Task, error) {
 	if st, err := os.Stat(o.Cwd); err != nil || !st.IsDir() {
 		return Task{}, fmt.Errorf("tasks.start: cwd %q is not a directory", o.Cwd)
 	}
-	s.mu.Lock()
-	if s.closing {
-		s.mu.Unlock()
+	if !s.admit() {
 		return Task{}, errors.New("tasks.start: meno is shutting down")
 	}
-	s.mu.Unlock()
+	admitted := true
+	defer func() {
+		if admitted {
+			s.wg.Done() // the process never reached supervise
+		}
+	}()
 	t := Task{ID: "t" + newID(), Session: o.Session, Owner: o.Owner, Name: o.Name, Command: o.Command, Cwd: o.Cwd,
 		Status: Starting, Notify: o.Notify, Started: time.Now().UTC()}
 	lw, err := newLogWriter(s.logPath(t.Session, t.ID), s.limit)
@@ -158,15 +188,16 @@ func (s *Supervisor) Start(o StartOptions) (Task, error) {
 	t.Status = Running
 	_ = s.save(t)
 	r := &running{task: t, cmd: cmd, done: make(chan struct{}), log: lw}
-	s.mu.Lock()
-	s.live[t.ID] = r
-	s.mu.Unlock()
+	late := s.register(r)
 	var pumps sync.WaitGroup
 	pumps.Add(2)
 	go lw.pump(Stdout, bufio.NewReader(stdout), pumps.Done)
 	go lw.pump(Stderr, bufio.NewReader(stderr), pumps.Done)
-	s.wg.Add(1)
+	admitted = false // supervise now owns the wg slot
 	go s.supervise(r, &pumps)
+	if late {
+		s.terminate(r) // Shutdown began while this process was starting
+	}
 	return t, nil
 }
 

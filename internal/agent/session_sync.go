@@ -88,7 +88,21 @@ func (l *SafeLog) Compact(head, tail []Turn, r SummaryRev) {
 	}
 	l.archive = append(l.archive, head...)
 	l.sums = append(l.sums, r)
-	l.turns = tail
+	// Turns appended after the caller took its snapshot (a message that arrived
+	// while the summary was generated) belong to the active context.
+	last := int64(0)
+	if n := len(tail); n > 0 {
+		last = tail[n-1].HID
+	} else if n := len(head); n > 0 {
+		last = head[n-1].HID
+	}
+	kept := append([]Turn(nil), tail...)
+	for _, t := range l.turns {
+		if t.HID > last {
+			kept = append(kept, t)
+		}
+	}
+	l.turns = kept
 }
 
 func (l *SafeLog) Snapshot() []Turn {

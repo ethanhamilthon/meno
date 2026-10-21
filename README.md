@@ -62,7 +62,8 @@ every push and pull request on Linux and macOS and installs a snapshot build wit
 | | |
 | --- | --- |
 | [The agent's tool](docs/tools.md) | the `bash` tool and the `meno` command the model uses: files, tasks, mcp, web, view, ask |
-| [Command line](docs/cli.md), [daemon](docs/daemon.md) | `meno sessions`, `send`, `tail`; the background daemon |
+| [Command line](docs/cli.md), [daemon](docs/daemon.md) | `meno sessions`, `send`, `tail`, `doctor`, `web`; the background daemon |
+| [Comments](docs/comments.md), [web](docs/web.md) | quoting the conversation; web search and fetch |
 | [Sessions, history and events](docs/sessions.md) | /new, /fork, /cd, compaction, steering, /stop |
 | [Accounts and providers](docs/login.md) | `/login` |
 | [Interface](docs/ui.md) | keys, commands, timeline, Markdown, images, tool-call display |

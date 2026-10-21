@@ -14,6 +14,7 @@ func (a *App) openOverlay(o Overlay) {
 	a.st.Sel = 0
 	a.st.Field = 0
 	a.st.Query.Reset()
+	a.st.EffortPick = ""
 	a.endEdit()
 	a.st.FormNote = ""
 }

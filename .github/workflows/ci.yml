@@ -17,8 +17,25 @@ jobs:
       - run: make check
       - name: staticcheck
         if: matrix.os == 'ubuntu-latest'
-        run: go run honnef.co/go/tools/cmd/staticcheck@latest -checks "all,-ST1000,-ST1003,-ST1016,-ST1020,-ST1021,-ST1022,-ST1013,-SA1019,-S1007" ./...
+        run: go run honnef.co/go/tools/cmd/staticcheck@2025.1.1 -checks "all,-ST1000,-ST1003,-ST1016,-ST1020,-ST1021,-ST1022,-ST1013,-SA1019,-S1007" ./...
       - run: make term
+      - name: coverage floors
+        if: matrix.os == 'ubuntu-latest'
+        run: make cover
+  bench:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: benchmarks against the base (report only until a baseline is established)
+        env:
+          BENCH_REPORT_ONLY: "1"
+        run: scripts/check-bench.sh "origin/${{ github.base_ref }}" 25 5
   installer:
     runs-on: ubuntu-latest
     steps:

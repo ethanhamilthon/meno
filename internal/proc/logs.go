@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 )
 
 // Stream names in log records.
@@ -64,7 +65,31 @@ func newLogWriter(path string, limit int64) (*logWriter, error) {
 	return &logWriter{path: path, limit: max(limit, 4*MaxRecord), f: f}, nil
 }
 
+// write stores text as one or more records. A record's JSON form can be several
+// times its text (control characters become 6-byte escapes), so text whose
+// encoded size would exceed a quarter of the budget is split: the disk limit
+// then holds for what is written, not for what the process printed.
 func (w *logWriter) write(stream, text string) {
+	text = strings.ToValidUTF8(text, "�")
+	for len(text) > 0 {
+		n := len(text)
+		for n > 1 && encodedLen(text[:n]) > w.limit/4 {
+			n /= 2
+		}
+		for n < len(text) && !utf8.RuneStart(text[n]) {
+			n++ // never cut inside a character
+		}
+		w.writeOne(stream, text[:n])
+		text = text[n:]
+	}
+}
+
+func encodedLen(s string) int64 {
+	b, _ := json.Marshal(wireRecord{D: s})
+	return int64(len(b)) + 24
+}
+
+func (w *logWriter) writeOne(stream, text string) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if w.closed {

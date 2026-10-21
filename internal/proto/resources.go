@@ -47,6 +47,12 @@ type GlobalStatus struct {
 	DoneUnseen bool   `json:"done_unseen"`
 }
 
+// SessionLifecycle is the payload of session_created and session_deleted.
+type SessionLifecycle struct {
+	SessionID string `json:"session_id"`
+	ParentID  string `json:"parent_id,omitempty"`
+}
+
 // UsageData reports token and cost counts from one model request.
 type UsageData struct {
 	InputTokens  int64   `json:"input_tokens,omitempty"`
@@ -70,6 +76,7 @@ type RetryData struct {
 
 // ErrorData carries an error event without HTTP status semantics.
 type ErrorData struct {
+	RequestID string `json:"request_id,omitempty"`
 	Code      string `json:"code,omitempty"`
 	Message   string `json:"message"`
 	Retryable bool   `json:"retryable,omitempty"`

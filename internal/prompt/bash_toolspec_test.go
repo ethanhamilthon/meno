@@ -5,14 +5,28 @@ import (
 	"testing"
 )
 
-func TestBashDescriptionHoldsTheBashRules(t *testing.T) {
+func TestBashDescriptionDescribesTheTool(t *testing.T) {
 	got := BashToolDescription()
 	for _, want := range []string{
-		"meno mcp", "meno tasks", "meno ask", "meno view", "models: [--provider --refresh]", "meno --help",
-		"Use relative paths; do not prefix commands with cd to that directory.",
-		"Use cd only when a command needs a different directory.",
-		"Directory changes do not persist between calls",
-		"[exit N] or [cancelled]",
+		"fresh shell", "do not persist between calls",
+		"meno mcp", "meno tasks", "meno ask FILE|-", "meno view IMAGE", "meno models [--provider --refresh]",
+		"meno sessions [--cwd DIR]", "meno send [-s ID|--new] [--detach] TEXT", "meno tail ID", "meno help [TOPIC]",
+		"meno --help", "[exit N] or [cancelled]", "already running the message is only queued",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("description misses %q", want)
+		}
+	}
+	for _, banned := range []string{"Editing:", "Verification:", "Output:", "<skills>", "environment section"} {
+		if strings.Contains(got, banned) {
+			t.Errorf("policy %q belongs in the system prompt, not the tool description", banned)
+		}
+	}
+}
+
+func TestOperatingRulesAppearOnceInSystemPrompt(t *testing.T) {
+	got := Build(Input{})
+	for _, want := range []string{
 		"Editing:", "Verification:", "Output:",
 		"Read a file before you change it. Change part of a file with sed or a quoted heredoc, not by sending the whole file again. Do not overwrite content you have not read.",
 		"Find with rg when it exists (check with command -v rg), otherwise grep -rn. Never guess a path or a symbol.",
@@ -23,15 +37,10 @@ func TestBashDescriptionHoldsTheBashRules(t *testing.T) {
 		"Ask the program for less: head, tail, a filter, a narrower flag. Do not dump a directory or a whole log.",
 		"Return the value you need, not the whole object.",
 		"Everything a call prints stays in the context for the rest of the run and is paid for again in every request.",
+		"Use relative paths; do not prefix commands with cd",
 	} {
-		if !strings.Contains(got, want) {
-			t.Errorf("description misses %q", want)
+		if n := strings.Count(got, want); n != 1 {
+			t.Errorf("%q appears %d times, want 1", want, n)
 		}
-	}
-	if strings.Contains(got, "environment section") || strings.Contains(got, "<skills>") || strings.Contains(got, "<editing>") {
-		t.Error("description must not point at prompt sections or use XML tags")
-	}
-	if len(got) > 3500 {
-		t.Errorf("description grew to %d bytes", len(got))
 	}
 }

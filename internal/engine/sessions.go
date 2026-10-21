@@ -76,5 +76,6 @@ func (e *Engine) CreateSession(ctx context.Context, q proto.SessionCreateRequest
 	s.token.groups = groupsFor(nil)
 	result := proto.SessionCreateResponse{Session: item(s)}
 	s.mu.Unlock()
+	e.announce(proto.EventSessionCreated, sess.ID, "")
 	return result, nil
 }

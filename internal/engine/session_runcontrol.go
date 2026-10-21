@@ -37,6 +37,12 @@ func (e *Engine) Compact(ctx context.Context, id string, q proto.CompactRequest)
 		s.mu.Unlock()
 		return proto.CompactResponse{}, api(proto.CodeConflict, "cannot compact while a run is active")
 	}
+	if s.compacting {
+		s.mu.Unlock()
+		return proto.CompactResponse{}, api(proto.CodeConflict, "the session is already being compacted")
+	}
+	s.compacting = true
+	defer func() { s.mu.Lock(); s.compacting = false; s.mu.Unlock() }()
 	p, ok := e.provider(s.session.Provider)
 	model, effort, cwd := s.session.Model, s.session.Effort, s.cwd
 	s.mu.Unlock()

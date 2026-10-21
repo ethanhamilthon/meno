@@ -108,6 +108,10 @@ func Run(args []string, streams IO, api API) int {
 		code, err = runSend(args, streams, api, jsonOut)
 	case "tail":
 		code, err = runTail(args, streams, api, jsonOut)
+	case "web":
+		code, err = runWeb(args, streams, api, jsonOut)
+	case "doctor":
+		code, err = runDoctor(args, streams, api, jsonOut)
 	default:
 		err = unknown(name, append(commandNames, "help"))
 	}

@@ -156,7 +156,7 @@ func (e *Engine) translate(id string, ev agent.Ev) {
 			d.ContextTokens = requestTokens(ev.Req)
 		}
 		e.publish(id, proto.EventRequest, d)
-		e.publish(id, proto.EventStatus, proto.StatusData{Running: true, Phase: "thinking"})
+		e.publish(id, proto.EventStatus, proto.StatusData{Running: true, Phase: "thinking", RequestID: e.currentRequest(id)})
 	case agent.EvRetry:
 		e.publish(id, proto.EventRetry, proto.RetryData{Attempt: ev.Attempt, Max: ev.Max, InMS: ev.Delay.Milliseconds(), Reason: ev.Err})
 	case agent.EvUsage:

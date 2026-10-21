@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"encoding/json"
-	"strings"
 
 	"github.com/gdamore/tcell/v2"
 
@@ -19,6 +18,10 @@ type tasksView struct {
 	LogID    string // the task whose log is open ("" = the list)
 	HideDone bool
 	inflight bool
+	// Up is how many rows the log is scrolled above its newest row. Zero means
+	// follow: new output keeps the view at the end. Scrolling up stops
+	// following until the user returns to the end with G or End.
+	Up int
 }
 
 type taskLogLine struct {
@@ -93,7 +96,8 @@ func (a *App) tasksKey(k *tcell.EventKey) {
 	v := &a.st.TasksUI
 	rows := a.taskRows()
 	if v.LogID != "" {
-		return // logs are read-only; esc goes back
+		a.taskLogKey(k)
+		return
 	}
 	switch {
 	case a.navKey(k, len(rows), true):
@@ -184,19 +188,22 @@ func (a *App) drawTaskLog(c ui.Canvas, w, h int) {
 	titleRow("task "+v.LogID+" · "+task.Status, "")(c, b)
 	b.put(c, 2, 1, ui.Truncate(oneLine(task.Command), max(1, b.w-4)), ui.FgDim, ui.BgPopup)
 	room := max(0, b.h-4)
-	recs := v.Logs
-	if len(recs) > room {
-		recs = recs[len(recs)-room:]
-	}
-	for i, r := range recs {
+	rows := a.taskLogRows(max(1, b.w-4))
+	end := len(rows) - min(v.Up, max(0, len(rows)-room))
+	start := max(0, end-room)
+	for i, r := range rows[start:end] {
 		fg := ui.FgSoft
-		if r.Stderr {
+		if r.err {
 			fg = ui.Red
 		}
-		b.put(c, 2, 3+i, ui.Truncate(strings.ReplaceAll(r.Text, "\t", "    "), max(1, b.w-4)), fg, ui.BgPopup)
+		b.put(c, 2, 3+i, r.text, fg, ui.BgPopup)
 	}
-	if len(v.Logs) == 0 {
+	if len(rows) == 0 {
 		b.put(c, 2, 3, "no output yet", ui.FgDim, ui.BgPopup)
 	}
-	b.hint(c, "live · esc back")
+	mode := "following"
+	if v.Up > 0 {
+		mode = itoa(v.Up) + " rows above the end"
+	}
+	b.hint(c, mode+" · ↑/↓ PgUp/PgDn scroll · G follow · y copy · esc back")
 }

@@ -11,12 +11,12 @@ func TestWireJSONGoldens(t *testing.T) {
 		value any
 		want  string
 	}{
-		{"hello", Hello{Protocol: Protocol, Version: "v", BootID: "b", PID: 7, StartedAt: "now"}, `{"protocol":2,"version":"v","boot_id":"b","pid":7,"started_at":"now"}`},
+		{"hello", Hello{Protocol: Protocol, Version: "v", BootID: "b", PID: 7, StartedAt: "now"}, `{"protocol":3,"version":"v","boot_id":"b","pid":7,"started_at":"now"}`},
 		{"error", ErrorEnvelope{Error: ErrorBody{Code: CodeNotFound, Message: "missing"}}, `{"error":{"code":"not_found","message":"missing"}}`},
 		{"sessions", SessionsListResponse{Sessions: []SessionItem{{ID: "s", Cwd: "/w", Running: true}}}, `{"sessions":[{"id":"s","cwd":"/w","running":true,"needs_you":false}]}`},
 		{"create", SessionCreateRequest{Cwd: "/w", ClientID: "uuid"}, `{"cwd":"/w","client_id":"uuid"}`},
 		{"message", MessageRequest{Text: "hi", ClientID: "uuid"}, `{"text":"hi","client_id":"uuid"}`},
-		{"snapshot", Snapshot{Session: SessionItem{ID: "s", Cwd: "/w"}, Cwd: "/w", Seq: 4}, `{"session":{"id":"s","cwd":"/w","running":false,"needs_you":false},"cwd":"/w","running":false,"seq":4,"turn_count":0,"live":{},"metrics":{},"task_count":0}`},
+		{"snapshot", Snapshot{Session: SessionItem{ID: "s", Cwd: "/w"}, Cwd: "/w", Seq: 4}, `{"session":{"id":"s","cwd":"/w","running":false,"needs_you":false},"cwd":"/w","running":false,"seq":4,"version":{"boot_id":"","revision":0},"turn_count":0,"live":{},"metrics":{},"task_count":0}`},
 		{"event", Event{Seq: 2, Type: EventTextDelta, Data: json.RawMessage(`{"text":"x"}`)}, `{"seq":2,"type":"text_delta","data":{"text":"x"}}`},
 		{"call", ToolCall{ID: "c", Name: "bash", Arguments: json.RawMessage(`{"command":"echo"}`)}, `{"id":"c","name":"bash","arguments":{"command":"echo"}}`},
 		{"ask", AskAnswerRequest{Answers: map[string]json.RawMessage{"q": json.RawMessage(`"a"`)}}, `{"answers":{"q":"a"}}`},

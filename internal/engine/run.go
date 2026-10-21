@@ -28,31 +28,25 @@ func (e *Engine) Message(ctx context.Context, id string, q proto.MessageRequest)
 	// start a run with stale or empty defaults.
 	reloadErr := e.reloadConfig()
 	in := e.selectionInput()
+	s.commit.Lock()
+	defer s.commit.Unlock()
 	s.mu.Lock()
 	if s.ask != nil {
 		s.mu.Unlock()
 		return proto.MessageResponse{}, api(proto.CodeConflict, "session is waiting for an ask answer")
 	}
 	if s.running {
-		if len(q.Attachments) > 0 {
-			if err = e.appendMessage(s, q); err != nil {
-				s.mu.Unlock()
-				return proto.MessageResponse{}, err
-			}
-		} else {
-			s.queue.Push(agent.Message{Text: q.Text})
+		att, perr := e.prepareAttachments(q.Attachments)
+		if perr != nil {
+			s.mu.Unlock()
+			return proto.MessageResponse{}, perr
 		}
+		// The queue is the one path into a running turn: the runner takes the
+		// entry at its next step, so an image makes the model answer again.
+		s.queue.Push(agent.Message{Text: q.Text, Attachments: att})
 		rid := s.requestID
 		e.publishQueue(s, proto.InjectedData{Text: q.Text, By: "user"})
 		s.mu.Unlock()
-		if len(q.Attachments) > 0 {
-			s.mu.Lock()
-			_ = e.save(s)
-			turns := s.session.Snapshot()
-			s.published = len(turns)
-			s.mu.Unlock()
-			e.publish(id, proto.EventTurnAdded, proto.TurnAddedData{Turn: turnWire(turns[len(turns)-1])})
-		}
 		return proto.MessageResponse{RequestID: rid, Queued: true}, nil
 	}
 	if reloadErr != nil {
@@ -70,6 +64,7 @@ func (e *Engine) Message(ctx context.Context, id string, q proto.MessageRequest)
 	}
 	rid := agent.NewID()
 	s.requestID = rid
+	s.lastErr = "" // the outcome of the previous run no longer applies
 	s.running = true
 	s.phase = "preparing"
 	s.metrics = proto.Metrics{}
@@ -81,7 +76,7 @@ func (e *Engine) Message(ctx context.Context, id string, q proto.MessageRequest)
 	s.published = len(turns)
 	s.mu.Unlock()
 	e.publish(id, proto.EventTurnAdded, proto.TurnAddedData{Turn: turnWire(turns[len(turns)-1])})
-	e.publish(id, proto.EventStatus, proto.StatusData{Running: true, Phase: "preparing"})
+	e.publish(id, proto.EventStatus, proto.StatusData{Running: true, Phase: "preparing", RequestID: rid})
 	if repaired {
 		e.publish(id, proto.EventSessionChanged, proto.ChangedData{Fields: []string{"provider", "model", "effort"}})
 	}
@@ -90,10 +85,20 @@ func (e *Engine) Message(ctx context.Context, id string, q proto.MessageRequest)
 }
 
 func (e *Engine) appendMessage(s *runState, q proto.MessageRequest) error {
-	att := make([]agent.Attachment, 0, len(q.Attachments))
-	for i, a := range q.Attachments {
+	att, err := e.prepareAttachments(q.Attachments)
+	if err != nil {
+		return err
+	}
+	s.session.Append(agent.Turn{Role: llm.RoleUser, Text: q.Text, Attachments: att, Time: time.Now().UTC()})
+	return nil
+}
+
+// prepareAttachments decodes, validates and stores the images of a message.
+func (e *Engine) prepareAttachments(in []proto.Attachment) ([]agent.Attachment, error) {
+	att := make([]agent.Attachment, 0, len(in))
+	for i, a := range in {
 		if a.Data == "" && a.Path == "" {
-			return api(proto.CodeBadRequest, "attachment requires data or path")
+			return nil, api(proto.CodeBadRequest, "attachment requires data or path")
 		}
 		var raw []byte
 		var err error
@@ -103,25 +108,24 @@ func (e *Engine) appendMessage(s *runState, q proto.MessageRequest) error {
 			raw, err = os.ReadFile(a.Path)
 		}
 		if err != nil {
-			return api(proto.CodeBadRequest, err.Error())
+			return nil, api(proto.CodeBadRequest, err.Error())
 		}
 		img, err := attach.Prepare(raw)
 		if err != nil {
-			return api(proto.CodeBadRequest, err.Error())
+			return nil, api(proto.CodeBadRequest, err.Error())
 		}
 		path := filepath.Join(e.paths.File("attachments"), img.SHA+attach.Ext(img.Mime))
 		if err = os.MkdirAll(filepath.Dir(path), 0700); err != nil {
-			return err
+			return nil, err
 		}
 		if _, err = os.Stat(path); errors.Is(err, os.ErrNotExist) {
 			if err = os.WriteFile(path, img.Data, 0600); err != nil {
-				return err
+				return nil, err
 			}
 		}
 		att = append(att, agent.Attachment{N: i + 1, Mime: img.Mime, SHA: img.SHA, W: img.W, H: img.H})
 	}
-	s.session.Append(agent.Turn{Role: llm.RoleUser, Text: q.Text, Attachments: att, Time: time.Now().UTC()})
-	return nil
+	return att, nil
 }
 
 func (e *Engine) run(ctx context.Context, s *runState, text string, cont bool) {
@@ -172,8 +176,12 @@ func (e *Engine) run(ctx context.Context, s *runState, text string, cont bool) {
 			return mi.Cost(u), true
 		},
 		Emit: func(ev agent.Ev) { e.agentEvent(s, ev) }}
-	var err error
-	err = safe.Call(func() { err = (&agent.Runner{D: deps}).Continue(ctx, s.session) })
+	var runErr error
+	panicErr := safe.Call(func() { runErr = (&agent.Runner{D: deps}).Continue(ctx, s.session) })
+	err := runErr
+	if panicErr != nil {
+		err = panicErr
+	}
 	if err == nil {
 		err = ctx.Err()
 	}
@@ -182,6 +190,8 @@ func (e *Engine) run(ctx context.Context, s *runState, text string, cont bool) {
 
 func (e *Engine) finish(s *runState, err error) {
 	id := s.session.ID
+	s.commit.Lock()
+	defer s.commit.Unlock()
 	s.mu.Lock()
 	s.running = false
 	s.phase = ""
@@ -199,11 +209,11 @@ func (e *Engine) finish(s *runState, err error) {
 		e.publish(id, proto.EventError, proto.ErrorData{Message: saveErr.Error()})
 	}
 	e.publish(id, proto.EventSessionChanged, proto.ChangedData{Fields: []string{"run", "unread"}})
-	e.publish(id, proto.EventStatus, proto.StatusData{Running: false})
+	e.publish(id, proto.EventStatus, proto.StatusData{Running: false, RequestID: requestID})
 	if err != nil && errors.Is(err, context.Canceled) {
 		e.publish(id, proto.EventAborted, map[string]any{})
 	} else if err != nil {
-		e.publish(id, proto.EventError, proto.ErrorData{Message: err.Error()})
+		e.publish(id, proto.EventError, proto.ErrorData{RequestID: requestID, Message: err.Error()})
 	} else {
 		e.publish(id, proto.EventDone, proto.DoneData{RequestID: requestID, Metrics: metrics})
 	}

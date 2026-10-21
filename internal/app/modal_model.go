@@ -26,6 +26,9 @@ func (a *App) modelKey(k *tcell.EventKey) {
 		if len(list) > 0 {
 			pick := list[clampSel(a.st.Sel, len(list))]
 			_, _, effort := a.selection()
+			if a.st.EffortPick != "" {
+				effort = a.st.EffortPick
+			}
 			// The new model may not accept the effort of the old one.
 			effort = llm.ClampEffort(a.effortsFor(pick.Provider, pick.ID), effort)
 			a.setSelection(pick.Provider, pick.ID, effort)
@@ -68,12 +71,18 @@ func (a *App) highlighted(list []llm.Model) (provider, model string) {
 	return p, m
 }
 
-// cycleEffort steps the effort of the current session through the levels of
-// the model under the cursor.
+// cycleEffort steps the candidate effort through the levels of the model under
+// the cursor. Nothing is saved or sent until Enter.
 func (a *App) cycleEffort(step int, list []llm.Model) {
 	hp, hm := a.highlighted(list)
 	levels := a.effortsFor(hp, hm)
-	_, _, cur := a.selection()
+	if len(levels) == 0 {
+		return
+	}
+	cur := a.st.EffortPick
+	if cur == "" {
+		cur = effortOf(a)
+	}
 	idx := 0
 	for i, l := range levels {
 		if l == cur {
@@ -81,8 +90,7 @@ func (a *App) cycleEffort(step int, list []llm.Model) {
 		}
 	}
 	n := len(levels)
-	p, m, _ := a.selection()
-	a.setSelection(p, m, levels[((idx+step)%n+n)%n])
+	a.st.EffortPick = levels[((idx+step)%n+n)%n]
 }
 
 func (a *App) drawModel(c ui.Canvas, w, h int) {
@@ -148,6 +156,14 @@ func (a *App) drawModel(c ui.Canvas, w, h int) {
 	b.fill(c, y+1, ui.BgPopup)
 	b.put(c, 2, y+1, "effort", ui.FgDim, ui.BgPopup)
 	hp, hm := a.highlighted(list)
-	chips(c, b, y+1, 12, a.effortsFor(hp, hm), effortOf(a))
-	b.hint(c, "↑/↓ model · ←/→ effort · enter apply · esc close")
+	chosen := effortOf(a)
+	if a.st.EffortPick != "" {
+		chosen = a.st.EffortPick
+	}
+	chips(c, b, y+1, 12, a.effortsFor(hp, hm), chosen)
+	b.hint(c, "↑/↓ model · ←/→ effort · enter apply · esc cancel")
 }
+
+// highlightedPair is highlighted() for the current list, for call sites that
+// pass its two results on.
+func (a *App) highlightedPair() (string, string) { return a.highlighted(a.modelList()) }

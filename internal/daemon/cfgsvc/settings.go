@@ -10,6 +10,11 @@ import (
 func (s *Service) readSettings() (config.Settings, error) {
 	s.settingsMu.Lock()
 	defer s.settingsMu.Unlock()
+	return s.readSettingsLocked()
+}
+
+// readSettingsLocked is readSettings for a caller that holds settingsMu.
+func (s *Service) readSettingsLocked() (config.Settings, error) {
 	path := s.paths.SettingsFile()
 	stamp := s.stamp(path)
 	changed := s.updateStamp(path, stamp)
@@ -32,8 +37,13 @@ func (s *Service) readSettings() (config.Settings, error) {
 func (s *Service) Settings() (config.Settings, error) { return s.readSettings() }
 
 func (s *Service) settingsResource(method string, req proto.ResourceRequest) (any, error) {
-	if err := checkMethod(method, "GET", "PUT"); err != nil {
+	if err := checkMethod(method, "GET", "PUT", "PATCH"); err != nil {
 		return nil, err
+	}
+	if method == "PATCH" {
+		s.settingsMu.Lock()
+		defer s.settingsMu.Unlock()
+		return s.patchSettings(req)
 	}
 	if method == "GET" {
 		v, err := s.readSettings()

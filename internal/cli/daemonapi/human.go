@@ -122,9 +122,13 @@ func (a *API) follow(ctx context.Context, id string, after uint64) (string, erro
 	if err != nil && !finished {
 		return text, err
 	}
+	if !finished {
+		return text, errInterrupted
+	}
 	return text, nil
 }
 
+var errInterrupted = errors.New("the stream closed before the run finished")
 var errStop = errors.New("stop")
 
 // Tail returns the events of a session: the whole stream of a running session

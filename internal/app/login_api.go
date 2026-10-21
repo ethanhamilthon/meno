@@ -1,8 +1,10 @@
 package app
 
 import (
+	"context"
 	"strings"
 
+	"meno/internal/client"
 	"meno/internal/llm"
 )
 
@@ -113,7 +115,14 @@ func (a *App) deleteProvider(i int) {
 		return
 	}
 	a.st.Providers = append(a.st.Providers[:i], a.st.Providers[i+1:]...)
-	a.persistProviders()
+	name := p.Name
+	a.pushSave(func() {
+		err := a.rpc(func(ctx context.Context, c *client.Client) error { return c.DeleteProvider(ctx, name) })
+		if err != nil {
+			a.postEvent(errNotice{text: "providers: " + err.Error()})
+		}
+		a.postEvent(a.fetchConfig())
+	})
 	a.notify("removed " + p.Name)
 	a.afterProvidersChanged()
 }

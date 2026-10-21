@@ -9,6 +9,11 @@ import (
 func (a *App) onKey(k *tcell.EventKey) {
 	k = normalizeCtrl(k)
 	if k.Key() == tcell.KeyCtrlC {
+		// The first-run screen promises that ctrl+c quits: there is no turn to stop.
+		if a.st.Locked {
+			a.quit = true
+			return
+		}
 		a.abortTurn()
 		return
 	}

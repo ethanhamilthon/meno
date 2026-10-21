@@ -10,6 +10,13 @@ import (
 // Esc never closes the form; only the Cancel action does.
 func (a *App) askKey(k *tcell.EventKey) {
 	st := a.st.Ask
+	// Leave the question pending and look at another session. The form stays
+	// with its session and its answer draft is kept; nothing is answered or
+	// cancelled.
+	if k.Key() == tcell.KeyCtrlO {
+		a.openSessions()
+		return
+	}
 	if st.Typing {
 		a.askTypingKey(st, k)
 		return

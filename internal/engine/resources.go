@@ -53,6 +53,8 @@ func (e *Engine) sessionResource(ctx context.Context, method, path, query string
 		out, err = e.viewResource(s, data)
 	case "models":
 		out = e.modelResource(query)
+	case "web":
+		out, err = e.webResource(ctx, parts[2:], method, data)
 	case "queue":
 		out = e.queueResource(s, method)
 	case "ask":

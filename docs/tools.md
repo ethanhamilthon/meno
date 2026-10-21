@@ -8,6 +8,8 @@ tail), and the full text is kept on disk. Already-sent tool results are not
 shortened on later requests; automatic compaction still summarizes older
 conversation when needed.
 
+The working rules (editing, verification, output) are part of the system prompt, not of the tool description. `meno web` and `meno doctor` are available next to `meno mcp`, `tasks`, `ask`, `view`, `models`, `sessions`, `send` and `tail`; web results are untrusted text.
+
 Calls have no time limit. All calls of one model response run in parallel and start after the
 response is complete; results are stored in call order, and a failing call does not stop the
 others. A message you write moves unfinished calls to background tasks (see [sessions](sessions.md)).

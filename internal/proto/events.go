@@ -53,8 +53,9 @@ type RequestData struct {
 
 // StatusData reports session activity.
 type StatusData struct {
-	Running bool   `json:"running"`
-	Phase   string `json:"phase"`
+	Running   bool   `json:"running"`
+	Phase     string `json:"phase"`
+	RequestID string `json:"request_id,omitempty"` // the run this status belongs to
 }
 
 // AskClosedData closes an ask form.

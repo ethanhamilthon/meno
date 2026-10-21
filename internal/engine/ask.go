@@ -22,12 +22,11 @@ func (e *Engine) AnswerAsk(ctx context.Context, id, askID string, q proto.AskAns
 	}
 	s.mu.Unlock()
 	if q.Cancel {
-		select {
-		case a.answer <- askReply{err: form.ErrCancelled}:
-			return nil
-		default:
+		if !a.claim() {
 			return api(proto.CodeConflict, "ask has already been answered")
 		}
+		a.answer <- askReply{err: form.ErrCancelled}
+		return nil
 	}
 	answers := make([]form.Answer, 0, len(a.form.Questions))
 	for _, question := range a.form.Questions {
@@ -73,10 +72,11 @@ func (e *Engine) AnswerAsk(ctx context.Context, id, askID string, q proto.AskAns
 		}
 		answers = append(answers, ans)
 	}
-	select {
-	case a.answer <- askReply{answers: answers}:
-		return nil
-	default:
+	// Only a valid answer may take the question: an invalid one returned above
+	// leaves it open for the next client.
+	if !a.claim() {
 		return api(proto.CodeConflict, "ask has already been answered")
 	}
+	a.answer <- askReply{answers: answers}
+	return nil
 }

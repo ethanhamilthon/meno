@@ -34,3 +34,13 @@ func TestUnknownCommandFails(t *testing.T) {
 		t.Fatalf("update with arguments: %d %q", code, errOut)
 	}
 }
+
+// Every command the cli package implements must be routed to it by the entry
+// point, or the real binary answers "unknown command".
+func TestEveryCLICommandIsRoutedToTheDaemonGroup(t *testing.T) {
+	for _, name := range []string{"mcp", "tasks", "ask", "view", "models", "sessions", "send", "tail", "doctor", "web"} {
+		if !isDaemonGroup(name) {
+			t.Errorf("%q is not routed to the cli package", name)
+		}
+	}
+}

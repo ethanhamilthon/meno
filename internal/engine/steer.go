@@ -87,11 +87,12 @@ func (e *Engine) wakeIfPending(sid string) {
 		return
 	}
 	s.running, s.phase = true, "preparing"
+	rid := s.requestID
 	ctx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
 	s.live = proto.LiveState{Calls: []proto.CallState{}}
 	s.mu.Unlock()
-	e.publish(sid, proto.EventStatus, proto.StatusData{Running: true, Phase: "preparing"})
+	e.publish(sid, proto.EventStatus, proto.StatusData{Running: true, Phase: "preparing", RequestID: rid})
 	if repaired {
 		e.publish(sid, proto.EventSessionChanged, proto.ChangedData{Fields: []string{"provider", "model", "effort"}})
 	}
