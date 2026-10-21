@@ -1,6 +1,9 @@
 package mcp
 
-import "net/url"
+import (
+	"net/url"
+	"strings"
+)
 
 const (
 	TransportStdio = "stdio"
@@ -9,11 +12,18 @@ const (
 )
 
 type Server struct {
-	Name      string            `json:"name"`
-	Transport string            `json:"transport"`
-	Command   string            `json:"command"`
-	Env       map[string]string `json:"env,omitempty"`
-	URL       string            `json:"url,omitempty"`
+	Name      string `json:"name"`
+	Transport string `json:"transport"`
+	Command   string `json:"command"`
+	// Args are the arguments of a stdio server, appended to the words of
+	// Command. The usual MCP shape ("command": "python", "args": ["s.py"])
+	// works; a Command that already names the script keeps working.
+	Args []string `json:"args,omitempty"`
+	// Cwd is the working directory of a stdio server. Empty means the
+	// working directory of the daemon.
+	Cwd string            `json:"cwd,omitempty"`
+	Env map[string]string `json:"env,omitempty"`
+	URL string            `json:"url,omitempty"`
 	// Headers are sent with every request of an sse or streamable-http server
 	// (for example Authorization).
 	Headers map[string]string `json:"headers,omitempty"`
@@ -42,6 +52,11 @@ func ValidateServer(s Server) error {
 	case TransportStdio:
 		if _, err := parseCommand(s.Command); err != nil {
 			return err
+		}
+		for _, a := range s.Args {
+			if strings.TrimSpace(a) == "" {
+				return errString("args must not be empty")
+			}
 		}
 	case TransportSSE, TransportHTTP:
 		if s.URL == "" {

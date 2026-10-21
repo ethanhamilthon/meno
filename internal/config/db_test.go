@@ -40,13 +40,20 @@ func TestDBRoundTrips(t *testing.T) {
 	if got, err := st.LoadSettings(); err != nil || got != s {
 		t.Fatalf("%+v %v", got, err)
 	}
-	sv := []mcp.Server{{Name: "a", Transport: mcp.TransportStdio, Command: "x y", Env: map[string]string{"K": "v"}, Enabled: true}, {Name: "b", Transport: "sse", URL: "http://u", Headers: map[string]string{"A": "b"}}}
+	sv := []mcp.Server{
+		{Name: "a", Transport: mcp.TransportStdio, Command: "x y", Env: map[string]string{"K": "v"}, Enabled: true},
+		{Name: "b", Transport: "sse", URL: "http://u", Headers: map[string]string{"A": "b"}},
+		{Name: "c", Transport: mcp.TransportStdio, Command: "python3", Args: []string{"server.py", "--flag"}, Cwd: "/tmp/project", Enabled: true},
+	}
 	if err := st.SaveServers(sv); err != nil {
 		t.Fatal(err)
 	}
 	got, _ := st.LoadServers()
-	if len(got) != 2 || got[0].Env["K"] != "v" || got[1].Headers["A"] != "b" || got[1].Enabled || got[0].Name != "a" {
+	if len(got) != 3 || got[0].Env["K"] != "v" || got[1].Headers["A"] != "b" || got[1].Enabled || got[0].Name != "a" {
 		t.Fatalf("%+v", got)
+	}
+	if len(got[2].Args) != 2 || got[2].Args[1] != "--flag" || got[2].Cwd != "/tmp/project" {
+		t.Fatalf("args and cwd were not kept: %+v", got[2])
 	}
 	cat := map[string]llm.ModelInfo{"m": {Context: 10, Input: 1.5}}
 	st.SaveCatalog(cat)

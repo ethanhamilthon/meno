@@ -163,7 +163,7 @@ func (s *Store) LoadServers() ([]mcp.Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	rows, err := d.Query("SELECT name, transport, command, url, enabled, env_json, headers_json FROM mcp_servers ORDER BY pos")
+	rows, err := d.Query("SELECT name, transport, command, url, enabled, env_json, headers_json, args_json, cwd FROM mcp_servers ORDER BY pos")
 	if err != nil {
 		return nil, err
 	}
@@ -172,18 +172,22 @@ func (s *Store) LoadServers() ([]mcp.Server, error) {
 	for rows.Next() {
 		var x mcp.Server
 		var en int
-		var env, hdr string
-		if err := rows.Scan(&x.Name, &x.Transport, &x.Command, &x.URL, &en, &env, &hdr); err != nil {
+		var env, hdr, args string
+		if err := rows.Scan(&x.Name, &x.Transport, &x.Command, &x.URL, &en, &env, &hdr, &args, &x.Cwd); err != nil {
 			return nil, err
 		}
 		x.Enabled = en != 0
 		_ = json.Unmarshal([]byte(env), &x.Env)
 		_ = json.Unmarshal([]byte(hdr), &x.Headers)
+		_ = json.Unmarshal([]byte(args), &x.Args)
 		if len(x.Env) == 0 {
 			x.Env = nil
 		}
 		if len(x.Headers) == 0 {
 			x.Headers = nil
+		}
+		if len(x.Args) == 0 {
+			x.Args = nil
 		}
 		sv = append(sv, x)
 	}
@@ -201,14 +205,18 @@ func putServers(t *sql.Tx, sv []mcp.Server) error {
 	for i, x := range sv {
 		env, _ := json.Marshal(x.Env)
 		hdr, _ := json.Marshal(x.Headers)
+		args, _ := json.Marshal(x.Args)
 		if x.Env == nil {
 			env = []byte("{}")
 		}
 		if x.Headers == nil {
 			hdr = []byte("{}")
 		}
-		if _, err := t.Exec("INSERT INTO mcp_servers(pos,name,transport,command,url,enabled,env_json,headers_json) VALUES(?,?,?,?,?,?,?,?)",
-			i, x.Name, x.Transport, x.Command, x.URL, b2i(x.Enabled), string(env), string(hdr)); err != nil {
+		if x.Args == nil {
+			args = []byte("[]")
+		}
+		if _, err := t.Exec("INSERT INTO mcp_servers(pos,name,transport,command,url,enabled,env_json,headers_json,args_json,cwd) VALUES(?,?,?,?,?,?,?,?,?,?)",
+			i, x.Name, x.Transport, x.Command, x.URL, b2i(x.Enabled), string(env), string(hdr), string(args), x.Cwd); err != nil {
 			return err
 		}
 	}

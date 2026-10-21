@@ -11,7 +11,7 @@ func TestWireJSONGoldens(t *testing.T) {
 		value any
 		want  string
 	}{
-		{"hello", Hello{Protocol: Protocol, Version: "v", BootID: "b", PID: 7, StartedAt: "now"}, `{"protocol":6,"version":"v","boot_id":"b","pid":7,"started_at":"now"}`},
+		{"hello", Hello{Protocol: Protocol, Version: "v", BootID: "b", PID: 7, StartedAt: "now"}, `{"protocol":7,"version":"v","boot_id":"b","pid":7,"started_at":"now"}`},
 		{"error", ErrorEnvelope{Error: ErrorBody{Code: CodeNotFound, Message: "missing"}}, `{"error":{"code":"not_found","message":"missing"}}`},
 		{"sessions", SessionsListResponse{Sessions: []SessionItem{{ID: "s", Cwd: "/w", Running: true}}}, `{"sessions":[{"id":"s","cwd":"/w","running":true,"needs_you":false,"turn_count":0}]}`},
 		{"create", SessionCreateRequest{Cwd: "/w", ClientID: "uuid"}, `{"cwd":"/w","client_id":"uuid"}`},

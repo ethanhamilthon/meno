@@ -59,8 +59,9 @@ func TestOriginRequiresProtocolBumpFrom060(t *testing.T) {
 	}
 }
 
-func TestSessionPickerMetadataRequiresCoordinatedProtocolSix(t *testing.T) {
-	if Protocol != 6 {
-		t.Fatalf("metadata wire contract requires protocol 6, got %d", Protocol)
+// The MCP server wire format gained fields, so the protocol number moved on.
+func TestMCPArgumentsRequireCoordinatedProtocolSeven(t *testing.T) {
+	if Protocol != 7 {
+		t.Fatalf("MCP server wire contract requires protocol 7, got %d", Protocol)
 	}
 }

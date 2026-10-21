@@ -153,9 +153,10 @@ func (s *Service) mcpResource(ctx context.Context, method, path string, req prot
 		if !x.Enabled {
 			return nil, badString("MCP server is disabled")
 		}
-		if e = s.startMCP(ctx, x); e != nil {
-			return nil, e
-		}
+		// The restart runs in the background: the handshake of a slow server
+		// must not hold the configuration lock. The caller watches the
+		// server status to see the result.
+		s.startMCPAsync(x)
 		s.changed("mcp_changed")
 		return proto.AckResponse{OK: true}, nil
 	}
@@ -169,6 +170,17 @@ func (s *Service) startMCP(_ context.Context, x mcp.Server) error {
 		runCtx = context.Background()
 	}
 	return s.mcp.Start(runCtx, x)
+}
+
+// startMCPAsync starts a server in the background and returns at once.
+func (s *Service) startMCPAsync(x mcp.Server) {
+	s.mu.Lock()
+	runCtx := s.ctx
+	s.mu.Unlock()
+	if runCtx == nil {
+		runCtx = context.Background()
+	}
+	s.mcp.StartAsync(runCtx, x)
 }
 func serverIndex(xs []mcp.Server, name string) int {
 	for i := range xs {

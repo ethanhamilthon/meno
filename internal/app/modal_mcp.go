@@ -2,6 +2,7 @@ package app
 
 import (
 	"reflect"
+	"strings"
 
 	"github.com/gdamore/tcell/v2"
 
@@ -111,6 +112,11 @@ func (a *App) mcpFields() []field {
 		{label: "name", get: func() string { return s.Name }, set: func(v string) error { s.Name = v; return nil }},
 		{label: "transport", opts: mcpTransports, get: func() string { return s.Transport }, set: func(v string) error { s.Transport = v; return nil }},
 		{label: "command", get: func() string { return s.Command }, set: func(v string) error { s.Command = v; return nil }},
+		{label: "args", get: func() string { return strings.Join(s.Args, " ") }, set: func(v string) error {
+			s.Args = splitArgs(v)
+			return nil
+		}},
+		{label: "cwd", get: func() string { return s.Cwd }, set: func(v string) error { s.Cwd = v; return nil }},
 		{label: "url", get: func() string { return s.URL }, set: func(v string) error { s.URL = v; return nil }},
 		{label: "headers", get: func() string { return mapJSON(s.Headers) }, set: func(v string) error {
 			m, err := parseMapJSON(v)

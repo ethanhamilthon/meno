@@ -10,6 +10,7 @@ import (
 	"os"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func TestMCPFileRestartAndReadOnlyDefinition(t *testing.T) {
@@ -49,6 +50,11 @@ func TestMCPFileRestartAndReadOnlyDefinition(t *testing.T) {
 	}
 	if _, err = svc.Resource(ctx, "POST", path+"/restart", "", proto.ResourceRequest{}); err != nil {
 		t.Fatal(err)
+	}
+	// The restart runs in the background: the handshake must not hold the
+	// configuration lock.
+	for deadline := time.Now().Add(5 * time.Second); starts.Load() == 0 && time.Now().Before(deadline); {
+		time.Sleep(5 * time.Millisecond)
 	}
 	if starts.Load() != 1 {
 		t.Fatalf("starts=%d", starts.Load())

@@ -23,3 +23,13 @@ func parseMapJSON(text string) (map[string]string, error) {
 	}
 	return out, nil
 }
+
+// splitArgs splits a command line into arguments. An empty line gives no
+// arguments.
+func splitArgs(text string) []string {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return nil
+	}
+	return strings.Fields(text)
+}

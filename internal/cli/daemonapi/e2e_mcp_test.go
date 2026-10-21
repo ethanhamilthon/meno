@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -101,6 +102,52 @@ func TestMCPRuntimeAndResultsThroughDaemon(t *testing.T) {
 		t.Fatalf("engine closed shared runtime: %+v %v", status, err)
 	}
 
+}
+
+// An agent that recovers a broken MCP server must not wait for a question:
+// the restart runs without a confirmation, or the run stalls until it times out.
+func TestMCPRestartRunsWithoutAQuestion(t *testing.T) {
+	home, eng, sess, api, socket := startRig(t, &scripted{})
+	cl := client.New(home)
+	cl.Socket = socket
+	script := filepath.Join(t.TempDir(), "server.py")
+	body := "import sys, json\n" +
+		"for line in sys.stdin:\n" +
+		"    m = json.loads(line)\n" +
+		"    if 'id' not in m: continue\n" +
+		"    meth = m.get('method')\n" +
+		"    if meth == 'initialize': r = {'protocolVersion': '2025-06-18', 'capabilities': {}, 'serverInfo': {'name': 'inv', 'version': '1'}}\n" +
+		"    elif meth == 'tools/list': r = {'tools': [{'name': 'list'}]}\n" +
+		"    else: r = {}\n" +
+		"    sys.stdout.write(json.dumps({'jsonrpc': '2.0', 'id': m['id'], 'result': r}) + '\\n')\n" +
+		"    sys.stdout.flush()\n"
+	if err := os.WriteFile(script, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	server := proto.ConfigMCPServer{Name: "inventory", Transport: "stdio", Command: "python3", Args: []string{script}, Enabled: true}
+	if _, err := cl.AddMcpServer(context.Background(), server); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() { _, err := api.MCPAdmin("restart", server.Name); done <- err }()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("restart: %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("restart waited for a question")
+	}
+	snapshot, err := eng.Snapshot(context.Background(), sess.Session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if snapshot.Ask != nil {
+		t.Fatalf("the restart opened a question: %+v", snapshot.Ask)
+	}
+	if snapshot.Phase == "asking" {
+		t.Fatal("the session is waiting for an answer")
+	}
 }
 
 func TestMCPAdministrationRequiresApproval(t *testing.T) {

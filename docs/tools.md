@@ -55,10 +55,17 @@ resources are stored as local files; use `meno view PATH` for supported images.
 Use `meno mcp results ID` to page through the retained result. Results belong
 to their session and are removed when that session is deleted.
 
-`meno mcp add SERVER` enables an existing saved definition. `remove` deletes it;
-`restart` reconnects it. Each asks for human approval. Unknown definitions must
-be created with `/mcp`. File definitions remain read-only, but an enabled one
-can be restarted. File edits require restarting the daemon.
+`meno mcp add SERVER` enables an existing saved definition and `remove` deletes
+it; both ask for human approval. `restart` reconnects a server that is already
+configured and runs without a question, so an agent can recover a server that
+stopped answering. Unknown definitions must be created with `/mcp`. File
+definitions remain read-only, but an enabled one can be restarted. File edits
+require restarting the daemon.
+
+A stdio server that answers slowly is not a failure: the handshake and the tool
+list wait up to 30 seconds, and a server that writes to a pipe gets an unbuffered
+stdout, so a Python server answers at once. When a server cannot start, the
+error carries the last lines it wrote to stderr.
 
 ## Files, the web and images
 

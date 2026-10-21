@@ -81,7 +81,9 @@ func (a *API) daemonChecks(probe bool) []cli.Check {
 			switch {
 			case s.Enabled && s.Error != "":
 				out = append(out, cli.Check{Name: "mcp " + s.Name, Status: "warn", Detail: oneLine(s.Error), Fix: "meno mcp restart " + s.Name})
-			case s.Enabled && !s.Running && !s.Starting:
+			case s.Enabled && s.Starting:
+				out = append(out, cli.Check{Name: "mcp " + s.Name, Status: "warn", Detail: "still starting"})
+			case s.Enabled && !s.Running:
 				out = append(out, cli.Check{Name: "mcp " + s.Name, Status: "warn", Detail: "enabled but not running", Fix: "meno mcp restart " + s.Name})
 			default:
 				out = append(out, cli.Check{Name: "mcp " + s.Name, Status: "ok"})

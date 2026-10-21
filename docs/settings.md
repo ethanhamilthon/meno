@@ -42,8 +42,11 @@ notice and the rest still loads.
   `session.models()`; a stored effort the model does not take is replaced by
   `medium`, `high` or its first level. In `/login` the `run` command has its own field;
   `models` can only be set in `provider.json` (a saved provider keeps what it has).
-- `mcp.json`: `[{"name", "transport", "command" or "url", "env", "headers", "enabled"}]`;
-  `enabled` defaults to true, `transport` to `stdio`.
+- `mcp.json`: `[{"name", "transport", "command" or "url", "args", "cwd", "env", "headers", "enabled"}]`;
+  `enabled` defaults to true, `transport` to `stdio`. A stdio server may name its
+  arguments and its working directory separately (`"command": "python3"`,
+  `"args": ["server.py"]`), the usual shape of a server configuration. Without
+  `args` the whole `command` is used as it is.
 - `theme.json`: `[{"name", "dark", "bg", "fg", "dim", "blue", "purple", "green",
   "yellow", "red", "orange"}]` with colors as `RRGGBB`; the other shades are derived.
 

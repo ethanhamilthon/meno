@@ -37,6 +37,9 @@ func TestMigrationsUpgradeFromThePreviousVersion(t *testing.T) {
 	if _, err := d.Exec("SELECT id,data FROM request_configs LIMIT 1"); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := d.Exec("SELECT args_json,cwd FROM mcp_servers LIMIT 1"); err != nil {
+		t.Fatal(err)
+	}
 	var usage, details string
 	var cost float64
 	if err := d.QueryRow("SELECT usage,cost,details FROM requests WHERE session_id='old'").Scan(&usage, &cost, &details); err != nil {

@@ -146,11 +146,11 @@ func providerToWire(p llm.Provider) proto.ConfigProvider {
 }
 
 func serverFromWire(w proto.ConfigMCPServer) mcp.Server {
-	return mcp.Server{Name: w.Name, Transport: w.Transport, Command: w.Command, Env: w.Env, URL: w.URL, Headers: w.Headers, Enabled: w.Enabled, Source: w.Source}
+	return mcp.Server{Name: w.Name, Transport: w.Transport, Command: w.Command, Args: w.Args, Cwd: w.Cwd, Env: w.Env, URL: w.URL, Headers: w.Headers, Enabled: w.Enabled, Source: w.Source}
 }
 
 func serverToWire(s mcp.Server) proto.ConfigMCPServer {
-	return proto.ConfigMCPServer{Name: s.Name, Transport: s.Transport, Command: s.Command, Env: s.Env, URL: s.URL, Headers: s.Headers, Enabled: s.Enabled, Source: s.Source}
+	return proto.ConfigMCPServer{Name: s.Name, Transport: s.Transport, Command: s.Command, Args: s.Args, Cwd: s.Cwd, Env: s.Env, URL: s.URL, Headers: s.Headers, Enabled: s.Enabled, Source: s.Source}
 }
 
 // reportWarnings shows what was wrong at start, once.

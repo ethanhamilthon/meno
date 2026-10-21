@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"meno/internal/safe"
-	"os"
 	"os/exec"
+	"strings"
 	"sync"
 	"time"
 )
@@ -37,6 +37,8 @@ type Client struct {
 	sendRemote func(context.Context, any) error
 	setVersion func(string)
 	done       chan struct{}
+	// errs keeps the stderr of a stdio server for the error message.
+	errs *stderrBuffer
 }
 
 func Start(ctx context.Context, s Server) (*Client, error) {
@@ -49,15 +51,11 @@ func Start(ctx context.Context, s Server) (*Client, error) {
 	default:
 		return nil, fmt.Errorf("unknown transport %q", s.Transport)
 	}
-	parts, err := parseCommand(s.Command)
-	if err != nil {
-		return nil, err
-	}
 	ctx, cancel := context.WithCancel(ctx)
-	cmd := exec.CommandContext(ctx, parts[0], parts[1:]...)
-	cmd.Env = os.Environ()
-	for k, v := range s.Env {
-		cmd.Env = append(cmd.Env, k+"="+v)
+	cmd, errs, err := stdioProcess(ctx, s)
+	if err != nil {
+		cancel()
+		return nil, err
 	}
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
@@ -73,7 +71,7 @@ func Start(ctx context.Context, s Server) (*Client, error) {
 		cancel()
 		return nil, err
 	}
-	c := &Client{Server: s, cmd: cmd, conn: newConn(stdin), done: make(chan struct{}), ctx: ctx, cancel: cancel}
+	c := &Client{Server: s, cmd: cmd, conn: newConn(stdin), done: make(chan struct{}), ctx: ctx, cancel: cancel, errs: errs}
 	c.conn.notify = c.notification
 	go func() {
 		defer safe.Recover(nil)
@@ -84,12 +82,26 @@ func Start(ctx context.Context, s Server) (*Client, error) {
 	}()
 	if err := c.initialize(ctx); err != nil {
 		c.Close()
-		return nil, err
+		return nil, c.withStderr(err)
 	}
 	return c, nil
 }
 
-func (c *Client) wait(ctx context.Context, ch chan rpcMsg, id int64, timeout time.Duration) (json.RawMessage, error) {
+// withStderr adds what the server wrote to stderr to a startup error.
+func (c *Client) withStderr(err error) error {
+	if c.errs == nil {
+		return err
+	}
+	text := strings.TrimSpace(c.errs.String())
+	if text == "" {
+		return err
+	}
+	return fmt.Errorf("%w: %s", err, text)
+}
+
+// wait waits for the answer to one request. what names the request in the
+// timeout message, so a stuck server says which step did not answer.
+func (c *Client) wait(ctx context.Context, ch chan rpcMsg, id int64, timeout time.Duration, what string) (json.RawMessage, error) {
 	defer c.conn.pending.Delete(id)
 	t := time.NewTimer(timeout)
 	defer t.Stop()
@@ -100,9 +112,9 @@ func (c *Client) wait(ctx context.Context, ch chan rpcMsg, id int64, timeout tim
 		}
 		return m.Result, nil
 	case <-t.C:
-		return nil, errors.New("mcp: timeout")
+		return nil, fmt.Errorf("mcp: no answer to %s within %s", what, timeout)
 	case <-ctx.Done():
-		return nil, ctx.Err()
+		return nil, fmt.Errorf("mcp: no answer to %s: %w", what, ctx.Err())
 	case <-c.done:
 		return nil, errors.New("mcp: server exited")
 	}

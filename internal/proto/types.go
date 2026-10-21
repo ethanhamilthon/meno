@@ -2,9 +2,9 @@
 package proto
 
 // Protocol is the HTTP API compatibility number. Clients require exact equality.
-// Protocol 6 adds turn count, provider, and effort to session items for picker freshness.
+// Protocol 7 adds the arguments and the working directory of a stdio MCP server.
 // Clients and daemons must upgrade together.
-const Protocol = 6
+const Protocol = 7
 
 // Error codes returned in an ErrorEnvelope.
 const (

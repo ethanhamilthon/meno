@@ -8,6 +8,14 @@ import (
 	"time"
 )
 
+// Timeouts of the handshake and of the tool list. A cold start (a package
+// manager, a container, a slow disk) can take longer than a few seconds; the
+// client waits instead of giving up on a server that is about to answer.
+const (
+	handshakeTimeout = 30 * time.Second
+	discoveryTimeout = 30 * time.Second
+)
+
 func (c *Client) request(ctx context.Context, method string, params any, timeout time.Duration) (json.RawMessage, error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
@@ -38,15 +46,15 @@ func (c *Client) request(ctx context.Context, method string, params any, timeout
 		if c.sendRemote == nil {
 			c.Close()
 		}
-		return nil, ctx.Err()
+		return nil, fmt.Errorf("mcp: no answer to %s: %w", method, ctx.Err())
 	case <-c.done:
 		return nil, fmt.Errorf("mcp: server exited")
 	}
-	return c.wait(ctx, ch, id, timeout)
+	return c.wait(ctx, ch, id, timeout, method)
 }
 
 func (c *Client) initialize(ctx context.Context) error {
-	raw, err := c.request(ctx, "initialize", map[string]any{"protocolVersion": protocolVersion, "capabilities": map[string]any{}, "clientInfo": map[string]any{"name": "meno", "version": version.Number()}}, 10*time.Second)
+	raw, err := c.request(ctx, "initialize", map[string]any{"protocolVersion": protocolVersion, "capabilities": map[string]any{}, "clientInfo": map[string]any{"name": "meno", "version": version.Number()}}, handshakeTimeout)
 	if err != nil {
 		return err
 	}
@@ -87,7 +95,7 @@ func (c *Client) refresh(ctx context.Context) error {
 		if cursor != "" {
 			params["cursor"] = cursor
 		}
-		raw, err := c.request(ctx, "tools/list", params, 10*time.Second)
+		raw, err := c.request(ctx, "tools/list", params, discoveryTimeout)
 		if err != nil {
 			return err
 		}

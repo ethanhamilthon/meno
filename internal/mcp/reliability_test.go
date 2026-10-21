@@ -98,7 +98,7 @@ func TestPendingWaitCleanup(t *testing.T) {
 				case "rpc-error":
 					ch <- rpcMsg{Error: &rpcError{Code: -1, Message: "failed"}}
 				}
-				_, err = c.wait(ctx, ch, id, timeout)
+				_, err = c.wait(ctx, ch, id, timeout, "test")
 				cancel()
 				if (err == nil) != (mode == "reply") {
 					t.Fatalf("wait: %v", err)
@@ -126,7 +126,7 @@ func TestConcurrentCancellationAndLateResponses(t *testing.T) {
 			}
 			ctx, cancel := context.WithCancel(context.Background())
 			cancel()
-			_, _ = c.wait(ctx, ch, id, time.Second)
+			_, _ = c.wait(ctx, ch, id, time.Second, "test")
 		}()
 	}
 	wg.Wait()

@@ -243,4 +243,9 @@ ALTER TABLE sessions ADD COLUMN tool TEXT NOT NULL DEFAULT 'js';
  id TEXT NOT NULL, data TEXT NOT NULL,
  PRIMARY KEY(session_id,id)
  ) WITHOUT ROWID;`,
+	`-- A stdio MCP server may name its arguments and its working directory
+-- separately, the usual shape of a server configuration.
+ALTER TABLE mcp_servers ADD COLUMN args_json TEXT NOT NULL DEFAULT '[]';
+ALTER TABLE mcp_servers ADD COLUMN cwd TEXT NOT NULL DEFAULT '';
+`,
 }

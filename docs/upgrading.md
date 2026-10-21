@@ -1,5 +1,27 @@
 # Upgrading, data and privacy
 
+## 0.6.5: MCP servers that start and recover
+
+- A stdio MCP server that answers slowly is no longer a failure. The handshake
+  and the tool list wait up to 30 seconds, and a server that writes to a pipe
+  gets an unbuffered stdout, so a Python server answers at once instead of
+  holding its output in a buffer.
+- A server definition may name its arguments and its working directory
+  separately (`"command": "python3"`, `"args": ["server.py"]`, `"cwd": "/path"`),
+  the usual shape of a server configuration. The `/mcp` dialog has the same
+  fields. Existing definitions keep working unchanged.
+- When a server cannot start, the error carries the last lines it wrote to
+  stderr instead of a bare timeout.
+- `meno mcp restart SERVER` reconnects a configured server without asking a
+  question, so an agent can recover a server that stopped answering instead of
+  waiting for a confirmation. `add` and `remove` still ask, and the question now
+  ends after two minutes instead of waiting forever.
+- `meno doctor` reports a server that is still starting as starting, not as
+  working.
+- Daemon protocol is **7**. Update both client and daemon so they agree on
+  protocol 7. Existing sessions and settings are preserved; the database gains
+  two columns for the new server fields.
+
 ## 0.6.4: session picker metadata and freshness
 
 - The sessions picker dialog shows accurate turn counts, model selection details,
