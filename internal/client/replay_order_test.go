@@ -61,3 +61,19 @@ func TestMirrorSessionChangedKeepsStateAndAsksForResync(t *testing.T) {
 		t.Fatal("a changed field must trigger a resync")
 	}
 }
+
+// Load copies what it keeps: a later event must not change the snapshot the
+// caller still holds, or a reader of that snapshot races with the stream.
+func TestLoadDoesNotShareLiveCallsWithTheSnapshot(t *testing.T) {
+	snap := proto.Snapshot{Live: proto.LiveState{Calls: []proto.CallState{{CallID: "c1"}}}, Seq: 1}
+	var m Mirror
+	m.Load(snap)
+	data, _ := json.Marshal(proto.CallDeltaData{CallID: "c1", Delta: "more"})
+	m.Apply(proto.Event{Seq: 2, Type: proto.EventCallDelta, Data: data})
+	if snap.Live.Calls[0].Delta != "" {
+		t.Fatalf("the snapshot changed after Load: %q", snap.Live.Calls[0].Delta)
+	}
+	if got := m.Snapshot().Live.Calls[0].Delta; got != "more" {
+		t.Fatalf("the mirror lost the delta: %q", got)
+	}
+}

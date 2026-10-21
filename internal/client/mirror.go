@@ -44,6 +44,16 @@ func (m *Mirror) Load(s proto.Snapshot) {
 		return
 	}
 	m.State = MirrorState{Session: s.Session, Cwd: s.Cwd, Model: s.Model, Phase: s.Phase, RequestID: s.RequestID, Running: s.Running, Seq: s.Seq, Turns: append([]proto.Turn(nil), s.Turns...), Live: s.Live, Ask: s.Ask, Retry: s.Retry, Metrics: s.Metrics, Queued: append([]string(nil), s.Queued...), Provider: s.Provider, Effort: s.Effort, Spent: s.Spent, Context: s.Context, Unpriced: s.Unpriced, Tasks: append([]proto.Task(nil), s.Tasks...), Version: s.Version, LastError: s.LastError}
+	m.State.Live = cloneLiveState(s.Live)
+	if s.Ask != nil {
+		ask := *s.Ask
+		ask.Questions = append([]proto.AskQuestion(nil), s.Ask.Questions...)
+		m.State.Ask = &ask
+	}
+	if s.Retry != nil {
+		retry := *s.Retry
+		m.State.Retry = &retry
+	}
 }
 
 // Snapshot returns an isolated copy of the current view state.
@@ -216,4 +226,11 @@ func hasTurn(turns []proto.Turn, id string) bool {
 // terminal event of an old run must not end a request that started after it.
 func staleRun(s *MirrorState, rid string) bool {
 	return rid != "" && s.RequestID != "" && s.Running && rid != s.RequestID
+}
+
+// cloneLiveState copies the call list: the mirror changes its calls in place
+// while the caller of Load still reads the snapshot it passed in.
+func cloneLiveState(l proto.LiveState) proto.LiveState {
+	l.Calls = append([]proto.CallState(nil), l.Calls...)
+	return l
 }
