@@ -2,6 +2,7 @@ package app
 
 import (
 	"encoding/json"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -141,12 +142,14 @@ func TestLiveCallShowsItsTimer(t *testing.T) {
 	}
 	a.st.LiveCalls = []liveCall{{ID: "c1", Code: "x", Running: true, Started: time.Now().Add(-3 * time.Second)}}
 	a.draw()
-	if text := screenText(s); !strings.Contains(text, "3.0s") || strings.Contains(text, "3.0s/") {
+	timer := regexp.MustCompile(`\b[0-9]+(?:\.[0-9])?s\b`)
+	if text := screenText(s); !timer.MatchString(text) || strings.Contains(text, timer.FindString(text)+"/") {
 		t.Fatalf("%s", text)
 	}
 	a.st.Settings.BashTiming = "off"
 	a.draw()
-	if !strings.Contains(screenText(s), "3.0s") {
+	// Rendering under the race detector may take long enough for tenths to change.
+	if !timer.MatchString(screenText(s)) {
 		t.Fatal("header timer hidden by old timing preference")
 	}
 }
