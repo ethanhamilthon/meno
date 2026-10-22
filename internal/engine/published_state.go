@@ -3,15 +3,15 @@ package engine
 import (
 	"context"
 	"meno/internal/agent"
-	"meno/internal/proto"
+	"meno/internal/api"
 )
 
 // wireTurns detaches snapshot-visible history from the runner. The commit lock
 // covers projection updates and their event cursors; mu protects the projection.
 // No provider work is performed under commit. Runner mutations remain private
 // until their next event publishes the corresponding history.
-func wireTurns(turns []agent.Turn) []proto.Turn {
-	out := make([]proto.Turn, 0, len(turns))
+func wireTurns(turns []agent.Turn) []api.Turn {
+	out := make([]api.Turn, 0, len(turns))
 	for _, t := range turns {
 		out = append(out, turnWire(t))
 	}
@@ -22,7 +22,7 @@ func wireTurns(turns []agent.Turn) []proto.Turn {
 func (e *Engine) publishQueueCommitted(s *runState) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	e.publishQueue(s, proto.InjectedData{})
+	e.publishQueue(s, api.InjectedData{})
 }
 
 // publishAgentTurns requires commit. A compacted/replaced history cannot be
@@ -49,9 +49,9 @@ func (e *Engine) publishAgentTurns(id string, turns []agent.Turn) {
 	s.visibleTurns = visible
 	s.mu.Unlock()
 	for _, t := range visible[from:] {
-		e.publish(id, proto.EventTurnAdded, proto.TurnAddedData{Turn: t})
+		e.publish(id, api.EventTurnAdded, api.TurnAddedData{Turn: t})
 	}
 	if replaced {
-		e.publish(id, proto.EventSessionChanged, proto.ChangedData{Fields: []string{"history"}})
+		e.publish(id, api.EventSessionChanged, api.ChangedData{Fields: []string{"history"}})
 	}
 }

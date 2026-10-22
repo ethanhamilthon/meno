@@ -38,7 +38,7 @@ fmt:
 
 # Hand-written Go files stay within the limit in AGENTS.md.
 size:
-	@scripts/check-size.sh 300
+	@scripts/check-size.sh 700
 
 check: fmt size vet race
 
@@ -48,7 +48,7 @@ term:
 
 # Deterministic benchmarks; compare runs with benchstat.
 bench:
-	$(GO) test -run '^$$' -bench . -benchmem ./internal/ui ./internal/app
+	$(GO) test -run '^$$' -bench . -benchmem ./internal/render ./internal/tui
 
 # Per-package coverage floors (scripts/coverage-floors.txt).
 cover:

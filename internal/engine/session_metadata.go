@@ -3,25 +3,25 @@ package engine
 import (
 	"context"
 	"meno/internal/agent"
+	"meno/internal/api"
 	"meno/internal/mcp"
-	"meno/internal/proto"
 	"os"
 	"path/filepath"
 )
 
-func (e *Engine) Snapshot(ctx context.Context, id string) (proto.Snapshot, error) {
+func (e *Engine) Snapshot(ctx context.Context, id string) (api.Snapshot, error) {
 	s, err := e.load(ctx, id)
 	if err != nil {
-		return proto.Snapshot{}, notFound(err)
+		return api.Snapshot{}, notFound(err)
 	}
 	s.commit.Lock()
 	defer s.commit.Unlock()
 	s.mu.Lock()
-	turns := append([]proto.Turn(nil), s.visibleTurns...)
+	turns := append([]api.Turn(nil), s.visibleTurns...)
 	if !s.running && !s.compacting {
 		turns = wireTurns(s.session.Snapshot())
 	}
-	out := proto.Snapshot{Session: item(s), AgentToken: s.token.value, Cwd: s.cwd, Model: s.session.Model, Running: s.running, Phase: s.phase, RequestID: s.requestID, Origin: s.origin, TurnCount: len(turns), Live: cloneLive(s.live), Ask: askWire(s.ask), Retry: cloneRetry(s.retry), Metrics: s.metrics, Seq: 0, Tasks: []proto.Task{},
+	out := api.Snapshot{Session: item(s), AgentToken: s.token.value, Cwd: s.cwd, Model: s.session.Model, Running: s.running, Phase: s.phase, RequestID: s.requestID, Origin: s.origin, TurnCount: len(turns), Live: cloneLive(s.live), Ask: askWire(s.ask), Retry: cloneRetry(s.retry), Metrics: s.metrics, Seq: 0, Tasks: []api.Task{},
 		Spent: s.session.Metrics.Spent, Context: s.session.Metrics.Context, Unpriced: s.session.Metrics.Unpriced, Provider: s.session.Provider, Effort: s.session.Effort}
 	out.TotalUsage = usageProjection(s.session.Metrics.Usage)
 	out.LastUsage = usageProjection(s.session.Metrics.LastUsage)
@@ -43,10 +43,10 @@ func (e *Engine) Snapshot(ctx context.Context, id string) (proto.Snapshot, error
 	out.TaskCount = len(out.Tasks)
 	return out, nil
 }
-func (e *Engine) PatchSession(ctx context.Context, id string, q proto.PatchSessionRequest) (proto.SessionItem, error) {
+func (e *Engine) PatchSession(ctx context.Context, id string, q api.PatchSessionRequest) (api.SessionItem, error) {
 	s, err := e.load(ctx, id)
 	if err != nil {
-		return proto.SessionItem{}, notFound(err)
+		return api.SessionItem{}, notFound(err)
 	}
 	s.commit.Lock()
 	defer s.commit.Unlock()
@@ -55,7 +55,7 @@ func (e *Engine) PatchSession(ctx context.Context, id string, q proto.PatchSessi
 		n, er := agent.NormalizeTitle(*q.Name)
 		if er != nil {
 			s.mu.Unlock()
-			return proto.SessionItem{}, api(proto.CodeBadRequest, er.Error())
+			return api.SessionItem{}, dapi(api.CodeBadRequest, er.Error())
 		}
 		s.session.Title = n
 	}
@@ -63,11 +63,11 @@ func (e *Engine) PatchSession(ctx context.Context, id string, q proto.PatchSessi
 		cwd, er := filepath.Abs(*q.Cwd)
 		if er != nil {
 			s.mu.Unlock()
-			return proto.SessionItem{}, er
+			return api.SessionItem{}, er
 		}
 		if st, er := os.Stat(cwd); er != nil || !st.IsDir() {
 			s.mu.Unlock()
-			return proto.SessionItem{}, api(proto.CodeBadRequest, "cwd must be an existing directory")
+			return api.SessionItem{}, dapi(api.CodeBadRequest, "cwd must be an existing directory")
 		}
 		s.prevCwd = s.cwd
 		s.cwd = cwd
@@ -84,7 +84,7 @@ func (e *Engine) PatchSession(ctx context.Context, id string, q proto.PatchSessi
 	}
 	if err = e.save(s); err != nil {
 		s.mu.Unlock()
-		return proto.SessionItem{}, err
+		return api.SessionItem{}, err
 	}
 	s.mu.Unlock()
 	result := e.sessionMetadata(s).Session
@@ -99,7 +99,7 @@ func (e *Engine) DeleteSession(ctx context.Context, id string) error {
 	s.mu.Lock()
 	if s.running || s.ask != nil {
 		s.mu.Unlock()
-		return api(proto.CodeConflict, "session has active work")
+		return dapi(api.CodeConflict, "session has active work")
 	}
 	unsaved := !s.persisted
 	s.mu.Unlock()
@@ -116,7 +116,7 @@ func (e *Engine) DeleteSession(ctx context.Context, id string) error {
 		if unsaved {
 			return err
 		}
-		e.announce(proto.EventSessionDeleted, id, "")
+		e.announce(api.EventSessionDeleted, id, "")
 	}
 	return err
 }

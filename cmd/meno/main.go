@@ -10,8 +10,8 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 
-	"meno/internal/app"
 	"meno/internal/config"
+	"meno/internal/tui"
 	"meno/internal/update"
 	ver "meno/internal/version"
 )
@@ -50,7 +50,7 @@ func run() error {
 		scr.Fini()
 		return err
 	}
-	a, err := app.New(scr, paths, cl)
+	a, err := tui.New(scr, paths, cl)
 	if err != nil {
 		return err
 	}

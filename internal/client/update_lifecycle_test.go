@@ -10,10 +10,10 @@ import (
 	"time"
 
 	"meno/internal/agent"
+	"meno/internal/api"
 	"meno/internal/daemon"
 	"meno/internal/db"
 	"meno/internal/llm"
-	"meno/internal/proto"
 )
 
 // Uses the real executable built by TestEnsureStartsSingleDaemon. Release HTTP
@@ -91,7 +91,7 @@ func testUpdateNextLaunch(t *testing.T, home, bin string) {
 	if now.BootID == old.BootID || now.PID == old.PID {
 		t.Fatalf("daemon not replaced: old %v new %v", old, now)
 	}
-	sessions, err := c.ListSessions(ctx, proto.SessionsListRequest{})
+	sessions, err := c.ListSessions(ctx, api.SessionsListRequest{})
 	if err != nil {
 		t.Fatal(err)
 	}

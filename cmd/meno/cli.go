@@ -29,6 +29,8 @@ func cli(args []string, out, errOut io.Writer) int {
 	case "-v", "--version", "version":
 		fmt.Fprintln(out, "meno", version)
 		return 0
+	case "acp":
+		return runACP(args[1:], os.Stdin, out, errOut)
 	case "update":
 		if len(args) > 1 {
 			fmt.Fprintf(errOut, "meno: update takes no arguments\nRun 'meno -h' for usage.\n")

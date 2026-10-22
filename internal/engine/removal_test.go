@@ -7,9 +7,9 @@ import (
 	"testing"
 
 	"meno/internal/agent"
+	"meno/internal/api"
 	"meno/internal/db"
 	"meno/internal/mcp"
-	"meno/internal/proto"
 )
 
 func TestQueueEventsCarryRemainingMessages(t *testing.T) {
@@ -25,7 +25,7 @@ func TestQueueEventsCarryRemainingMessages(t *testing.T) {
 	s.mu.Unlock()
 	ch, stop, _ := hub.Subscribe(id, hub.Sequence(id), "boot")
 	defer stop()
-	_, err = e.Message(context.Background(), id, proto.MessageRequest{Text: "steer"})
+	_, err = e.Message(context.Background(), id, api.MessageRequest{Text: "steer"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -34,10 +34,10 @@ func TestQueueEventsCarryRemainingMessages(t *testing.T) {
 	var got [][]string
 	for len(ch) > 0 {
 		ev := <-ch
-		if ev.Type != proto.EventInjected {
+		if ev.Type != api.EventInjected {
 			continue
 		}
-		var data proto.InjectedData
+		var data api.InjectedData
 		if err := json.Unmarshal(ev.Data, &data); err != nil {
 			t.Fatal(err)
 		}
@@ -56,7 +56,7 @@ func TestRemovedAgentFeaturesAreUnavailableAndHistoryIsUnchanged(t *testing.T) {
 	id := newSession(t, e)
 	ctx := context.Background()
 	s, _ := e.load(ctx, id)
-	if _, err := e.Resource(ctx, "POST", "/v1/sessions/"+id+"/agents/spawn", "", proto.ResourceRequest{Token: s.token.value}); err == nil {
+	if _, err := e.Resource(ctx, "POST", "/v1/sessions/"+id+"/agents/spawn", "", api.ResourceRequest{Token: s.token.value}); err == nil {
 		t.Fatal("removed resource must be rejected")
 	}
 	child := agent.NewSession(t.TempDir(), "fake")

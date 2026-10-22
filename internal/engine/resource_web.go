@@ -5,8 +5,8 @@ import (
 	"errors"
 	"strings"
 
+	"meno/internal/api"
 	"meno/internal/llm"
-	"meno/internal/proto"
 	"meno/internal/web"
 )
 
@@ -14,12 +14,12 @@ import (
 // under the web policy; the agent only sees the typed result.
 func (e *Engine) webResource(ctx context.Context, parts []string, method string, data map[string]any) (any, error) {
 	if method != "POST" || len(parts) != 1 {
-		return nil, api(proto.CodeNotFound, "resource not found")
+		return nil, dapi(api.CodeNotFound, "resource not found")
 	}
 	// Read the settings now: web_search and web_allow_local may have changed
 	// since the last run, and a stale policy must never be applied.
 	if err := e.reloadConfig(); err != nil {
-		return nil, api(proto.CodeInternal, err.Error())
+		return nil, dapi(api.CodeInternal, err.Error())
 	}
 	cfg := e.cfg()
 	svc := &web.Service{Policy: web.Policy{AllowLocal: cfg.WebAllowLocal}}
@@ -27,7 +27,7 @@ func (e *Engine) webResource(ctx context.Context, parts []string, method string,
 	case "fetch":
 		u := stringValue(data, "url")
 		if u == "" {
-			return nil, api(proto.CodeBadRequest, "url is required")
+			return nil, dapi(api.CodeBadRequest, "url is required")
 		}
 		page, err := svc.Fetch(ctx, u, web.FetchOptions{})
 		if err != nil {
@@ -37,7 +37,7 @@ func (e *Engine) webResource(ctx context.Context, parts []string, method string,
 	case "search":
 		q := stringValue(data, "query")
 		if q == "" {
-			return nil, api(proto.CodeBadRequest, "query is required")
+			return nil, dapi(api.CodeBadRequest, "query is required")
 		}
 		backend, err := e.searchBackend(cfg.WebSearch)
 		if err != nil {
@@ -50,17 +50,17 @@ func (e *Engine) webResource(ctx context.Context, parts []string, method string,
 		}
 		return res, nil
 	}
-	return nil, api(proto.CodeNotFound, "resource not found")
+	return nil, dapi(api.CodeNotFound, "resource not found")
 }
 
 func webError(err error) error {
 	switch {
 	case errors.Is(err, web.ErrBlocked):
-		return api(proto.CodeForbidden, err.Error())
+		return dapi(api.CodeForbidden, err.Error())
 	case errors.Is(err, web.ErrNotConfigured), errors.Is(err, llm.ErrSearchUnsupported):
-		return api(proto.CodeBadRequest, err.Error())
+		return dapi(api.CodeBadRequest, err.Error())
 	}
-	return api(proto.CodeInternal, err.Error())
+	return dapi(api.CodeInternal, err.Error())
 }
 
 type providerSearch struct {
@@ -90,7 +90,7 @@ func (e *Engine) searchBackend(setting string) (web.SearchBackend, error) {
 	}
 	p, found := e.provider(name)
 	if !found {
-		return nil, api(proto.CodeBadRequest, "web_search provider "+name+" is not configured")
+		return nil, dapi(api.CodeBadRequest, "web_search provider "+name+" is not configured")
 	}
 	return providerSearch{e: e, provider: p, model: model}, nil
 }

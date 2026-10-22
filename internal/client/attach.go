@@ -2,18 +2,18 @@ package client
 
 import (
 	"context"
-	"meno/internal/proto"
+	"meno/internal/api"
 )
 
 // Attach takes a snapshot, then resumes events without gaps or duplicates.
 // It reloads the snapshot when the event ring or daemon boot requires resync.
-func (c *Client) Attach(ctx context.Context, id string, mirror *Mirror, receive func(proto.Event) error) error {
+func (c *Client) Attach(ctx context.Context, id string, mirror *Mirror, receive func(api.Event) error) error {
 	return c.AttachWith(ctx, id, mirror, nil, receive)
 }
 
 // AttachWith is Attach that also hands every snapshot it takes (the first one
 // and each one after a resync) to onSnapshot.
-func (c *Client) AttachWith(ctx context.Context, id string, mirror *Mirror, onSnapshot func(proto.Snapshot), receive func(proto.Event) error) error {
+func (c *Client) AttachWith(ctx context.Context, id string, mirror *Mirror, onSnapshot func(api.Snapshot), receive func(api.Event) error) error {
 	return c.follow(ctx, id, mirror, onSnapshot, receive, nil)
 }
 
@@ -22,7 +22,7 @@ func (c *Client) Follow(ctx context.Context, id string, receive func(ProjectionU
 	return c.follow(ctx, id, &Mirror{}, nil, nil, receive)
 }
 
-func (c *Client) follow(ctx context.Context, id string, mirror *Mirror, onSnapshot func(proto.Snapshot), raw func(proto.Event) error, receive func(ProjectionUpdate) error) error {
+func (c *Client) follow(ctx context.Context, id string, mirror *Mirror, onSnapshot func(api.Snapshot), raw func(api.Event) error, receive func(ProjectionUpdate) error) error {
 	if mirror == nil {
 		mirror = &Mirror{}
 	}
@@ -46,8 +46,8 @@ func (c *Client) follow(ctx context.Context, id string, mirror *Mirror, onSnapsh
 				}
 			}
 		}
-		err = c.Stream(ctx, id, sn.Seq, h.BootID, func(ev proto.Event) error {
-			if ev.Type == proto.EventHello {
+		err = c.Stream(ctx, id, sn.Seq, h.BootID, func(ev api.Event) error {
+			if ev.Type == api.EventHello {
 				return nil
 			}
 			u, ok := mirror.ApplyUpdate(ev)

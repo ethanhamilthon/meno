@@ -3,7 +3,7 @@ package client
 import (
 	"context"
 	"fmt"
-	"meno/internal/proto"
+	"meno/internal/api"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -17,16 +17,16 @@ func TestFollowMetadataTasksAndCompletionNeedOneSnapshot(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/v1/hello":
-			fmt.Fprintf(w, `{"protocol":%d,"boot_id":"b"}`, proto.Protocol)
+			fmt.Fprintf(w, `{"protocol":%d,"boot_id":"b"}`, api.Protocol)
 		case "/v1/sessions/s":
 			snapshots.Add(1)
 			fmt.Fprint(w, `{"session":{"id":"s","cwd":"/"},"seq":1,"version":{"boot_id":"b","revision":1}}`)
 		case "/v1/sessions/s/events":
 			fmt.Fprint(w, "event: hello\ndata: {\"boot_id\":\"b\",\"seq\":1}\n\n")
-			for _, e := range []proto.Event{
-				ev(2, proto.EventSessionChanged, proto.ChangedData{Fields: []string{"name", "cwd", "provider", "effort", "unread"}, Metadata: &proto.SessionMetadata{Session: proto.SessionItem{ID: "s", Name: "named", Cwd: "/new", Completed: 1}, Provider: "p"}}),
-				ev(3, proto.EventTasksChanged, proto.TasksChangedData{Tasks: []proto.Task{{ID: "t", Status: "completed"}}}),
-				ev(4, proto.EventDone, proto.DoneData{}),
+			for _, e := range []api.Event{
+				ev(2, api.EventSessionChanged, api.ChangedData{Fields: []string{"name", "cwd", "provider", "effort", "unread"}, Metadata: &api.SessionMetadata{Session: api.SessionItem{ID: "s", Name: "named", Cwd: "/new", Completed: 1}, Provider: "p"}}),
+				ev(3, api.EventTasksChanged, api.TasksChangedData{Tasks: []api.Task{{ID: "t", Status: "completed"}}}),
+				ev(4, api.EventDone, api.DoneData{}),
 			} {
 				fmt.Fprintf(w, "id: %d\nevent: %s\ndata: %s\n\n", e.Seq, e.Type, e.Data)
 			}

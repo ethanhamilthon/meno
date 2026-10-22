@@ -3,19 +3,19 @@ package engine
 import (
 	"context"
 	"encoding/json"
+	"meno/internal/api"
 	"meno/internal/mcp"
-	"meno/internal/proto"
 )
 
 func (e *Engine) mcpServers(ctx context.Context) ([]mcp.Server, error) {
 	if e.resources == nil {
 		return e.serverList(), nil
 	}
-	r, err := e.resources.Resource(ctx, "GET", "/v1/mcp/servers", "", proto.ResourceRequest{})
+	r, err := e.resources.Resource(ctx, "GET", "/v1/mcp/servers", "", api.ResourceRequest{})
 	if err != nil {
 		return nil, err
 	}
-	var out proto.McpServersResponse
+	var out api.McpServersResponse
 	if err = json.Unmarshal(r.Data, &out); err != nil {
 		return nil, err
 	}

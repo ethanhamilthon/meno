@@ -2,8 +2,8 @@ package client
 
 import (
 	"context"
+	"meno/internal/api"
 	"meno/internal/daemon"
-	"meno/internal/proto"
 	"testing"
 	"time"
 )
@@ -13,7 +13,7 @@ func TestAttachReloadsAfterRingResync(t *testing.T) {
 	hub := daemon.NewHub("boot", 2)
 	backend := daemon.NewFakeBackend(hub)
 	srv, c := startClientTestServer(t, home, hub, backend)
-	created, e := c.CreateSession(context.Background(), proto.SessionCreateRequest{Cwd: "/tmp", ClientID: "create"})
+	created, e := c.CreateSession(context.Background(), api.SessionCreateRequest{Cwd: "/tmp", ClientID: "create"})
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -23,7 +23,7 @@ func TestAttachReloadsAfterRingResync(t *testing.T) {
 	go func() { done <- c.Attach(ctx, created.Session.ID, m, nil) }()
 	time.Sleep(25 * time.Millisecond)
 	for i := 0; i < 8; i++ {
-		hub.Publish(created.Session.ID, proto.EventTextDelta, proto.TextDeltaData{Text: "x"})
+		hub.Publish(created.Session.ID, api.EventTextDelta, api.TextDeltaData{Text: "x"})
 	}
 	cancel()
 	select {

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"sync"
 
-	"meno/internal/proto"
+	"meno/internal/api"
 )
 
 // FakeBackend is an in-memory backend for transport and mirror tests.
@@ -17,9 +17,9 @@ type FakeBackend struct {
 	idempotency *Idempotency
 }
 type fakeSession struct {
-	item     proto.SessionItem
-	snapshot proto.Snapshot
-	turns    []proto.Turn
+	item     api.SessionItem
+	snapshot api.Snapshot
+	turns    []api.Turn
 	running  bool
 }
 
@@ -27,10 +27,10 @@ type fakeSession struct {
 func NewFakeBackend(hub *Hub) *FakeBackend {
 	return &FakeBackend{sessions: map[string]*fakeSession{}, Hub: hub, idempotency: NewIdempotency()}
 }
-func (f *FakeBackend) ListSessions(_ context.Context, r proto.SessionsListRequest) (proto.SessionsListResponse, error) {
+func (f *FakeBackend) ListSessions(_ context.Context, r api.SessionsListRequest) (api.SessionsListResponse, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	out := proto.SessionsListResponse{Sessions: []proto.SessionItem{}}
+	out := api.SessionsListResponse{Sessions: []api.SessionItem{}}
 	for _, s := range f.sessions {
 		if r.Cwd != "" && s.item.Cwd != r.Cwd {
 			continue
@@ -45,29 +45,29 @@ func (f *FakeBackend) ListSessions(_ context.Context, r proto.SessionsListReques
 	}
 	return out, nil
 }
-func (f *FakeBackend) CreateSession(_ context.Context, r proto.SessionCreateRequest) (proto.SessionCreateResponse, error) {
+func (f *FakeBackend) CreateSession(_ context.Context, r api.SessionCreateRequest) (api.SessionCreateResponse, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.next++
 	id := fmtID(f.next)
-	item := proto.SessionItem{ID: id, Cwd: r.Cwd, Model: r.Model}
-	s := &fakeSession{item: item, snapshot: proto.Snapshot{Session: item, Cwd: r.Cwd, Model: r.Model, Live: proto.LiveState{Calls: []proto.CallState{}}}}
+	item := api.SessionItem{ID: id, Cwd: r.Cwd, Model: r.Model}
+	s := &fakeSession{item: item, snapshot: api.Snapshot{Session: item, Cwd: r.Cwd, Model: r.Model, Live: api.LiveState{Calls: []api.CallState{}}}}
 	f.sessions[id] = s
-	return proto.SessionCreateResponse{Session: item}, nil
+	return api.SessionCreateResponse{Session: item}, nil
 }
 func (f *FakeBackend) find(id string) (*fakeSession, error) {
 	s := f.sessions[id]
 	if s == nil {
-		return nil, &APIError{Code: proto.CodeNotFound, Message: "session not found"}
+		return nil, &APIError{Code: api.CodeNotFound, Message: "session not found"}
 	}
 	return s, nil
 }
-func (f *FakeBackend) Snapshot(_ context.Context, id string) (proto.Snapshot, error) {
+func (f *FakeBackend) Snapshot(_ context.Context, id string) (api.Snapshot, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	s, e := f.find(id)
 	if e != nil {
-		return proto.Snapshot{}, e
+		return api.Snapshot{}, e
 	}
 	v := s.snapshot
 	if f.Hub != nil {
@@ -75,15 +75,15 @@ func (f *FakeBackend) Snapshot(_ context.Context, id string) (proto.Snapshot, er
 	}
 	v.Running = s.running
 	v.TurnCount = len(s.turns)
-	v.Turns = append([]proto.Turn(nil), s.turns...)
+	v.Turns = append([]api.Turn(nil), s.turns...)
 	return v, nil
 }
-func (f *FakeBackend) PatchSession(_ context.Context, id string, r proto.PatchSessionRequest) (proto.SessionItem, error) {
+func (f *FakeBackend) PatchSession(_ context.Context, id string, r api.PatchSessionRequest) (api.SessionItem, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	s, e := f.find(id)
 	if e != nil {
-		return proto.SessionItem{}, e
+		return api.SessionItem{}, e
 	}
 	if r.Name != nil {
 		s.item.Name = *r.Name
@@ -106,12 +106,12 @@ func (f *FakeBackend) DeleteSession(_ context.Context, id string) error {
 	delete(f.sessions, id)
 	return nil
 }
-func (f *FakeBackend) Fork(_ context.Context, id string, r proto.ForkRequest) (proto.ForkResponse, error) {
+func (f *FakeBackend) Fork(_ context.Context, id string, r api.ForkRequest) (api.ForkResponse, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	s, e := f.find(id)
 	if e != nil {
-		return proto.ForkResponse{}, e
+		return api.ForkResponse{}, e
 	}
 	f.next++
 	item := s.item
@@ -123,16 +123,16 @@ func (f *FakeBackend) Fork(_ context.Context, id string, r proto.ForkRequest) (p
 	if r.Turn > 0 && r.Turn < count {
 		count = r.Turn
 	}
-	copyS.turns = append([]proto.Turn(nil), s.turns[:count]...)
+	copyS.turns = append([]api.Turn(nil), s.turns[:count]...)
 	f.sessions[item.ID] = &copyS
-	return proto.ForkResponse{Session: item}, nil
+	return api.ForkResponse{Session: item}, nil
 }
-func (f *FakeBackend) Turns(_ context.Context, id string, r proto.TurnsPageRequest) (proto.TurnsPage, error) {
+func (f *FakeBackend) Turns(_ context.Context, id string, r api.TurnsPageRequest) (api.TurnsPage, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	s, e := f.find(id)
 	if e != nil {
-		return proto.TurnsPage{}, e
+		return api.TurnsPage{}, e
 	}
 	from := r.From
 	if from < 0 {
@@ -145,5 +145,5 @@ func (f *FakeBackend) Turns(_ context.Context, id string, r proto.TurnsPageReque
 	if r.Limit > 0 && end > from+r.Limit {
 		end = from + r.Limit
 	}
-	return proto.TurnsPage{Turns: append([]proto.Turn(nil), s.turns[from:end]...), From: from, Next: end, Total: len(s.turns)}, nil
+	return api.TurnsPage{Turns: append([]api.Turn(nil), s.turns[from:end]...), From: from, Next: end, Total: len(s.turns)}, nil
 }

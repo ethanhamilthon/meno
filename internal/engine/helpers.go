@@ -1,13 +1,13 @@
 package engine
 
 import (
+	"meno/internal/api"
 	"meno/internal/daemon"
-	"meno/internal/proto"
 	"time"
 )
 
-func api(code, msg string) error { return &daemon.APIError{Code: code, Message: msg} }
-func item(s *runState) proto.SessionItem {
+func dapi(code, msg string) error { return &daemon.APIError{Code: code, Message: msg} }
+func item(s *runState) api.SessionItem {
 	sess := s.session
 	status := ""
 	if s.running {
@@ -17,7 +17,7 @@ func item(s *runState) proto.SessionItem {
 	if s.running || s.compacting {
 		turns = len(s.visibleTurns)
 	}
-	return proto.SessionItem{
+	return api.SessionItem{
 		ID:        sess.ID,
 		Name:      sess.DisplayTitle(),
 		Cwd:       s.cwd,

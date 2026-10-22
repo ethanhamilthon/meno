@@ -2,18 +2,18 @@ package daemon
 
 import (
 	"context"
-	"meno/internal/proto"
+	"meno/internal/api"
 	"testing"
 )
 
 func TestFakeBackendEmitsScriptedEvents(t *testing.T) {
 	hub := NewHub("b", 20)
 	b := NewFakeBackend(hub)
-	s, e := b.CreateSession(context.Background(), proto.SessionCreateRequest{Cwd: "/tmp"})
+	s, e := b.CreateSession(context.Background(), api.SessionCreateRequest{Cwd: "/tmp"})
 	if e != nil {
 		t.Fatal(e)
 	}
-	_, e = b.Message(context.Background(), s.Session.ID, proto.MessageRequest{Text: "hello", ClientID: "request"})
+	_, e = b.Message(context.Background(), s.Session.ID, api.MessageRequest{Text: "hello", ClientID: "request"})
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -26,7 +26,7 @@ func TestFakeBackendEmitsScriptedEvents(t *testing.T) {
 	for len(ch) > 0 {
 		types = append(types, (<-ch).Type)
 	}
-	want := []string{proto.EventStatus, proto.EventTextDelta, proto.EventTurnAdded, proto.EventStatus, proto.EventDone}
+	want := []string{api.EventStatus, api.EventTextDelta, api.EventTurnAdded, api.EventStatus, api.EventDone}
 	if len(types) != len(want) {
 		t.Fatalf("events %v", types)
 	}

@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"meno/internal/agent"
-	"meno/internal/proc"
+	"meno/internal/process"
 )
 
 func TestUpdateWorkCountsRunsQueuesAndBackgroundTasks(t *testing.T) {
@@ -37,7 +37,7 @@ func TestUpdateWorkCountsRunsQueuesAndBackgroundTasks(t *testing.T) {
 	s.queue.Push(agent.Message{Viewed: true})
 	assertBusy(true)
 	s.queue.Take()
-	task, err := e.tasks.Start(proc.StartOptions{Session: "unloaded-session", Owner: "test", Command: "sleep 30", Cwd: t.TempDir()})
+	task, err := e.tasks.Start(process.StartOptions{Session: "unloaded-session", Owner: "test", Command: "sleep 30", Cwd: t.TempDir()})
 	if err != nil {
 		t.Fatal(err)
 	}

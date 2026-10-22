@@ -12,6 +12,7 @@ func TestBashDescriptionDescribesTheTool(t *testing.T) {
 		"meno mcp", "meno tasks", "meno ask FILE|-", "meno view IMAGE", "meno models [--provider --refresh]",
 		"meno sessions [--cwd DIR]", "meno send [-s ID|--new] [--detach] TEXT", "meno tail ID", "meno help [TOPIC]",
 		"meno --help", "[exit N] or [cancelled]", "already running the message is only queued",
+		"Never create new sessions or send messages to other sessions without explicit user permission.",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("description misses %q", want)

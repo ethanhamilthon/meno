@@ -7,19 +7,19 @@ import (
 	"time"
 
 	"meno/internal/agent"
-	"meno/internal/proto"
+	"meno/internal/api"
 )
 
 // exportResource uses the existing commit boundary and saved event projection.
 // Provider deltas after this boundary are intentionally outside the transcript.
-func (e *Engine) exportResource(ctx context.Context, id string) (proto.ResourceResponse, error) {
+func (e *Engine) exportResource(ctx context.Context, id string) (api.ResourceResponse, error) {
 	out, err := e.exportSnapshot(ctx, id)
 	if err != nil {
-		return proto.ResourceResponse{}, err
+		return api.ResourceResponse{}, err
 	}
 	// exportSnapshot has returned and released commit and mu before rendering.
-	b, err := json.Marshal(proto.ExportResponse{Markdown: out.Markdown()})
-	return proto.ResourceResponse{Data: b}, err
+	b, err := json.Marshal(api.ExportResponse{Markdown: out.Markdown()})
+	return api.ResourceResponse{Data: b}, err
 }
 
 func (e *Engine) exportSnapshot(ctx context.Context, id string) (agent.ExportSnapshot, error) {

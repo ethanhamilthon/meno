@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"meno/internal/agent"
+	"meno/internal/api"
 	"meno/internal/llm"
-	"meno/internal/proto"
 	"time"
 )
 
@@ -19,7 +19,7 @@ func (e *Engine) finish(s *runState, err error) {
 	s.phase = ""
 	s.cancel = nil
 	s.retry = nil
-	s.live = proto.LiveState{Calls: []proto.CallState{}}
+	s.live = api.LiveState{Calls: []api.CallState{}}
 	if err != nil && !errors.Is(err, context.Canceled) {
 		s.lastErr = err.Error()
 	}
@@ -32,20 +32,20 @@ func (e *Engine) finish(s *runState, err error) {
 		s.mu.Lock()
 		s.visibleTurns = wireTurns(turns)
 		s.mu.Unlock()
-		e.publish(id, proto.EventTurnUpdated, proto.TurnAddedData{Turn: turnWire(turns[len(turns)-1])})
+		e.publish(id, api.EventTurnUpdated, api.TurnAddedData{Turn: turnWire(turns[len(turns)-1])})
 	}
 	e.publishQueueCommitted(s)
 	if saveErr != nil {
-		e.publish(id, proto.EventError, proto.ErrorData{Message: saveErr.Error()})
+		e.publish(id, api.EventError, api.ErrorData{Message: saveErr.Error()})
 	}
 	e.publishSessionChanged(s, "run", "unread")
-	e.publish(id, proto.EventStatus, proto.StatusData{Running: false, RequestID: requestID})
+	e.publish(id, api.EventStatus, api.StatusData{Running: false, RequestID: requestID})
 	if err != nil && errors.Is(err, context.Canceled) {
-		e.publish(id, proto.EventAborted, proto.DoneData{RequestID: requestID})
+		e.publish(id, api.EventAborted, api.DoneData{RequestID: requestID})
 	} else if err != nil {
-		e.publish(id, proto.EventError, proto.ErrorData{RequestID: requestID, Message: err.Error()})
+		e.publish(id, api.EventError, api.ErrorData{RequestID: requestID, Message: err.Error()})
 	} else {
-		e.publish(id, proto.EventDone, proto.DoneData{RequestID: requestID, Metrics: metrics})
+		e.publish(id, api.EventDone, api.DoneData{RequestID: requestID, Metrics: metrics})
 	}
 	if len(queued) > 0 && err == nil {
 		s.mu.Lock()
@@ -61,7 +61,7 @@ func (e *Engine) finish(s *runState, err error) {
 		turns := s.session.Snapshot()
 		s.mu.Unlock()
 		e.publishAgentTurns(id, turns)
-		e.publish(id, proto.EventStatus, proto.StatusData{Running: true, Phase: "preparing", RequestID: rid})
+		e.publish(id, api.EventStatus, api.StatusData{Running: true, Phase: "preparing", RequestID: rid})
 		e.launch(ctx, s, msg.Text, false)
 	}
 }

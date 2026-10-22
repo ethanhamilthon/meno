@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"meno/internal/api"
 	"meno/internal/daemon"
-	"meno/internal/proto"
 )
 
 func TestStopConfirmedAbsentAndCleanupTimeout(t *testing.T) {
@@ -39,9 +39,9 @@ func TestStopConfirmedRefusesLegacyAndServerErrors(t *testing.T) {
 		want             string
 	}{
 		{"legacy", 3, 200, "cannot safely stop"},
-		{"future", proto.Protocol + 1, 200, "cannot safely stop"},
-		{"forbidden", proto.Protocol, 403, "denied"},
-		{"conflict", proto.Protocol, 409, "finish work"},
+		{"future", api.Protocol + 1, 200, "cannot safely stop"},
+		{"forbidden", api.Protocol, 403, "denied"},
+		{"conflict", api.Protocol, 409, "finish work"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			home := t.TempDir()
@@ -53,12 +53,12 @@ func TestStopConfirmedRefusesLegacyAndServerErrors(t *testing.T) {
 			shutdowns := make(chan struct{}, 1)
 			server := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if r.URL.Path == "/v1/hello" {
-					json.NewEncoder(w).Encode(proto.Hello{Protocol: tc.protocol})
+					json.NewEncoder(w).Encode(api.Hello{Protocol: tc.protocol})
 					return
 				}
 				shutdowns <- struct{}{}
 				w.WriteHeader(tc.status)
-				json.NewEncoder(w).Encode(proto.ErrorEnvelope{Error: proto.ErrorBody{Code: proto.CodeConflict, Message: tc.want}})
+				json.NewEncoder(w).Encode(api.ErrorEnvelope{Error: api.ErrorBody{Code: api.CodeConflict, Message: tc.want}})
 			})}
 			go server.Serve(listener)
 			defer server.Close()

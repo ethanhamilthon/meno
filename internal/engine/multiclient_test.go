@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"meno/internal/api"
 	"meno/internal/llm"
-	"meno/internal/proto"
 )
 
 // observer follows one session the way a client does: a snapshot, then every
@@ -21,7 +21,7 @@ type observer struct {
 }
 
 func follow(t *testing.T, e *Engine, h interface {
-	Subscribe(string, uint64, string) (<-chan proto.Event, func(), bool)
+	Subscribe(string, uint64, string) (<-chan api.Event, func(), bool)
 }, id string) *observer {
 	t.Helper()
 	snap, err := e.Snapshot(context.Background(), id)
@@ -42,8 +42,8 @@ func follow(t *testing.T, e *Engine, h interface {
 		for ev := range ch {
 			o.mu.Lock()
 			o.last = ev.Seq
-			if ev.Type == proto.EventTurnAdded {
-				var d proto.TurnAddedData
+			if ev.Type == api.EventTurnAdded {
+				var d api.TurnAddedData
 				_ = json.Unmarshal(ev.Data, &d)
 				o.turns[d.Turn.ID]++
 			}
@@ -74,7 +74,7 @@ func TestManyClientsSeeEveryTurnExactlyOnce(t *testing.T) {
 	}
 	attach()
 	for i := 0; i < 4; i++ {
-		if _, err := e.Message(context.Background(), id, proto.MessageRequest{Text: fmt.Sprint("q", i), ClientID: fmt.Sprint("c", i)}); err != nil {
+		if _, err := e.Message(context.Background(), id, api.MessageRequest{Text: fmt.Sprint("q", i), ClientID: fmt.Sprint("c", i)}); err != nil {
 			t.Fatal(err)
 		}
 		attach() // a late client joins in the middle of the run

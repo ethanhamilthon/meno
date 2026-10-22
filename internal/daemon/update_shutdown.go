@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"meno/internal/proto"
+	"meno/internal/api"
 )
 
 // mutationGate makes admission and the idle check one coherent boundary. Streams
@@ -18,7 +18,7 @@ func (s *Server) mutationGate(next http.Handler) http.Handler {
 		s.admission.RLock()
 		defer s.admission.RUnlock()
 		if s.stopping {
-			s.result(w, nil, &APIError{Code: proto.CodeDaemonStopping, Message: "daemon is stopping; reopen meno after updating"})
+			s.result(w, nil, &APIError{Code: api.CodeDaemonStopping, Message: "daemon is stopping; reopen meno after updating"})
 			return
 		}
 		next.ServeHTTP(w, r)
@@ -43,10 +43,10 @@ func (s *Server) shutdownIdle(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if busy {
-		s.result(w, nil, &APIError{Code: proto.CodeConflict, Message: "daemon has active runs or background tasks; finish or stop them and retry the update"})
+		s.result(w, nil, &APIError{Code: api.CodeConflict, Message: "daemon has active runs or background tasks; finish or stop them and retry the update"})
 		return
 	}
 	s.stopping = true
-	writeJSON(w, 200, proto.Ack{OK: true})
+	writeJSON(w, 200, api.Ack{OK: true})
 	go s.Stop("update")
 }

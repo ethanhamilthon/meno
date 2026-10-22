@@ -2,12 +2,12 @@ package engine
 
 import (
 	"context"
-	"meno/internal/proto"
+	"meno/internal/api"
 )
 
 func (e *Engine) ApplyClientID(ctx context.Context, key string, fn func() (any, error)) (any, error) {
 	if key == "" {
-		return nil, api(proto.CodeBadRequest, "client_id is required")
+		return nil, dapi(api.CodeBadRequest, "client_id is required")
 	}
 	e.mu.Lock()
 	if r, ok := e.ids[key]; ok {

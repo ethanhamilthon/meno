@@ -7,8 +7,8 @@ import (
 	"os"
 	"syscall"
 
+	"meno/internal/api"
 	"meno/internal/daemon"
-	"meno/internal/proto"
 )
 
 // StopConfirmed requests shutdown without ever starting a daemon, then takes
@@ -24,12 +24,12 @@ func StopConfirmed(ctx context.Context, home string, idleOnly bool) (*os.File, e
 	if err == nil {
 		path := "/v1/shutdown"
 		if idleOnly {
-			if h.Protocol != proto.Protocol {
+			if h.Protocol != api.Protocol {
 				return nil, fmt.Errorf("daemon protocol %d cannot safely stop for update; finish work, close all meno windows, run 'meno daemon stop', then retry", h.Protocol)
 			}
 			path += "/idle"
 		}
-		if err = c.post(ctx, path, proto.ShutdownRequest{Reason: "client request"}, nil); err != nil {
+		if err = c.post(ctx, path, api.ShutdownRequest{Reason: "client request"}, nil); err != nil {
 			return nil, fmt.Errorf("daemon refused shutdown: %w", err)
 		}
 	}

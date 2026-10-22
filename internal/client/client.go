@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"golang.org/x/sys/unix"
+	"meno/internal/api"
 	"meno/internal/daemon"
-	"meno/internal/proto"
 	"net"
 	"net/http"
 	"os"
@@ -144,12 +144,12 @@ func Ensure(ctx context.Context, o Options) (*Client, error) {
 	return nil, fmt.Errorf("daemon did not start within %s", timeout)
 }
 func (c *Client) check(ctx context.Context) error {
-	var h proto.Hello
+	var h api.Hello
 	if e := c.get(ctx, "/v1/hello", &h); e != nil {
 		return e
 	}
-	if h.Protocol != proto.Protocol {
-		return fmt.Errorf("protocol mismatch: client %d, daemon %d; run meno daemon restart", proto.Protocol, h.Protocol)
+	if h.Protocol != api.Protocol {
+		return fmt.Errorf("protocol mismatch: client %d, daemon %d; run meno daemon restart", api.Protocol, h.Protocol)
 	}
 	return nil
 }

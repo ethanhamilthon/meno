@@ -1,7 +1,7 @@
 // Package cliproxy manages the cliproxyapi helper that turns OAuth logins
 // (Claude, ChatGPT, Antigravity, xAI, Meta, Kimi) into a local OpenAI-style API.
 // meno installs it under its own home, writes its config, and talks to its
-// management API; the process itself is run by proc.Daemons.
+// management API; the process itself is run by process.Daemons.
 package cliproxy
 
 import (

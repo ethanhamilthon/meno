@@ -2,7 +2,7 @@ package daemon
 
 import (
 	"context"
-	"meno/internal/proto"
+	"meno/internal/api"
 	"net/http/httptest"
 	"strings"
 	"sync"
@@ -19,11 +19,11 @@ type countingBackend struct {
 func (b *countingBackend) ApplyClientID(_ context.Context, key string, fn func() (any, error)) (any, error) {
 	return b.cache.Do(key, fn)
 }
-func (b *countingBackend) CreateSession(_ context.Context, r proto.SessionCreateRequest) (proto.SessionCreateResponse, error) {
+func (b *countingBackend) CreateSession(_ context.Context, r api.SessionCreateRequest) (api.SessionCreateResponse, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.n++
-	return proto.SessionCreateResponse{Session: proto.SessionItem{ID: "only"}}, nil
+	return api.SessionCreateResponse{Session: api.SessionItem{ID: "only"}}, nil
 }
 func TestClientIDHTTPRetrySafety(t *testing.T) {
 	b := &countingBackend{cache: NewIdempotency()}
@@ -54,7 +54,7 @@ func TestWorkRequestRequiresClientID(t *testing.T) {
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("POST", "/v1/sessions", strings.NewReader(`{"cwd":"/tmp"}`))
 	s.routes().ServeHTTP(w, r)
-	if w.Code != 400 || !strings.Contains(w.Body.String(), proto.CodeBadRequest) {
+	if w.Code != 400 || !strings.Contains(w.Body.String(), api.CodeBadRequest) {
 		t.Fatalf("response %d %s", w.Code, w.Body.String())
 	}
 }

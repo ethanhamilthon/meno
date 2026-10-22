@@ -3,30 +3,30 @@ package engine
 import (
 	"context"
 	"meno/internal/agent"
-	"meno/internal/proto"
+	"meno/internal/api"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 )
 
-func (e *Engine) ListSessions(ctx context.Context, q proto.SessionsListRequest) (proto.SessionsListResponse, error) {
+func (e *Engine) ListSessions(ctx context.Context, q api.SessionsListRequest) (api.SessionsListResponse, error) {
 	rows, err := agent.ListSessions(e.home)
 	if err != nil {
-		return proto.SessionsListResponse{}, err
+		return api.SessionsListResponse{}, err
 	}
-	out := proto.SessionsListResponse{Sessions: []proto.SessionItem{}}
+	out := api.SessionsListResponse{Sessions: []api.SessionItem{}}
 	for _, r := range rows {
 		e.mu.Lock()
 		s := e.sessions[r.ID]
 		e.mu.Unlock()
-		var it proto.SessionItem
+		var it api.SessionItem
 		if s != nil {
 			s.mu.Lock()
 			it = item(s)
 			s.mu.Unlock()
 		} else {
-			it = proto.SessionItem{
+			it = api.SessionItem{
 				ID:        r.ID,
 				Name:      r.Title,
 				Cwd:       r.Cwd,
@@ -51,9 +51,9 @@ func (e *Engine) ListSessions(ctx context.Context, q proto.SessionsListRequest) 
 	}
 	return out, nil
 }
-func (e *Engine) CreateSession(ctx context.Context, q proto.SessionCreateRequest) (proto.SessionCreateResponse, error) {
+func (e *Engine) CreateSession(ctx context.Context, q api.SessionCreateRequest) (api.SessionCreateResponse, error) {
 	if err := e.reloadConfig(); err != nil {
-		return proto.SessionCreateResponse{}, api(proto.CodeInternal, err.Error())
+		return api.SessionCreateResponse{}, dapi(api.CodeInternal, err.Error())
 	}
 	cwd := q.Cwd
 	if cwd == "" {
@@ -61,10 +61,10 @@ func (e *Engine) CreateSession(ctx context.Context, q proto.SessionCreateRequest
 	}
 	abs, err := filepath.Abs(cwd)
 	if err != nil {
-		return proto.SessionCreateResponse{}, err
+		return api.SessionCreateResponse{}, err
 	}
 	if st, er := os.Stat(abs); er != nil || !st.IsDir() {
-		return proto.SessionCreateResponse{}, api(proto.CodeBadRequest, "cwd must be an existing directory")
+		return api.SessionCreateResponse{}, dapi(api.CodeBadRequest, "cwd must be an existing directory")
 	}
 	model := q.Model
 	if model == "" {
@@ -75,12 +75,12 @@ func (e *Engine) CreateSession(ctx context.Context, q proto.SessionCreateRequest
 	sess.Effort = e.cfg().Effort
 	s, err := e.adopt(sess)
 	if err != nil {
-		return proto.SessionCreateResponse{}, err
+		return api.SessionCreateResponse{}, err
 	}
 	s.mu.Lock()
 	s.env = cloneMap(q.Env)
 	s.token.groups = groupsFor(nil)
-	result := proto.SessionCreateResponse{Session: item(s)}
+	result := api.SessionCreateResponse{Session: item(s)}
 	s.mu.Unlock()
 	return result, nil
 }

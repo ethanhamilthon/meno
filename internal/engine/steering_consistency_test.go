@@ -3,9 +3,9 @@ package engine
 import (
 	"context"
 	"meno/internal/agent"
+	"meno/internal/api"
 	"meno/internal/client"
 	"meno/internal/llm"
-	"meno/internal/proto"
 	"sync"
 	"testing"
 	"time"
@@ -56,12 +56,12 @@ func TestSteeringSnapshotBeforeNextDelta(t *testing.T) {
 	e.client = func(llm.Provider) llm.Client { return p }
 	id := newSession(t, e)
 	ctx := context.Background()
-	if _, err := e.Message(ctx, id, proto.MessageRequest{Text: "start"}); err != nil {
+	if _, err := e.Message(ctx, id, api.MessageRequest{Text: "start"}); err != nil {
 		t.Fatal(err)
 	}
 	receiveRequest(t, p)
 	for i := 0; i < 2; i++ {
-		if _, err := e.Message(ctx, id, proto.MessageRequest{Text: "unique steering"}); err != nil {
+		if _, err := e.Message(ctx, id, api.MessageRequest{Text: "unique steering"}); err != nil {
 			t.Fatal(err)
 		}
 	}

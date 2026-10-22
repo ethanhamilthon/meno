@@ -1,6 +1,6 @@
 package engine
 
-import "meno/internal/proto"
+import "meno/internal/api"
 
 // queuedText returns a non-nil list, including when the queue is empty.
 func queuedText(s *runState) []string {
@@ -14,10 +14,10 @@ func queuedText(s *runState) []string {
 
 // publishQueue keeps queue snapshots in session event order. The caller holds s.mu.
 // Queue updates do not change global session status.
-func (e *Engine) publishQueue(s *runState, data proto.InjectedData) {
+func (e *Engine) publishQueue(s *runState, data api.InjectedData) {
 	data.Queued = queuedText(s)
 	s.visibleQueue = append([]string(nil), data.Queued...)
 	if e.events != nil {
-		e.events.Publish(s.session.ID, proto.EventInjected, data)
+		e.events.Publish(s.session.ID, api.EventInjected, data)
 	}
 }

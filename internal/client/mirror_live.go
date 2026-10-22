@@ -2,10 +2,10 @@ package client
 
 import (
 	"encoding/json"
-	"meno/internal/proto"
+	"meno/internal/api"
 )
 
-func (m *Mirror) call(id string) *proto.CallState {
+func (m *Mirror) call(id string) *api.CallState {
 	s := &m.State
 	for i := range s.Live.Calls {
 		if id != "" && s.Live.Calls[i].CallID == id {
@@ -16,18 +16,18 @@ func (m *Mirror) call(id string) *proto.CallState {
 		s.Live.Calls[n-1].CallID = id
 		return &s.Live.Calls[n-1]
 	}
-	s.Live.Calls = append(s.Live.Calls, proto.CallState{CallID: id})
+	s.Live.Calls = append(s.Live.Calls, api.CallState{CallID: id})
 	return &s.Live.Calls[len(s.Live.Calls)-1]
 }
 
-func (m *Mirror) applyCall(e proto.Event, effects *ProjectionEffects) ProjectionFields {
+func (m *Mirror) applyCall(e api.Event, effects *ProjectionEffects) ProjectionFields {
 	s := &m.State
 	if s.StartedCalls == nil {
 		s.StartedCalls = map[string]bool{}
 	}
 	switch e.Type {
-	case proto.EventCallDelta:
-		var d proto.CallDeltaData
+	case api.EventCallDelta:
+		var d api.CallDeltaData
 		if json.Unmarshal(e.Data, &d) != nil {
 			return 0
 		}
@@ -37,8 +37,8 @@ func (m *Mirror) applyCall(e proto.Event, effects *ProjectionEffects) Projection
 			c.Command += d.Delta
 		}
 		s.Phase = "writing"
-	case proto.EventCallStart:
-		var d proto.CallStartData
+	case api.EventCallStart:
+		var d api.CallStartData
 		if json.Unmarshal(e.Data, &d) != nil {
 			return 0
 		}
@@ -48,8 +48,8 @@ func (m *Mirror) applyCall(e proto.Event, effects *ProjectionEffects) Projection
 		s.StartedCalls[d.CallID] = true
 		s.Phase = "running"
 		effects.CallStarted = &d
-	case proto.EventCallEnd:
-		var d proto.CallEndData
+	case api.EventCallEnd:
+		var d api.CallEndData
 		if json.Unmarshal(e.Data, &d) != nil {
 			return 0
 		}
@@ -69,7 +69,7 @@ func (m *Mirror) applyCall(e proto.Event, effects *ProjectionEffects) Projection
 	return LiveChanged | ActivityChanged
 }
 
-func (m *Mirror) applyUsage(d proto.UsageData) {
+func (m *Mirror) applyUsage(d api.UsageData) {
 	s := &m.State
 	s.Metrics.InputTokens += d.InputTokens
 	s.Metrics.OutputTokens += d.OutputTokens

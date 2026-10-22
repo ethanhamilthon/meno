@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 
 	"meno/internal/agent"
+	"meno/internal/api"
 	"meno/internal/llm"
-	"meno/internal/proc"
-	"meno/internal/proto"
+	"meno/internal/process"
 	"time"
 )
 
@@ -85,16 +85,16 @@ func (e *Engine) wakeIfPending(sid string) {
 	}
 	if reloadErr != nil {
 		s.mu.Unlock()
-		e.publish(sid, proto.EventError, proto.ErrorData{Message: reloadErr.Error()})
+		e.publish(sid, api.EventError, api.ErrorData{Message: reloadErr.Error()})
 		return
 	}
 	s.running, s.phase = true, "preparing"
 	rid := s.requestID
 	ctx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
-	s.live = proto.LiveState{Calls: []proto.CallState{}}
+	s.live = api.LiveState{Calls: []api.CallState{}}
 	s.mu.Unlock()
-	e.publish(sid, proto.EventStatus, proto.StatusData{Running: true, Phase: "preparing", RequestID: rid})
+	e.publish(sid, api.EventStatus, api.StatusData{Running: true, Phase: "preparing", RequestID: rid})
 	if repaired {
 		e.publishSessionChanged(s, "provider", "model", "effort")
 	}
@@ -109,9 +109,9 @@ func (e *Engine) isClosed() bool {
 
 // onTaskFinished turns a finished task into a steering event. A task the agent
 // or a stop cancelled needs no news.
-func (e *Engine) onTaskFinished(t proc.Task) {
+func (e *Engine) onTaskFinished(t process.Task) {
 	e.publishTasksChanged(t.Session)
-	if !t.Notify || t.Status == proc.Cancelled {
+	if !t.Notify || t.Status == process.Cancelled {
 		return
 	}
 	code := ""

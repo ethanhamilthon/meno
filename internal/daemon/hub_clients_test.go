@@ -7,7 +7,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"meno/internal/proto"
+	"meno/internal/api"
 )
 
 // fanout publishes n events to the given number of clients. The publisher waits
@@ -37,7 +37,7 @@ func fanout(t testing.TB, clients, n int) (delivered []int, cut bool) {
 		go func() {
 			defer wg.Done()
 			for e := range ch {
-				if e.Type == proto.EventResync {
+				if e.Type == api.EventResync {
 					return
 				}
 				delivered[i]++
@@ -49,7 +49,7 @@ func fanout(t testing.TB, clients, n int) (delivered []int, cut bool) {
 		}()
 	}
 	for k := 0; k < n; k++ {
-		h.Publish("s", proto.EventTextDelta, map[string]int{"n": k})
+		h.Publish("s", api.EventTextDelta, map[string]int{"n": k})
 		for taken.Load() < int64((k+1)*readers) {
 			runtime.Gosched()
 		}
@@ -82,14 +82,14 @@ func TestFanoutToManyClientsAndOneStalled(t *testing.T) {
 // The event numbers a reader sees are strictly increasing without gaps.
 func TestFanoutKeepsOrderWithoutGaps(t *testing.T) {
 	h := NewHub("b", 4096)
-	chs := make([]<-chan proto.Event, 5)
+	chs := make([]<-chan api.Event, 5)
 	for i := range chs {
 		ch, stop, _ := h.Subscribe("s", 0, "b")
 		defer stop()
 		chs[i] = ch
 	}
 	for k := 0; k < 200; k++ {
-		h.Publish("s", proto.EventTextDelta, k)
+		h.Publish("s", api.EventTextDelta, k)
 	}
 	for i, ch := range chs {
 		for want := uint64(1); want <= 200; want++ {
@@ -119,7 +119,7 @@ func BenchmarkHubFanout(b *testing.B) {
 			b.ReportAllocs()
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				h.Publish("s", proto.EventTextDelta, i)
+				h.Publish("s", api.EventTextDelta, i)
 			}
 			b.StopTimer()
 		})

@@ -7,8 +7,8 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"meno/internal/api"
 	"meno/internal/llm"
-	"meno/internal/proto"
 )
 
 // Several clients answer the same question at once: exactly one wins and the
@@ -20,7 +20,7 @@ func TestConcurrentAskAnswersHaveOneWinner(t *testing.T) {
 	snap0, _ := e.Snapshot(context.Background(), id)
 	done := make(chan error, 1)
 	go func() {
-		_, err := e.Resource(context.Background(), "POST", "/v1/sessions/"+id+"/ask", "", proto.ResourceRequest{
+		_, err := e.Resource(context.Background(), "POST", "/v1/sessions/"+id+"/ask", "", api.ResourceRequest{
 			Token: snap0.AgentToken, Data: json.RawMessage(`{"form":{"questions":[{"id":"c","text":"Pick","type":"single","options":[{"id":"x","label":"X"},{"id":"y","label":"Y"}]}]}}`)})
 		done <- err
 	}()
@@ -33,11 +33,11 @@ func TestConcurrentAskAnswersHaveOneWinner(t *testing.T) {
 		go func(i int) {
 			defer wg.Done()
 			opt := []string{`"x"`, `"y"`}[i%2]
-			err := e.AnswerAsk(context.Background(), id, snap.Ask.AskID, proto.AskAnswerRequest{Answers: map[string]json.RawMessage{"c": json.RawMessage(opt)}})
+			err := e.AnswerAsk(context.Background(), id, snap.Ask.AskID, api.AskAnswerRequest{Answers: map[string]json.RawMessage{"c": json.RawMessage(opt)}})
 			switch {
 			case err == nil:
 				atomic.AddInt32(&wins, 1)
-			case isCode(err, proto.CodeConflict), isCode(err, proto.CodeNotFound):
+			case isCode(err, api.CodeConflict), isCode(err, api.CodeNotFound):
 				atomic.AddInt32(&conflicts, 1)
 			default:
 				t.Errorf("unexpected error: %v", err)

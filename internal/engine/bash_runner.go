@@ -6,8 +6,7 @@ import (
 	"strconv"
 
 	"meno/internal/agent"
-	"meno/internal/proc"
-	"meno/internal/tools"
+	"meno/internal/process"
 )
 
 // bashRunner is the agent.ToolRunner of the bash tool: one fresh /bin/sh per
@@ -29,7 +28,7 @@ func (b *bashRunner) Start(id, command string) (agent.RunningCall, error) {
 	b.s.mu.Lock()
 	owner := b.s.requestID
 	b.s.mu.Unlock()
-	o := proc.LaunchOptions{
+	o := process.LaunchOptions{
 		Session: b.s.session.ID, Owner: owner, Name: "bash " + id, Command: command, Cwd: b.cwd(), Env: b.env(id),
 		CallID: id, OutputDir: filepath.Join(b.e.home, "outputs", b.s.session.ID),
 	}
@@ -38,7 +37,7 @@ func (b *bashRunner) Start(id, command string) (agent.RunningCall, error) {
 		if err != nil {
 			return nil, err
 		}
-		parsed, err := tools.ParseRestrictedCommand(command, exe, allowed)
+		parsed, err := process.ParseRestrictedCommand(command, exe, allowed)
 		if err != nil {
 			return nil, err
 		}
@@ -55,7 +54,7 @@ func (b *bashRunner) Start(id, command string) (agent.RunningCall, error) {
 type fgCall struct {
 	e       *Engine
 	session string
-	fg      *proc.Foreground
+	fg      *process.Foreground
 }
 
 func (c *fgCall) Done() <-chan struct{} { return c.fg.Done() }

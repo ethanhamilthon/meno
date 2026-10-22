@@ -1,33 +1,28 @@
-# Minimum statement coverage per package, in percent. Measured on 0.6.1 and set
+# Minimum statement coverage per package, in percent. Measured on 0.6.1 (merged packages re-measured on 0.6.6) and set
 # three points lower so noise does not fail CI while a real drop does. Raise a
 # floor when coverage grows; lower one only with a reason in the commit.
 # cmd/meno (entry point, covered by `make term`) and internal/term (build-tagged)
 # are excluded on purpose.
+internal/acp 72
 internal/agent 77
-internal/app 64
-internal/attach 74
+internal/api 97
 internal/cli 52
-internal/cli/daemonapi 51
 internal/client 52
-internal/clihelp 57
 internal/cliproxy 84
-internal/commentref 86
 internal/config 79
+internal/configsvc 57
+internal/content 81
 internal/daemon 59
-internal/daemon/cfgsvc 57
 internal/db 70
 internal/engine 58
 internal/llm 86
 internal/mcp 78
 internal/notify 72
-internal/objtag 92
 internal/pathsearch 90
-internal/proc 84
+internal/process 83
 internal/prompt 87
-internal/proto 97
+internal/render 89
 internal/store 69
-internal/termimg 92
-internal/tools 79
-internal/ui 85
+internal/tui 65
 internal/update 78
 internal/web 88

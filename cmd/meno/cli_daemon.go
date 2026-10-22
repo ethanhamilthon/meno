@@ -8,7 +8,6 @@ import (
 	"time"
 
 	menocli "meno/internal/cli"
-	"meno/internal/cli/daemonapi"
 	"meno/internal/client"
 )
 
@@ -25,7 +24,7 @@ func isDaemonGroup(name string) bool {
 // is already running and the environment names the session; a human command
 // starts the daemon when it is not up.
 func runWithDaemon(args []string, out, errOut io.Writer) int {
-	api, err := daemonapi.FromEnv()
+	api, err := menocli.FromEnv()
 	if err != nil {
 		fmt.Fprintln(errOut, "meno:", err)
 		return 1

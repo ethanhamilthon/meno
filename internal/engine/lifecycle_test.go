@@ -2,8 +2,8 @@ package engine
 
 import (
 	"context"
+	"meno/internal/api"
 	"meno/internal/daemon"
-	"meno/internal/proto"
 	"testing"
 )
 
@@ -20,9 +20,9 @@ func TestDirectoryChangesArePublished(t *testing.T) {
 	var created, deleted bool
 	for len(ch) > 0 {
 		switch (<-ch).Type {
-		case proto.EventSessionCreated:
+		case api.EventSessionCreated:
 			created = true
-		case proto.EventSessionDeleted:
+		case api.EventSessionDeleted:
 			deleted = true
 		}
 	}

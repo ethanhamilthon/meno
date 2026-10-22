@@ -2,7 +2,7 @@ package daemon
 
 import (
 	"encoding/json"
-	"meno/internal/proto"
+	"meno/internal/api"
 	"net/http/httptest"
 	"testing"
 )
@@ -12,14 +12,14 @@ func TestHelloProtocolMismatchRejectedByClient(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	h := proto.Hello{Protocol: proto.Protocol + 1}
+	h := api.Hello{Protocol: api.Protocol + 1}
 	w := httptest.NewRecorder()
 	writeJSON(w, 200, h)
-	var got proto.Hello
+	var got api.Hello
 	if e = json.Unmarshal(w.Body.Bytes(), &got); e != nil {
 		t.Fatal(e)
 	}
-	if got.Protocol == proto.Protocol {
+	if got.Protocol == api.Protocol {
 		t.Fatal("test response does not mismatch")
 	}
 }

@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"meno/internal/agent"
+	"meno/internal/api"
 	"meno/internal/llm"
-	"meno/internal/proto"
 	"testing"
 	"time"
 )
@@ -17,8 +17,8 @@ type publicationBarrier struct {
 }
 
 func (b *publicationBarrier) BootID() string { return "boot" }
-func (b *publicationBarrier) Publish(id, typ string, data any) proto.Event {
-	if typ == proto.EventTurnAdded {
+func (b *publicationBarrier) Publish(id, typ string, data any) api.Event {
+	if typ == api.EventTurnAdded {
 		close(b.arrived)
 		<-b.release
 	}
@@ -38,7 +38,7 @@ func TestSteeringSnapshotWaitsForHistoryPublication(t *testing.T) {
 	committed := make(chan struct{})
 	go func() { e.agentEvent(s, agent.Ev{Kind: agent.EvInjected}); close(committed) }()
 	<-barrier.arrived
-	snapshots := make(chan proto.Snapshot, 1)
+	snapshots := make(chan api.Snapshot, 1)
 	go func() { sn, _ := e.Snapshot(context.Background(), id); snapshots <- sn }()
 	select {
 	case <-snapshots:
@@ -54,7 +54,7 @@ func TestSteeringSnapshotWaitsForHistoryPublication(t *testing.T) {
 	replay, stop, _ := h.Subscribe(id, snap.Seq, "boot")
 	defer stop()
 	for len(replay) > 0 {
-		if ev := <-replay; ev.Type == proto.EventTurnAdded {
+		if ev := <-replay; ev.Type == api.EventTurnAdded {
 			t.Fatal("snapshot turn replayed after its cursor")
 		}
 	}
@@ -91,27 +91,27 @@ func TestFinishTailPublishesNewRunAndConsumedTurn(t *testing.T) {
 	newStarted := false
 	for len(replay) > 0 {
 		ev := <-replay
-		if ev.Type == proto.EventTurnAdded {
-			var d proto.TurnAddedData
+		if ev.Type == api.EventTurnAdded {
+			var d api.TurnAddedData
 			_ = json.Unmarshal(ev.Data, &d)
 			if d.Turn.Content == "tail" {
 				tailTurns++
 			}
 		}
-		if ev.Type == proto.EventStatus {
-			var d proto.StatusData
+		if ev.Type == api.EventStatus {
+			var d api.StatusData
 			_ = json.Unmarshal(ev.Data, &d)
 			if d.Running && d.RequestID == snap.RequestID {
 				newStarted = true
 			}
 		}
-		if newStarted && ev.Type == proto.EventDone {
+		if newStarted && ev.Type == api.EventDone {
 			t.Fatal("old terminal event followed new-run status")
 		}
 	}
 	if tailTurns != 1 || !newStarted {
 		t.Fatalf("tail turns=%d, new status=%v", tailTurns, newStarted)
 	}
-	_ = e.Stop(context.Background(), id, proto.StopRequest{})
+	_ = e.Stop(context.Background(), id, api.StopRequest{})
 	waitFor(t, e, id, func(s *runState) bool { return !s.running })
 }

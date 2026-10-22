@@ -7,11 +7,11 @@ import (
 	"testing"
 	"time"
 
+	"meno/internal/api"
 	"meno/internal/llm"
-	"meno/internal/proto"
 )
 
-func waitTurns(t *testing.T, e *Engine, id string, pred func([]proto.Turn) bool) {
+func waitTurns(t *testing.T, e *Engine, id string, pred func([]api.Turn) bool) {
 	t.Helper()
 	deadline := time.Now().Add(8 * time.Second)
 	for time.Now().Before(deadline) {
@@ -33,10 +33,10 @@ func TestTaskFinishedWakesTheSession(t *testing.T) {
 	e, _ := fixture(t, f)
 	id := newSession(t, e)
 	data := json.RawMessage(`{"command":"echo bg-done","notify":true}`)
-	if _, err := e.Resource(context.Background(), "POST", "/v1/sessions/"+id+"/tasks/start", "", proto.ResourceRequest{Data: data}); err != nil {
+	if _, err := e.Resource(context.Background(), "POST", "/v1/sessions/"+id+"/tasks/start", "", api.ResourceRequest{Data: data}); err != nil {
 		t.Fatal(err)
 	}
-	waitTurns(t, e, id, func(ts []proto.Turn) bool {
+	waitTurns(t, e, id, func(ts []api.Turn) bool {
 		for _, tr := range ts {
 			if tr.Kind == "event" {
 				return true
@@ -51,9 +51,9 @@ func TestStopCancelsPendingEventsOfTheRequest(t *testing.T) {
 	f := &fakeProvider{wait: true, seen: make(chan struct{}, 1)}
 	e, _ := fixture(t, f)
 	id := newSession(t, e)
-	r, _ := e.Message(context.Background(), id, proto.MessageRequest{Text: "go", ClientID: "m"})
+	r, _ := e.Message(context.Background(), id, api.MessageRequest{Text: "go", ClientID: "m"})
 	<-f.seen
-	if err := e.Stop(context.Background(), id, proto.StopRequest{RequestID: r.RequestID}); err != nil {
+	if err := e.Stop(context.Background(), id, api.StopRequest{RequestID: r.RequestID}); err != nil {
 		t.Fatal(err)
 	}
 	waitFor(t, e, id, func(s *runState) bool { return !s.running })
@@ -69,10 +69,10 @@ func TestStopCancelsPendingEventsOfTheRequest(t *testing.T) {
 func TestHumanClientWithoutTokenHasFullAccess(t *testing.T) {
 	e, _ := fixture(t, &fakeProvider{})
 	id := newSession(t, e)
-	if _, err := e.Resource(context.Background(), "GET", "/v1/sessions/"+id+"/tasks/list", "", proto.ResourceRequest{}); err != nil {
+	if _, err := e.Resource(context.Background(), "GET", "/v1/sessions/"+id+"/tasks/list", "", api.ResourceRequest{}); err != nil {
 		t.Fatalf("human access: %v", err)
 	}
-	if _, err := e.Resource(context.Background(), "GET", "/v1/sessions/"+id+"/tasks/list", "", proto.ResourceRequest{Token: "wrong"}); err == nil {
+	if _, err := e.Resource(context.Background(), "GET", "/v1/sessions/"+id+"/tasks/list", "", api.ResourceRequest{Token: "wrong"}); err == nil {
 		t.Fatal("a wrong token must be refused")
 	}
 }

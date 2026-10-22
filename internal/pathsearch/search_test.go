@@ -11,7 +11,7 @@ import (
 func tree(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
-	for _, f := range []string{"main.go", "internal/app/main_test.go", ".git/config", ".env", "node_modules/x/index.js", "docs/my notes.md", "дом/файл.txt", "build/out.bin"} {
+	for _, f := range []string{"main.go", "internal/tui/main_test.go", ".git/config", ".env", "node_modules/x/index.js", "docs/my notes.md", "дом/файл.txt", "build/out.bin"} {
 		p := filepath.Join(root, f)
 		os.MkdirAll(filepath.Dir(p), 0o755)
 		os.WriteFile(p, []byte("x"), 0o644)
@@ -30,7 +30,7 @@ func rels(es []Entry) string {
 func TestSearchIncludesEverythingAndRanksBasenameFirst(t *testing.T) {
 	root := tree(t)
 	got := rels(Search(context.Background(), root, "main", 10))
-	if !strings.HasPrefix(got, "main.go,") && !strings.HasPrefix(got, "internal/app/main_test.go") {
+	if !strings.HasPrefix(got, "main.go,") && !strings.HasPrefix(got, "internal/tui/main_test.go") {
 		t.Fatalf("basename matches first: %s", got)
 	}
 	for _, want := range []string{".git/config", ".env", "node_modules/x/index.js"} {

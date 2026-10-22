@@ -6,12 +6,12 @@ import (
 	"testing"
 
 	"meno/internal/agent"
+	"meno/internal/api"
 	"meno/internal/config"
 	"meno/internal/daemon"
 	"meno/internal/db"
 	"meno/internal/llm"
 	"meno/internal/mcp"
-	"meno/internal/proto"
 )
 
 func newTestEngine(t *testing.T, home string) *Engine {
@@ -47,7 +47,7 @@ func TestSessionListMetadataUnloadedLoadedRestartCompactedAndZero(t *testing.T) 
 	e := newTestEngine(t, home)
 	defer func() { e.Close(); db.CloseAll() }()
 
-	r, err := e.CreateSession(context.Background(), proto.SessionCreateRequest{Cwd: t.TempDir(), ClientID: "c1", Model: "custom-model"})
+	r, err := e.CreateSession(context.Background(), api.SessionCreateRequest{Cwd: t.TempDir(), ClientID: "c1", Model: "custom-model"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,7 +55,7 @@ func TestSessionListMetadataUnloadedLoadedRestartCompactedAndZero(t *testing.T) 
 	prov := "custom-prov"
 	eff := "high"
 	name := "Metadata session"
-	if _, err := e.PatchSession(context.Background(), id, proto.PatchSessionRequest{Provider: &prov, Effort: &eff, Name: &name}); err != nil {
+	if _, err := e.PatchSession(context.Background(), id, api.PatchSessionRequest{Provider: &prov, Effort: &eff, Name: &name}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -79,7 +79,7 @@ func TestSessionListMetadataUnloadedLoadedRestartCompactedAndZero(t *testing.T) 
 	delete(e.sessions, id)
 	e.mu.Unlock()
 
-	list, err := e.ListSessions(context.Background(), proto.SessionsListRequest{})
+	list, err := e.ListSessions(context.Background(), api.SessionsListRequest{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,8 +97,8 @@ func TestSessionListMetadataUnloadedLoadedRestartCompactedAndZero(t *testing.T) 
 		t.Fatal(err)
 	}
 	var gState struct {
-		Sessions []proto.SessionItem `json:"sessions"`
-		Tasks    int                 `json:"tasks"`
+		Sessions []api.SessionItem `json:"sessions"`
+		Tasks    int               `json:"tasks"`
 	}
 	if err := json.Unmarshal(res.Data, &gState); err != nil {
 		t.Fatal(err)
@@ -115,7 +115,7 @@ func TestSessionListMetadataUnloadedLoadedRestartCompactedAndZero(t *testing.T) 
 	if snap.TurnCount != 3 || snap.Session.TurnCount != 3 || snap.Session.Provider != "custom-prov" || snap.Session.Effort != "high" {
 		t.Fatalf("loaded snapshot mismatch: snap=%+v session=%+v", snap, snap.Session)
 	}
-	listLoaded, err := e.ListSessions(context.Background(), proto.SessionsListRequest{})
+	listLoaded, err := e.ListSessions(context.Background(), api.SessionsListRequest{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,7 +129,7 @@ func TestSessionListMetadataUnloadedLoadedRestartCompactedAndZero(t *testing.T) 
 	e2 := newTestEngine(t, home)
 	defer func() { e2.Close(); db.CloseAll() }()
 
-	list2, err := e2.ListSessions(context.Background(), proto.SessionsListRequest{})
+	list2, err := e2.ListSessions(context.Background(), api.SessionsListRequest{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -152,7 +152,7 @@ func TestSessionListMetadataUnloadedLoadedRestartCompactedAndZero(t *testing.T) 
 	}
 	s2.mu.Unlock()
 
-	compactList, err := e2.ListSessions(context.Background(), proto.SessionsListRequest{})
+	compactList, err := e2.ListSessions(context.Background(), api.SessionsListRequest{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -165,7 +165,7 @@ func TestSessionListMetadataUnloadedLoadedRestartCompactedAndZero(t *testing.T) 
 	}
 
 	// 5. Genuine zero-active-turn summary-only session
-	rZero, err := e2.CreateSession(context.Background(), proto.SessionCreateRequest{Cwd: t.TempDir(), ClientID: "c0"})
+	rZero, err := e2.CreateSession(context.Background(), api.SessionCreateRequest{Cwd: t.TempDir(), ClientID: "c0"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -183,11 +183,11 @@ func TestSessionListMetadataUnloadedLoadedRestartCompactedAndZero(t *testing.T) 
 	}
 	sZero.mu.Unlock()
 
-	zeroList, err := e2.ListSessions(context.Background(), proto.SessionsListRequest{})
+	zeroList, err := e2.ListSessions(context.Background(), api.SessionsListRequest{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	var zeroItem proto.SessionItem
+	var zeroItem api.SessionItem
 	found := false
 	for _, it := range zeroList.Sessions {
 		if it.ID == zeroID {

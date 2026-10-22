@@ -6,14 +6,14 @@ import (
 	"testing"
 
 	"meno/internal/agent"
+	"meno/internal/api"
 	"meno/internal/daemon"
 	"meno/internal/llm"
-	"meno/internal/proto"
 )
 
-func listed(t *testing.T, e *Engine) []proto.SessionItem {
+func listed(t *testing.T, e *Engine) []api.SessionItem {
 	t.Helper()
-	l, err := e.ListSessions(context.Background(), proto.SessionsListRequest{})
+	l, err := e.ListSessions(context.Background(), api.SessionsListRequest{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -29,7 +29,7 @@ func TestNewSessionIsNotStoredUntilFirstMessage(t *testing.T) {
 		t.Fatalf("an empty session is listed (%d)", n)
 	}
 	model := "other"
-	if _, err := e.PatchSession(context.Background(), id, proto.PatchSessionRequest{Model: &model}); err != nil {
+	if _, err := e.PatchSession(context.Background(), id, api.PatchSessionRequest{Model: &model}); err != nil {
 		t.Fatal(err)
 	}
 	if n := len(listed(t, e)); n != 0 {
@@ -38,7 +38,7 @@ func TestNewSessionIsNotStoredUntilFirstMessage(t *testing.T) {
 	if _, err := e.Snapshot(context.Background(), id); err != nil {
 		t.Fatalf("an unsaved session must still be usable: %v", err)
 	}
-	if _, err := e.Message(context.Background(), id, proto.MessageRequest{Text: "hello there", ClientID: "m"}); err != nil {
+	if _, err := e.Message(context.Background(), id, api.MessageRequest{Text: "hello there", ClientID: "m"}); err != nil {
 		t.Fatal(err)
 	}
 	waitFor(t, e, id, func(s *runState) bool { return !s.running })
@@ -50,7 +50,7 @@ func TestNewSessionIsNotStoredUntilFirstMessage(t *testing.T) {
 	defer stop()
 	created := 0
 	for len(ch) > 0 {
-		if (<-ch).Type == proto.EventSessionCreated {
+		if (<-ch).Type == api.EventSessionCreated {
 			created++
 		}
 	}
@@ -92,17 +92,17 @@ func TestFirstMessageNamesSessionBeforeTheRunEnds(t *testing.T) {
 	id := newSession(t, e)
 	ch, stop, _ := hub.Subscribe(id, 0, "boot")
 	defer stop()
-	if _, err := e.Message(context.Background(), id, proto.MessageRequest{Text: "name me now", ClientID: "m"}); err != nil {
+	if _, err := e.Message(context.Background(), id, api.MessageRequest{Text: "name me now", ClientID: "m"}); err != nil {
 		t.Fatal(err)
 	}
 	<-f.seen // the run is in flight and not finished
 	named := false
 	for len(ch) > 0 {
 		ev := <-ch
-		if ev.Type != proto.EventSessionChanged {
+		if ev.Type != api.EventSessionChanged {
 			continue
 		}
-		var d proto.ChangedData
+		var d api.ChangedData
 		_ = json.Unmarshal(ev.Data, &d)
 		for _, f := range d.Fields {
 			named = named || f == "name"
@@ -143,15 +143,15 @@ func TestRunKeepsTheOriginOfItsWindow(t *testing.T) {
 	id := newSession(t, e)
 	ch, stop, _ := hub.Subscribe(id, 0, "boot")
 	defer stop()
-	if _, err := e.Message(context.Background(), id, proto.MessageRequest{Text: "go", ClientID: "r1", Origin: "window-a"}); err != nil {
+	if _, err := e.Message(context.Background(), id, api.MessageRequest{Text: "go", ClientID: "r1", Origin: "window-a"}); err != nil {
 		t.Fatal(err)
 	}
 	<-f.seen
 	var got string
 	for len(ch) > 0 {
 		ev := <-ch
-		if ev.Type == proto.EventStatus {
-			var d proto.StatusData
+		if ev.Type == api.EventStatus {
+			var d api.StatusData
 			_ = json.Unmarshal(ev.Data, &d)
 			if d.Running && d.Origin != "" {
 				got = d.Origin
@@ -174,7 +174,7 @@ func TestSnapshotDoesNotShareLiveCallsWithTheRun(t *testing.T) {
 	id := newSession(t, e)
 	s, _ := e.load(context.Background(), id)
 	s.mu.Lock()
-	s.live = proto.LiveState{Calls: []proto.CallState{{CallID: "c1", Command: "ls"}}}
+	s.live = api.LiveState{Calls: []api.CallState{{CallID: "c1", Command: "ls"}}}
 	s.mu.Unlock()
 	snap, err := e.Snapshot(context.Background(), id)
 	if err != nil {
@@ -182,7 +182,7 @@ func TestSnapshotDoesNotShareLiveCallsWithTheRun(t *testing.T) {
 	}
 	s.mu.Lock()
 	s.live.Calls[0].Command = "changed by the run"
-	s.live.Calls = append(s.live.Calls, proto.CallState{CallID: "c2"})
+	s.live.Calls = append(s.live.Calls, api.CallState{CallID: "c2"})
 	s.mu.Unlock()
 	if snap.Live.Calls[0].Command != "ls" || len(snap.Live.Calls) != 1 {
 		t.Fatalf("the snapshot follows the run: %+v", snap.Live.Calls)

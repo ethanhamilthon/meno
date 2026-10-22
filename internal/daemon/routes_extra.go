@@ -2,7 +2,7 @@ package daemon
 
 import (
 	"encoding/json"
-	"meno/internal/proto"
+	"meno/internal/api"
 	"net/http"
 )
 
@@ -19,11 +19,11 @@ func (s *Server) registerExtraRoutes(m *http.ServeMux) {
 func (s *Server) resourceHandler() http.Handler { return http.HandlerFunc(s.resource) }
 func (s *Server) fileSearch(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
-	data, _ := json.Marshal(proto.FileSearchRequest{Root: q.Get("root"), Query: q.Get("q")})
-	v, e := s.backend.Resource(r.Context(), r.Method, "/v1/fs/search", r.URL.RawQuery, proto.ResourceRequest{Data: data, Token: bearer(r)})
+	data, _ := json.Marshal(api.FileSearchRequest{Root: q.Get("root"), Query: q.Get("q")})
+	v, e := s.backend.Resource(r.Context(), r.Method, "/v1/fs/search", r.URL.RawQuery, api.ResourceRequest{Data: data, Token: bearer(r)})
 	s.result(w, v.Data, e)
 }
 func (s *Server) debugRequests(w http.ResponseWriter, r *http.Request) {
-	v, e := s.backend.Resource(r.Context(), r.Method, r.URL.Path, r.URL.RawQuery, proto.ResourceRequest{Token: bearer(r)})
+	v, e := s.backend.Resource(r.Context(), r.Method, r.URL.Path, r.URL.RawQuery, api.ResourceRequest{Token: bearer(r)})
 	s.result(w, v.Data, e)
 }

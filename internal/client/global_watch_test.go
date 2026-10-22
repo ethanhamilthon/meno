@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"meno/internal/proto"
+	"meno/internal/api"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -34,13 +34,13 @@ func TestGlobalWatchRecoversOverflowAndStopsOnBye(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	hello, status, bye := 0, 0, 0
-	if err := c.WatchGlobal(ctx, func(e proto.Event) error {
+	if err := c.WatchGlobal(ctx, func(e api.Event) error {
 		switch e.Type {
-		case proto.EventHello:
+		case api.EventHello:
 			hello++
-		case proto.EventGlobalStatus:
+		case api.EventGlobalStatus:
 			status++
-		case proto.EventBye:
+		case api.EventBye:
 			bye++
 		}
 		return nil
@@ -56,7 +56,7 @@ func TestGlobalWatchPreservesConsumerErrors(t *testing.T) {
 	var hits int32
 	c := sseServer(t, &hits, "event: hello\ndata: {\"boot_id\":\"b\",\"seq\":0}\n\n")
 	want := errors.New("stop consumer")
-	if err := c.WatchGlobal(context.Background(), func(proto.Event) error { return want }); !errors.Is(err, want) {
+	if err := c.WatchGlobal(context.Background(), func(api.Event) error { return want }); !errors.Is(err, want) {
 		t.Fatalf("%v", err)
 	}
 	if hits != 1 {
@@ -80,11 +80,11 @@ func TestGlobalWatchRetriesHTTPFailure(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	unavailable, hellos := 0, 0
-	err := c.WatchGlobal(ctx, func(e proto.Event) error {
+	err := c.WatchGlobal(ctx, func(e api.Event) error {
 		if e.Type == GlobalUnavailable {
 			unavailable++
 		}
-		if e.Type == proto.EventHello {
+		if e.Type == api.EventHello {
 			hellos++
 		}
 		return nil

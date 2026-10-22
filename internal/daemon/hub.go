@@ -2,7 +2,7 @@ package daemon
 
 import (
 	"encoding/json"
-	"meno/internal/proto"
+	"meno/internal/api"
 	"sync"
 )
 
@@ -16,8 +16,8 @@ type Hub struct {
 }
 type eventStream struct {
 	next    uint64
-	ring    []proto.Event
-	subs    map[uint64]chan proto.Event
+	ring    []api.Event
+	subs    map[uint64]chan api.Event
 	nextSub uint64
 }
 
@@ -41,7 +41,7 @@ func (h *Hub) SetSubscriberBuffer(n int) {
 func (h *Hub) stream(key string) *eventStream {
 	s := h.streams[key]
 	if s == nil {
-		s = &eventStream{subs: map[uint64]chan proto.Event{}}
+		s = &eventStream{subs: map[uint64]chan api.Event{}}
 		h.streams[key] = s
 	}
 	return s
@@ -54,19 +54,19 @@ func (h *Hub) BootID() string { h.mu.Lock(); defer h.mu.Unlock(); return h.bootI
 func (h *Hub) SetBootID(id string) { h.mu.Lock(); h.bootID = id; h.mu.Unlock() }
 
 // Publish assigns the next sequence number and notifies session subscribers.
-func (h *Hub) Publish(sessionID, typ string, data any) proto.Event {
+func (h *Hub) Publish(sessionID, typ string, data any) api.Event {
 	b, _ := json.Marshal(data)
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if h.closed {
-		return proto.Event{}
+		return api.Event{}
 	}
 	s := h.stream(sessionID)
 	s.next++
-	e := proto.Event{Seq: s.next, Type: typ, BootID: h.bootID, SessionID: sessionID, Data: b}
+	e := api.Event{Seq: s.next, Type: typ, BootID: h.bootID, SessionID: sessionID, Data: b}
 	s.ring = append(s.ring, e)
 	if len(s.ring) > h.cap {
-		s.ring = append([]proto.Event(nil), s.ring[len(s.ring)-h.cap:]...)
+		s.ring = append([]api.Event(nil), s.ring[len(s.ring)-h.cap:]...)
 	}
 	for id, ch := range s.subs {
 		select {
@@ -75,7 +75,7 @@ func (h *Hub) Publish(sessionID, typ string, data any) proto.Event {
 			for len(ch) > 0 {
 				<-ch
 			}
-			r := proto.Event{Seq: s.next, Type: proto.EventResync, BootID: h.bootID, SessionID: sessionID, Data: json.RawMessage(`{}`)}
+			r := api.Event{Seq: s.next, Type: api.EventResync, BootID: h.bootID, SessionID: sessionID, Data: json.RawMessage(`{}`)}
 			ch <- r
 			close(ch)
 			delete(s.subs, id)
@@ -92,20 +92,20 @@ func (h *Hub) Sequence(sessionID string) uint64 {
 }
 
 // Subscribe replays events after the cursor or reports resync when history is unsafe.
-func (h *Hub) Subscribe(sessionID string, after uint64, boot string) (<-chan proto.Event, func(), bool) {
+func (h *Hub) Subscribe(sessionID string, after uint64, boot string) (<-chan api.Event, func(), bool) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	s := h.stream(sessionID)
-	ch := make(chan proto.Event, h.subscriberCap)
+	ch := make(chan api.Event, h.subscriberCap)
 	if h.closed {
-		e := proto.Event{Seq: s.next, Type: proto.EventBye, BootID: h.bootID, SessionID: sessionID}
-		e.Data, _ = json.Marshal(proto.ByeData{Reason: "daemon stopped"})
+		e := api.Event{Seq: s.next, Type: api.EventBye, BootID: h.bootID, SessionID: sessionID}
+		e.Data, _ = json.Marshal(api.ByeData{Reason: "daemon stopped"})
 		ch <- e
 		close(ch)
 		return ch, func() {}, false
 	}
 	if boot != "" && boot != h.bootID || len(s.ring) > 0 && after+1 < s.ring[0].Seq || len(s.ring) == 0 && after < s.next {
-		ch <- proto.Event{Seq: s.next, Type: proto.EventResync, BootID: h.bootID, SessionID: sessionID, Data: json.RawMessage(`{}`)}
+		ch <- api.Event{Seq: s.next, Type: api.EventResync, BootID: h.bootID, SessionID: sessionID, Data: json.RawMessage(`{}`)}
 		close(ch)
 		return ch, func() {}, true
 	}
@@ -151,8 +151,8 @@ func (h *Hub) Close(reason string) {
 	h.closed = true
 	for key, s := range h.streams {
 		s.next++
-		e := proto.Event{Seq: s.next, Type: proto.EventBye, BootID: h.bootID, SessionID: key}
-		e.Data, _ = json.Marshal(proto.ByeData{Reason: reason})
+		e := api.Event{Seq: s.next, Type: api.EventBye, BootID: h.bootID, SessionID: key}
+		e.Data, _ = json.Marshal(api.ByeData{Reason: reason})
 		for id, ch := range s.subs {
 			select {
 			case ch <- e:

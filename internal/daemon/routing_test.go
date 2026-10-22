@@ -1,7 +1,7 @@
 package daemon
 
 import (
-	"meno/internal/proto"
+	"meno/internal/api"
 	"net/http/httptest"
 	"testing"
 )
@@ -18,7 +18,7 @@ func TestRoutesReturnStubNotImplemented(t *testing.T) {
 	if w.Code != 501 {
 		t.Fatalf("status %d", w.Code)
 	}
-	if !contains(w.Body.String(), proto.CodeNotImplemented) {
+	if !contains(w.Body.String(), api.CodeNotImplemented) {
 		t.Fatalf("body %s", w.Body.String())
 	}
 }

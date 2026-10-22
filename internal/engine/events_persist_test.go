@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 	"meno/internal/agent"
+	"meno/internal/api"
 	"meno/internal/client"
 	"meno/internal/daemon"
 	"meno/internal/llm"
-	"meno/internal/proto"
 	"strings"
 	"testing"
 )
@@ -97,11 +97,11 @@ func TestSessionChangePayloadCarriesEmptyValuesAndAttention(t *testing.T) {
 	events, stop, _ := hub.Subscribe(id, seq, "boot")
 	defer stop()
 	effort, provider := "", "other"
-	if _, err := e.PatchSession(context.Background(), id, proto.PatchSessionRequest{Provider: &provider, Effort: &effort}); err != nil {
+	if _, err := e.PatchSession(context.Background(), id, api.PatchSessionRequest{Provider: &provider, Effort: &effort}); err != nil {
 		t.Fatal(err)
 	}
 	ev := <-events
-	var d proto.ChangedData
+	var d api.ChangedData
 	if err := decodeData(ev.Data, &d); err != nil || d.Metadata == nil {
 		t.Fatalf("missing metadata %s %v", ev.Data, err)
 	}
@@ -113,7 +113,7 @@ func TestSessionChangePayloadCarriesEmptyValuesAndAttention(t *testing.T) {
 func TestCompletionPublishesFinalStatsAndTerminalOnce(t *testing.T) {
 	e, hub := fixture(t, &fakeProvider{steps: [][]llm.Event{{{Kind: llm.EvText, Text: "answer"}, {Kind: llm.EvDone}}}})
 	id := newSession(t, e)
-	if _, err := e.Message(context.Background(), id, proto.MessageRequest{Text: "start"}); err != nil {
+	if _, err := e.Message(context.Background(), id, api.MessageRequest{Text: "start"}); err != nil {
 		t.Fatal(err)
 	}
 	waitFor(t, e, id, func(s *runState) bool { return !s.running })
@@ -125,14 +125,14 @@ func TestCompletionPublishesFinalStatsAndTerminalOnce(t *testing.T) {
 	defer stop()
 	terminals, updates := 0, 0
 	var mirror client.Mirror
-	mirror.Load(proto.Snapshot{Session: proto.SessionItem{ID: id}, Version: proto.SessionVersion{BootID: "boot"}})
+	mirror.Load(api.Snapshot{Session: api.SessionItem{ID: id}, Version: api.SessionVersion{BootID: "boot"}})
 	for len(events) > 0 {
 		ev := <-events
 		mirror.Apply(ev)
-		if ev.Type == proto.EventDone {
+		if ev.Type == api.EventDone {
 			terminals++
 		}
-		if ev.Type == proto.EventTurnUpdated {
+		if ev.Type == api.EventTurnUpdated {
 			updates++
 		}
 	}

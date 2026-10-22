@@ -5,8 +5,8 @@ import (
 	"strings"
 	"unicode"
 
+	"meno/internal/content"
 	"meno/internal/llm"
-	"meno/internal/objtag"
 )
 
 // MaxTitleRunes is the longest session name.
@@ -40,7 +40,7 @@ func deriveTitle(s *Session) string {
 			continue
 		}
 		var b strings.Builder
-		for _, part := range objtag.Split(t.Text, nil) {
+		for _, part := range content.Split(t.Text, nil) {
 			if part.Obj != nil {
 				b.WriteString(part.Obj.Label())
 			} else {

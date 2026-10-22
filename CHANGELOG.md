@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.6.6
+
+Restart the daemon after updating. No data is deleted or migrated; the daemon
+protocol is unchanged.
+
+- **`meno acp`.** Use Meno as an agent in any Agent Client Protocol client: chat,
+  tool cards, cancel, create/list/load, models and effort, usage and titles,
+  exposed thinking, images, skills and slash commands. Questions from `meno ask`
+  appear as chat messages and are answered with `/answer`; an open question
+  survives a reconnect. See [docs/acp.md](docs/acp.md) for the limits (no injected
+  MCP servers, no permission prompts, no plan updates yet).
+- **Session consent.** The bash tool description asks for explicit consent before
+  an agent creates or messages other sessions.
+- **Internal consolidation.** Packages were merged and renamed (`tui`, `render`,
+  `content`, `process`, `api`, `configsvc`), the file size limit is now 500 lines
+  preferred and 700 at most. No behavior, wire format or data changed.
+
 ## 0.6.1
 
 Restart the daemon after updating. No data is deleted or migrated.

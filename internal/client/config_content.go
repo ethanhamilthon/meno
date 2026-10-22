@@ -4,47 +4,47 @@ import (
 	"context"
 	"net/url"
 
-	"meno/internal/proto"
+	"meno/internal/api"
 )
 
 // Skills lists installed skills and changes their enabled state.
-func (c *Client) Skills(ctx context.Context) (proto.SkillsResponse, error) {
+func (c *Client) Skills(ctx context.Context) (api.SkillsResponse, error) {
 	raw, e := c.configCall(ctx, "GET", "/v1/skills", nil)
 	if e != nil {
-		return proto.SkillsResponse{}, e
+		return api.SkillsResponse{}, e
 	}
-	return configDecode[proto.SkillsResponse](raw)
+	return configDecode[api.SkillsResponse](raw)
 }
-func (c *Client) SetSkillEnabled(ctx context.Context, name string, enabled bool) (proto.ConfigSkill, error) {
-	raw, e := c.configCall(ctx, "PUT", "/v1/skills/"+pathID(name)+"/enabled", proto.SkillEnabledRequest{Enabled: enabled})
+func (c *Client) SetSkillEnabled(ctx context.Context, name string, enabled bool) (api.ConfigSkill, error) {
+	raw, e := c.configCall(ctx, "PUT", "/v1/skills/"+pathID(name)+"/enabled", api.SkillEnabledRequest{Enabled: enabled})
 	if e != nil {
-		return proto.ConfigSkill{}, e
+		return api.ConfigSkill{}, e
 	}
-	r, e := configDecode[proto.SkillResponse](raw)
+	r, e := configDecode[api.SkillResponse](raw)
 	return r.Skill, e
 }
 
 // McpServers lists and manages daemon MCP server configurations.
-func (c *Client) McpServers(ctx context.Context) (proto.McpServersResponse, error) {
+func (c *Client) McpServers(ctx context.Context) (api.McpServersResponse, error) {
 	raw, e := c.configCall(ctx, "GET", "/v1/mcp/servers", nil)
 	if e != nil {
-		return proto.McpServersResponse{}, e
+		return api.McpServersResponse{}, e
 	}
-	return configDecode[proto.McpServersResponse](raw)
+	return configDecode[api.McpServersResponse](raw)
 }
-func (c *Client) AddMcpServer(ctx context.Context, v proto.ConfigMCPServer) (proto.McpServerResponse, error) {
-	raw, e := c.configCall(ctx, "POST", "/v1/mcp/servers", proto.McpServerRequest{Server: v})
+func (c *Client) AddMcpServer(ctx context.Context, v api.ConfigMCPServer) (api.McpServerResponse, error) {
+	raw, e := c.configCall(ctx, "POST", "/v1/mcp/servers", api.McpServerRequest{Server: v})
 	if e != nil {
-		return proto.McpServerResponse{}, e
+		return api.McpServerResponse{}, e
 	}
-	return configDecode[proto.McpServerResponse](raw)
+	return configDecode[api.McpServerResponse](raw)
 }
-func (c *Client) UpdateMcpServer(ctx context.Context, name string, v proto.ConfigMCPServer) (proto.McpServerResponse, error) {
-	raw, e := c.configCall(ctx, "PUT", "/v1/mcp/servers/"+pathID(name), proto.McpServerRequest{Server: v})
+func (c *Client) UpdateMcpServer(ctx context.Context, name string, v api.ConfigMCPServer) (api.McpServerResponse, error) {
+	raw, e := c.configCall(ctx, "PUT", "/v1/mcp/servers/"+pathID(name), api.McpServerRequest{Server: v})
 	if e != nil {
-		return proto.McpServerResponse{}, e
+		return api.McpServerResponse{}, e
 	}
-	return configDecode[proto.McpServerResponse](raw)
+	return configDecode[api.McpServerResponse](raw)
 }
 func (c *Client) RemoveMcpServer(ctx context.Context, name string) error {
 	_, e := c.configCall(ctx, "DELETE", "/v1/mcp/servers/"+pathID(name), nil)
@@ -56,7 +56,7 @@ func (c *Client) RestartMcpServer(ctx context.Context, name string) error {
 }
 
 // Models lists provider models, catalog pricing, and refresh results.
-func (c *Client) Models(ctx context.Context, options proto.ModelsRequest) (proto.ModelsResponse, error) {
+func (c *Client) Models(ctx context.Context, options api.ModelsRequest) (api.ModelsResponse, error) {
 	q := url.Values{}
 	if options.Provider != "" {
 		q.Set("provider", options.Provider)
@@ -69,10 +69,10 @@ func (c *Client) Models(ctx context.Context, options proto.ModelsRequest) (proto
 	}
 	raw, e := c.configCall(ctx, "GET", "/v1/models?"+q.Encode(), nil)
 	if e != nil {
-		return proto.ModelsResponse{}, e
+		return api.ModelsResponse{}, e
 	}
-	return configDecode[proto.ModelsResponse](raw)
+	return configDecode[api.ModelsResponse](raw)
 }
-func (c *Client) FileSearch(ctx context.Context, root, query string, limit int) (proto.FileSearchResponse, error) {
-	return c.SearchFiles(ctx, proto.FileSearchRequest{Root: root, Query: query, Limit: limit})
+func (c *Client) FileSearch(ctx context.Context, root, query string, limit int) (api.FileSearchResponse, error) {
+	return c.SearchFiles(ctx, api.FileSearchRequest{Root: root, Query: query, Limit: limit})
 }

@@ -8,8 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"meno/internal/clihelp"
 )
 
 // fail prints one CLI error line and returns its documented exit code.
@@ -43,7 +41,7 @@ func usageError(message string) error { return usageFailure{message} }
 
 // printHelp writes the selected embedded help page.
 func printHelp(streams IO, topic string) int {
-	text, err := clihelp.Text(topic)
+	text, err := Text(topic)
 	if err != nil {
 		return fail(streams, err)
 	}

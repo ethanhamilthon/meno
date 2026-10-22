@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"meno/internal/proto"
+	"meno/internal/api"
 	"net/http"
 	"net/url"
 	"strings"
@@ -40,7 +40,7 @@ func (c *Client) request(ctx context.Context, method, path string, in, out any) 
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
-		var env proto.ErrorEnvelope
+		var env api.ErrorEnvelope
 		if e = json.NewDecoder(resp.Body).Decode(&env); e == nil {
 			return &RemoteError{Status: resp.StatusCode, Code: env.Error.Code, Message: env.Error.Message}
 		}

@@ -2,8 +2,8 @@ package engine
 
 import (
 	"context"
+	"meno/internal/api"
 	"meno/internal/llm"
-	"meno/internal/proto"
 	"testing"
 )
 
@@ -18,7 +18,7 @@ func TestProviderErrorIsNotReportedAsDone(t *testing.T) {
 	e, h := fixture(t, &fakeProvider{})
 	e.client = func(llm.Provider) llm.Client { return failingClient{} }
 	id := newSession(t, e)
-	if _, err := e.Message(context.Background(), id, proto.MessageRequest{Text: "hi", ClientID: "m"}); err != nil {
+	if _, err := e.Message(context.Background(), id, api.MessageRequest{Text: "hi", ClientID: "m"}); err != nil {
 		t.Fatal(err)
 	}
 	waitFor(t, e, id, func(s *runState) bool { return !s.running && s.lastErr != "" })
@@ -27,8 +27,8 @@ func TestProviderErrorIsNotReportedAsDone(t *testing.T) {
 	var gotErr, gotDone bool
 	for len(ch) > 0 {
 		ev := <-ch
-		gotErr = gotErr || ev.Type == proto.EventError
-		gotDone = gotDone || ev.Type == proto.EventDone
+		gotErr = gotErr || ev.Type == api.EventError
+		gotDone = gotDone || ev.Type == api.EventDone
 	}
 	if !gotErr || gotDone {
 		t.Fatalf("error=%v done=%v", gotErr, gotDone)

@@ -3,8 +3,8 @@ package engine
 import (
 	"context"
 	"meno/internal/agent"
+	"meno/internal/api"
 	"meno/internal/llm"
-	"meno/internal/proto"
 	"testing"
 	"time"
 )
@@ -14,7 +14,7 @@ func TestSteeringEnqueueRecallAndCancelPreserveActiveCall(t *testing.T) {
 	e, _ := fixture(t, f)
 	id := newSession(t, e)
 	ctx := context.Background()
-	if _, err := e.Message(ctx, id, proto.MessageRequest{Text: "start"}); err != nil {
+	if _, err := e.Message(ctx, id, api.MessageRequest{Text: "start"}); err != nil {
 		t.Fatal(err)
 	}
 	select {
@@ -24,7 +24,7 @@ func TestSteeringEnqueueRecallAndCancelPreserveActiveCall(t *testing.T) {
 	}
 	s, _ := e.load(ctx, id)
 	e.agentEvent(s, agent.Ev{Kind: agent.EvJSStart, CallID: "active", Code: "long command"})
-	if _, err := e.Message(ctx, id, proto.MessageRequest{Text: "pending"}); err != nil {
+	if _, err := e.Message(ctx, id, api.MessageRequest{Text: "pending"}); err != nil {
 		t.Fatal(err)
 	}
 	snap, _ := e.Snapshot(ctx, id)
@@ -36,10 +36,10 @@ func TestSteeringEnqueueRecallAndCancelPreserveActiveCall(t *testing.T) {
 	if len(snap.Live.Calls) != 1 || len(snap.Queued) != 0 {
 		t.Fatal("recall lost active call or retained queue")
 	}
-	if _, err := e.Message(ctx, id, proto.MessageRequest{Text: "cancelled pending"}); err != nil {
+	if _, err := e.Message(ctx, id, api.MessageRequest{Text: "cancelled pending"}); err != nil {
 		t.Fatal(err)
 	}
-	if err := e.Stop(ctx, id, proto.StopRequest{}); err != nil {
+	if err := e.Stop(ctx, id, api.StopRequest{}); err != nil {
 		t.Fatal(err)
 	}
 	waitFor(t, e, id, func(s *runState) bool { return !s.running })

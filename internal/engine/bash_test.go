@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"meno/internal/api"
 	"meno/internal/llm"
-	"meno/internal/proto"
 )
 
 func bashCall(id, cmd string) llm.Event {
@@ -22,7 +22,7 @@ func TestBashToolRunsAFreshShell(t *testing.T) {
 	}}
 	e, _ := fixture(t, f)
 	id := newSession(t, e)
-	if _, err := e.Message(context.Background(), id, proto.MessageRequest{Text: "go", ClientID: "m"}); err != nil {
+	if _, err := e.Message(context.Background(), id, api.MessageRequest{Text: "go", ClientID: "m"}); err != nil {
 		t.Fatal(err)
 	}
 	waitFor(t, e, id, func(s *runState) bool { return !s.running && s.session.Len() >= 3 })
@@ -48,7 +48,7 @@ func TestBashCallSeesMenoEnvironment(t *testing.T) {
 	}}
 	e, _ := fixture(t, f)
 	id := newSession(t, e)
-	_, _ = e.Message(context.Background(), id, proto.MessageRequest{Text: "go", ClientID: "m"})
+	_, _ = e.Message(context.Background(), id, api.MessageRequest{Text: "go", ClientID: "m"})
 	waitFor(t, e, id, func(s *runState) bool { return !s.running && s.session.Len() >= 3 })
 	s, _ := e.load(context.Background(), id)
 	var out string

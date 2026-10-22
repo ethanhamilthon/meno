@@ -4,52 +4,52 @@ import (
 	"context"
 	"net/url"
 
-	"meno/internal/proto"
+	"meno/internal/api"
 )
 
 // LoginStarts starts or polls an OAuth login and manages accounts in the daemon.
-func (c *Client) LoginHelper(ctx context.Context) (proto.OAuthHelperResponse, error) {
+func (c *Client) LoginHelper(ctx context.Context) (api.OAuthHelperResponse, error) {
 	raw, e := c.configCall(ctx, "GET", "/v1/login/helper", nil)
 	if e != nil {
-		return proto.OAuthHelperResponse{}, e
+		return api.OAuthHelperResponse{}, e
 	}
-	return configDecode[proto.OAuthHelperResponse](raw)
+	return configDecode[api.OAuthHelperResponse](raw)
 }
 
-func (c *Client) LoginServices(ctx context.Context) (proto.LoginServicesResponse, error) {
+func (c *Client) LoginServices(ctx context.Context) (api.LoginServicesResponse, error) {
 	raw, e := c.configCall(ctx, "GET", "/v1/login/services", nil)
 	if e != nil {
-		return proto.LoginServicesResponse{}, e
+		return api.LoginServicesResponse{}, e
 	}
-	return configDecode[proto.LoginServicesResponse](raw)
+	return configDecode[api.LoginServicesResponse](raw)
 }
-func (c *Client) LoginStart(ctx context.Context, service string) (proto.LoginStartResponse, error) {
-	raw, e := c.configCall(ctx, "POST", "/v1/login/start", proto.LoginStartRequest{Service: service})
+func (c *Client) LoginStart(ctx context.Context, service string) (api.LoginStartResponse, error) {
+	raw, e := c.configCall(ctx, "POST", "/v1/login/start", api.LoginStartRequest{Service: service})
 	if e != nil {
-		return proto.LoginStartResponse{}, e
+		return api.LoginStartResponse{}, e
 	}
-	return configDecode[proto.LoginStartResponse](raw)
+	return configDecode[api.LoginStartResponse](raw)
 }
-func (c *Client) LoginStatus(ctx context.Context, state string) (proto.LoginStatusResponse, error) {
+func (c *Client) LoginStatus(ctx context.Context, state string) (api.LoginStatusResponse, error) {
 	raw, e := c.configCall(ctx, "GET", "/v1/login/status?state="+url.QueryEscape(state), nil)
 	if e != nil {
-		return proto.LoginStatusResponse{}, e
+		return api.LoginStatusResponse{}, e
 	}
-	return configDecode[proto.LoginStatusResponse](raw)
+	return configDecode[api.LoginStatusResponse](raw)
 }
 func (c *Client) LoginCallback(ctx context.Context, redirect string) error {
-	_, e := c.configCall(ctx, "POST", "/v1/login/callback", proto.LoginCallbackRequest{RedirectURL: redirect})
+	_, e := c.configCall(ctx, "POST", "/v1/login/callback", api.LoginCallbackRequest{RedirectURL: redirect})
 	return e
 }
-func (c *Client) LoginAccounts(ctx context.Context) (proto.AccountsResponse, error) {
+func (c *Client) LoginAccounts(ctx context.Context) (api.AccountsResponse, error) {
 	raw, e := c.configCall(ctx, "GET", "/v1/login/accounts", nil)
 	if e != nil {
-		return proto.AccountsResponse{}, e
+		return api.AccountsResponse{}, e
 	}
-	return configDecode[proto.AccountsResponse](raw)
+	return configDecode[api.AccountsResponse](raw)
 }
 func (c *Client) SetLoginAccountEnabled(ctx context.Context, file string, enabled bool) error {
-	_, e := c.configCall(ctx, "PUT", "/v1/login/accounts/"+pathID(file), proto.AccountEnabledRequest{Enabled: enabled})
+	_, e := c.configCall(ctx, "PUT", "/v1/login/accounts/"+pathID(file), api.AccountEnabledRequest{Enabled: enabled})
 	return e
 }
 func (c *Client) RemoveLoginAccount(ctx context.Context, file string) error {

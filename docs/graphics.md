@@ -29,8 +29,8 @@ protocol the terminal does not understand prints garbage: switch back to `off`.
 
 | | |
 | --- | --- |
-| Encoders (Kitty chunking and headers, iTerm OSC 1337, Sixel structure) | unit-tested: `internal/termimg` |
-| Layout, placement, caching, removal on scroll/dialog/session switch, fallback | tested against a fake terminal sink: `internal/app/images_test.go` |
+| Encoders (Kitty chunking and headers, iTerm OSC 1337, Sixel structure) | unit-tested: `internal/render` |
+| Layout, placement, caching, removal on scroll/dialog/session switch, fallback | tested against a fake terminal sink: `internal/tui/images_test.go` |
 | Real Kitty, Ghostty, iTerm2, WezTerm, foot terminals | **not run** by the authors of this change; the byte sequences follow each protocol's documentation |
 | tmux passthrough | not supported |
 

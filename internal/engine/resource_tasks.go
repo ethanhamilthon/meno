@@ -2,8 +2,8 @@ package engine
 
 import (
 	"context"
-	"meno/internal/proc"
-	"meno/internal/proto"
+	"meno/internal/api"
+	"meno/internal/process"
 	"net/url"
 	"time"
 )
@@ -34,7 +34,7 @@ func (e *Engine) taskResource(ctx context.Context, s *runState, tail []string, m
 			cwd = s.cwd
 		}
 		if _, ok := data["timeout"]; ok {
-			return nil, api(proto.CodeBadRequest, "tasks start has no timeout; a task runs until it ends or is cancelled (meno tasks cancel ID)")
+			return nil, dapi(api.CodeBadRequest, "tasks start has no timeout; a task runs until it ends or is cancelled (meno tasks cancel ID)")
 		}
 		notify := boolValue(data, "notify", true)
 		s.mu.Lock()
@@ -45,7 +45,7 @@ func (e *Engine) taskResource(ctx context.Context, s *runState, tail []string, m
 		owner, base := s.requestID, envSlice(s.env)
 		s.mu.Unlock()
 		env := append(base, mapEnv(data["env"])...)
-		t, err := e.tasks.Start(proc.StartOptions{Session: s.session.ID, Owner: owner, Name: stringValue(data, "name"), Command: cmd, Cwd: cwd, Env: env, Notify: notify})
+		t, err := e.tasks.Start(process.StartOptions{Session: s.session.ID, Owner: owner, Name: stringValue(data, "name"), Command: cmd, Cwd: cwd, Env: env, Notify: notify})
 		if err == nil {
 			e.publishTasksChanged(s.session.ID)
 		}
@@ -55,7 +55,7 @@ func (e *Engine) taskResource(ctx context.Context, s *runState, tail []string, m
 	case "logs":
 		from := int64(number(data["from"]))
 		limit := int(number(data["limit"]))
-		return e.tasks.Logs(s.session.ID, id, proc.LogOptions{Cursor: from, Tail: from == 0, Limit: limit})
+		return e.tasks.Logs(s.session.ID, id, process.LogOptions{Cursor: from, Tail: from == 0, Limit: limit})
 	case "wait":
 		timeout := time.Duration(number(data["timeout"])) * time.Second
 		t, to, err := e.tasks.Wait(ctx, s.session.ID, id, timeout)
@@ -70,5 +70,5 @@ func (e *Engine) taskResource(ctx context.Context, s *runState, tail []string, m
 		}
 		return t, err
 	}
-	return nil, api(proto.CodeNotFound, "unknown task operation")
+	return nil, dapi(api.CodeNotFound, "unknown task operation")
 }

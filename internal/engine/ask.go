@@ -3,13 +3,13 @@ package engine
 import (
 	"context"
 	"encoding/json"
+	"meno/internal/api"
 	"meno/internal/form"
-	"meno/internal/proto"
 	"strings"
 )
 
 // AnswerAsk delivers one validated response to the paused model call.
-func (e *Engine) AnswerAsk(ctx context.Context, id, askID string, q proto.AskAnswerRequest) error {
+func (e *Engine) AnswerAsk(ctx context.Context, id, askID string, q api.AskAnswerRequest) error {
 	s, err := e.load(ctx, id)
 	if err != nil {
 		return notFound(err)
@@ -18,12 +18,12 @@ func (e *Engine) AnswerAsk(ctx context.Context, id, askID string, q proto.AskAns
 	a := s.ask
 	if a == nil || a.id != askID {
 		s.mu.Unlock()
-		return api(proto.CodeNotFound, "ask is not open")
+		return dapi(api.CodeNotFound, "ask is not open")
 	}
 	s.mu.Unlock()
 	if q.Cancel {
 		if !a.claim() {
-			return api(proto.CodeConflict, "ask has already been answered")
+			return dapi(api.CodeConflict, "ask has already been answered")
 		}
 		a.answer <- askReply{err: form.ErrCancelled}
 		return nil
@@ -32,7 +32,7 @@ func (e *Engine) AnswerAsk(ctx context.Context, id, askID string, q proto.AskAns
 	for _, question := range a.form.Questions {
 		raw, ok := q.Answers[question.ID]
 		if !ok && question.Type != form.TypeText {
-			return api(proto.CodeBadRequest, "missing answer for "+question.ID)
+			return dapi(api.CodeBadRequest, "missing answer for "+question.ID)
 		}
 		ans := form.Answer{ID: question.ID, Selected: []string{}}
 		if len(raw) > 0 {
@@ -49,7 +49,7 @@ func (e *Engine) AnswerAsk(ctx context.Context, id, askID string, q proto.AskAns
 						Selected []string `json:"selected"`
 					}
 					if err = json.Unmarshal(raw, &obj); err != nil {
-						return api(proto.CodeBadRequest, "invalid answer for "+question.ID)
+						return dapi(api.CodeBadRequest, "invalid answer for "+question.ID)
 					}
 					ans.Text, ans.Selected = obj.Text, obj.Selected
 				}
@@ -61,21 +61,21 @@ func (e *Engine) AnswerAsk(ctx context.Context, id, askID string, q proto.AskAns
 		}
 		for _, v := range ans.Selected {
 			if !valid[v] {
-				return api(proto.CodeBadRequest, "unknown option "+v+" for "+question.ID)
+				return dapi(api.CodeBadRequest, "unknown option "+v+" for "+question.ID)
 			}
 		}
 		if question.Type == form.TypeSingle && len(ans.Selected) > 1 {
-			return api(proto.CodeBadRequest, "single-choice answer has multiple options")
+			return dapi(api.CodeBadRequest, "single-choice answer has multiple options")
 		}
 		if question.Type == form.TypeText && strings.TrimSpace(ans.Text) == "" {
-			return api(proto.CodeBadRequest, "answer text is required for "+question.ID)
+			return dapi(api.CodeBadRequest, "answer text is required for "+question.ID)
 		}
 		answers = append(answers, ans)
 	}
 	// Only a valid answer may take the question: an invalid one returned above
 	// leaves it open for the next client.
 	if !a.claim() {
-		return api(proto.CodeConflict, "ask has already been answered")
+		return dapi(api.CodeConflict, "ask has already been answered")
 	}
 	a.answer <- askReply{answers: answers}
 	return nil

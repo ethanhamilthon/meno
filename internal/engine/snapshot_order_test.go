@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"meno/internal/agent"
+	"meno/internal/api"
 	"meno/internal/llm"
-	"meno/internal/proto"
 	"sync"
 	"testing"
 )
@@ -18,11 +18,11 @@ func TestSnapshotCursorMatchesState(t *testing.T) {
 		e, h := fixture(t, f)
 		id := newSession(t, e)
 		var wg sync.WaitGroup
-		var snap proto.Snapshot
+		var snap api.Snapshot
 		wg.Add(2)
 		go func() {
 			defer wg.Done()
-			_, _ = e.Message(context.Background(), id, proto.MessageRequest{Text: "hi", ClientID: "m"})
+			_, _ = e.Message(context.Background(), id, api.MessageRequest{Text: "hi", ClientID: "m"})
 		}()
 		go func() { defer wg.Done(); snap, _ = e.Snapshot(context.Background(), id) }()
 		wg.Wait()
@@ -34,10 +34,10 @@ func TestSnapshotCursorMatchesState(t *testing.T) {
 		}
 		for len(ch) > 0 {
 			ev := <-ch
-			if ev.Type != proto.EventTurnAdded {
+			if ev.Type != api.EventTurnAdded {
 				continue
 			}
-			var d proto.TurnAddedData
+			var d api.TurnAddedData
 			_ = json.Unmarshal(ev.Data, &d)
 			if seen[d.Turn.ID] {
 				t.Fatalf("iteration %d: turn %s is in the snapshot and in the replay", i, d.Turn.ID)
@@ -57,7 +57,7 @@ func TestSnapshotAndListDoNotExposeUnpublishedTurns(t *testing.T) {
 	f := &fakeProvider{wait: true, seen: make(chan struct{}, 1)}
 	e, _ := fixture(t, f)
 	id := newSession(t, e)
-	if _, err := e.Message(context.Background(), id, proto.MessageRequest{Text: "first turn", ClientID: "m"}); err != nil {
+	if _, err := e.Message(context.Background(), id, api.MessageRequest{Text: "first turn", ClientID: "m"}); err != nil {
 		t.Fatal(err)
 	}
 	<-f.seen
@@ -69,7 +69,7 @@ func TestSnapshotAndListDoNotExposeUnpublishedTurns(t *testing.T) {
 	s.session.Append(agent.Turn{Role: llm.RoleAssistant, Text: "unpublished turn"})
 	s.mu.Unlock()
 
-	list, err := e.ListSessions(context.Background(), proto.SessionsListRequest{})
+	list, err := e.ListSessions(context.Background(), api.SessionsListRequest{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,7 +91,7 @@ func TestSnapshotAndListDoNotExposeUnpublishedTurns(t *testing.T) {
 	s.mu.Unlock()
 	waitFor(t, e, id, func(st *runState) bool { return !st.running })
 
-	afterList, err := e.ListSessions(context.Background(), proto.SessionsListRequest{})
+	afterList, err := e.ListSessions(context.Background(), api.SessionsListRequest{})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"meno/internal/agent"
-	"meno/internal/proto"
+	"meno/internal/api"
 	"testing"
 )
 
@@ -35,7 +35,7 @@ func TestDurableReadAcknowledgmentDoesNotClearNewerRun(t *testing.T) {
 	if read != 1 {
 		t.Fatal("watermark moved backward")
 	}
-	list, err := e.ListSessions(context.Background(), proto.SessionsListRequest{})
+	list, err := e.ListSessions(context.Background(), api.SessionsListRequest{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,7 +55,7 @@ func TestRemovedFeatureResourcesFail(t *testing.T) {
 	e, _ := fixture(t, &fakeProvider{})
 	id := newSession(t, e)
 	for _, path := range []string{"modes", "goal/done"} {
-		if _, err := e.Resource(context.Background(), "POST", "/v1/sessions/"+id+"/"+path, "", proto.ResourceRequest{Data: json.RawMessage(`{}`)}); err == nil {
+		if _, err := e.Resource(context.Background(), "POST", "/v1/sessions/"+id+"/"+path, "", api.ResourceRequest{Data: json.RawMessage(`{}`)}); err == nil {
 			t.Fatal("removed resource accepted", path)
 		}
 	}
@@ -77,8 +77,8 @@ func TestGlobalStateCountsPendingAskSeparately(t *testing.T) {
 		t.Fatal(err)
 	}
 	var got struct {
-		Sessions []proto.SessionItem `json:"sessions"`
-		Tasks    int                 `json:"tasks"`
+		Sessions []api.SessionItem `json:"sessions"`
+		Tasks    int               `json:"tasks"`
 	}
 	if err = json.Unmarshal(state.Data, &got); err != nil || len(got.Sessions) != 1 || !got.Sessions[0].Running {
 		t.Fatal("global hydration", err)

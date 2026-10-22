@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"meno/internal/api"
 	"meno/internal/form"
-	"meno/internal/proto"
 	"net/url"
 	"reflect"
 	"time"
@@ -31,12 +31,12 @@ func mcpStatus(e *Engine, name string) string {
 // server asks the user first.
 func (e *Engine) adminMCP(ctx context.Context, s *runState, op, name string) (any, error) {
 	if e.resources == nil {
-		return nil, api(proto.CodeConflict, "MCP configuration service is unavailable")
+		return nil, dapi(api.CodeConflict, "MCP configuration service is unavailable")
 	}
 	path := "/v1/mcp/servers/" + url.PathEscape(name)
-	read := func() (proto.ConfigMCPServer, error) {
-		r, err := e.resources.Resource(ctx, "GET", path, "", proto.ResourceRequest{})
-		var out proto.McpServerResponse
+	read := func() (api.ConfigMCPServer, error) {
+		r, err := e.resources.Resource(ctx, "GET", path, "", api.ResourceRequest{})
+		var out api.McpServerResponse
 		if err == nil {
 			err = json.Unmarshal(r.Data, &out)
 		}
@@ -47,7 +47,7 @@ func (e *Engine) adminMCP(ctx context.Context, s *runState, op, name string) (an
 		return nil, fmt.Errorf("configured MCP server %q not available; use /mcp to create it: %w", name, err)
 	}
 	if before.Source != "" && op != "restart" {
-		return nil, api(proto.CodeForbidden, "file-defined MCP configuration is read only")
+		return nil, dapi(api.CodeForbidden, "file-defined MCP configuration is read only")
 	}
 	if op != "restart" {
 		// Adding or removing a server changes the configuration and needs the
@@ -61,7 +61,7 @@ func (e *Engine) adminMCP(ctx context.Context, s *runState, op, name string) (an
 			return nil, err
 		}
 		if len(answers) != 1 || len(answers[0].Selected) != 1 || answers[0].Selected[0] != "yes" {
-			return nil, api(proto.CodeForbidden, "MCP operation denied")
+			return nil, dapi(api.CodeForbidden, "MCP operation denied")
 		}
 	}
 	after, err := read()
@@ -71,7 +71,7 @@ func (e *Engine) adminMCP(ctx context.Context, s *runState, op, name string) (an
 	before.Running, before.Starting, before.Error = false, false, ""
 	after.Running, after.Starting, after.Error = false, false, ""
 	if !reflect.DeepEqual(before, after) {
-		return nil, api(proto.CodeConflict, "MCP configuration changed; request approval again")
+		return nil, dapi(api.CodeConflict, "MCP configuration changed; request approval again")
 	}
 	method := "POST"
 	var data json.RawMessage
@@ -83,9 +83,9 @@ func (e *Engine) adminMCP(ctx context.Context, s *runState, op, name string) (an
 	case "add":
 		method = "PUT"
 		after.Enabled = true
-		data, _ = json.Marshal(proto.McpServerRequest{Server: after})
+		data, _ = json.Marshal(api.McpServerRequest{Server: after})
 	}
-	if _, err = e.resources.Resource(ctx, method, path, "", proto.ResourceRequest{Data: data, ExpectedMCP: &before}); err != nil {
+	if _, err = e.resources.Resource(ctx, method, path, "", api.ResourceRequest{Data: data, ExpectedMCP: &before}); err != nil {
 		return nil, err
 	}
 	return map[string]any{"name": name, "status": mcpStatus(e, name)}, nil

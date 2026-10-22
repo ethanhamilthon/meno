@@ -7,15 +7,15 @@ import (
 	"fmt"
 	"time"
 
-	"meno/internal/proto"
+	"meno/internal/api"
 )
 
-func (f *FakeBackend) Message(_ context.Context, id string, r proto.MessageRequest) (proto.MessageResponse, error) {
+func (f *FakeBackend) Message(_ context.Context, id string, r api.MessageRequest) (api.MessageResponse, error) {
 	f.mu.Lock()
 	s, e := f.find(id)
 	if e != nil {
 		f.mu.Unlock()
-		return proto.MessageResponse{}, e
+		return api.MessageResponse{}, e
 	}
 	s.running = true
 	s.snapshot.Running = true
@@ -27,23 +27,23 @@ func (f *FakeBackend) Message(_ context.Context, id string, r proto.MessageReque
 	s.snapshot.RequestID = rid
 	f.mu.Unlock()
 	if f.Hub != nil {
-		f.Hub.Publish(id, proto.EventStatus, proto.StatusData{Running: true, Phase: "running"})
-		f.Hub.Publish(id, proto.EventTextDelta, proto.TextDeltaData{Text: r.Text})
+		f.Hub.Publish(id, api.EventStatus, api.StatusData{Running: true, Phase: "running"})
+		f.Hub.Publish(id, api.EventTextDelta, api.TextDeltaData{Text: r.Text})
 		f.mu.Lock()
 		s.running = false
 		s.snapshot.Running = false
 		s.snapshot.Phase = ""
-		s.turns = append(s.turns, proto.Turn{Role: "user", Content: r.Text, CreatedAt: time.Now().UTC().Format(time.RFC3339Nano)})
+		s.turns = append(s.turns, api.Turn{Role: "user", Content: r.Text, CreatedAt: time.Now().UTC().Format(time.RFC3339Nano)})
 		s.snapshot.TurnCount = len(s.turns)
 		t := s.turns[len(s.turns)-1]
 		f.mu.Unlock()
-		f.Hub.Publish(id, proto.EventTurnAdded, proto.TurnAddedData{Turn: t})
-		f.Hub.Publish(id, proto.EventStatus, proto.StatusData{Running: false})
-		f.Hub.Publish(id, proto.EventDone, map[string]any{})
+		f.Hub.Publish(id, api.EventTurnAdded, api.TurnAddedData{Turn: t})
+		f.Hub.Publish(id, api.EventStatus, api.StatusData{Running: false})
+		f.Hub.Publish(id, api.EventDone, map[string]any{})
 	}
-	return proto.MessageResponse{RequestID: rid}, nil
+	return api.MessageResponse{RequestID: rid}, nil
 }
-func (f *FakeBackend) Stop(_ context.Context, id string, _ proto.StopRequest) error {
+func (f *FakeBackend) Stop(_ context.Context, id string, _ api.StopRequest) error {
 	f.mu.Lock()
 	s, e := f.find(id)
 	if e == nil {
@@ -52,21 +52,21 @@ func (f *FakeBackend) Stop(_ context.Context, id string, _ proto.StopRequest) er
 	}
 	f.mu.Unlock()
 	if e == nil && f.Hub != nil {
-		f.Hub.Publish(id, proto.EventAborted, map[string]any{})
+		f.Hub.Publish(id, api.EventAborted, map[string]any{})
 	}
 	return e
 }
-func (f *FakeBackend) Compact(_ context.Context, id string, _ proto.CompactRequest) (proto.CompactResponse, error) {
+func (f *FakeBackend) Compact(_ context.Context, id string, _ api.CompactRequest) (api.CompactResponse, error) {
 	if _, e := f.Snapshot(context.Background(), id); e != nil {
-		return proto.CompactResponse{}, e
+		return api.CompactResponse{}, e
 	}
-	return proto.CompactResponse{}, nil
+	return api.CompactResponse{}, nil
 }
-func (f *FakeBackend) AnswerAsk(context.Context, string, string, proto.AskAnswerRequest) error {
+func (f *FakeBackend) AnswerAsk(context.Context, string, string, api.AskAnswerRequest) error {
 	return errors.New("no ask is open")
 }
-func (f *FakeBackend) Resource(context.Context, string, string, string, proto.ResourceRequest) (proto.ResourceResponse, error) {
-	return proto.ResourceResponse{Data: json.RawMessage(`{}`)}, nil
+func (f *FakeBackend) Resource(context.Context, string, string, string, api.ResourceRequest) (api.ResourceResponse, error) {
+	return api.ResourceResponse{Data: json.RawMessage(`{}`)}, nil
 }
 func (f *FakeBackend) HasWork(context.Context) bool {
 	f.mu.Lock()

@@ -1,14 +1,14 @@
 package engine
 
-import "meno/internal/proto"
+import "meno/internal/api"
 
 // globalSessionChange excludes streaming and accounting events before any
 // attention query. Global consumers hydrate state only for meaningful changes.
 func globalSessionChange(typ string, data any) bool {
 	switch typ {
-	case proto.EventStatus, proto.EventAskOpen, proto.EventAskClosed, proto.EventTasksChanged, proto.EventTurnAdded:
+	case api.EventStatus, api.EventAskOpen, api.EventAskClosed, api.EventTasksChanged, api.EventTurnAdded:
 		return true
-	case proto.EventSessionChanged:
+	case api.EventSessionChanged:
 		return true
 	}
 	return false
@@ -32,7 +32,7 @@ func (e *Engine) publish(id, typ string, data any) {
 	}
 	if e.global != nil && globalSessionChange(typ, data) && e.isPersisted(id) {
 		completed, read := e.attention(id)
-		e.global.Publish(id, proto.EventGlobalStatus, proto.GlobalStatus{SessionID: id, Running: e.running(id), NeedsYou: e.needsYou(id), DoneUnseen: completed > read})
+		e.global.Publish(id, api.EventGlobalStatus, api.GlobalStatus{SessionID: id, Running: e.running(id), NeedsYou: e.needsYou(id), DoneUnseen: completed > read})
 	}
 }
 func (e *Engine) running(id string) bool {

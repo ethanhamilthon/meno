@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"meno/internal/api"
 	"meno/internal/client"
-	"meno/internal/proto"
 	"time"
 )
 
@@ -23,7 +23,7 @@ func daemonStatus(home string, out io.Writer) int {
 func daemonHasWork(home string) bool {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	r, e := client.New(home).ListSessions(ctx, proto.SessionsListRequest{})
+	r, e := client.New(home).ListSessions(ctx, api.SessionsListRequest{})
 	if e != nil {
 		return false
 	}

@@ -2,20 +2,20 @@ package client
 
 import (
 	"encoding/json"
-	"meno/internal/proto"
+	"meno/internal/api"
 	"testing"
 )
 
-func ev(seq uint64, typ string, v any) proto.Event {
+func ev(seq uint64, typ string, v any) api.Event {
 	b, _ := json.Marshal(v)
-	return proto.Event{Seq: seq, Type: typ, Data: b}
+	return api.Event{Seq: seq, Type: typ, Data: b}
 }
 
 // A turn already in the snapshot must not be appended again when replayed.
 func TestMirrorIgnoresReplayedTurn(t *testing.T) {
 	var m Mirror
-	m.Load(proto.Snapshot{Seq: 4, Turns: []proto.Turn{{ID: "1", Role: "user"}}})
-	m.Apply(ev(5, proto.EventTurnAdded, proto.TurnAddedData{Turn: proto.Turn{ID: "1", Role: "user"}}))
+	m.Load(api.Snapshot{Seq: 4, Turns: []api.Turn{{ID: "1", Role: "user"}}})
+	m.Apply(ev(5, api.EventTurnAdded, api.TurnAddedData{Turn: api.Turn{ID: "1", Role: "user"}}))
 	if n := len(m.Snapshot().Turns); n != 1 {
 		t.Fatalf("turns=%d", n)
 	}
@@ -24,13 +24,13 @@ func TestMirrorIgnoresReplayedTurn(t *testing.T) {
 // A delayed finish of the old run must not stop the run that started after it.
 func TestMirrorIgnoresOldRunFinish(t *testing.T) {
 	var m Mirror
-	m.Load(proto.Snapshot{Seq: 1})
-	m.Apply(ev(2, proto.EventStatus, proto.StatusData{Running: true, RequestID: "new"}))
-	m.Apply(ev(3, proto.EventDone, proto.DoneData{RequestID: "old"}))
+	m.Load(api.Snapshot{Seq: 1})
+	m.Apply(ev(2, api.EventStatus, api.StatusData{Running: true, RequestID: "new"}))
+	m.Apply(ev(3, api.EventDone, api.DoneData{RequestID: "old"}))
 	if s := m.Snapshot(); !s.Running || s.RequestID != "new" {
 		t.Fatalf("state %+v", s)
 	}
-	m.Apply(ev(4, proto.EventDone, proto.DoneData{RequestID: "new"}))
+	m.Apply(ev(4, api.EventDone, api.DoneData{RequestID: "new"}))
 	if m.Snapshot().Running {
 		t.Fatal("matching finish must end the run")
 	}
@@ -39,9 +39,9 @@ func TestMirrorIgnoresOldRunFinish(t *testing.T) {
 // A refresh older than the applied state must not roll it back.
 func TestMirrorRejectsOlderSnapshot(t *testing.T) {
 	var m Mirror
-	v := func(r uint64) proto.SessionVersion { return proto.SessionVersion{BootID: "b", Revision: r} }
-	m.Load(proto.Snapshot{Seq: 11, Version: v(11), Turns: []proto.Turn{{ID: "1"}, {ID: "2"}}})
-	m.Load(proto.Snapshot{Seq: 10, Version: v(10), Turns: []proto.Turn{{ID: "1"}}})
+	v := func(r uint64) api.SessionVersion { return api.SessionVersion{BootID: "b", Revision: r} }
+	m.Load(api.Snapshot{Seq: 11, Version: v(11), Turns: []api.Turn{{ID: "1"}, {ID: "2"}}})
+	m.Load(api.Snapshot{Seq: 10, Version: v(10), Turns: []api.Turn{{ID: "1"}}})
 	if s := m.Snapshot(); s.Seq != 11 || len(s.Turns) != 2 {
 		t.Fatalf("rolled back: seq=%d turns=%d", s.Seq, len(s.Turns))
 	}
@@ -51,8 +51,8 @@ func TestMirrorRejectsOlderSnapshot(t *testing.T) {
 // ask for a fresh snapshot instead of blanking the title, directory and model.
 func TestMirrorSessionChangedKeepsStateAndAsksForResync(t *testing.T) {
 	var m Mirror
-	m.Load(proto.Snapshot{Seq: 1, Cwd: "/work", Model: "m1", Session: proto.SessionItem{ID: "s", Name: "Title", Cwd: "/work"}})
-	m.Apply(ev(2, proto.EventSessionChanged, proto.ChangedData{Fields: []string{"name", "cwd"}}))
+	m.Load(api.Snapshot{Seq: 1, Cwd: "/work", Model: "m1", Session: api.SessionItem{ID: "s", Name: "Title", Cwd: "/work"}})
+	m.Apply(ev(2, api.EventSessionChanged, api.ChangedData{Fields: []string{"name", "cwd"}}))
 	s := m.Snapshot()
 	if s.Cwd != "/work" || s.Model != "m1" || s.Session.Name != "Title" {
 		t.Fatalf("state was wiped: %+v", s)
@@ -65,11 +65,11 @@ func TestMirrorSessionChangedKeepsStateAndAsksForResync(t *testing.T) {
 // Load copies what it keeps: a later event must not change the snapshot the
 // caller still holds, or a reader of that snapshot races with the stream.
 func TestLoadDoesNotShareLiveCallsWithTheSnapshot(t *testing.T) {
-	snap := proto.Snapshot{Live: proto.LiveState{Calls: []proto.CallState{{CallID: "c1"}}}, Seq: 1}
+	snap := api.Snapshot{Live: api.LiveState{Calls: []api.CallState{{CallID: "c1"}}}, Seq: 1}
 	var m Mirror
 	m.Load(snap)
-	data, _ := json.Marshal(proto.CallDeltaData{CallID: "c1", Delta: "more"})
-	m.Apply(proto.Event{Seq: 2, Type: proto.EventCallDelta, Data: data})
+	data, _ := json.Marshal(api.CallDeltaData{CallID: "c1", Delta: "more"})
+	m.Apply(api.Event{Seq: 2, Type: api.EventCallDelta, Data: data})
 	if snap.Live.Calls[0].Delta != "" {
 		t.Fatalf("the snapshot changed after Load: %q", snap.Live.Calls[0].Delta)
 	}

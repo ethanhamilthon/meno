@@ -3,13 +3,13 @@ package engine
 import (
 	"context"
 	"encoding/json"
+	"meno/internal/api"
 	"meno/internal/mcp"
-	"meno/internal/proto"
 )
 
 func (e *Engine) mcpResource(ctx context.Context, s *runState, tail []string, method string, data map[string]any, query string) (any, error) {
 	if len(tail) == 0 {
-		return nil, api(proto.CodeBadRequest, "MCP resource operation is required")
+		return nil, dapi(api.CodeBadRequest, "MCP resource operation is required")
 	}
 	op := tail[0]
 	if op == "servers" {
@@ -57,5 +57,5 @@ func (e *Engine) mcpResource(ctx context.Context, s *runState, tail []string, me
 	if op == "add" || op == "remove" || op == "restart" {
 		return e.adminMCP(ctx, s, op, stringValue(data, "server"))
 	}
-	return nil, api(proto.CodeNotFound, "unknown MCP operation")
+	return nil, dapi(api.CodeNotFound, "unknown MCP operation")
 }

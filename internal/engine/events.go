@@ -2,7 +2,7 @@ package engine
 
 import (
 	"meno/internal/agent"
-	"meno/internal/proto"
+	"meno/internal/api"
 	"strings"
 )
 
@@ -27,7 +27,7 @@ func (e *Engine) agentEvent(s *runState, ev agent.Ev) {
 		c.Command = ev.Code
 		s.mu.Unlock()
 		if delta != "" {
-			e.publish(id, proto.EventCallDelta, proto.CallDeltaData{CallID: ev.CallID, Delta: delta})
+			e.publish(id, api.EventCallDelta, api.CallDeltaData{CallID: ev.CallID, Delta: delta})
 		}
 		return
 	case agent.EvJSStart:
@@ -53,8 +53,8 @@ func (e *Engine) agentEvent(s *runState, ev agent.Ev) {
 		}
 		s.phase = "thinking"
 	case agent.EvRetry:
-		s.live = proto.LiveState{Calls: []proto.CallState{}}
-		s.retry = &proto.RetryState{Attempt: ev.Attempt, InMS: ev.Delay.Milliseconds(), Reason: ev.Err}
+		s.live = api.LiveState{Calls: []api.CallState{}}
+		s.retry = &api.RetryState{Attempt: ev.Attempt, InMS: ev.Delay.Milliseconds(), Reason: ev.Err}
 	case agent.EvUsage:
 		s.metrics.InputTokens += int64(ev.Usage.In)
 		s.metrics.OutputTokens += int64(ev.Usage.Out)
@@ -80,13 +80,13 @@ func (e *Engine) agentEvent(s *runState, ev agent.Ev) {
 	case agent.EvError:
 		s.lastErr = ev.Err
 	case agent.EvAborted:
-		s.live = proto.LiveState{Calls: []proto.CallState{}}
+		s.live = api.LiveState{Calls: []api.CallState{}}
 	}
 	if ev.Kind == agent.EvJSEnd {
 		s.live.Calls = removeCall(s.live.Calls, ev.CallID)
 	}
 	if ev.Kind == agent.EvInjected {
-		e.publishQueue(s, proto.InjectedData{})
+		e.publishQueue(s, api.InjectedData{})
 	}
 	// Fragments are live-only. Do not copy history or enter persistence on the
 	// hot streaming path, even when runner-owned history has changed.
@@ -112,19 +112,19 @@ func (e *Engine) agentEvent(s *runState, ev agent.Ev) {
 	e.translate(id, ev)
 }
 
-func findCall(l *proto.LiveState, id string) *proto.CallState {
+func findCall(l *api.LiveState, id string) *api.CallState {
 	if l.Calls == nil {
-		l.Calls = []proto.CallState{}
+		l.Calls = []api.CallState{}
 	}
 	for i := range l.Calls {
 		if l.Calls[i].CallID == id {
 			return &l.Calls[i]
 		}
 	}
-	l.Calls = append(l.Calls, proto.CallState{CallID: id})
+	l.Calls = append(l.Calls, api.CallState{CallID: id})
 	return &l.Calls[len(l.Calls)-1]
 }
-func removeCall(a []proto.CallState, id string) []proto.CallState {
+func removeCall(a []api.CallState, id string) []api.CallState {
 	o := a[:0]
 	for _, c := range a {
 		if c.CallID != id {
@@ -138,11 +138,11 @@ func exitCode(string) *int { v := 1; return &v }
 func (e *Engine) translate(id string, ev agent.Ev) {
 	switch ev.Kind {
 	case agent.EvText:
-		e.publish(id, proto.EventTextDelta, proto.TextDeltaData{Text: ev.Text})
+		e.publish(id, api.EventTextDelta, api.TextDeltaData{Text: ev.Text})
 	case agent.EvThink:
-		e.publish(id, proto.EventThinkDelta, proto.TextDeltaData{Text: ev.Thinking})
+		e.publish(id, api.EventThinkDelta, api.TextDeltaData{Text: ev.Thinking})
 	case agent.EvJSStart:
-		e.publish(id, proto.EventCallStart, proto.CallStartData{CallID: ev.CallID, Command: ev.Code, Title: ev.Title})
+		e.publish(id, api.EventCallStart, api.CallStartData{CallID: ev.CallID, Command: ev.Code, Title: ev.Title})
 	case agent.EvJSEnd:
 		exit := 0
 		if ev.Err != "" {
@@ -151,20 +151,20 @@ func (e *Engine) translate(id string, ev agent.Ev) {
 		if code, ok := e.bashExit(id, ev.Output); ok && ev.TaskID == "" {
 			exit = code
 		}
-		e.publish(id, proto.EventCallEnd, proto.CallEndData{CallID: ev.CallID, Output: ev.Output, Exit: exit, ElapsedMS: ev.Elapsed.Milliseconds(), TaskID: ev.TaskID})
+		e.publish(id, api.EventCallEnd, api.CallEndData{CallID: ev.CallID, Output: ev.Output, Exit: exit, ElapsedMS: ev.Elapsed.Milliseconds(), TaskID: ev.TaskID})
 	case agent.EvRequest:
-		d := proto.RequestData{Provider: ev.Provider.Name, Model: ev.Model}
+		d := api.RequestData{Provider: ev.Provider.Name, Model: ev.Model}
 		if ev.Req != nil {
 			d.ContextTokens = requestTokens(ev.Req)
 		}
-		e.publish(id, proto.EventRequest, d)
-		e.publish(id, proto.EventStatus, proto.StatusData{Running: true, Phase: "thinking", RequestID: e.currentRequest(id)})
+		e.publish(id, api.EventRequest, d)
+		e.publish(id, api.EventStatus, api.StatusData{Running: true, Phase: "thinking", RequestID: e.currentRequest(id)})
 	case agent.EvRetry:
-		e.publish(id, proto.EventRetry, proto.RetryData{Attempt: ev.Attempt, Max: ev.Max, InMS: ev.Delay.Milliseconds(), Reason: ev.Err})
+		e.publish(id, api.EventRetry, api.RetryData{Attempt: ev.Attempt, Max: ev.Max, InMS: ev.Delay.Milliseconds(), Reason: ev.Err})
 	case agent.EvUsage:
-		e.publish(id, proto.EventUsage, e.usageData(id, ev))
+		e.publish(id, api.EventUsage, e.usageData(id, ev))
 	case agent.EvError:
-		e.publish(id, proto.EventError, proto.ErrorData{Message: ev.Err})
+		e.publish(id, api.EventError, api.ErrorData{Message: ev.Err})
 		// Done/aborted are published once by finish, after final stats and attention.
 	}
 }

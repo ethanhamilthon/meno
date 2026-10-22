@@ -3,7 +3,7 @@ package client
 import (
 	"sync"
 
-	"meno/internal/proto"
+	"meno/internal/api"
 )
 
 // Mirror is the client-side session state rebuilt from a snapshot and ordered events.
@@ -17,31 +17,31 @@ type Mirror struct {
 type MirrorState struct {
 	StartedCalls                 map[string]bool
 	RetryMax                     int
-	LastUsage, TotalUsage        proto.UsageData
-	Session                      proto.SessionItem
+	LastUsage, TotalUsage        api.UsageData
+	Session                      api.SessionItem
 	Cwd, Model, Phase, RequestID string
 	Running                      bool
 	Seq                          uint64
-	Turns                        []proto.Turn
-	Live                         proto.LiveState
-	Ask                          *proto.AskForm
-	Retry                        *proto.RetryState
-	Metrics                      proto.Metrics
+	Turns                        []api.Turn
+	Live                         api.LiveState
+	Ask                          *api.AskForm
+	Retry                        *api.RetryState
+	Metrics                      api.Metrics
 	Queued                       []string
 	Provider, Effort             string
 	Spent                        float64
 	Context                      int
 	Unpriced                     bool
-	Tasks                        []proto.Task
+	Tasks                        []api.Task
 	NeedsResync                  bool
-	Version                      proto.SessionVersion
+	Version                      api.SessionVersion
 	LastError                    string
 }
 
 // Load accepts a consistent snapshot, rejecting stale and retired boots.
-func (m *Mirror) Load(s proto.Snapshot) { m.LoadUpdate(s) }
+func (m *Mirror) Load(s api.Snapshot) { m.LoadUpdate(s) }
 
-func (m *Mirror) LoadUpdate(s proto.Snapshot) (ProjectionUpdate, bool) {
+func (m *Mirror) LoadUpdate(s api.Snapshot) (ProjectionUpdate, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if s.Version.Revision == 0 {
@@ -81,7 +81,7 @@ func (m *Mirror) Snapshot() MirrorState {
 }
 func (m *Mirror) NeedsResync() bool { m.mu.RLock(); defer m.mu.RUnlock(); return m.State.NeedsResync }
 
-func hasTurn(turns []proto.Turn, id string) bool {
+func hasTurn(turns []api.Turn, id string) bool {
 	for _, t := range turns {
 		if t.ID == id {
 			return true
@@ -98,8 +98,8 @@ func staleRun(s *MirrorState, rid string) bool {
 
 // cloneLiveState copies the call list: the mirror changes its calls in place
 // while the caller of Load still reads the snapshot it passed in.
-func cloneLiveState(l proto.LiveState) proto.LiveState {
-	l.Calls = append([]proto.CallState(nil), l.Calls...)
+func cloneLiveState(l api.LiveState) api.LiveState {
+	l.Calls = append([]api.CallState(nil), l.Calls...)
 	for i := range l.Calls {
 		if l.Calls[i].Exit != nil {
 			n := *l.Calls[i].Exit

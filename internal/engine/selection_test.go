@@ -7,9 +7,9 @@ import (
 	"testing"
 
 	"meno/internal/agent"
+	"meno/internal/api"
 	"meno/internal/config"
 	"meno/internal/llm"
-	"meno/internal/proto"
 )
 
 // jsonOnlyEngine builds an engine whose settings live only in settings.json,
@@ -75,7 +75,7 @@ func TestWhollyEmptySessionIsRepairedAndKeepsHistory(t *testing.T) {
 	s.mu.Lock()
 	s.session.Append(agent.Turn{Role: llm.RoleUser, Text: "earlier"})
 	s.mu.Unlock()
-	if _, err := e.Message(context.Background(), id, proto.MessageRequest{Text: "again", ClientID: "m"}); err != nil {
+	if _, err := e.Message(context.Background(), id, api.MessageRequest{Text: "again", ClientID: "m"}); err != nil {
 		t.Fatal(err)
 	}
 	waitFor(t, e, id, func(s *runState) bool { return !s.running })
@@ -95,7 +95,7 @@ func TestNoUsableDefaultsRejectsWithoutUserTurn(t *testing.T) {
 	id := emptySession(t, e, "", "")
 	s, _ := e.load(context.Background(), id)
 	before := len(s.session.Snapshot())
-	_, err := e.Message(context.Background(), id, proto.MessageRequest{Text: "hi", ClientID: "m"})
+	_, err := e.Message(context.Background(), id, api.MessageRequest{Text: "hi", ClientID: "m"})
 	if err == nil || !strings.Contains(err.Error(), "No model selected") {
 		t.Fatalf("err %v", err)
 	}
@@ -117,7 +117,7 @@ func TestPartialAndBrokenExplicitSelectionsAreNotReplaced(t *testing.T) {
 		{"off", "m", "disabled"},
 	} {
 		id := emptySession(t, e, c.prov, c.model)
-		_, err := e.Message(context.Background(), id, proto.MessageRequest{Text: "hi", ClientID: "m" + c.prov + c.model})
+		_, err := e.Message(context.Background(), id, api.MessageRequest{Text: "hi", ClientID: "m" + c.prov + c.model})
 		if err == nil || !strings.Contains(err.Error(), c.want) {
 			t.Fatalf("%q/%q: err %v, want %q", c.prov, c.model, err, c.want)
 		}
@@ -136,7 +136,7 @@ func TestInvalidSettingsFileStopsTheRunAndKeepsTheLastSnapshot(t *testing.T) {
 	if err := os.WriteFile(e.paths.SettingsFile(), []byte("{broken"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	_, err := e.Message(context.Background(), id, proto.MessageRequest{Text: "hi", ClientID: "m"})
+	_, err := e.Message(context.Background(), id, api.MessageRequest{Text: "hi", ClientID: "m"})
 	if err == nil || !strings.Contains(err.Error(), "settings") {
 		t.Fatalf("err %v", err)
 	}

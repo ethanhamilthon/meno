@@ -3,7 +3,7 @@ package daemon
 import (
 	"context"
 	"encoding/json"
-	"meno/internal/proto"
+	"meno/internal/api"
 	"net"
 	"net/http"
 	"os"
@@ -61,10 +61,10 @@ func TestServerLifecycleAndModes(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	var h proto.Hello
+	var h api.Hello
 	_ = json.NewDecoder(resp.Body).Decode(&h)
 	resp.Body.Close()
-	if h.Protocol != proto.Protocol {
+	if h.Protocol != api.Protocol {
 		t.Fatalf("protocol: %d", h.Protocol)
 	}
 }

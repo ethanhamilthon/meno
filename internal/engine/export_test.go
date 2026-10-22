@@ -8,17 +8,17 @@ import (
 	"time"
 
 	"meno/internal/agent"
+	"meno/internal/api"
 	"meno/internal/llm"
-	"meno/internal/proto"
 )
 
 func readExport(t *testing.T, e *Engine, id string) agent.ExportSnapshot {
 	t.Helper()
-	r, err := e.Resource(context.Background(), "GET", "/v1/sessions/"+id+"/export", "", proto.ResourceRequest{})
+	r, err := e.Resource(context.Background(), "GET", "/v1/sessions/"+id+"/export", "", api.ResourceRequest{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	var response proto.ExportResponse
+	var response api.ExportResponse
 	if err := json.Unmarshal(r.Data, &response); err != nil {
 		t.Fatal(err)
 	}
@@ -36,7 +36,7 @@ func TestExportWhileStreamingAndAfterCancellation(t *testing.T) {
 	f := &fakeProvider{wait: true, seen: make(chan struct{}, 1)}
 	e, _ := fixture(t, f)
 	id := newSession(t, e)
-	if _, err := e.Message(context.Background(), id, proto.MessageRequest{Text: "hi", ClientID: "one"}); err != nil {
+	if _, err := e.Message(context.Background(), id, api.MessageRequest{Text: "hi", ClientID: "one"}); err != nil {
 		t.Fatal(err)
 	}
 	select {
@@ -51,7 +51,7 @@ func TestExportWhileStreamingAndAfterCancellation(t *testing.T) {
 	if len(snapshot.Configurations) != 1 || len(snapshot.Warnings) == 0 || len(snapshot.Turns) != 1 {
 		t.Fatal("incomplete cutoff not represented")
 	}
-	if err := e.Stop(context.Background(), id, proto.StopRequest{}); err != nil {
+	if err := e.Stop(context.Background(), id, api.StopRequest{}); err != nil {
 		t.Fatal(err)
 	}
 	waitFor(t, e, id, func(s *runState) bool { return !s.running })
@@ -68,7 +68,7 @@ func TestExportCompletedRequestSurvivesReloadAndSettingsChange(t *testing.T) {
 	f := &fakeProvider{steps: [][]llm.Event{{{Kind: llm.EvText, Text: "answer"}, {Kind: llm.EvDone, UsageReported: true, Usage: llm.Usage{In: 9, Out: 2, CacheReported: true}}}}}
 	e, _ := fixture(t, f)
 	id := newSession(t, e)
-	if _, err := e.Message(context.Background(), id, proto.MessageRequest{Text: "hi", ClientID: "one"}); err != nil {
+	if _, err := e.Message(context.Background(), id, api.MessageRequest{Text: "hi", ClientID: "one"}); err != nil {
 		t.Fatal(err)
 	}
 	waitFor(t, e, id, func(s *runState) bool { return !s.running })
@@ -93,11 +93,11 @@ func TestExportCompletedRequestSurvivesReloadAndSettingsChange(t *testing.T) {
 	if len(after.Turns) != 2 || after.Turns[1].Text != "answer" {
 		t.Fatal("transcript missing after reload")
 	}
-	r, err := e.Resource(context.Background(), "GET", "/v1/sessions/"+id+"/export", "", proto.ResourceRequest{Token: "wrong"})
+	r, err := e.Resource(context.Background(), "GET", "/v1/sessions/"+id+"/export", "", api.ResourceRequest{Token: "wrong"})
 	if err == nil || len(r.Data) != 0 {
 		t.Fatal("agent token received human export")
 	}
-	_, err = e.Resource(context.Background(), "GET", "/v1/sessions/missing/export", "", proto.ResourceRequest{})
+	_, err = e.Resource(context.Background(), "GET", "/v1/sessions/missing/export", "", api.ResourceRequest{})
 	if err == nil || !strings.Contains(err.Error(), "not found") {
 		t.Fatalf("missing session: %v", err)
 	}
@@ -116,7 +116,7 @@ func TestExportInterruptedAttemptAndLegacyWarning(t *testing.T) {
 	f := &fakeProvider{wait: true, seen: make(chan struct{}, 1)}
 	e, _ := fixture(t, f)
 	id := newSession(t, e)
-	if _, err := e.Message(context.Background(), id, proto.MessageRequest{Text: "hi", ClientID: "one"}); err != nil {
+	if _, err := e.Message(context.Background(), id, api.MessageRequest{Text: "hi", ClientID: "one"}); err != nil {
 		t.Fatal(err)
 	}
 	select {

@@ -7,12 +7,12 @@ import (
 	"encoding/hex"
 	"errors"
 	"meno/internal/agent"
+	"meno/internal/api"
 	"meno/internal/config"
 	"meno/internal/db"
 	"meno/internal/llm"
 	"meno/internal/mcp"
-	"meno/internal/proc"
-	"meno/internal/proto"
+	"meno/internal/process"
 	"os"
 	"sync"
 	"time"
@@ -21,18 +21,18 @@ import (
 // ResourceHandler owns config resources outside the engine's session scope.
 type ResourceHandler interface {
 	// Resource serves the config routes (settings, providers, login, ...).
-	Resource(context.Context, string, string, string, proto.ResourceRequest) (proto.ResourceResponse, error)
+	Resource(context.Context, string, string, string, api.ResourceRequest) (api.ResourceResponse, error)
 }
 
 // EventHub publishes ordered daemon session events.
 type EventHub interface {
-	Publish(string, string, any) proto.Event
+	Publish(string, string, any) api.Event
 	Sequence(string) uint64
 }
 
 // GlobalEventHub publishes status across daemon sessions.
 type GlobalEventHub interface {
-	Publish(string, string, any) proto.Event
+	Publish(string, string, any) api.Event
 }
 
 // Options configures the daemon engine. ProviderClient is a test seam.
@@ -55,10 +55,10 @@ type runState struct {
 	phase, requestID string
 	cancel           context.CancelFunc
 	queue            agent.Queue
-	live             proto.LiveState
+	live             api.LiveState
 	ask              *askState
-	retry            *proto.RetryState
-	metrics          proto.Metrics
+	retry            *api.RetryState
+	metrics          api.Metrics
 	token            tokenState
 	changed          time.Time
 	prompt           promptState
@@ -71,7 +71,7 @@ type runState struct {
 	compacting       bool            // a compaction holds the history; a second one is rejected
 	cancelled        map[string]bool // root requests that were stopped; their events never wake the session
 	published        int
-	visibleTurns     []proto.Turn // published history, never runner-owned mutable state
+	visibleTurns     []api.Turn // published history, never runner-owned mutable state
 	visibleQueue     []string
 	origin           string // window that started the running turn (advisory)
 	persisted        bool   // the session is in the database; a new one is only in memory until its first message
@@ -95,7 +95,7 @@ type Engine struct {
 	servers    []mcp.Server
 	catalog    map[string]llm.ModelInfo
 	mcp        *mcp.Manager
-	tasks      *proc.Supervisor
+	tasks      *process.Supervisor
 	events     EventHub
 	global     GlobalEventHub
 	resources  ResourceHandler
@@ -148,7 +148,7 @@ func New(o Options) (*Engine, error) {
 		return nil, err
 	}
 	eng := &Engine{}
-	tasks, err := proc.New(d, paths.File("task-logs"), proc.Hooks{Finished: func(t proc.Task) { eng.onTaskFinished(t) }})
+	tasks, err := process.New(d, paths.File("task-logs"), process.Hooks{Finished: func(t process.Task) { eng.onTaskFinished(t) }})
 	if err != nil {
 		return nil, err
 	}

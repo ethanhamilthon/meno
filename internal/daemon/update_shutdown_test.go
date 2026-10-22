@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"meno/internal/proto"
+	"meno/internal/api"
 )
 
 type updateBusyBackend struct {
@@ -18,11 +18,11 @@ type updateBusyBackend struct {
 }
 
 func (b *updateBusyBackend) HasWork(context.Context) bool { return b.busy.Load() }
-func (b *updateBusyBackend) Message(context.Context, string, proto.MessageRequest) (proto.MessageResponse, error) {
+func (b *updateBusyBackend) Message(context.Context, string, api.MessageRequest) (api.MessageResponse, error) {
 	close(b.entered)
 	<-b.release
 	b.busy.Store(true)
-	return proto.MessageResponse{}, nil
+	return api.MessageResponse{}, nil
 }
 
 func TestIdleShutdownSerializesWithIncomingWork(t *testing.T) {

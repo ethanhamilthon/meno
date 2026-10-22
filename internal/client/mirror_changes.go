@@ -2,13 +2,13 @@ package client
 
 import (
 	"encoding/json"
-	"meno/internal/proto"
+	"meno/internal/api"
 )
 
-func (m *Mirror) applyChange(e proto.Event) ProjectionFields {
+func (m *Mirror) applyChange(e api.Event) ProjectionFields {
 	s := &m.State
-	if e.Type == proto.EventTasksChanged {
-		var d proto.TasksChangedData
+	if e.Type == api.EventTasksChanged {
+		var d api.TasksChangedData
 		if json.Unmarshal(e.Data, &d) != nil || d.Tasks == nil {
 			s.NeedsResync = true
 			return 0
@@ -16,7 +16,7 @@ func (m *Mirror) applyChange(e proto.Event) ProjectionFields {
 		s.Tasks = cloneTasks(d.Tasks)
 		return TasksChanged
 	}
-	var d proto.ChangedData
+	var d api.ChangedData
 	if json.Unmarshal(e.Data, &d) != nil {
 		s.NeedsResync = true
 		return 0

@@ -2,14 +2,14 @@ package engine
 
 import (
 	"context"
+	"meno/internal/api"
 	"meno/internal/llm"
-	"meno/internal/proto"
 )
 
 // sessionMetadata requires commit, but never performs attention I/O under mu.
-func (e *Engine) sessionMetadata(s *runState) *proto.SessionMetadata {
+func (e *Engine) sessionMetadata(s *runState) *api.SessionMetadata {
 	s.mu.Lock()
-	m := &proto.SessionMetadata{Session: item(s), Provider: s.session.Provider, Effort: s.session.Effort}
+	m := &api.SessionMetadata{Session: item(s), Provider: s.session.Provider, Effort: s.session.Effort}
 	s.mu.Unlock()
 	m.Session.Completed, m.Session.ReadThrough = e.attention(m.Session.ID)
 	return m
@@ -17,7 +17,7 @@ func (e *Engine) sessionMetadata(s *runState) *proto.SessionMetadata {
 
 // publishSessionChanged requires commit so metadata and cursor are one boundary.
 func (e *Engine) publishSessionChanged(s *runState, fields ...string) {
-	e.publish(s.session.ID, proto.EventSessionChanged, proto.ChangedData{
+	e.publish(s.session.ID, api.EventSessionChanged, api.ChangedData{
 		Fields: fields, Metadata: e.sessionMetadata(s),
 	})
 }
@@ -36,13 +36,13 @@ func (e *Engine) publishTasksChanged(id string) {
 	if err != nil {
 		return
 	}
-	out := make([]proto.Task, 0, len(tasks))
+	out := make([]api.Task, 0, len(tasks))
 	for _, t := range tasks {
 		out = append(out, taskWire(t))
 	}
-	e.publish(id, proto.EventTasksChanged, proto.TasksChangedData{Tasks: out})
+	e.publish(id, api.EventTasksChanged, api.TasksChangedData{Tasks: out})
 }
 
-func usageProjection(u llm.Usage) *proto.UsageData {
-	return &proto.UsageData{InputTokens: int64(u.In), OutputTokens: int64(u.Out), Cached: int64(u.Cached), CacheWrite: int64(u.CacheWrite), CacheKnown: u.CacheReported}
+func usageProjection(u llm.Usage) *api.UsageData {
+	return &api.UsageData{InputTokens: int64(u.In), OutputTokens: int64(u.Out), Cached: int64(u.Cached), CacheWrite: int64(u.CacheWrite), CacheKnown: u.CacheReported}
 }

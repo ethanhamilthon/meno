@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"meno/internal/proto"
+	"meno/internal/api"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -15,7 +15,7 @@ import (
 
 // Stream reads an event stream and reconnects from its last acknowledged sequence.
 // Use an empty session ID for the global stream. The callback runs serially.
-func (c *Client) Stream(ctx context.Context, sessionID string, after uint64, bootID string, receive func(proto.Event) error) error {
+func (c *Client) Stream(ctx context.Context, sessionID string, after uint64, bootID string, receive func(api.Event) error) error {
 	path := "/v1/events"
 	if sessionID != "" {
 		path = "/v1/sessions/" + pathID(sessionID) + "/events"
@@ -54,21 +54,21 @@ func (c *Client) Stream(ctx context.Context, sessionID string, after uint64, boo
 		idle := make(chan struct{}, 1)
 		go closeWhenIdle(streamCtx, cancel, c.idleTimeout(), idle)
 		var cbErr error
-		e = c.readSSE(resp, func(ev proto.Event) error {
+		e = c.readSSE(resp, func(ev api.Event) error {
 			select {
 			case idle <- struct{}{}:
 			default:
 			}
-			if ev.Type != proto.EventHello && ev.Seq > after {
+			if ev.Type != api.EventHello && ev.Seq > after {
 				after = ev.Seq
 			}
-			if ev.Type == proto.EventResync {
+			if ev.Type == api.EventResync {
 				return errResync
 			}
 			if ev.BootID != "" {
 				bootID = ev.BootID
 			}
-			if ev.Type == proto.EventHello {
+			if ev.Type == api.EventHello {
 				var h struct {
 					BootID string `json:"boot_id"`
 				}
@@ -77,7 +77,7 @@ func (c *Client) Stream(ctx context.Context, sessionID string, after uint64, boo
 					bootID = h.BootID
 				}
 			}
-			if ev.Type == proto.EventBye {
+			if ev.Type == api.EventBye {
 				return errStreamClosed
 			}
 			if err := receive(ev); err != nil {
@@ -164,7 +164,7 @@ func wait(ctx context.Context, d time.Duration) bool {
 		return false
 	}
 }
-func (c *Client) readSSE(resp *http.Response, receive func(proto.Event) error) error {
+func (c *Client) readSSE(resp *http.Response, receive func(api.Event) error) error {
 	sc := bufio.NewScanner(resp.Body)
 	sc.Buffer(make([]byte, 4096), 2<<20)
 	var typ, id string
@@ -173,7 +173,7 @@ func (c *Client) readSSE(resp *http.Response, receive func(proto.Event) error) e
 		if typ == "" && data.Len() == 0 {
 			return nil
 		}
-		ev := proto.Event{Type: typ, Data: json.RawMessage(data.String())}
+		ev := api.Event{Type: typ, Data: json.RawMessage(data.String())}
 		if id != "" {
 			ev.Seq, _ = strconv.ParseUint(id, 10, 64)
 		}

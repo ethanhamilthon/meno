@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"meno/internal/proto"
+	"meno/internal/api"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -33,7 +33,7 @@ func TestStreamReturnsCallbackErrorWithoutReconnect(t *testing.T) {
 	sentinel := errors.New("consumer failed")
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	err := c.Stream(ctx, "s1", 0, "", func(proto.Event) error { return sentinel })
+	err := c.Stream(ctx, "s1", 0, "", func(api.Event) error { return sentinel })
 	if !errors.Is(err, sentinel) {
 		t.Fatalf("got %v", err)
 	}
@@ -62,7 +62,7 @@ func TestSilentStreamIsClosedByTheIdleWatchdog(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	seen := 0
-	err := c.Stream(ctx, "s1", 0, "", func(proto.Event) error {
+	err := c.Stream(ctx, "s1", 0, "", func(api.Event) error {
 		seen++
 		if atomic.LoadInt32(&hits) >= 2 {
 			return errStopTest

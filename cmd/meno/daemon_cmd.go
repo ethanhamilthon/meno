@@ -6,8 +6,8 @@ import (
 	"io"
 	"meno/internal/client"
 	"meno/internal/config"
+	"meno/internal/configsvc"
 	"meno/internal/daemon"
-	"meno/internal/daemon/cfgsvc"
 	"meno/internal/db"
 	"meno/internal/engine"
 	"meno/internal/mcp"
@@ -79,7 +79,7 @@ func runDaemon(home string, errOut io.Writer) int {
 		fmt.Fprintln(errOut, "meno 0.5.0 starts with a fresh database; previous data backed up to", backup)
 	}
 	manager := mcp.NewManager()
-	service, e := cfgsvc.New(cfgsvc.Options{MCP: manager, Paths: config.Paths{Home: home}})
+	service, e := configsvc.New(configsvc.Options{MCP: manager, Paths: config.Paths{Home: home}})
 	if e != nil {
 		fmt.Fprintln(errOut, e)
 		return 1

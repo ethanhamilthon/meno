@@ -3,7 +3,7 @@ package daemon
 import (
 	"encoding/json"
 	"fmt"
-	"meno/internal/proto"
+	"meno/internal/api"
 	"net/http"
 	"strconv"
 	"time"
@@ -27,7 +27,7 @@ func (s *Server) sse(w http.ResponseWriter, r *http.Request, key string) {
 		http.Error(w, "streaming unavailable", 500)
 		return
 	}
-	var ch <-chan proto.Event
+	var ch <-chan api.Event
 	var cancel func()
 	var resync bool
 	if key == "" {
@@ -45,7 +45,7 @@ func (s *Server) sse(w http.ResponseWriter, r *http.Request, key string) {
 	} else {
 		seq = s.hub.Sequence(key)
 	}
-	hello := proto.Event{Seq: seq, Type: proto.EventHello, BootID: s.bootID, SessionID: key}
+	hello := api.Event{Seq: seq, Type: api.EventHello, BootID: s.bootID, SessionID: key}
 	hello.Data, _ = json.Marshal(map[string]any{"boot_id": s.bootID, "seq": hello.Seq})
 	writeEvent(w, hello)
 	fl.Flush()
@@ -68,7 +68,7 @@ func (s *Server) sse(w http.ResponseWriter, r *http.Request, key string) {
 			}
 			writeEvent(w, e)
 			fl.Flush()
-			if e.Type == proto.EventResync || e.Type == proto.EventBye {
+			if e.Type == api.EventResync || e.Type == api.EventBye {
 				return
 			}
 		case <-ping.C:
@@ -84,12 +84,12 @@ func bootFrom(r *http.Request) string {
 	}
 	return b
 }
-func writeEvent(w http.ResponseWriter, e proto.Event) {
+func writeEvent(w http.ResponseWriter, e api.Event) {
 	data := e.Data
 	if len(data) == 0 {
 		data = []byte("{}")
 	}
-	if e.Type == proto.EventHello {
+	if e.Type == api.EventHello {
 		_, _ = fmt.Fprintf(w, "event: %s\ndata: %s\n\n", e.Type, data)
 		return
 	}

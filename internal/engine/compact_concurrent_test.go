@@ -2,7 +2,7 @@ package engine
 
 import (
 	"context"
-	"meno/internal/proto"
+	"meno/internal/api"
 	"testing"
 )
 
@@ -13,7 +13,7 @@ func TestSecondCompactIsRejectedWhileFirstRuns(t *testing.T) {
 	s.mu.Lock()
 	s.compacting = true
 	s.mu.Unlock()
-	_, err := e.Compact(context.Background(), id, proto.CompactRequest{})
+	_, err := e.Compact(context.Background(), id, api.CompactRequest{})
 	if err == nil {
 		t.Fatal("expected a conflict")
 	}

@@ -34,3 +34,7 @@ network calls). Secrets are never printed. Exit codes: 0 healthy, 4 warnings, 1 
 ## meno web
 
 `meno web search QUERY` and `meno web fetch URL`, see [web](web.md).
+
+## meno acp
+
+`meno acp` serves Meno as an Agent Client Protocol agent on stdin/stdout, see [ACP](acp.md).

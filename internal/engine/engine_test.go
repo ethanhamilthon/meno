@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"meno/internal/agent"
+	"meno/internal/api"
 	"meno/internal/config"
 	"meno/internal/daemon"
 	"meno/internal/db"
 	"meno/internal/llm"
 	"meno/internal/mcp"
-	"meno/internal/proto"
 	"sync"
 	"testing"
 	"time"
@@ -73,7 +73,7 @@ func fixture(t *testing.T, f *fakeProvider) (*Engine, *daemon.Hub) {
 }
 func newSession(t *testing.T, e *Engine) string {
 	t.Helper()
-	r, err := e.CreateSession(context.Background(), proto.SessionCreateRequest{Cwd: t.TempDir(), ClientID: "create"})
+	r, err := e.CreateSession(context.Background(), api.SessionCreateRequest{Cwd: t.TempDir(), ClientID: "create"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,7 +101,7 @@ func TestRunSurvivesClientCloseAndPublishesEvents(t *testing.T) {
 	e, h := fixture(t, f)
 	id := newSession(t, e)
 	ctx, cancel := context.WithCancel(context.Background())
-	r, err := e.Message(ctx, id, proto.MessageRequest{Text: "hi", ClientID: "msg"})
+	r, err := e.Message(ctx, id, api.MessageRequest{Text: "hi", ClientID: "msg"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -119,8 +119,8 @@ func TestRunSurvivesClientCloseAndPublishesEvents(t *testing.T) {
 	text, done := false, false
 	for len(ch) > 0 {
 		ev := <-ch
-		text = text || ev.Type == proto.EventTextDelta
-		done = done || ev.Type == proto.EventDone
+		text = text || ev.Type == api.EventTextDelta
+		done = done || ev.Type == api.EventDone
 	}
 	if !text || !done {
 		t.Fatalf("missing events text=%v done=%v request=%s", text, done, r.RequestID)
@@ -130,16 +130,16 @@ func TestTwoClientsSteerAndStop(t *testing.T) {
 	f := &fakeProvider{wait: true, seen: make(chan struct{}, 1)}
 	e, _ := fixture(t, f)
 	id := newSession(t, e)
-	r, err := e.Message(context.Background(), id, proto.MessageRequest{Text: "start", ClientID: "one"})
+	r, err := e.Message(context.Background(), id, api.MessageRequest{Text: "start", ClientID: "one"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	<-f.seen
-	q, err := e.Message(context.Background(), id, proto.MessageRequest{Text: "steer", ClientID: "two"})
+	q, err := e.Message(context.Background(), id, api.MessageRequest{Text: "steer", ClientID: "two"})
 	if err != nil || !q.Queued || q.RequestID != r.RequestID {
 		t.Fatalf("queue %+v %v", q, err)
 	}
-	if err = e.Stop(context.Background(), id, proto.StopRequest{RequestID: r.RequestID}); err != nil {
+	if err = e.Stop(context.Background(), id, api.StopRequest{RequestID: r.RequestID}); err != nil {
 		t.Fatal(err)
 	}
 	waitFor(t, e, id, func(s *runState) bool { return !s.running })
@@ -150,7 +150,7 @@ func TestPOSTClientIDRetryIsSafe(t *testing.T) {
 	calls := 0
 	fn := func() (any, error) {
 		calls++
-		return e.CreateSession(context.Background(), proto.SessionCreateRequest{Cwd: t.TempDir(), ClientID: "id"})
+		return e.CreateSession(context.Background(), api.SessionCreateRequest{Cwd: t.TempDir(), ClientID: "id"})
 	}
 	a, err := e.ApplyClientID(context.Background(), "id", fn)
 	if err != nil {
@@ -160,7 +160,7 @@ func TestPOSTClientIDRetryIsSafe(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if calls != 1 || a.(proto.SessionCreateResponse).Session.ID != b.(proto.SessionCreateResponse).Session.ID {
+	if calls != 1 || a.(api.SessionCreateResponse).Session.ID != b.(api.SessionCreateResponse).Session.ID {
 		t.Fatalf("calls=%d", calls)
 	}
 }
@@ -172,7 +172,7 @@ func TestAskPausesThenResumes(t *testing.T) {
 	// The agent's shell command "meno ask" posts the form and blocks.
 	done := make(chan error, 1)
 	go func() {
-		_, err := e.Resource(context.Background(), "POST", "/v1/sessions/"+id+"/ask", "", proto.ResourceRequest{
+		_, err := e.Resource(context.Background(), "POST", "/v1/sessions/"+id+"/ask", "", api.ResourceRequest{
 			Token: snap0.AgentToken, Data: json.RawMessage(`{"form":{"questions":[{"id":"choice","text":"Pick","type":"single","options":[{"id":"x","label":"X"}]}]}}`)})
 		done <- err
 	}()
@@ -181,7 +181,7 @@ func TestAskPausesThenResumes(t *testing.T) {
 	if snap.Ask == nil {
 		t.Fatal("ask missing")
 	}
-	if err := e.AnswerAsk(context.Background(), id, snap.Ask.AskID, proto.AskAnswerRequest{Answers: map[string]json.RawMessage{"choice": json.RawMessage("\"x\"")}}); err != nil {
+	if err := e.AnswerAsk(context.Background(), id, snap.Ask.AskID, api.AskAnswerRequest{Answers: map[string]json.RawMessage{"choice": json.RawMessage("\"x\"")}}); err != nil {
 		t.Fatal(err)
 	}
 	if err := <-done; err != nil {
@@ -193,8 +193,8 @@ func TestAskPausesThenResumes(t *testing.T) {
 	opened, closed := false, false
 	for len(ch) > 0 {
 		ev := <-ch
-		opened = opened || ev.Type == proto.EventAskOpen
-		closed = closed || ev.Type == proto.EventAskClosed
+		opened = opened || ev.Type == api.EventAskOpen
+		closed = closed || ev.Type == api.EventAskClosed
 	}
 	if !opened || !closed {
 		t.Fatalf("ask events open=%v close=%v", opened, closed)
@@ -243,7 +243,7 @@ func TestTokenIsEphemeral(t *testing.T) {
 		t.Fatal("missing agent token")
 	}
 	path := "/v1/sessions/" + id + "/tasks"
-	if _, err = e.Resource(context.Background(), "GET", path, "", proto.ResourceRequest{Token: token}); err != nil {
+	if _, err = e.Resource(context.Background(), "GET", path, "", api.ResourceRequest{Token: token}); err != nil {
 		t.Fatal(err)
 	}
 	e.mu.Lock()

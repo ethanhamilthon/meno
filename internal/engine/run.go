@@ -6,9 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"meno/internal/agent"
-	"meno/internal/attach"
+	"meno/internal/api"
+	"meno/internal/content"
 	"meno/internal/llm"
-	"meno/internal/proto"
 	"meno/internal/safe"
 	"os"
 	"path/filepath"
@@ -16,13 +16,13 @@ import (
 	"time"
 )
 
-func (e *Engine) Message(ctx context.Context, id string, q proto.MessageRequest) (proto.MessageResponse, error) {
+func (e *Engine) Message(ctx context.Context, id string, q api.MessageRequest) (api.MessageResponse, error) {
 	s, err := e.load(ctx, id)
 	if err != nil {
-		return proto.MessageResponse{}, notFound(err)
+		return api.MessageResponse{}, notFound(err)
 	}
 	if strings.TrimSpace(q.Text) == "" && len(q.Attachments) == 0 {
-		return proto.MessageResponse{}, api(proto.CodeBadRequest, "message is empty")
+		return api.MessageResponse{}, dapi(api.CodeBadRequest, "message is empty")
 	}
 	// Read the current settings before the session lock; a failed read must not
 	// start a run with stale or empty defaults.
@@ -33,39 +33,39 @@ func (e *Engine) Message(ctx context.Context, id string, q proto.MessageRequest)
 	s.mu.Lock()
 	if s.compacting {
 		s.mu.Unlock()
-		return proto.MessageResponse{}, api(proto.CodeConflict, "session is being compacted")
+		return api.MessageResponse{}, dapi(api.CodeConflict, "session is being compacted")
 	}
 	if s.ask != nil {
 		s.mu.Unlock()
-		return proto.MessageResponse{}, api(proto.CodeConflict, "session is waiting for an ask answer")
+		return api.MessageResponse{}, dapi(api.CodeConflict, "session is waiting for an ask answer")
 	}
 	if s.running {
 		att, perr := e.prepareAttachments(q.Attachments)
 		if perr != nil {
 			s.mu.Unlock()
-			return proto.MessageResponse{}, perr
+			return api.MessageResponse{}, perr
 		}
 		// The queue is the one path into a running turn: the runner takes the
 		// entry at its next step, so an image makes the model answer again.
 		s.queue.Push(agent.Message{Text: q.Text, Attachments: att})
 		rid := s.requestID
-		e.publishQueue(s, proto.InjectedData{Text: q.Text, By: "user"})
+		e.publishQueue(s, api.InjectedData{Text: q.Text, By: "user"})
 		s.mu.Unlock()
-		return proto.MessageResponse{RequestID: rid, Queued: true}, nil
+		return api.MessageResponse{RequestID: rid, Queued: true}, nil
 	}
 	if reloadErr != nil {
 		s.mu.Unlock()
-		return proto.MessageResponse{}, api(proto.CodeInternal, reloadErr.Error())
+		return api.MessageResponse{}, dapi(api.CodeInternal, reloadErr.Error())
 	}
 	repaired, err := resolveSelection(s, in)
 	if err != nil {
 		s.mu.Unlock()
-		return proto.MessageResponse{}, err
+		return api.MessageResponse{}, err
 	}
 	untitled := s.session.Title == "" || s.session.Title == "untitled"
 	if err = e.appendMessage(s, q); err != nil {
 		s.mu.Unlock()
-		return proto.MessageResponse{}, err
+		return api.MessageResponse{}, err
 	}
 	rid := agent.NewID()
 	s.requestID = rid
@@ -73,8 +73,8 @@ func (e *Engine) Message(ctx context.Context, id string, q proto.MessageRequest)
 	s.lastErr = "" // the outcome of the previous run no longer applies
 	s.running = true
 	s.phase = "preparing"
-	s.metrics = proto.Metrics{}
-	s.live = proto.LiveState{Calls: []proto.CallState{}}
+	s.metrics = api.Metrics{}
+	s.live = api.LiveState{Calls: []api.CallState{}}
 	runCtx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
 	_ = e.save(s)
@@ -83,8 +83,8 @@ func (e *Engine) Message(ctx context.Context, id string, q proto.MessageRequest)
 	s.published = len(turns)
 	s.visibleTurns = wireTurns(turns)
 	s.mu.Unlock()
-	e.publish(id, proto.EventTurnAdded, proto.TurnAddedData{Turn: turnWire(turns[len(turns)-1])})
-	e.publish(id, proto.EventStatus, proto.StatusData{Running: true, Phase: "preparing", RequestID: rid, Origin: q.Origin})
+	e.publish(id, api.EventTurnAdded, api.TurnAddedData{Turn: turnWire(turns[len(turns)-1])})
+	e.publish(id, api.EventStatus, api.StatusData{Running: true, Phase: "preparing", RequestID: rid, Origin: q.Origin})
 	if repaired {
 		e.publishSessionChanged(s, "provider", "model", "effort")
 	}
@@ -93,10 +93,10 @@ func (e *Engine) Message(ctx context.Context, id string, q proto.MessageRequest)
 		e.publishSessionChanged(s, "name")
 	}
 	e.launch(runCtx, s, q.Text, false)
-	return proto.MessageResponse{RequestID: rid}, nil
+	return api.MessageResponse{RequestID: rid}, nil
 }
 
-func (e *Engine) appendMessage(s *runState, q proto.MessageRequest) error {
+func (e *Engine) appendMessage(s *runState, q api.MessageRequest) error {
 	att, err := e.prepareAttachments(q.Attachments)
 	if err != nil {
 		return err
@@ -106,11 +106,11 @@ func (e *Engine) appendMessage(s *runState, q proto.MessageRequest) error {
 }
 
 // prepareAttachments decodes, validates and stores the images of a message.
-func (e *Engine) prepareAttachments(in []proto.Attachment) ([]agent.Attachment, error) {
+func (e *Engine) prepareAttachments(in []api.Attachment) ([]agent.Attachment, error) {
 	att := make([]agent.Attachment, 0, len(in))
 	for i, a := range in {
 		if a.Data == "" && a.Path == "" {
-			return nil, api(proto.CodeBadRequest, "attachment requires data or path")
+			return nil, dapi(api.CodeBadRequest, "attachment requires data or path")
 		}
 		var raw []byte
 		var err error
@@ -120,13 +120,13 @@ func (e *Engine) prepareAttachments(in []proto.Attachment) ([]agent.Attachment, 
 			raw, err = os.ReadFile(a.Path)
 		}
 		if err != nil {
-			return nil, api(proto.CodeBadRequest, err.Error())
+			return nil, dapi(api.CodeBadRequest, err.Error())
 		}
-		img, err := attach.Prepare(raw)
+		img, err := content.Prepare(raw)
 		if err != nil {
-			return nil, api(proto.CodeBadRequest, err.Error())
+			return nil, dapi(api.CodeBadRequest, err.Error())
 		}
-		path := filepath.Join(e.paths.File("attachments"), img.SHA+attach.Ext(img.Mime))
+		path := filepath.Join(e.paths.File("attachments"), img.SHA+content.Ext(img.Mime))
 		if err = os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 			return nil, err
 		}

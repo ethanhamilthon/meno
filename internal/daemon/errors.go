@@ -2,7 +2,7 @@ package daemon
 
 import (
 	"errors"
-	"meno/internal/proto"
+	"meno/internal/api"
 	"net/http"
 )
 
@@ -16,19 +16,19 @@ type APIError struct {
 func (e *APIError) Error() string { return e.Message }
 func statusFor(code string) int {
 	switch code {
-	case proto.CodeBadRequest:
+	case api.CodeBadRequest:
 		return http.StatusBadRequest
-	case proto.CodeNotFound:
+	case api.CodeNotFound:
 		return http.StatusNotFound
-	case proto.CodeForbidden:
+	case api.CodeForbidden:
 		return http.StatusForbidden
-	case proto.CodeConflict:
+	case api.CodeConflict:
 		return http.StatusConflict
-	case proto.CodeProtocolMismatch:
+	case api.CodeProtocolMismatch:
 		return http.StatusUpgradeRequired
-	case proto.CodeDaemonStopping:
+	case api.CodeDaemonStopping:
 		return http.StatusServiceUnavailable
-	case proto.CodeNotImplemented:
+	case api.CodeNotImplemented:
 		return http.StatusNotImplemented
 	default:
 		return http.StatusInternalServerError
@@ -42,5 +42,5 @@ func apiError(err error) *APIError {
 		}
 		return e
 	}
-	return &APIError{Code: proto.CodeInternal, Message: err.Error(), Status: http.StatusInternalServerError}
+	return &APIError{Code: api.CodeInternal, Message: err.Error(), Status: http.StatusInternalServerError}
 }

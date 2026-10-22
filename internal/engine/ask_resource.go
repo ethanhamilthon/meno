@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 
+	"meno/internal/api"
 	"meno/internal/form"
-	"meno/internal/proto"
 )
 
 // askResource opens a form for the human, pauses the timer of the bash call
@@ -15,21 +15,21 @@ import (
 func (e *Engine) askResource(ctx context.Context, s *runState, call string, data map[string]any) (any, error) {
 	spec, _ := data["form"].(map[string]any)
 	if spec == nil {
-		return nil, api(proto.CodeBadRequest, "ask needs a form object")
+		return nil, dapi(api.CodeBadRequest, "ask needs a form object")
 	}
 	if t, ok := spec["timeout"].(float64); ok {
 		spec["timeout"] = int64(t)
 	}
 	f, err := form.Parse(spec)
 	if err != nil {
-		return nil, api(proto.CodeBadRequest, err.Error())
+		return nil, dapi(api.CodeBadRequest, err.Error())
 	}
 	answers, err := asker{e, s}.Ask(ctx, f)
 	switch {
 	case errors.Is(err, form.ErrCancelled):
-		return nil, api(proto.CodeConflict, "cancelled")
+		return nil, dapi(api.CodeConflict, "cancelled")
 	case errors.Is(err, form.ErrTimeout):
-		return nil, api(proto.CodeConflict, "timeout")
+		return nil, dapi(api.CodeConflict, "timeout")
 	case err != nil:
 		return nil, err
 	}

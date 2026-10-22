@@ -3,9 +3,9 @@ package engine
 import (
 	"fmt"
 
+	"meno/internal/api"
 	"meno/internal/config"
 	"meno/internal/llm"
-	"meno/internal/proto"
 )
 
 // errNoModel is what a session with nothing usable to run gets.
@@ -47,23 +47,23 @@ func resolveSelection(s *runState, in selectionInput) (bool, error) {
 	case sess.Provider == "" && sess.Model == "":
 		d := in.settings
 		if d.Provider == "" || d.Model == "" {
-			return false, api(proto.CodeBadRequest, msgNoModel)
+			return false, dapi(api.CodeBadRequest, msgNoModel)
 		}
 		p, ok := in.provider(d.Provider)
 		if !ok || p.Disabled {
-			return false, api(proto.CodeBadRequest, msgNoModel)
+			return false, dapi(api.CodeBadRequest, msgNoModel)
 		}
 		sess.Provider, sess.Model, sess.Effort = d.Provider, d.Model, d.Effort
 		return true, nil
 	case sess.Provider == "" || sess.Model == "":
-		return false, api(proto.CodeBadRequest, msgNoModel)
+		return false, dapi(api.CodeBadRequest, msgNoModel)
 	}
 	p, ok := in.provider(sess.Provider)
 	if !ok {
-		return false, api(proto.CodeBadRequest, fmt.Sprintf("Provider %q is not configured. Choose another with /model.", sess.Provider))
+		return false, dapi(api.CodeBadRequest, fmt.Sprintf("Provider %q is not configured. Choose another with /model.", sess.Provider))
 	}
 	if p.Disabled {
-		return false, api(proto.CodeBadRequest, fmt.Sprintf("Provider %q is disabled. Enable it in /login or choose another with /model.", sess.Provider))
+		return false, dapi(api.CodeBadRequest, fmt.Sprintf("Provider %q is disabled. Enable it in /login or choose another with /model.", sess.Provider))
 	}
 	return false, nil
 }

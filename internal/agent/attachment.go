@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"meno/internal/attach"
+	"meno/internal/content"
 	"meno/internal/llm"
 )
 
@@ -63,7 +63,7 @@ func Combine(ms []Message) Message {
 
 // AttachmentPath is where the bytes of an attachment are stored.
 func (s *Session) AttachmentPath(a Attachment) string {
-	return filepath.Join(s.AttachDir, a.SHA+attach.Ext(a.Mime))
+	return filepath.Join(s.AttachDir, a.SHA+content.Ext(a.Mime))
 }
 
 // TextWithImagePaths is the text of t with every image token replaced by what

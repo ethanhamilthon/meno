@@ -3,7 +3,7 @@ package engine
 import (
 	"errors"
 	"meno/internal/agent"
-	"meno/internal/proto"
+	"meno/internal/api"
 	"time"
 )
 
@@ -26,7 +26,7 @@ func (e *Engine) save(s *runState) error {
 	}
 	if !s.persisted {
 		s.persisted = true
-		e.announce(proto.EventSessionCreated, s.session.ID, "")
+		e.announce(api.EventSessionCreated, s.session.ID, "")
 	}
 	return nil
 }
@@ -41,7 +41,7 @@ func (e *Engine) ensureSaved(s *runState) error {
 		return err
 	}
 	s.persisted = true
-	e.announce(proto.EventSessionCreated, s.session.ID, "")
+	e.announce(api.EventSessionCreated, s.session.ID, "")
 	return nil
 }
 
@@ -77,8 +77,8 @@ func (e *Engine) adopt(sess *agent.Session) (*runState, error) {
 
 // cloneLive copies the live state so that a snapshot encoded after the lock is
 // released does not share the call list the run keeps changing in place.
-func cloneLive(l proto.LiveState) proto.LiveState {
-	l.Calls = append([]proto.CallState{}, l.Calls...)
+func cloneLive(l api.LiveState) api.LiveState {
+	l.Calls = append([]api.CallState{}, l.Calls...)
 	for i := range l.Calls {
 		if c := l.Calls[i].Exit; c != nil {
 			v := *c
@@ -89,7 +89,7 @@ func cloneLive(l proto.LiveState) proto.LiveState {
 }
 
 // cloneRetry copies the retry state for the same reason.
-func cloneRetry(r *proto.RetryState) *proto.RetryState {
+func cloneRetry(r *api.RetryState) *api.RetryState {
 	if r == nil {
 		return nil
 	}

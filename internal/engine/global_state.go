@@ -3,19 +3,19 @@ package engine
 import (
 	"context"
 	"encoding/json"
-	"meno/internal/proto"
+	"meno/internal/api"
 )
 
-func (e *Engine) globalState(ctx context.Context) (proto.ResourceResponse, error) {
-	rows, err := e.ListSessions(ctx, proto.SessionsListRequest{})
+func (e *Engine) globalState(ctx context.Context) (api.ResourceResponse, error) {
+	rows, err := e.ListSessions(ctx, api.SessionsListRequest{})
 	if err != nil {
-		return proto.ResourceResponse{}, err
+		return api.ResourceResponse{}, err
 	}
 	tasks := 0
 	for _, s := range rows.Sessions {
 		live, er := e.tasks.List(s.ID, false)
 		if er != nil {
-			return proto.ResourceResponse{}, er
+			return api.ResourceResponse{}, er
 		}
 		for _, t := range live {
 			if !t.Terminal() {
@@ -24,8 +24,8 @@ func (e *Engine) globalState(ctx context.Context) (proto.ResourceResponse, error
 		}
 	}
 	data, err := json.Marshal(struct {
-		Sessions []proto.SessionItem `json:"sessions"`
-		Tasks    int                 `json:"tasks"`
+		Sessions []api.SessionItem `json:"sessions"`
+		Tasks    int               `json:"tasks"`
 	}{rows.Sessions, tasks})
-	return proto.ResourceResponse{Data: data}, err
+	return api.ResourceResponse{Data: data}, err
 }

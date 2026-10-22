@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"meno/internal/agent"
-	"meno/internal/attach"
-	"meno/internal/proto"
+	"meno/internal/api"
+	"meno/internal/content"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -14,7 +14,7 @@ import (
 func (e *Engine) viewResource(s *runState, data map[string]any) (any, error) {
 	path := stringValue(data, "path")
 	if path == "" {
-		return nil, api(proto.CodeBadRequest, "view path is required")
+		return nil, dapi(api.CodeBadRequest, "view path is required")
 	}
 	abs, err := filepath.Abs(path)
 	if err != nil {
@@ -24,14 +24,14 @@ func (e *Engine) viewResource(s *runState, data map[string]any) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	img, err := attach.Prepare(raw)
+	img, err := content.Prepare(raw)
 	if err != nil {
-		return nil, api(proto.CodeBadRequest, "view: "+err.Error())
+		return nil, dapi(api.CodeBadRequest, "view: "+err.Error())
 	}
-	if s.queue.Viewed() >= attach.MaxImages {
-		return nil, api(proto.CodeConflict, "view: at most "+fmt.Sprint(attach.MaxImages)+" images per step")
+	if s.queue.Viewed() >= content.MaxImages {
+		return nil, dapi(api.CodeConflict, "view: at most "+fmt.Sprint(content.MaxImages)+" images per step")
 	}
-	if err = (attach.Store{Dir: e.paths.File("attachments")}).Put(img); err != nil {
+	if err = (content.Store{Dir: e.paths.File("attachments")}).Put(img); err != nil {
 		return nil, err
 	}
 	s.queue.Push(agent.Message{

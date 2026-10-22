@@ -1,6 +1,6 @@
 package client
 
-import "meno/internal/proto"
+import "meno/internal/api"
 
 // ProjectionFields identifies immutable values present in a projection update.
 type ProjectionFields uint32
@@ -21,12 +21,12 @@ const (
 
 // ProjectionEffects contains accepted, typed UI effects, never raw wire events.
 type ProjectionEffects struct {
-	Started     *proto.StatusData
-	CallStarted *proto.CallStartData
-	CallEnded   *proto.CallEndData
-	Usage       *proto.UsageData
-	Retry       *proto.RetryData
-	Error       *proto.ErrorData
+	Started     *api.StatusData
+	CallStarted *api.CallStartData
+	CallEnded   *api.CallEndData
+	Usage       *api.UsageData
+	Retry       *api.RetryData
+	Error       *api.ErrorData
 	Finished    bool
 	Aborted     bool
 }
@@ -34,7 +34,7 @@ type ProjectionEffects struct {
 // ProjectionUpdate transfers ownership of changed values to its receiver. Turns
 // contains only newly appended turns unless Reset is true. No value aliases Mirror.
 type ProjectionUpdate struct {
-	Version proto.SessionVersion
+	Version api.SessionVersion
 	Seq     uint64
 	Reset   bool
 	Changed ProjectionFields
@@ -42,7 +42,7 @@ type ProjectionUpdate struct {
 	Effects ProjectionEffects
 }
 
-func (m *Mirror) projection(fields ProjectionFields, reset bool, turns []proto.Turn, effects ProjectionEffects) ProjectionUpdate {
+func (m *Mirror) projection(fields ProjectionFields, reset bool, turns []api.Turn, effects ProjectionEffects) ProjectionUpdate {
 	s := m.State
 	v := MirrorState{}
 	if fields&MetadataChanged != 0 {

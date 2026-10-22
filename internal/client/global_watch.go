@@ -3,7 +3,7 @@ package client
 import (
 	"context"
 	"encoding/json"
-	"meno/internal/proto"
+	"meno/internal/api"
 	"time"
 )
 
@@ -14,14 +14,14 @@ const GlobalUnavailable = "global_unavailable"
 // WatchGlobal follows global invalidations until cancellation or a daemon bye.
 // Every hello is delivered after subscription is established, so consumers can
 // hydrate without losing a change that races with their initial read.
-func (c *Client) WatchGlobal(ctx context.Context, receive func(proto.Event) error) error {
+func (c *Client) WatchGlobal(ctx context.Context, receive func(api.Event) error) error {
 	var after, head uint64
 	var boot string
 	delay := 100 * time.Millisecond
 	for {
 		var callbackErr error
-		err := c.Stream(ctx, "", after, boot, func(ev proto.Event) error {
-			if ev.Type == proto.EventHello {
+		err := c.Stream(ctx, "", after, boot, func(ev api.Event) error {
+			if ev.Type == api.EventHello {
 				var h struct {
 					Boot string `json:"boot_id"`
 					Seq  uint64 `json:"seq"`
@@ -53,7 +53,7 @@ func (c *Client) WatchGlobal(ctx context.Context, receive func(proto.Event) erro
 			return ctx.Err()
 		}
 		if err == nil {
-			return receive(proto.Event{Type: proto.EventBye})
+			return receive(api.Event{Type: api.EventBye})
 		}
 		if err == errResync {
 			// Stream consumes resync frames. The preceding hello supplies a safe
@@ -61,7 +61,7 @@ func (c *Client) WatchGlobal(ctx context.Context, receive func(proto.Event) erro
 			after = head
 			continue
 		}
-		if e := receive(proto.Event{Type: GlobalUnavailable}); e != nil {
+		if e := receive(api.Event{Type: GlobalUnavailable}); e != nil {
 			return e
 		}
 		if wait(ctx, delay) {

@@ -3,10 +3,10 @@ package engine
 import (
 	"context"
 	"meno/internal/agent"
-	"meno/internal/proto"
+	"meno/internal/api"
 )
 
-func (e *Engine) Stop(ctx context.Context, id string, q proto.StopRequest) error {
+func (e *Engine) Stop(ctx context.Context, id string, q api.StopRequest) error {
 	s, err := e.load(ctx, id)
 	if err != nil {
 		return notFound(err)
@@ -14,7 +14,7 @@ func (e *Engine) Stop(ctx context.Context, id string, q proto.StopRequest) error
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if q.RequestID != "" && s.requestID != q.RequestID {
-		return api(proto.CodeConflict, "request id does not match active request")
+		return dapi(api.CodeConflict, "request id does not match active request")
 	}
 	if s.requestID != "" {
 		s.cancelled[s.requestID] = true
@@ -27,19 +27,19 @@ func (e *Engine) Stop(ctx context.Context, id string, q proto.StopRequest) error
 	}
 	return nil
 }
-func (e *Engine) Compact(ctx context.Context, id string, q proto.CompactRequest) (proto.CompactResponse, error) {
+func (e *Engine) Compact(ctx context.Context, id string, q api.CompactRequest) (api.CompactResponse, error) {
 	s, err := e.load(ctx, id)
 	if err != nil {
-		return proto.CompactResponse{}, notFound(err)
+		return api.CompactResponse{}, notFound(err)
 	}
 	s.mu.Lock()
 	if s.running {
 		s.mu.Unlock()
-		return proto.CompactResponse{}, api(proto.CodeConflict, "cannot compact while a run is active")
+		return api.CompactResponse{}, dapi(api.CodeConflict, "cannot compact while a run is active")
 	}
 	if s.compacting {
 		s.mu.Unlock()
-		return proto.CompactResponse{}, api(proto.CodeConflict, "the session is already being compacted")
+		return api.CompactResponse{}, dapi(api.CodeConflict, "the session is already being compacted")
 	}
 	s.compacting = true
 	defer func() { s.mu.Lock(); s.compacting = false; s.mu.Unlock() }()
@@ -47,13 +47,13 @@ func (e *Engine) Compact(ctx context.Context, id string, q proto.CompactRequest)
 	model, effort, cwd := s.session.Model, s.session.Effort, s.cwd
 	s.mu.Unlock()
 	if !ok {
-		return proto.CompactResponse{}, api(proto.CodeBadRequest, "session provider is not configured")
+		return api.CompactResponse{}, dapi(api.CodeBadRequest, "session provider is not configured")
 	}
 	system, _, _ := e.prepare(ctx, s, effort, false)
 	before := s.session.Len()
 	_, _, err = agent.CompactWith(ctx, e.client(p), p, model, s.session, agent.CompactOptions{Keep: q.Keep, SummaryTokens: e.cfg().CompactSummaryTokens, Effort: effort, System: system, ToolDesc: "", RecordChanged: func() { e.agentEvent(s, agent.Ev{Kind: agent.EvRequestRecord}) }}, nil)
 	if err != nil {
-		return proto.CompactResponse{}, err
+		return api.CompactResponse{}, err
 	}
 	s.commit.Lock()
 	defer s.commit.Unlock()
@@ -65,9 +65,9 @@ func (e *Engine) Compact(ctx context.Context, id string, q proto.CompactRequest)
 	queued := queuedText(s)
 	s.mu.Unlock()
 	if err != nil {
-		return proto.CompactResponse{}, err
+		return api.CompactResponse{}, err
 	}
 	e.publishAgentTurns(id, s.session.Snapshot())
-	e.publish(id, proto.EventInjected, proto.InjectedData{Kind: "compact", Queued: queued})
-	return proto.CompactResponse{Removed: before - after, Summary: summary}, nil
+	e.publish(id, api.EventInjected, api.InjectedData{Kind: "compact", Queued: queued})
+	return api.CompactResponse{Removed: before - after, Summary: summary}, nil
 }

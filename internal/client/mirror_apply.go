@@ -2,17 +2,17 @@ package client
 
 import (
 	"encoding/json"
-	"meno/internal/proto"
+	"meno/internal/api"
 )
 
-func (m *Mirror) Apply(e proto.Event) { m.ApplyUpdate(e) }
+func (m *Mirror) Apply(e api.Event) { m.ApplyUpdate(e) }
 
 // ApplyUpdate reduces an ordered event exactly once. Recovery is sticky until Load.
-func (m *Mirror) ApplyUpdate(e proto.Event) (ProjectionUpdate, bool) {
+func (m *Mirror) ApplyUpdate(e api.Event) (ProjectionUpdate, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	s := &m.State
-	if e.Type == proto.EventResync || e.BootID != "" && s.Version.BootID != "" && e.BootID != s.Version.BootID {
+	if e.Type == api.EventResync || e.BootID != "" && s.Version.BootID != "" && e.BootID != s.Version.BootID {
 		s.NeedsResync = true
 		return ProjectionUpdate{}, false
 	}
@@ -32,18 +32,18 @@ func (m *Mirror) ApplyUpdate(e proto.Event) (ProjectionUpdate, bool) {
 	}
 	var fields ProjectionFields
 	var effects ProjectionEffects
-	var turns []proto.Turn
-	if e.Type != proto.EventRetry && e.Type != proto.EventUsage && e.Type != proto.EventHello && s.Retry != nil {
+	var turns []api.Turn
+	if e.Type != api.EventRetry && e.Type != api.EventUsage && e.Type != api.EventHello && s.Retry != nil {
 		s.Retry = nil
 		fields |= RetryChanged
 	}
 	switch e.Type {
-	case proto.EventTextDelta, proto.EventThinkDelta:
-		var d proto.TextDeltaData
+	case api.EventTextDelta, api.EventThinkDelta:
+		var d api.TextDeltaData
 		if json.Unmarshal(e.Data, &d) != nil {
 			break
 		}
-		if e.Type == proto.EventTextDelta {
+		if e.Type == api.EventTextDelta {
 			s.Live.Text += d.Text
 			s.Phase = "writing"
 		} else {
@@ -51,37 +51,37 @@ func (m *Mirror) ApplyUpdate(e proto.Event) (ProjectionUpdate, bool) {
 			s.Phase = "thinking"
 		}
 		fields |= LiveChanged | ActivityChanged
-	case proto.EventCallDelta, proto.EventCallStart, proto.EventCallEnd:
+	case api.EventCallDelta, api.EventCallStart, api.EventCallEnd:
 		fields |= m.applyCall(e, &effects)
-	case proto.EventTurnUpdated:
-		var d proto.TurnAddedData
+	case api.EventTurnUpdated:
+		var d api.TurnAddedData
 		if json.Unmarshal(e.Data, &d) == nil && d.Turn.ID != "" {
 			for i := range s.Turns {
 				if s.Turns[i].ID == d.Turn.ID {
-					s.Turns[i] = cloneTurns([]proto.Turn{d.Turn})[0]
-					turns = []proto.Turn{d.Turn}
+					s.Turns[i] = cloneTurns([]api.Turn{d.Turn})[0]
+					turns = []api.Turn{d.Turn}
 					fields |= TurnsChanged
 					break
 				}
 			}
 		}
-	case proto.EventTurnAdded:
-		var d proto.TurnAddedData
+	case api.EventTurnAdded:
+		var d api.TurnAddedData
 		if json.Unmarshal(e.Data, &d) != nil {
 			break
 		}
 		if d.Turn.ID != "" && d.Turn.ID != "0" && hasTurn(s.Turns, d.Turn.ID) {
 			break
 		}
-		s.Turns = append(s.Turns, cloneTurns([]proto.Turn{d.Turn})[0])
-		turns = []proto.Turn{d.Turn}
+		s.Turns = append(s.Turns, cloneTurns([]api.Turn{d.Turn})[0])
+		turns = []api.Turn{d.Turn}
 		fields |= TurnsChanged
 		if d.Turn.Role == "assistant" {
 			s.Live.Text, s.Live.Thinking = "", ""
 			fields |= LiveChanged
 		}
-	case proto.EventStatus:
-		var d proto.StatusData
+	case api.EventStatus:
+		var d api.StatusData
 		if json.Unmarshal(e.Data, &d) != nil || !d.Running && staleRun(s, d.RequestID) {
 			break
 		}
@@ -95,70 +95,70 @@ func (m *Mirror) ApplyUpdate(e proto.Event) (ProjectionUpdate, bool) {
 		}
 		s.Running, s.Phase = d.Running, d.Phase
 		fields |= ActivityChanged
-	case proto.EventRequest:
+	case api.EventRequest:
 		s.Phase = "thinking"
 		fields |= ActivityChanged
-	case proto.EventAskOpen:
-		var d proto.AskForm
+	case api.EventAskOpen:
+		var d api.AskForm
 		if json.Unmarshal(e.Data, &d) == nil {
 			s.Ask = &d
 			fields |= AskChanged
 		}
-	case proto.EventAskClosed:
-		var d proto.AskClosedData
+	case api.EventAskClosed:
+		var d api.AskClosedData
 		if json.Unmarshal(e.Data, &d) == nil && s.Ask != nil && s.Ask.AskID == d.AskID {
 			s.Ask = nil
 			fields |= AskChanged
 		}
-	case proto.EventRetry:
-		var d proto.RetryData
+	case api.EventRetry:
+		var d api.RetryData
 		if json.Unmarshal(e.Data, &d) == nil {
-			s.Retry = &proto.RetryState{Attempt: d.Attempt, InMS: d.InMS, Reason: d.Reason}
+			s.Retry = &api.RetryState{Attempt: d.Attempt, InMS: d.InMS, Reason: d.Reason}
 			s.RetryMax = d.Max
-			s.Live = proto.LiveState{}
+			s.Live = api.LiveState{}
 			s.StartedCalls = map[string]bool{}
 			s.Phase = "retrying"
 			fields |= RetryChanged | LiveChanged | ActivityChanged
 			effects.Retry = &d
 		}
-	case proto.EventUsage:
-		var d proto.UsageData
+	case api.EventUsage:
+		var d api.UsageData
 		if json.Unmarshal(e.Data, &d) == nil {
 			m.applyUsage(d)
 			fields |= UsageChanged
 			effects.Usage = &d
 		}
-	case proto.EventInjected:
-		var d proto.InjectedData
+	case api.EventInjected:
+		var d api.InjectedData
 		if json.Unmarshal(e.Data, &d) == nil {
 			s.Queued = append([]string(nil), d.Queued...)
 			fields |= QueueChanged
 		}
-	case proto.EventError:
-		var d proto.ErrorData
+	case api.EventError:
+		var d api.ErrorData
 		if json.Unmarshal(e.Data, &d) == nil && !staleRun(s, d.RequestID) {
 			s.LastError = d.Message
 			fields |= ErrorChanged
 			effects.Error = &d
 		}
-	case proto.EventDone, proto.EventAborted:
-		var d proto.DoneData
+	case api.EventDone, api.EventAborted:
+		var d api.DoneData
 		if json.Unmarshal(e.Data, &d) != nil || staleRun(s, d.RequestID) {
 			break
 		}
-		s.Live = proto.LiveState{}
+		s.Live = api.LiveState{}
 		s.StartedCalls = map[string]bool{}
 		s.Running = false
 		s.Phase = ""
 		s.Retry = nil
 		fields |= LiveChanged | ActivityChanged | RetryChanged
 		effects.Finished = true
-		effects.Aborted = e.Type == proto.EventAborted
+		effects.Aborted = e.Type == api.EventAborted
 		if !effects.Aborted {
 			s.LastError = ""
 			fields |= ErrorChanged
 		}
-	case proto.EventSessionChanged, proto.EventTasksChanged:
+	case api.EventSessionChanged, api.EventTasksChanged:
 		fields |= m.applyChange(e)
 	}
 	if s.NeedsResync {

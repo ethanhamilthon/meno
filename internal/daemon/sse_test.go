@@ -2,7 +2,7 @@ package daemon
 
 import (
 	"bufio"
-	"meno/internal/proto"
+	"meno/internal/api"
 	"net/http"
 	"strings"
 	"testing"
@@ -14,8 +14,8 @@ func TestSSELastEventIDAndQueryResume(t *testing.T) {
 		home := t.TempDir()
 		hub := NewHub("b", 20)
 		s, c := startTestServer(t, home, Options{Hub: hub})
-		hub.Publish("session", proto.EventTextDelta, proto.TextDeltaData{Text: "one"})
-		hub.Publish("session", proto.EventTextDelta, proto.TextDeltaData{Text: "two"})
+		hub.Publish("session", api.EventTextDelta, api.TextDeltaData{Text: "one"})
+		hub.Publish("session", api.EventTextDelta, api.TextDeltaData{Text: "two"})
 		req, _ := http.NewRequest("GET", "http://unix/v1/sessions/session/events?after=0&boot_id="+s.BootID(), nil)
 		if header {
 			req.Header.Set("Last-Event-ID", "1")
@@ -45,7 +45,7 @@ func TestSSEBootMismatchSendsResync(t *testing.T) {
 	home := t.TempDir()
 	hub := NewHub("boot", 10)
 	_, c := startTestServer(t, home, Options{Hub: hub})
-	hub.Publish("s", proto.EventDone, map[string]bool{})
+	hub.Publish("s", api.EventDone, map[string]bool{})
 	resp, e := c.Get("http://unix/v1/sessions/s/events?after=0&boot_id=old")
 	if e != nil {
 		t.Fatal(e)

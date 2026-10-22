@@ -27,7 +27,7 @@ func (m *Manager) WriteConfig() error {
 }
 
 // Command is the shell command that runs the helper in the foreground, for
-// proc.Daemons. Call WriteConfig before starting it.
+// process.Daemons. Call WriteConfig before starting it.
 func (m *Manager) Command() string {
 	st := m.State()
 	return shellQuote(m.BinaryPath(st.Version)) + " -config " + shellQuote(m.ConfigPath())

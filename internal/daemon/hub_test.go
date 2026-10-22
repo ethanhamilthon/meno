@@ -2,7 +2,7 @@ package daemon
 
 import (
 	"fmt"
-	"meno/internal/proto"
+	"meno/internal/api"
 	"testing"
 )
 
@@ -10,7 +10,7 @@ func TestHubCutResumeNoLossNoRepeat(t *testing.T) {
 	h := NewHub("boot", 2000)
 	const n = 1000
 	for i := 0; i < 150; i++ {
-		h.Publish("s", proto.EventTextDelta, map[string]int{"i": i})
+		h.Publish("s", api.EventTextDelta, map[string]int{"i": i})
 	}
 	ch, cancel, _ := h.Subscribe("s", 150, "boot")
 	defer cancel()
@@ -18,11 +18,11 @@ func TestHubCutResumeNoLossNoRepeat(t *testing.T) {
 	for start := 150; start < n; {
 		end := minInt(start+37, n)
 		for i := start; i < end; i++ {
-			h.Publish("s", proto.EventTextDelta, map[string]int{"i": i})
+			h.Publish("s", api.EventTextDelta, map[string]int{"i": i})
 		}
 		for len(ch) > 0 {
 			e := <-ch
-			if e.Type == proto.EventResync {
+			if e.Type == api.EventResync {
 				t.Fatal("unexpected resync")
 			}
 			if seen[e.Seq] {
@@ -41,7 +41,7 @@ func TestHubCutResumeNoLossNoRepeat(t *testing.T) {
 func TestHubRingAndBootResync(t *testing.T) {
 	h := NewHub("new", 3)
 	for i := 0; i < 5; i++ {
-		h.Publish("s", proto.EventStatus, struct{}{})
+		h.Publish("s", api.EventStatus, struct{}{})
 	}
 	for _, tc := range []struct {
 		after uint64
@@ -59,10 +59,10 @@ func TestHubCutsSlowSubscriber(t *testing.T) {
 	h.SetSubscriberBuffer(1)
 	ch, cancel, _ := h.Subscribe("s", 0, "b")
 	defer cancel()
-	h.Publish("s", proto.EventTextDelta, map[string]string{"text": "one"})
-	h.Publish("s", proto.EventTextDelta, map[string]string{"text": "two"})
+	h.Publish("s", api.EventTextDelta, map[string]string{"text": "one"})
+	h.Publish("s", api.EventTextDelta, map[string]string{"text": "two"})
 	e, ok := <-ch
-	if !ok || e.Type != proto.EventResync {
+	if !ok || e.Type != api.EventResync {
 		t.Fatalf("expected terminal resync, got %#v %v", e, ok)
 	}
 	if h.Subscribers() != 0 {
@@ -72,7 +72,7 @@ func TestHubCutsSlowSubscriber(t *testing.T) {
 func TestHubLiveDeliveryNoLoss(t *testing.T) {
 	h := NewHub("b", 2000)
 	for i := 0; i < 20; i++ {
-		h.Publish("s", proto.EventTextDelta, map[string]int{"n": i})
+		h.Publish("s", api.EventTextDelta, map[string]int{"n": i})
 	}
 	ch, cancel, resync := h.Subscribe("s", 0, "b")
 	defer cancel()
@@ -91,7 +91,7 @@ func TestHubPublishPerformance(t *testing.T) {
 	dur := make([]int64, 5000)
 	for i := range dur {
 		start := nowNano()
-		h.Publish("s", proto.EventTextDelta, map[string]string{"text": fmt.Sprint(i)})
+		h.Publish("s", api.EventTextDelta, map[string]string{"text": fmt.Sprint(i)})
 		dur[i] = nowNano() - start
 	}
 	sortInt64(dur)
