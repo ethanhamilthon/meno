@@ -41,7 +41,10 @@ func (s *Server) prompt(raw json.RawMessage) (any, error) {
 		return stopResult("end_turn"), nil
 	}
 	return s.run(x, func() error {
-		_, err := s.backend.Message(s.ctx, x.id, api.MessageRequest{Text: in.Text, Attachments: in.Attachments, ClientID: clientID(), Origin: "acp"})
+		res, err := s.backend.Message(s.ctx, x.id, api.MessageRequest{Text: in.Text, Attachments: in.Attachments, ClientID: clientID(), Origin: "acp"})
+		if err == nil {
+			x.started(res.RequestID)
+		}
 		return err
 	})
 }
@@ -123,7 +126,10 @@ func (s *Server) command(x *session, name, args string) (any, error) {
 			break
 		}
 		return s.run(x, func() error {
-			_, err := s.backend.Message(s.ctx, x.id, api.MessageRequest{Text: text, ClientID: clientID(), Origin: "acp"})
+			res, err := s.backend.Message(s.ctx, x.id, api.MessageRequest{Text: text, ClientID: clientID(), Origin: "acp"})
+			if err == nil {
+				x.started(res.RequestID)
+			}
 			return err
 		})
 	default:
@@ -165,6 +171,10 @@ func (s *Server) answer(x *session, args string) (any, error) {
 		x.say("The answer was not accepted: " + err.Error() + ". The question stays open.")
 		return stopResult("end_turn"), nil
 	}
+	x.mu.Lock()
+	rid := x.requestID
+	x.mu.Unlock()
+	x.started(rid)
 	o := x.wait(s.ctx, w)
 	if o.err != nil {
 		return nil, o.err

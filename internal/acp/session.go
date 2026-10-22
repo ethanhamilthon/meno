@@ -36,6 +36,7 @@ type session struct {
 	seenTurns   map[string]bool
 	waiter      chan outcome
 	requestID   string
+	promptRID   string // request id of the foreground prompt, once Message answered
 	cancelled   bool
 	lastErr     string
 	pendingAsk  *api.AskForm
@@ -243,6 +244,7 @@ func (s *session) finish(aborted bool) {
 func (s *session) resolve(o outcome) {
 	w := s.waiter
 	s.waiter, s.cancelled, s.lastErr = nil, false, ""
+	s.promptRID = ""
 	w <- o
 }
 
@@ -255,6 +257,7 @@ func (s *session) begin() (chan outcome, error) {
 	}
 	s.waiter = make(chan outcome, 1)
 	s.cancelled, s.lastErr = false, ""
+	s.promptRID = ""
 	return s.waiter, nil
 }
 
@@ -278,22 +281,13 @@ func (s *session) wait(ctx context.Context, w chan outcome) outcome {
 // cancel stops the run of the current prompt. It never touches a form.
 func (s *session) cancel(ctx context.Context) {
 	s.mu.Lock()
-	rid, active := s.requestID, s.waiter != nil
+	rid, active := s.promptRID, s.waiter != nil
 	if active {
 		s.cancelled = true
 	}
-	running := s.running
 	s.mu.Unlock()
-	if !active {
-		return
-	}
-	if !running {
-		s.mu.Lock()
-		if s.waiter != nil {
-			s.resolve(outcome{stop: "cancelled"})
-		}
-		s.mu.Unlock()
-		return
+	if !active || rid == "" {
+		return // the stop is issued by started once the request id is known
 	}
 	_ = s.srv.backend.Stop(ctx, s.id, api.StopRequest{RequestID: rid})
 }
@@ -302,9 +296,10 @@ func (s *session) cancel(ctx context.Context) {
 // run paused on a question stays paused for a later connection.
 func (s *session) detach() {
 	s.mu.Lock()
-	rid, active, asked := s.requestID, s.running && s.waiter != nil, s.pendingAsk != nil
+	rid, active, asked := s.promptRID, s.waiter != nil, s.pendingAsk != nil
+	s.cancelled = s.cancelled || active
 	s.mu.Unlock()
-	if active && !asked {
+	if active && !asked && rid != "" {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		_ = s.srv.backend.Stop(ctx, s.id, api.StopRequest{RequestID: rid})
 		cancel()
@@ -354,4 +349,18 @@ func formatQuestion(f api.AskForm) string {
 	}
 	fmt.Fprintf(&b, "\nReply with `/answer %s %s` (a single choice is a string, multiple choices an array, extra text as {\"selected\":[...],\"text\":\"...\"}) or `/answer %s --cancel`.", f.AskID, string(mustJSON(example)), f.AskID)
 	return b.String()
+}
+
+// started records the request id of the foreground prompt. A cancel or
+// disconnect that arrived before the id was known is carried out now.
+func (s *session) started(rid string) {
+	s.mu.Lock()
+	s.promptRID = rid
+	late := s.cancelled && s.waiter != nil
+	s.mu.Unlock()
+	if late {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		_ = s.srv.backend.Stop(ctx, s.id, api.StopRequest{RequestID: rid})
+	}
 }
