@@ -252,3 +252,8 @@ func parseModelValue(v string) (provider, model string, ok bool) {
 	}
 	return "", "", false
 }
+
+// uncancelled is the context of a message submission. Closing the connection
+// must not abandon a submission the daemon may already have accepted: the
+// request id then arrives late and the run is stopped by session.started.
+func (s *Server) uncancelled() context.Context { return context.WithoutCancel(s.ctx) }

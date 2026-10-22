@@ -41,7 +41,7 @@ func (s *Server) prompt(raw json.RawMessage) (any, error) {
 		return stopResult("end_turn"), nil
 	}
 	return s.run(x, func() error {
-		res, err := s.backend.Message(s.ctx, x.id, api.MessageRequest{Text: in.Text, Attachments: in.Attachments, ClientID: clientID(), Origin: "acp"})
+		res, err := s.backend.Message(s.uncancelled(), x.id, api.MessageRequest{Text: in.Text, Attachments: in.Attachments, ClientID: clientID(), Origin: "acp"})
 		if err == nil {
 			x.started(res.RequestID)
 		}
@@ -126,7 +126,7 @@ func (s *Server) command(x *session, name, args string) (any, error) {
 			break
 		}
 		return s.run(x, func() error {
-			res, err := s.backend.Message(s.ctx, x.id, api.MessageRequest{Text: text, ClientID: clientID(), Origin: "acp"})
+			res, err := s.backend.Message(s.uncancelled(), x.id, api.MessageRequest{Text: text, ClientID: clientID(), Origin: "acp"})
 			if err == nil {
 				x.started(res.RequestID)
 			}
