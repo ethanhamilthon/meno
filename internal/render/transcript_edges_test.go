@@ -3,8 +3,6 @@ package render
 import (
 	"strings"
 	"testing"
-
-	"meno/internal/content"
 )
 
 func TestTranscriptNarrowAndLimitedModes(t *testing.T) {
@@ -17,26 +15,12 @@ func TestTranscriptNarrowAndLimitedModes(t *testing.T) {
 			s := alignmentScreen(t, w, len(lines))
 			for y, line := range lines {
 				DrawLine(Canvas{S: s}, 0, y, w, line)
-				if strings.Contains(line.Text(), "…") && line.Source != nil {
-					t.Fatalf("width %d: collapse marker must not be quotable: %q", w, line.Text())
-				}
 			}
 		}
 	}
 }
 
-func TestTranscriptSourceAndMarkdownIndentationSurvives(t *testing.T) {
-	turn := Turn{ID: "saved", Role: RoleAssistant, Code: "  echo nested\n    echo deeper", Output: "  output"}
-	lines := BuildLines([]Turn{turn}, 80, JSOpts{})
-	var source []string
-	for _, line := range lines {
-		if line.Source != nil && line.Source.Part == content.PartCode {
-			source = append(source, string([]rune(line.Text())[line.Source.Skip:]))
-		}
-	}
-	if got := strings.Join(source, "\n"); got != turn.Code {
-		t.Fatalf("source indentation changed: %q", got)
-	}
+func TestMarkdownIndentationSurvives(t *testing.T) {
 	rows := BuildLines([]Turn{{Role: RoleAssistant, Text: "- outer\n  - inner"}}, 80, JSOpts{})
 	outer, inner := -1, -1
 	for _, row := range rows {

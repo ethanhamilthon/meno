@@ -17,7 +17,7 @@ func TestSlashAtWordStartOpensPopup(t *testing.T) {
 	} {
 		t.Run(in, func(t *testing.T) {
 			a, scr := newTestApp(t)
-			vimKeys(a, strings.ReplaceAll(in, "\n", "<cr>"))
+			typeKeys(a, strings.ReplaceAll(in, "\n", "<cr>"))
 			if got := a.cmdActive(); got != open {
 				t.Errorf("%q: active=%v want %v", in, got, open)
 			}
@@ -30,7 +30,7 @@ func TestEnterRunsCommandAndKeepsTheRestOfTheDraft(t *testing.T) {
 	a, scr := newTestApp(t)
 	defer scr.Fini()
 	a.st.Settings.Model = "gpt-5.5"
-	vimKeys(a, "hello /cont")
+	typeKeys(a, "hello /cont")
 	if len(commandRows(a)) == 0 || commandRows(a)[0] != "/context" {
 		t.Fatalf("rows %v", commandRows(a))
 	}
@@ -57,12 +57,12 @@ func TestCommandInTheMiddleOfTheDraft(t *testing.T) {
 func TestEscClosesPopupKeepsText(t *testing.T) {
 	a, scr := newTestApp(t)
 	defer scr.Fini()
-	vimKeys(a, "x /ne")
+	typeKeys(a, "x /ne")
 	a.onKey(keyK(tcell.KeyEsc))
 	if a.cmdActive() || a.st.Mode != render.ModeInput || string(a.st.Input) != "x /ne" {
 		t.Fatalf("active=%v mode=%v draft=%q", a.cmdActive(), a.st.Mode, string(a.st.Input))
 	}
-	vimKeys(a, "w")
+	typeKeys(a, "w")
 	if a.cmdActive() {
 		t.Fatal("typing on must not reopen a dismissed popup")
 	}
@@ -75,7 +75,7 @@ func TestEscClosesPopupKeepsText(t *testing.T) {
 func TestArrowPickedRowRunsOnEmptyQuery(t *testing.T) {
 	a, scr := newTestApp(t)
 	defer scr.Fini()
-	vimKeys(a, "/")
+	typeKeys(a, "/")
 	a.onKey(enter())
 	if a.st.Over != OverNone || string(a.st.Input) != "/" {
 		t.Fatal("Enter without a pick must do nothing")
@@ -92,7 +92,7 @@ func TestArrowPickedRowRunsOnEmptyQuery(t *testing.T) {
 func TestFailedCommandKeepsTheToken(t *testing.T) {
 	a, scr := newTestApp(t)
 	defer scr.Fini()
-	vimKeys(a, "go /cd /definitely/not/here")
+	typeKeys(a, "go /cd /definitely/not/here")
 	a.onKey(enter())
 	if string(a.st.Input) != "go /cd /definitely/not/here" {
 		t.Fatalf("draft %q", string(a.st.Input))
@@ -102,7 +102,7 @@ func TestFailedCommandKeepsTheToken(t *testing.T) {
 func TestTabCompletesAndUndoRestoresToken(t *testing.T) {
 	a, scr := newTestApp(t)
 	defer scr.Fini()
-	vimKeys(a, "q /ses")
+	typeKeys(a, "q /ses")
 	a.onKey(keyK(tcell.KeyTab))
 	if string(a.st.Input) != "q /sessions" {
 		t.Fatalf("draft %q", string(a.st.Input))

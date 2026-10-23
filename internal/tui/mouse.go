@@ -11,11 +11,10 @@ import (
 	"meno/internal/render"
 )
 
-// mouseState tracks a press-drag-release on the timeline. A drag selects text
-// like vim's visual mode (the selection is the visual selection), a double
-// click selects a word, a triple click a line. The selection is copied to the
-// clipboard when the button is released and stays highlighted until the next
-// key or click.
+// mouseState tracks a press-drag-release on the timeline. A drag selects text,
+// a double click selects a word, a triple click a line. The selection is copied
+// to the clipboard when the button is released and stays highlighted until the
+// next key or click.
 type mouseState struct {
 	down, dragging bool
 	input          bool // the drag began in the composer
@@ -163,12 +162,8 @@ func (a *App) mousePress(x, y int) {
 		return
 	}
 	a.mouse.input = y >= a.logHeight()
-	if a.st.Mode == render.ModeInput {
-		a.endInsert()
-	}
-	if a.st.Mode == render.ModeVisual {
-		a.exitVisual()
-	}
+	a.endInsert()
+	a.clearSelection()
 	now := time.Now()
 	if a.mouse.clicks > 0 && now.Sub(a.mouse.at) < doubleClick && a.mouse.x == x && a.mouse.y == y {
 		a.mouse.clicks = a.mouse.clicks%3 + 1
@@ -178,13 +173,16 @@ func (a *App) mousePress(x, y int) {
 	a.mouse.down, a.mouse.dragging, a.mouse.at, a.mouse.x, a.mouse.y = true, false, now, x, y
 	t, top := a.doc()
 	g := t.clamp(p, false)
-	a.st.VimBuf = nil
-	a.setCurG(g, top)
+	a.setAnchorG(g, top)
+	if g.line >= top {
+		a.setCurG(g, top) // a click in the composer places the cursor
+	}
 	switch a.mouse.clicks {
 	case 2:
 		a.selectWordAt(t, top, g)
 	case 3:
-		a.startVisual('V')
+		a.setCurG(g, top)
+		a.startSelection(true)
 	}
 }
 
@@ -208,21 +206,19 @@ func (a *App) mouseDrag(x, y int) {
 		}
 		a.mouse.dragging = true
 	}
-	if a.st.Mode != render.ModeVisual {
-		a.startVisual('v') // the anchor is the cell that was pressed
+	if !a.st.Selecting {
+		a.startSelection(false) // the anchor is the cell that was pressed
 	}
 	a.setCurG(g, top)
 }
 
 func (a *App) mouseRelease() {
 	a.mouse.down = false
-	if a.st.Mode != render.ModeVisual {
+	if !a.st.Selecting {
 		return
 	}
-	t, top := a.doc()
-	text := joinRngs(t, a.selRngs(t, top))
-	a.st.SelText = text
-	a.setReg(text, a.st.VKind == 'V')
+	text := a.selectedText()
+	a.copyText(text)
 	a.notify(fmt.Sprintf("copied %d characters", utf8.RuneCountInString(text)))
 }
 
@@ -241,9 +237,9 @@ func (a *App) selectWordAt(t vtext, top int, g vpos) {
 	for hi+1 < len(rs) && runeKind(rs[hi+1]) == kind {
 		hi++
 	}
-	a.startVisual('v')
 	a.setAnchorG(vpos{g.line, lo}, top)
 	a.setCurG(vpos{g.line, hi}, top)
+	a.startSelection(false)
 }
 
 func runeKind(r rune) int {

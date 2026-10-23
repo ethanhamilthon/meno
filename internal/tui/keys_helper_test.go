@@ -8,8 +8,8 @@ import (
 	"meno/internal/render"
 )
 
-// vimKeys feeds keys; "<esc>" is Escape, "<c-r>" is Ctrl+R.
-func vimKeys(a *App, keys string) {
+// typeKeys feeds keys; "<esc>" is Escape, "<cr>" is Shift+Enter (a newline).
+func typeKeys(a *App, keys string) {
 	rs := []rune(keys)
 	for i := 0; i < len(rs); i++ {
 		if rs[i] == '<' {
@@ -17,10 +17,6 @@ func vimKeys(a *App, keys string) {
 				switch string(rs[i : i+j+1]) {
 				case "<esc>":
 					a.onKey(tcell.NewEventKey(tcell.KeyEsc, 0, 0))
-				case "<c-r>":
-					a.onKey(tcell.NewEventKey(tcell.KeyCtrlR, 0, 0))
-				case "<c-v>":
-					a.onKey(tcell.NewEventKey(tcell.KeyCtrlV, 0, 0))
 				case "<cr>":
 					a.onKey(tcell.NewEventKey(tcell.KeyEnter, 0, tcell.ModShift))
 				}
@@ -44,7 +40,7 @@ func indexRune(rs []rune, r rune) int {
 func TestColonIsOrdinaryInput(t *testing.T) {
 	a, scr := newTestApp(t)
 	defer scr.Fini()
-	vimKeys(a, "a:model")
+	typeKeys(a, "a:model")
 	if a.st.Mode != render.ModeInput || string(a.st.Input) != "a:model" {
 		t.Fatal("colon inside a word intercepted")
 	}

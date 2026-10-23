@@ -59,10 +59,8 @@ type App struct {
 	saves                saveQueue       // saves to the daemon, one at a time and in order
 	cfgSeq               atomic.Uint64   // numbers the reads of the daemon config
 	connLost             map[string]bool // sessions whose daemon stream broke and has not recovered
-	instance             string          // identity of this window for draft files
-	draftSaved           string
-	draftFailed          bool
-	stopAllAsk           time.Time // when /stop-all asked for confirmation
+	instance             string          // identity of this window, sent as the origin of messages
+	stopAllAsk           time.Time       // when /stop-all asked for confirmation
 	cfgPending, cfgDirty bool
 	cfgSeen              uint64                  // the newest read that was applied
 	cfgBase              config.Settings         // settings as the daemon last reported them: the base of field patches
@@ -111,7 +109,6 @@ func New(scr tcell.Screen, paths config.Paths, cl *client.Client) (*App, error) 
 	a.st.Runtime = a.newRuntime(sess, paths.Cwd)
 	a.st.Runtime.watch = a.watch(sess.ID())
 	a.reportWarnings()
-	a.announceDrafts()
 	a.startGlobalWatch()
 	return a, nil
 }
@@ -120,7 +117,6 @@ func New(scr tcell.Screen, paths config.Paths, cl *client.Client) (*App, error) 
 // stops a run or a task.
 func (a *App) Close() {
 	a.closing = true
-	a.saveDraft() // the last edits are on disk before the window goes away
 	a.cancelFlow()
 	a.clearImages()
 	a.closeOnce.Do(func() { close(a.done) })
@@ -270,7 +266,6 @@ func (a *App) handle(msg any) {
 		}
 	case waveTick:
 	case tick:
-		a.saveDraft()
 		a.refreshMCPStatus()
 		a.refreshTasks()
 		if a.pruneNotices() {

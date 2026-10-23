@@ -3,7 +3,6 @@ package render
 import (
 	"html"
 
-	"meno/internal/content"
 	"strconv"
 	"strings"
 	"time"
@@ -89,7 +88,7 @@ func BuildLines(turns []Turn, w int, js JSOpts) []Line {
 			}
 		case t.Code != "":
 			if t.Text != "" {
-				out = append(out, mark(MarkdownLines(t.Text, wrapW, "◇"), t, content.PartAssistant, 2)...)
+				out = append(out, MarkdownLines(t.Text, wrapW, "◇")...)
 			}
 			block := jsBlock(t, w, js)
 			if t.Text != "" && len(block) > 0 {
@@ -97,7 +96,7 @@ func BuildLines(turns []Turn, w int, js JSOpts) []Line {
 			}
 			out = append(out, block...)
 		case t.Role == RoleAssistant && t.Text != "":
-			out = append(out, mark(MarkdownLines(t.Text, wrapW, "◆"), t, content.PartAssistant, 2)...)
+			out = append(out, MarkdownLines(t.Text, wrapW, "◆")...)
 		}
 		if t.Run != nil {
 			if len(out) > 0 {
@@ -127,14 +126,14 @@ func jsBlock(t Turn, w int, js JSOpts) []Line {
 		for i := range lines {
 			lines[i].Segs = append([]Seg{{Text: "  ", FG: FgDim}}, lines[i].Segs...)
 		}
-		out = append(out, unmarkCollapsed(mark(lines, t, content.PartCode, 2))...)
+		out = append(out, lines...)
 	}
 	if js.OutMode != JSOff {
 		limit := 0
 		if js.OutMode == JSLines {
 			limit = js.OutLines
 		}
-		out = append(out, limitRows(mark(outputLines(t, w), t, errorPart(t), 2), limit)...)
+		out = append(out, limitRows(outputLines(t, w), limit)...)
 	}
 	return out
 }

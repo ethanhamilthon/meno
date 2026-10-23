@@ -146,16 +146,16 @@ func TestRandomEditsNeverLeavePartialObjects(t *testing.T) {
 	defer scr.Fini()
 	f, _ := objectRune(inputObject{Kind: "file", Ref: filepath.Join(cwd, "main.go")})
 	d, _ := objectRune(inputObject{Kind: "folder", Ref: filepath.Join(cwd, "internal")})
-	keys := []string{"h", "l", "j", "k", "w", "b", "e", "0", "$", "x", "X", "dd", "dw", "db", "cw", "yy", "yw", "p", "P", "u", "D", "C", "i", "a", "I", "A", "o", "v", "V", "d", "c", "y"}
+	keys := []tcell.Key{tcell.KeyLeft, tcell.KeyRight, tcell.KeyUp, tcell.KeyDown, tcell.KeyHome, tcell.KeyEnd, tcell.KeyBackspace2, tcell.KeyDelete, tcell.KeyCtrlW, tcell.KeyCtrlU, tcell.KeyCtrlK, tcell.KeyCtrlZ}
 	rng := rand.New(rand.NewSource(7))
 	for round := 0; round < 60; round++ {
 		a.setInput([]rune{'a', f, ' ', d, 'b', 'c', f})
-		a.st.Mode, a.st.Cursor = 1, 0
-		a.runCommand("edit")
+		a.st.Cursor = 0
 		for i := 0; i < 40; i++ {
 			k := keys[rng.Intn(len(keys))]
-			for _, r := range k {
-				a.onKey(tcell.NewEventKey(tcell.KeyRune, r, tcell.ModNone))
+			a.onKey(tcell.NewEventKey(k, 0, tcell.ModNone))
+			if rng.Intn(4) == 0 {
+				a.onKey(tcell.NewEventKey(tcell.KeyRune, 'x', tcell.ModNone))
 			}
 			if rng.Intn(5) == 0 {
 				a.onKey(keyK(tcell.KeyEsc))
@@ -163,12 +163,12 @@ func TestRandomEditsNeverLeavePartialObjects(t *testing.T) {
 			for _, r := range a.st.Input {
 				if isObjRune(r) {
 					if _, ok := objectAt(r); !ok {
-						t.Fatalf("round %d key %q: unknown object rune %U in %q", round, k, r, string(a.st.Input))
+						t.Fatalf("round %d key %v: unknown object rune %U in %q", round, k, r, string(a.st.Input))
 					}
 				}
 			}
 			if txt := externalText(a.st.Input); strings.Count(txt, "<file-link>") != strings.Count(txt, "</file-link>") || strings.Count(txt, "<folder-link>") != strings.Count(txt, "</folder-link>") {
-				t.Fatalf("round %d key %q: serialization lost a tag: %q", round, k, txt)
+				t.Fatalf("round %d key %v: serialization lost a tag: %q", round, k, txt)
 			}
 		}
 	}

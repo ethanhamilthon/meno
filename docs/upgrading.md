@@ -1,5 +1,17 @@
 # Upgrading, data and privacy
 
+## 0.6.7: simpler composer, ACP fixes
+
+- Removed: the vim-style EDIT and VISUAL modes (`/edit`, motions, registers),
+  comments (quoting the conversation into the draft) and `/drafts`. INPUT is the
+  only mode. Unsent drafts are no longer written to disk. Mouse selection and
+  copy stay: drag, double click and triple click copy on release.
+- Old messages that contain a `<comment>` tag show it as plain text. Nothing is
+  migrated, and no session data is changed.
+- ACP: assistant text that came before a tool call is no longer sent a second
+  time, and the command list is sent after the `session/new` and `session/load`
+  responses instead of after a timer.
+
 ## 0.6.5: MCP servers that start and recover
 
 - A stdio MCP server that answers slowly is no longer a failure. The handshake

@@ -6,7 +6,7 @@ import (
 	"meno/internal/render"
 )
 
-// transcriptWithSelection builds the timeline. Vim selections are painted by
+// transcriptWithSelection builds the timeline. Selections are painted by
 // paintLog, using document positions rather than the old turn-level selection.
 func (a *App) transcriptWithSelection(w int) []render.Line {
 	if a.st.Session == nil {

@@ -18,17 +18,15 @@ func paintBG(c render.Canvas, x, y, w int, bg tcell.Color) {
 	}
 }
 
-// paintLog highlights the visual selection in the visible timeline rows and
-// places the cursor when it is inside the timeline. start is the index of the
-// first visible line.
+// paintLog highlights the selection in the visible timeline rows. start is the
+// index of the first visible line.
 func (a *App) paintLog(c render.Canvas, x, y, w, h int, lines []render.Line, start int) {
 	top := len(lines)
-	mode := a.st.Mode
 	for i := 0; i < h && start+i < len(lines); i++ {
 		l := start + i
 		rs := []rune(lines[l].Text())
 		if lo, hi, ok := a.selSpan(top, l, len(rs)); ok {
-			if a.st.VKind == 'V' {
+			if a.st.SelLine {
 				paintBG(c, x, y+i, w, render.BgSelect)
 			} else if len(rs) == 0 {
 				paintBG(c, x+render.PadX, y+i, 1, render.BgSelect)
@@ -37,18 +35,12 @@ func (a *App) paintLog(c render.Canvas, x, y, w, h int, lines []render.Line, sta
 				paintBG(c, x+from, y+i, screenCol(rs, hi)-from, render.BgSelect)
 			}
 		}
-		if a.st.InLog && l == a.st.LogLine && (mode == render.ModeInput || mode == render.ModeVisual || mode == render.ModeEdit) {
-			cx := screenCol(rs, a.st.LogCol)
-			if cx < w {
-				a.cur = cursorPos{x + cx, y + i, true}
-			}
-		}
 	}
 }
 
-// inputSelMask marks the input runes covered by the visual selection.
+// inputSelMask marks the input runes covered by the selection.
 func (a *App) inputSelMask() []bool {
-	if a.st.Mode != render.ModeVisual {
+	if !a.st.Selecting {
 		return nil
 	}
 	top := len(a.logText())

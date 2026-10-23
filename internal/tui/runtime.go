@@ -54,7 +54,7 @@ type Runtime struct {
 	Context   int
 	Unpriced  bool
 
-	// The composer draft and the vim state around it.
+	// The composer draft.
 	Images   []draftImage // images attached to the draft; the input holds their [Image #N] tokens
 	Mode     render.Mode
 	Input    []rune
@@ -62,17 +62,16 @@ type Runtime struct {
 	WantCol  int // sticky column for up/down movement
 	WantSet  bool
 	InputTop int // first visible composer row
-	VimBuf   []rune
 	Undo     []snap
 	Redo     []snap
 	InsBase  snap // input as it was when the current insert session began
-	// Cursor in the timeline (normal / visual mode). When InLog is false the
-	// cursor is Cursor inside Input.
-	InLog   bool
-	LogLine int
-	LogCol  int
-	// Visual selection: kind 'v', 'V' or 'b' (block); the anchor mirrors the cursor.
-	VKind     rune
+	// Mouse selection: the end sits in the timeline when InLog is true (else it
+	// is Cursor inside Input); the anchor is where the press began.
+	Selecting bool
+	SelLine   bool // whole rows (triple click)
+	InLog     bool
+	LogLine   int
+	LogCol    int
 	AnchorLog bool
 	ALine     int
 	ACol      int

@@ -9,52 +9,9 @@ import (
 	"meno/internal/render"
 )
 
-func TestVisualHistoryYankReturnsComposerFocus(t *testing.T) {
-	for _, draft := range []string{"", "keep this draft"} {
-		for _, keys := range []string{"vly", "vY", "<c-v>ly"} {
-			t.Run(draft+keys, func(t *testing.T) {
-				a := visualApp(t)
-				a.setInput([]rune(draft))
-				a.st.Cursor = min(3, len(a.st.Input))
-				cursor := a.st.Cursor
-				a.runCommand("edit")
-				if !a.st.InLog {
-					vimKeys(a, "k")
-				}
-				for i, line := range a.logText() {
-					if strings.Contains(string(line), "hello world") {
-						a.st.InLog = true
-						a.st.LogLine = i
-						a.st.LogCol = 0
-						break
-					}
-				}
-				// Ctrl+V is delivered explicitly by the simulation helper below.
-				if strings.HasPrefix(keys, "<c-v>") {
-					a.onKey(keyK(tcell.KeyCtrlV))
-					vimKeys(a, "ly")
-				} else {
-					vimKeys(a, keys)
-				}
-				if a.st.Mode != render.ModeInput || a.st.InLog || string(a.st.Input) != draft || a.st.Cursor != cursor {
-					t.Fatalf("mode=%v history=%v draft=%q cursor=%d want=%d", a.st.Mode, a.st.InLog, string(a.st.Input), a.st.Cursor, cursor)
-				}
-				if a.st.Reg == "" {
-					t.Fatal("empty register")
-				}
-				a.draw()
-				x, y, visible := a.scr.(tcell.SimulationScreen).GetCursor()
-				if !visible || x != a.cur.x || y != a.cur.y || y < a.st.ComposerY {
-					t.Fatalf("cursor %d,%d visible=%v", x, y, visible)
-				}
-			})
-		}
-	}
-}
-
 func TestSlashCommandAndSkillNamespaces(t *testing.T) {
 	a := refFixture(t)
-	for input, want := range map[string]bool{"/": true, "/ed": true, "hello /mod": true, "/skills": true, "/skill:": false, "/skill:api": false, ":edit": false, "/tmp/project": false, "/model/file": false, "http://host/x": false, "a/b": false} {
+	for input, want := range map[string]bool{"/": true, "/ne": true, "hello /mod": true, "/skills": true, "/skill:": false, "/skill:api": false, ":edit": false, "/tmp/project": false, "/model/file": false, "http://host/x": false, "a/b": false} {
 		a.setInput([]rune(input))
 		if got := a.cmdActive(); got != want {
 			t.Errorf("%q command=%v want=%v", input, got, want)

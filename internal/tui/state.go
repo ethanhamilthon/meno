@@ -117,11 +117,8 @@ type State struct {
 
 	Notices []notice
 
-	// Vim registers and find state are shared by all sessions.
-	Reg       string // unnamed register
-	RegLine   bool   // register holds whole lines
-	LastFind  string // f F t T of the last find, for ; and ,
-	LastFindC rune
+	// Copied is the last text copied with the mouse.
+	Copied string
 
 	EditIdx  int
 	EditProv llm.Provider

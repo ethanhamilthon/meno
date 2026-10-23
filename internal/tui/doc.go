@@ -60,25 +60,6 @@ func (a *App) setAnchorG(p vpos, top int) {
 	a.st.AnchorLog, a.st.ALine, a.st.ACol = false, p.line-top, p.col
 }
 
-// followCursor scrolls the timeline so that a cursor inside it stays visible.
-func (a *App) followCursor() {
-	if !a.st.InLog {
-		return
-	}
-	w, h := a.scr.Size()
-	n := len(a.transcriptWithSelection(w))
-	logH := max(1, h-a.bottomHeight())
-	l := min(a.st.LogLine, n-1)
-	start := max(0, n-logH-a.st.Scroll)
-	switch {
-	case l < start:
-		a.st.Scroll = n - logH - l
-	case l >= start+logH:
-		a.st.Scroll = n - 1 - l
-	}
-	a.st.Scroll = min(max(0, a.st.Scroll), max(0, n-logH))
-}
-
 // screenCol is the display offset of rune col inside a rendered timeline line.
 func screenCol(line []rune, col int) int {
 	col = min(col, len(line))

@@ -183,16 +183,6 @@ func TestCursorBlinksOnlyInInsertMode(t *testing.T) {
 	if s.style != tcell.CursorStyleBlinkingBar {
 		t.Fatalf("insert style %v", s.style)
 	}
-	a.st.Mode = render.ModeVisual
-	a.draw()
-	if _, _, vis := s.GetCursor(); !vis || s.style != tcell.CursorStyleSteadyBlock {
-		t.Fatalf("normal: vis=%v style=%v", vis, s.style)
-	}
-	a.st.Mode = render.ModeVisual
-	a.draw()
-	if _, _, vis := s.GetCursor(); !vis || s.style != tcell.CursorStyleSteadyBlock {
-		t.Fatalf("visual: vis=%v style=%v", vis, s.style)
-	}
 	a.st.Mode = render.ModeInput
 	a.openOverlay(OverHelp)
 	a.draw()

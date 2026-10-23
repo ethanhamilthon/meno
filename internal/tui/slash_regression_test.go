@@ -35,32 +35,12 @@ func TestSkillNamespaceNeverExecutesApplicationCommand(t *testing.T) {
 	}
 }
 
-func TestHistoryCrossBoundaryCopyReturnsInput(t *testing.T) {
-	a := visualApp(t)
-	a.setInput([]rune("unchanged draft"))
-	a.st.Cursor = 2
-	a.runCommand("edit")
-	vimKeys(a, "kvjly")
-	if a.st.Mode != render.ModeInput || a.st.InLog || string(a.st.Input) != "unchanged draft" {
-		t.Fatal("cross-boundary copy lost focus/draft")
-	}
-}
-
-func TestEditNormalYankStaysInEdit(t *testing.T) {
-	a := visualApp(t)
-	a.runCommand("edit")
-	vimKeys(a, "0yy")
-	if a.st.Mode != render.ModeEdit || a.st.Reg == "" {
-		t.Fatal("normal yank changed mode")
-	}
-}
-
 func TestComposerWavePreservesWideTextAndSelection(t *testing.T) {
 	a, s := visualFixture(t, 80, 20)
 	a.setInput([]rune("界 café\tend"))
 	a.st.Cursor = 0
-	a.runCommand("edit")
-	vimKeys(a, "vl")
+	a.st.Selecting, a.st.ALine, a.st.ACol = true, 0, 0
+	a.st.Cursor = 1
 	a.draw()
 	text := visualRow(s, a.st.ComposerY)
 	a.st.Running = true

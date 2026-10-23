@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/url"
 	"sync"
-	"time"
 
 	"meno/internal/api"
 )
@@ -124,8 +123,7 @@ func (s *Server) newSession(raw json.RawMessage) (any, error) {
 	}
 	out := s.sessionResult(x)
 	out["sessionId"] = x.id
-	s.afterSessionStart(x)
-	return out, nil
+	return afterReply{value: out, then: func() { s.sendCommands(x) }}, nil
 }
 
 func (s *Server) loadSession(raw json.RawMessage) (any, error) {
@@ -151,8 +149,7 @@ func (s *Server) loadSession(raw json.RawMessage) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	s.afterSessionStart(x)
-	return s.sessionResult(x), nil
+	return afterReply{value: s.sessionResult(x), then: func() { s.sendCommands(x) }}, nil
 }
 
 func (s *Server) detachExisting(id string) {
@@ -181,14 +178,6 @@ func (s *Server) attach(id string, loading bool) (*session, error) {
 	x.ctxSize = s.contextWindow(x.prov, x.model)
 	x.mu.Unlock()
 	return x, nil
-}
-
-// afterSessionStart publishes the command list once the response is on its way.
-func (s *Server) afterSessionStart(x *session) {
-	go func() {
-		time.Sleep(20 * time.Millisecond)
-		s.sendCommands(x)
-	}()
 }
 
 func (s *Server) listSessions(raw json.RawMessage) (any, error) {

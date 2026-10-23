@@ -7,8 +7,8 @@ removes the `/command` from the draft; the rest of the draft stays. Esc closes t
 list and keeps the text. A command that fails keeps its text for correction.
 URLs and paths (`http://x`, `/tmp/project`, `a/b`) are ordinary text.
 Use `/skill:<name>` to insert a skill reference; `/skills` manages skills. A bare name works too: `/pla` lists the enabled skills that start with `pla`, and Enter or Tab inserts the skill as one object without running or sending anything. A command with the same name wins. Skills marked `disable-model-invocation: true` are never offered to the model, only through this selection.
-Old colon commands and bare `/name` skill references are ordinary text. Esc without a list keeps INPUT, the draft, and the cursor. Only `/edit`
-enters EDIT. There is no NORMAL or COMMAND mode.
+Old colon commands and bare `/name` skill references are ordinary text. Esc without a list keeps INPUT, the draft, and the cursor. INPUT is the only
+mode: there is no NORMAL, EDIT, VISUAL or COMMAND mode.
 
 An empty composer shows one of three hints: `Type to start building anything` (new
 session), `Tell the working agent something` (an agent is running) and
@@ -28,22 +28,16 @@ grapheme boundaries. Visual wrapping does not change stored text.
 | Enter during a run | Queue steering for the next model request |
 | Ctrl+C | Stop this session's active work (quits on the first-run screen) |
 | Ctrl+V, drag/drop, @ | Image attachment / file picker in INPUT |
-| /edit | Vim-style navigation and editing of the draft (history when the draft is empty); no selection until `v` |
-| v / V / Ctrl+V in EDIT | Start a selection; Esc returns to EDIT |
-| Enter or c on a selection in the conversation | Attach it to the draft as a [comment](comments.md) |
-| /drafts | Restore unsent drafts left by earlier windows |
+| Drag, double click, triple click | Select text, a word or a row in the timeline or the composer; it is copied on release |
 | ←/→ in /model | Preview an effort; Enter applies, Esc cancels |
-| Esc in EDIT | Return to INPUT |
 | Esc in INPUT (no command list) | Keep typing without changing the draft |
 | /new /sessions /fork /rename /cd /compact /export | Session actions |
 | /model /settings /skills /mcp /login /tasks | Model and management dialogs |
 | /context | ctx/max, spent, in/out and cache hit for the last turn, the session and the current request |
 | /stop /q /stop-all | Stop this turn; leave (work keeps running); stop every turn after confirmation. `/q!` is an alias of `/q` |
 
-VISUAL retains motions, counts, text objects and copy. History is read-only.
-Completed copy/edit returns to INPUT, with the cursor in the composer even
-when copied text came from history. Mouse selection copies on release; the wheel
-scrolls history. The command editor does not select transcript text on drag.
+A mouse selection is copied to the clipboard on release and stays highlighted
+until the next key or click. The wheel, PgUp and PgDn scroll the timeline.
 
 Dialogs opened by a command return to INPUT when they close. Errors retain the
 command text for correction. Direct-shortcut dialogs preserve origin.

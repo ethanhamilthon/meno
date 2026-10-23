@@ -36,17 +36,8 @@ func (a *App) runCommand(raw string) {
 		// Leaving only detaches this terminal: runs and tasks stay in the daemon.
 		// "q!" used to cancel everything; it is kept as an alias of the safe exit.
 		a.quit = true
-	case "drafts":
-		a.restoreDrafts()
 	case "stop-all":
 		a.stopAll()
-	case "edit":
-		if len(args) != 0 {
-			a.notifyErr("edit takes no arguments")
-			return
-		}
-		a.endInsert()
-		a.startEdit()
 	case "new":
 		a.newSession()
 		a.st.Mode = render.ModeInput

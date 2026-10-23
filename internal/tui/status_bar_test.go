@@ -10,7 +10,7 @@ func TestFooterCompactGeometryAndEscape(t *testing.T) {
 	a, s := visualFixture(t, 80, 20)
 	a.setInput([]rune("alpha beta"))
 	cursor := a.st.Cursor
-	vimKeys(a, "<esc>")
+	typeKeys(a, "<esc>")
 	if a.st.Mode != render.ModeInput || a.st.Cursor != cursor || string(a.st.Input) != "alpha beta" {
 		t.Fatal("Escape changed input")
 	}

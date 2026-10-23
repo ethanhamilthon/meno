@@ -103,7 +103,6 @@ type cmdDef struct {
 
 var commandList = []cmdDef{
 	{"/context", "context, tokens, cache and cost"},
-	{"/edit", "navigate and edit draft or transcript"},
 	{"/new", "new session"},
 	{"/fork", "fork at a message"},
 	{"/rename", "rename this session"},
@@ -120,7 +119,6 @@ var commandList = []cmdDef{
 	{"/export", "export markdown"},
 	{"/stop", "stop this turn"},
 	{"/help", "keys & commands"},
-	{"/drafts", "restore unsent drafts of earlier windows"},
 	{"/stop-all", "stop every running turn (asks to confirm)"},
 	{"/q", "leave meno; work keeps running"},
 }

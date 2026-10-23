@@ -25,11 +25,11 @@ func TestLayoutTableIsComplete(t *testing.T) {
 func TestUnicodeInputAndCommandArguments(t *testing.T) {
 	a, scr := newTestApp(t)
 	defer scr.Fini()
-	vimKeys(a, "привет")
+	typeKeys(a, "привет")
 	if string(a.st.Input) != "привет" {
 		t.Fatal(string(a.st.Input))
 	}
-	vimKeys(a, " /cd /tmp/проект")
+	typeKeys(a, " /cd /tmp/проект")
 	if a.cmdQuery() != "cd /tmp/проект" {
 		t.Fatal(a.cmdQuery())
 	}

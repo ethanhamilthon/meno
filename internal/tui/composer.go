@@ -67,18 +67,16 @@ type cursorPos struct {
 	ok   bool
 }
 
-// applyCursor shows a real terminal cursor: blinking in insert mode, steady in
-// normal and command mode, hidden in visual mode and while a dialog is open.
+// applyCursor shows a real terminal cursor: a blinking bar in the composer,
+// hidden while a selection is shown or a dialog is open.
 func (a *App) applyCursor() {
-	if !a.cur.ok || a.st.Over != OverNone || a.askChoosing() {
+	if !a.cur.ok || a.st.Over != OverNone || a.askChoosing() || a.st.Selecting {
 		a.scr.HideCursor()
 		return
 	}
 	switch a.st.Mode {
 	case render.ModeInput:
 		a.scr.SetCursorStyle(tcell.CursorStyleBlinkingBar)
-	case render.ModeVisual, render.ModeEdit:
-		a.scr.SetCursorStyle(tcell.CursorStyleSteadyBlock)
 	default:
 		a.scr.HideCursor()
 		return

@@ -3,7 +3,7 @@
 A terminal coding agent for individual developers. It has one tool, `bash`;
 the `meno` command inside it gives the agent background tasks, images, questions to the user and
 your MCP servers. A background daemon owns sessions and runs, so work goes on when you close
-the terminal. The UI is a vim-style TUI built on
+the terminal. The UI is a terminal UI built on
 [tcell](https://github.com/gdamore/tcell). Pure Go, no CGO. macOS and Linux
 (arm64, amd64). MIT licensed.
 
@@ -64,7 +64,7 @@ every push and pull request on Linux and macOS and installs a snapshot build wit
 | [The agent's tool](docs/tools.md) | the `bash` tool and the `meno` command the model uses: files, tasks, mcp, web, view, ask |
 | [Command line](docs/cli.md), [daemon](docs/daemon.md) | `meno sessions`, `send`, `tail`, `doctor`, `web`; the background daemon |
 | [ACP agent](docs/acp.md) | `meno acp`: use Meno from any ACP client |
-| [Comments](docs/comments.md), [web](docs/web.md) | quoting the conversation; web search and fetch |
+| [Web](docs/web.md) | web search and fetch |
 | [Sessions, history and events](docs/sessions.md) | /new, /fork, /cd, compaction, steering, /stop |
 | [Accounts and providers](docs/login.md) | `/login` |
 | [Interface](docs/ui.md) | keys, commands, timeline, Markdown, images, tool-call display |

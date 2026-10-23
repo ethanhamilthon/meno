@@ -4,7 +4,6 @@ import (
 	"strings"
 	"testing"
 
-	"meno/internal/content"
 	"meno/internal/render"
 )
 
@@ -33,40 +32,6 @@ func TestTimelineNoticeSavedAndLiveAnchors(t *testing.T) {
 		}
 		if !found {
 			t.Errorf("missing %q", needle)
-		}
-	}
-}
-
-func TestWrappedToolQuoteExcludesLayoutButPreservesSourceIndent(t *testing.T) {
-	a, s := newTestApp(t)
-	defer s.Fini()
-	s.SetSize(40, 40)
-	code := "  echo " + strings.Repeat("x", 50)
-	output := "  output " + strings.Repeat("y", 50)
-	a.st.Session.turns = []render.Turn{{ID: "saved", Role: render.RoleAssistant, Code: code, Output: output}}
-	for part, original := range map[string]string{content.PartCode: code, content.PartOutput: output} {
-		lines := a.transcriptWithSelection(40)
-		first, last := -1, -1
-		var expected []string
-		for i, line := range lines {
-			if line.Source == nil || line.Source.Part != part {
-				continue
-			}
-			if first < 0 {
-				first = i
-			}
-			last = i
-			expected = append(expected, string([]rune(line.Text())[line.Source.Skip:]))
-		}
-		ref, err := a.selectionReference(selectRows(a, first, last))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(ref.Segments) != 1 || ref.Segments[0].Quote != strings.Join(expected, "\n") {
-			t.Fatalf("wrong quote: %+v", ref)
-		}
-		if !strings.HasPrefix(ref.Segments[0].Quote, "  ") || strings.Join(expected, "") != original {
-			t.Fatalf("source whitespace lost: %q", ref.Segments[0].Quote)
 		}
 	}
 }

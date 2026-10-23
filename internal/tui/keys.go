@@ -8,6 +8,7 @@ import (
 
 func (a *App) onKey(k *tcell.EventKey) {
 	k = normalizeCtrl(k)
+	a.clearSelection()
 	if k.Key() == tcell.KeyCtrlC {
 		// The first-run screen promises that ctrl+c quits: there is no turn to stop.
 		if a.st.Locked {
@@ -34,22 +35,9 @@ func (a *App) onKey(k *tcell.EventKey) {
 		_, h := a.scr.Size()
 		a.scrollBy(-max(1, h-a.bottomHeight()-1))
 		return
-	case tcell.KeyEnd:
-		if a.st.Mode != render.ModeInput {
-			a.st.Scroll = 0
-			if a.st.Mode == render.ModeInput {
-				a.st.InLog = false // follow the tail: back to the input
-			}
-			return
-		}
 	}
-	switch a.st.Mode {
-	case render.ModeInput:
+	if a.st.Mode == render.ModeInput {
 		a.onInsertKey(k)
-	case render.ModeVisual:
-		a.onVisualKey(k)
-	case render.ModeEdit:
-		a.onEditKey(k)
 	}
 }
 

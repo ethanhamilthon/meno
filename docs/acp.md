@@ -26,7 +26,11 @@ be opened in the terminal app.
 | Several sessions | each session has its own run; two connections can follow one session |
 
 A prompt that begins with a known slash command is a control command and never
-reaches the model.
+reaches the model. The command list is published with `available_commands_update`
+right after the `session/new` or `session/load` response. A client that creates
+the session only with the first message (Paseo's New workspace screen) shows the
+commands from that point on, because ACP has no request for them before a session
+exists.
 
 ## Questions (`meno ask`)
 

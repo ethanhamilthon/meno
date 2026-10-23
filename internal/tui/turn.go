@@ -33,7 +33,6 @@ func (a *App) submit() {
 		return
 	}
 	a.clearDraft()
-	a.saveDraft()
 	a.send(msg)
 }
 
@@ -100,7 +99,6 @@ func (a *App) onSendResult(m sendResult) {
 		rt.Queued = nil
 		a.noticeFor(rt, "not sent: "+m.err.Error()+" · esc to dismiss", true, true)
 		a.restoreDraftFor(rt, []msgDraft{m.msg})
-		a.saveDraftFor(rt)
 		return
 	}
 	if m.resp.RequestID != "" {

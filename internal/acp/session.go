@@ -159,7 +159,15 @@ func (s *session) applyLive(text, think string) {
 	if rest, _ := remainder(think, s.sentThink); rest != "" {
 		s.send(chunk("agent_thought_chunk", rest))
 	}
-	s.sentText, s.sentThink = text, think
+	// An empty live text means the step was committed (or dropped): keep what
+	// was sent so the committed turn is not sent again. applyTurns and finish
+	// reset it.
+	if text != "" {
+		s.sentText = text
+	}
+	if think != "" {
+		s.sentThink = think
+	}
 }
 
 func (s *session) applyTurns(turns []api.Turn) {
@@ -228,6 +236,7 @@ func (s *session) applyAsk(f *api.AskForm) {
 
 // finish ends the foreground prompt when its run is done.
 func (s *session) finish(aborted bool) {
+	s.sentText, s.sentThink = "", ""
 	if s.waiter == nil {
 		return
 	}

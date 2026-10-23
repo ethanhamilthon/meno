@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func TestPaddedFooterAndExplicitEdit(t *testing.T) {
+func TestPaddedFooterAndEscape(t *testing.T) {
 	f := newFakeLLM(t)
 	f.Handler = func(q *llmReq) { q.Text("done") }
 	s := start(t, options{fake: f, cols: 80, rows: 24})
@@ -25,8 +25,4 @@ func TestPaddedFooterAndExplicitEdit(t *testing.T) {
 	if !strings.Contains(screen[len(screen)-3], "alpha beta gamma delta") {
 		t.Fatalf("input missing: %q", screen[len(screen)-2])
 	}
-	s.Cmd("edit")
-	s.Send("0x")
-	s.Send(Esc)
-	s.WaitFor("lpha beta gamma delta")
 }

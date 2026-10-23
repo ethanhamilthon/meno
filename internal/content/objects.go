@@ -17,9 +17,6 @@ const (
 	File   Kind = "file"
 	Folder Kind = "folder"
 	Skill  Kind = "skill"
-	// Comment is a quotation from the conversation; Ref is the encoded
-	// commentref payload.
-	Comment Kind = "comment"
 )
 
 // Check says whether a skill or mode reference may stay an object: it is the
@@ -39,8 +36,6 @@ func esc(s string) string { return html.EscapeString(s) }
 // content can never close or forge a tag.
 func (o Object) Tag() string {
 	switch o.Kind {
-	case Comment:
-		return "<comment>" + esc(o.Ref) + "</comment>"
 	case Skill:
 		return "<skill>" + esc(o.Ref) + "</skill>"
 	case Folder:
@@ -52,11 +47,6 @@ func (o Object) Tag() string {
 // Label is the short form shown on screen.
 func (o Object) Label() string {
 	switch o.Kind {
-	case Comment:
-		if r, err := DecodeQuote(o.Ref); err == nil {
-			return r.Label()
-		}
-		return "[Comment]"
 	case Skill:
 		return "/skill:" + o.Ref
 	case Folder:
@@ -78,7 +68,6 @@ var kinds = []struct {
 	{"<file-link>", "</file-link>", File},
 	{"<folder-link>", "</folder-link>", Folder},
 	{"<skill>", "</skill>", Skill},
-	{"<comment>", "</comment>", Comment},
 }
 
 // Split cuts text into plain runs and objects. Only well-formed, complete tags
@@ -134,13 +123,7 @@ func tagAt(s string, ok Check) (Object, int, bool) {
 		if ref == "" || strings.ContainsAny(ref, "\n\r") {
 			return Object{}, 0, false
 		}
-		if k.kind == Comment {
-			// Only a payload that decodes and passes its limits is an object;
-			// anything else stays literal text, never clipped or repaired.
-			if _, err := DecodeQuote(ref); err != nil {
-				return Object{}, 0, false
-			}
-		} else if k.kind == File || k.kind == Folder {
+		if k.kind == File || k.kind == Folder {
 			if !filepath.IsAbs(ref) {
 				return Object{}, 0, false
 			}

@@ -1,13 +1,8 @@
 package tui
 
-import (
-	"slices"
-	"strings"
+import "github.com/gdamore/tcell/v2"
 
-	"github.com/gdamore/tcell/v2"
-)
-
-// Keys that act as commands (vim motions, list navigation, shortcuts of the
+// Keys that act as commands (list navigation, shortcuts of the
 // dialogs, the command name after "/") are matched by their position on the
 // keyboard, not by the letter the layout prints on them. So on a Russian or
 // Ukrainian layout "о" is the "j" key. Text typed into the composer, search
@@ -55,23 +50,4 @@ func normalizeCtrl(k *tcell.EventKey) *tcell.EventKey {
 		return k
 	}
 	return tcell.NewEventKey(tcell.KeyCtrlA+tcell.Key(l-'a'), 0, k.Modifiers()&^tcell.ModCtrl)
-}
-
-// vimRune is normalRune for the normal and visual modes: letters of other
-// layouts become the vim command at the same key, except where vim expects a
-// literal character (the target of f, F, t, T and r).
-func (a *App) vimRune(k *tcell.EventKey, visual bool) rune {
-	r := normalRune(k)
-	if k.Key() != tcell.KeyRune || r == 0 || awaitingChar(a.st.VimBuf, visual) {
-		return r
-	}
-	return latinKey(r)
-}
-
-// awaitingChar reports whether the pending vim command takes the next key as a
-// literal character.
-func awaitingChar(buf []rune, visual bool) bool {
-	probe := append(slices.Clone(buf), 0)
-	c, state := parseVim(probe, visual)
-	return state == parseDone && c.ch == 0 && len(c.key) == 1 && strings.ContainsRune("fFtTr", rune(c.key[0]))
 }

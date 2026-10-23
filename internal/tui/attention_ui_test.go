@@ -70,16 +70,6 @@ func TestUnreadSurvivesModalAndScrollUntilSummaryVisible(t *testing.T) {
 	}
 }
 
-func TestWireDoesNotStealCommandFocus(t *testing.T) {
-	a, s := newTestApp(t)
-	defer s.Fini()
-	a.st.Mode = render.ModeEdit
-	a.st.Runtime.Phase = "thinking"
-	if a.st.Mode != render.ModeEdit {
-		t.Fatal("event stole command focus")
-	}
-}
-
 func TestGlobalCountsSkipZeros(t *testing.T) {
 	a, s := newTestApp(t)
 	defer s.Fini()

@@ -46,19 +46,16 @@ func TestTranscriptWrappingDoesNotClipSourceOrOutput(t *testing.T) {
 		output := "  " + strings.Repeat("y", w*2)
 		lines := BuildLines([]Turn{{ID: "turn", Role: RoleAssistant, Code: code, Output: output}}, w, JSOpts{})
 		s := alignmentScreen(t, w, len(lines))
-		got := map[string]string{}
+		var all strings.Builder
 		for y, l := range lines {
 			DrawLine(Canvas{S: s}, 0, y, w, l)
-			if l.Source == nil {
-				continue
-			}
-			if l.Width() > w-2*Gutter {
+			if y > 0 && l.Width() > w-2*Gutter { // row 0 is the header
 				t.Errorf("width %d: row would clip: %q", w, l.Text())
 			}
-			got[l.Source.Part] += string([]rune(l.Text())[l.Source.Skip:])
+			all.WriteString(strings.Join(strings.Fields(l.Text()), ""))
 		}
-		if got["code"] != code || got["output"] != output {
-			t.Fatalf("width %d lost source/output: %q", w, got)
+		if !strings.Contains(all.String(), strings.Join(strings.Fields(code), "")) || !strings.Contains(all.String(), strings.Join(strings.Fields(output), "")) {
+			t.Fatalf("width %d lost source/output: %q", w, all.String())
 		}
 	}
 }

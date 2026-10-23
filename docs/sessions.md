@@ -59,4 +59,4 @@ stop names the request it was meant for, so it cannot hit a newer one.
 
 When the stream of a session breaks, the status bar says `offline · state may be
 stale` and sending is held back with your draft kept; it clears on the next fresh
-snapshot. `/drafts` restores drafts left by earlier windows.
+snapshot.

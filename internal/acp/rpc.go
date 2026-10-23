@@ -51,6 +51,13 @@ type message struct {
 // handler serves one request or notification. A returned value becomes the result.
 type handler func(params json.RawMessage) (any, error)
 
+// afterReply is a handler result that runs then once the reply is written, so
+// a notification can follow its response in order on the wire.
+type afterReply struct {
+	value any
+	then  func()
+}
+
 // conn is a newline-delimited JSON-RPC 2.0 connection. Writes are serialized.
 type conn struct {
 	out io.Writer
@@ -194,6 +201,13 @@ func (c *conn) dispatch(line []byte, tooLong bool, methods map[string]handler) {
 		c.mu.Lock()
 		delete(c.inflight, string(m.ID))
 		c.mu.Unlock()
+		var then func()
+		if r, ok := res.(afterReply); ok {
+			res, then = r.value, r.then
+		}
 		c.reply(m.ID, res, err)
+		if then != nil && err == nil {
+			then()
+		}
 	}()
 }

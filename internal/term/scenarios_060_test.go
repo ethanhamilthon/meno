@@ -3,7 +3,6 @@
 package term
 
 import (
-	"strings"
 	"testing"
 	"time"
 )
@@ -40,27 +39,6 @@ func TestQuitDetachesAndTheRunSurvives(t *testing.T) {
 	b := start(t, options{fake: f, home: home, cols: 110, rows: 28})
 	b.Cmd("sessions")
 	b.WaitFor("running")
-}
-
-// An unsent draft is on disk when the window is killed, and /drafts brings it
-// back in the next window without a session switch.
-func TestDraftSurvivesAKilledWindow(t *testing.T) {
-	f := newFakeLLM(t)
-	f.Handler = func(q *llmReq) { q.Text("ok") }
-	home := t.TempDir()
-	a := start(t, options{fake: f, home: home, cols: 100, rows: 24})
-	a.Type("keep this half-written thought")
-	a.WaitFor("keep this half-written thought")
-	time.Sleep(900 * time.Millisecond) // a tick writes the draft
-	_ = a.cmd.Process.Kill()
-	<-a.exited
-	b := start(t, options{fake: f, home: home, cols: 100, rows: 24})
-	b.WaitFor("unsent draft")
-	b.Cmd("drafts")
-	screen := b.WaitFor("keep this half-written thought")
-	if strings.Contains(screen, "half-written thought half-written") {
-		t.Fatalf("draft duplicated:\n%s", screen)
-	}
 }
 
 // /stop-all asks before it stops anything.

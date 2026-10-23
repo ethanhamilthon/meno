@@ -39,19 +39,19 @@ func TestMouseDragSelectsAndCopiesText(t *testing.T) {
 	a.onMouse(mouseEv(x+4, y, tcell.Button1))
 	a.onMouse(mouseEv(x+8, y, tcell.Button1))
 	a.onMouse(mouseEv(x+8, y, tcell.ButtonNone))
-	if a.st.Mode != render.ModeVisual {
-		t.Fatalf("mode %v, want visual", a.st.Mode)
+	if !a.st.Selecting {
+		t.Fatal("no selection after a drag")
 	}
-	if a.st.Reg != "wonderful" || a.st.RegLine {
-		t.Fatalf("copied %q (line=%v)", a.st.Reg, a.st.RegLine)
+	if a.st.Copied != "wonderful" {
+		t.Fatalf("copied %q", a.st.Copied)
 	}
 	// Backwards selections work too.
 	a.onKey(keyK(tcell.KeyEsc))
 	a.onMouse(mouseEv(x+8, y, tcell.Button1))
 	a.onMouse(mouseEv(x+5, y, tcell.Button1))
 	a.onMouse(mouseEv(x+5, y, tcell.ButtonNone))
-	if a.st.Reg != "rful" {
-		t.Fatalf("backwards selection copied %q", a.st.Reg)
+	if a.st.Copied != "rful" {
+		t.Fatalf("backwards selection copied %q", a.st.Copied)
 	}
 }
 
@@ -65,16 +65,16 @@ func TestMouseDoubleClickSelectsWordTripleClickTheLine(t *testing.T) {
 		a.onMouse(mouseEv(x+2, y, tcell.ButtonNone))
 	}
 	click()
-	if a.st.Mode == render.ModeVisual {
+	if a.st.Selecting {
 		t.Fatal("a single click must not select")
 	}
 	click()
-	if a.st.Reg != "wonderful" {
-		t.Fatalf("double click copied %q", a.st.Reg)
+	if a.st.Copied != "wonderful" {
+		t.Fatalf("double click copied %q", a.st.Copied)
 	}
 	click()
-	if !a.st.RegLine || !strings.Contains(a.st.Reg, "alpha wonderful omega") {
-		t.Fatalf("triple click copied %q (line=%v)", a.st.Reg, a.st.RegLine)
+	if !a.st.SelLine || !strings.Contains(a.st.Copied, "alpha wonderful omega") {
+		t.Fatalf("triple click copied %q (line=%v)", a.st.Copied, a.st.SelLine)
 	}
 }
 
@@ -86,14 +86,14 @@ func TestMouseOutsideTheTimelineAndInOverlaysIsIgnored(t *testing.T) {
 	a.onMouse(mouseEv(3, h-1, tcell.Button1)) // the status bar
 	a.onMouse(mouseEv(6, h-1, tcell.Button1))
 	a.onMouse(mouseEv(6, h-1, tcell.ButtonNone))
-	if a.st.Mode == render.ModeVisual || a.st.Reg != "" {
+	if a.st.Selecting || a.st.Copied != "" {
 		t.Fatal("selection started outside the timeline")
 	}
 	a.openOverlay(OverHelp)
 	a.onMouse(mouseEv(3, 1, tcell.Button1))
 	a.onMouse(mouseEv(9, 1, tcell.Button1))
 	a.onMouse(mouseEv(9, 1, tcell.ButtonNone))
-	if a.st.Mode == render.ModeVisual {
+	if a.st.Selecting {
 		t.Fatal("overlay lets the mouse through to the timeline")
 	}
 }
