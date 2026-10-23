@@ -11,11 +11,23 @@ import (
 )
 
 func TestInitializeProtocolContract(t *testing.T) {
-	for _, raw := range []string{`{}`, `null`, `{"protocolVersion":0}`, `{"protocolVersion":2}`, `{"protocolVersion":"1"}`} {
+	for _, raw := range []string{`null`, `[]`, `{"protocolVersion":"1"}`, `{"protocolVersion":true}`} {
 		t.Run(raw, func(t *testing.T) {
 			s := &Server{}
 			if _, err := s.initialize(json.RawMessage(raw)); err == nil {
-				t.Fatal("invalid protocol accepted")
+				t.Fatal("malformed initialize accepted")
+			}
+		})
+	}
+	// An unsupported or absent version is negotiated down to the supported one.
+	for _, raw := range []string{`{}`, `{"protocolVersion":0}`, `{"protocolVersion":1}`, `{"protocolVersion":2}`, `{"protocolVersion":65535}`, `{"protocolVersion":99999999999999999999}`, `{"protocolVersion":-1}`, `{"protocolVersion":null}`} {
+		t.Run("negotiate"+raw, func(t *testing.T) {
+			v, err := (&Server{}).initialize(json.RawMessage(raw))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := v.(map[string]any)["protocolVersion"]; got != ProtocolVersion {
+				t.Fatalf("protocolVersion = %v", got)
 			}
 		})
 	}

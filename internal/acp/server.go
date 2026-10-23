@@ -88,11 +88,20 @@ func (s *Server) methods() map[string]handler {
 
 func (s *Server) initialize(params json.RawMessage) (any, error) {
 	var p struct {
-		Version      int             `json:"protocolVersion"`
+		Version      json.RawMessage `json:"protocolVersion"`
 		Capabilities json.RawMessage `json:"clientCapabilities"`
 	}
-	if json.Unmarshal(params, &p) != nil || p.Version != ProtocolVersion {
-		return nil, errParams("unsupported protocolVersion: Meno supports version 1")
+	if len(params) == 0 || params[0] != '{' || json.Unmarshal(params, &p) != nil {
+		return nil, errParams("initialize params must be an object")
+	}
+	// ACP version negotiation: when the requested version is not supported (or
+	// absent), the agent answers with the latest version it supports and the
+	// client decides whether to continue. A non-numeric version is malformed.
+	if len(p.Version) > 0 && string(p.Version) != "null" {
+		var n float64
+		if json.Unmarshal(p.Version, &n) != nil {
+			return nil, errParams("protocolVersion must be an integer")
+		}
 	}
 	// ACP defaults malformed optional capabilities. No optional client requests
 	// are issued, even when filesystem/terminal capabilities are present.
