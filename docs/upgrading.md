@@ -1,5 +1,10 @@
 # Upgrading, data and privacy
 
+## 0.6.14: ACP version negotiation
+
+Restart the ACP client after updating. `meno acp` now answers `initialize` with protocol version 1 when the client
+requests a different version, instead of returning an error. No data is migrated.
+
 ## 0.6.13: `meno models`
 
 Restart the daemon after updating. `meno models` now lists the catalog and the models each provider reports on

@@ -88,8 +88,9 @@ sandbox system. The existing `--no-ask` behavior is unchanged.
 ## Protocol and diagnostics
 
 Compatibility tests pin the official stable ACP v1 schema at upstream commit
-`097a8a8e9f79998b56bff79ac3bb125b775e3c50` (2026-10-24). Version 1 is accepted;
-missing, malformed or unsupported protocol versions receive an explicit error.
+`097a8a8e9f79998b56bff79ac3bb125b775e3c50` (2026-10-24). Meno supports version 1. If the
+client requests another or no version, `initialize` answers with version 1 and the
+client decides whether to continue; a non-numeric version is an invalid-params error.
 Malformed optional client capabilities default to absent. Meno does not issue
 client filesystem or terminal requests, regardless of those capabilities.
 

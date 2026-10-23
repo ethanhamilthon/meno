@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.14
+
+No restart is needed for data; restart the ACP client (and the daemon when idle) to use the new `meno acp`.
+
+- **ACP version negotiation.** `initialize` no longer fails when the client requests a protocol version other than 1.
+  As the ACP specification requires, it answers with version 1 and the client decides whether to continue.
+  A non-numeric version is still an invalid-params error.
+
 ## 0.6.13
 
 Restart the daemon after updating (`meno models` runs in the daemon). No data is migrated.
