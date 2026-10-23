@@ -52,7 +52,7 @@ func TestStatelessNegotiatedVersionAndNotifications(t *testing.T) {
 	defer srv.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	c, err := Start(ctx, Server{Name: "stateless", Transport: TransportHTTP, URL: srv.URL})
+	c, err := Start(ctx, Server{Name: "stateless", Transport: TransportHTTP, URL: srv.URL, Protocol: ProtocolLegacy})
 	if err != nil {
 		t.Fatal(err)
 	}

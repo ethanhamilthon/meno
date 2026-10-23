@@ -33,7 +33,19 @@ func (e *Engine) mcpResource(ctx context.Context, s *runState, tail []string, me
 		for _, t := range e.mcp.ToolsOf(name) {
 			var schema any
 			_ = json.Unmarshal(t.InputSchema, &schema)
-			out = append(out, map[string]any{"name": t.Name, "description": t.Description, "inputSchema": schema})
+			item := map[string]any{"name": t.Name, "description": t.Description, "inputSchema": schema}
+			if t.Title != "" {
+				item["title"] = t.Title
+			}
+			for k, raw := range map[string]json.RawMessage{"outputSchema": t.OutputSchema, "annotations": t.Annotations} {
+				if len(raw) > 0 {
+					var v any
+					if json.Unmarshal(raw, &v) == nil {
+						item[k] = v
+					}
+				}
+			}
+			out = append(out, item)
 		}
 		return out, nil
 	}

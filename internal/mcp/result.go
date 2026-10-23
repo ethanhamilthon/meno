@@ -57,5 +57,8 @@ func (c *Client) CallResult(ctx context.Context, tool string, args map[string]an
 	if err != nil {
 		return Result{}, err
 	}
+	if resultType(raw) == "input_required" {
+		return Result{}, errInputRequired
+	}
 	return ParseResult(raw)
 }

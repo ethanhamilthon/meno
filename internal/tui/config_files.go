@@ -107,7 +107,7 @@ func (a *App) fetchConfig() settingsLoaded {
 			out.info[s.Name] = mcpInfo{Running: s.Running, Starting: s.Starting, Err: s.Error}
 		}
 		for _, k := range bundle.Skills.Skills {
-			out.skills = append(out.skills, config.Skill{Name: k.Name, Scope: k.Scope, Desc: k.Desc, Path: k.Path, Enabled: k.Enabled})
+			out.skills = append(out.skills, config.Skill{Name: k.Name, Scope: k.Scope, Desc: k.Desc, Path: k.Path, Enabled: k.Enabled, Warnings: k.Warnings})
 		}
 		return nil
 	})
@@ -151,11 +151,11 @@ func providerToWire(p llm.Provider) api.ConfigProvider {
 }
 
 func serverFromWire(w api.ConfigMCPServer) mcp.Server {
-	return mcp.Server{Name: w.Name, Transport: w.Transport, Command: w.Command, Args: w.Args, Cwd: w.Cwd, Env: w.Env, URL: w.URL, Headers: w.Headers, Enabled: w.Enabled}
+	return mcp.Server{Name: w.Name, Transport: w.Transport, Command: w.Command, Args: w.Args, Cwd: w.Cwd, Env: w.Env, URL: w.URL, Headers: w.Headers, Enabled: w.Enabled, Protocol: w.Protocol}
 }
 
 func serverToWire(s mcp.Server) api.ConfigMCPServer {
-	return api.ConfigMCPServer{Name: s.Name, Transport: s.Transport, Command: s.Command, Args: s.Args, Cwd: s.Cwd, Env: s.Env, URL: s.URL, Headers: s.Headers, Enabled: s.Enabled}
+	return api.ConfigMCPServer{Name: s.Name, Transport: s.Transport, Command: s.Command, Args: s.Args, Cwd: s.Cwd, Env: s.Env, URL: s.URL, Headers: s.Headers, Enabled: s.Enabled, Protocol: s.Protocol}
 }
 
 // reportWarnings shows what was wrong at start, once.

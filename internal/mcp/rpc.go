@@ -3,6 +3,7 @@ package mcp
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"sync"
@@ -21,8 +22,13 @@ type rpcMsg struct {
 }
 
 type rpcError struct {
-	Code    int    `json:"code"`
-	Message string `json:"message"`
+	Code    int             `json:"code"`
+	Message string          `json:"message"`
+	Data    json.RawMessage `json:"data,omitempty"`
+	// status is the HTTP status that carried the error; local marks a failure
+	// of the transport itself (not an answer of the server).
+	status int
+	local  bool
 }
 
 func (e *rpcError) Error() string { return fmt.Sprintf("rpc %d: %s", e.Code, e.Message) }
@@ -104,7 +110,16 @@ func (c *conn) handle(line []byte) {
 // fail completes a pending call with a transport error.
 func (c *conn) fail(id int64, err error) {
 	if v, ok := c.pending.LoadAndDelete(id); ok {
-		v.(chan rpcMsg) <- rpcMsg{ID: &id, Error: &rpcError{Code: -32000, Message: err.Error()}}
+		e := &rpcError{Code: -32000, Message: err.Error(), local: true}
+		var h *httpError
+		if errors.As(err, &h) {
+			e.status, e.local = h.Status, false
+			if re := h.rpc(); re != nil {
+				re.status = h.Status
+				e = re // keep a JSON-RPC error body (its code identifies a modern server)
+			}
+		}
+		v.(chan rpcMsg) <- rpcMsg{ID: &id, Error: e}
 	}
 }
 

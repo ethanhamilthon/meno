@@ -25,6 +25,9 @@ type CompactOptions struct {
 	Effort   string
 	ToolDesc string
 	ToolName string
+	// SkillPaths are the skill files the model may have read. A skill whose file
+	// was read in the summarized part is listed in the summary to be re-read.
+	SkillPaths []string
 }
 
 // CompactWith is Compact with options.
@@ -94,7 +97,7 @@ func CompactWith(ctx context.Context, cl llm.Client, p llm.Provider, model strin
 	if err != nil {
 		return before, before, err
 	}
-	s.Summary = summary
+	s.Summary = withActivatedSkills(summary, activatedSkills(o.SkillPaths, s.Summary, head))
 	s.ensureLog().Compact(head, tail, SummaryRev{Rev: int(time.Now().UnixNano() / 1000), Summary: s.Summary, Time: time.Now()})
 	after = EstimateTokens(s)
 	return before, after, nil

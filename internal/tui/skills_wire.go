@@ -15,7 +15,7 @@ func (a *App) reloadSkills() {
 		err := a.rpc(func(ctx context.Context, c *client.Client) error {
 			r, e := c.Skills(ctx)
 			for _, k := range r.Skills {
-				out = append(out, config.Skill{Name: k.Name, Scope: k.Scope, Desc: k.Desc, Path: k.Path, Enabled: k.Enabled})
+				out = append(out, config.Skill{Name: k.Name, Scope: k.Scope, Desc: k.Desc, Path: k.Path, Enabled: k.Enabled, Warnings: k.Warnings})
 			}
 			return e
 		})

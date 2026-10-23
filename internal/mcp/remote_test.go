@@ -68,7 +68,7 @@ func TestStreamableHTTP(t *testing.T) {
 		}
 	}))
 	defer srv.Close()
-	c, err := Start(context.Background(), Server{Name: "remote", Transport: TransportHTTP, URL: srv.URL, Headers: map[string]string{"Authorization": "Bearer k"}, Enabled: true})
+	c, err := Start(context.Background(), Server{Name: "remote", Transport: TransportHTTP, URL: srv.URL, Headers: map[string]string{"Authorization": "Bearer k"}, Enabled: true, Protocol: ProtocolLegacy})
 	if err != nil {
 		t.Fatal(err)
 	}

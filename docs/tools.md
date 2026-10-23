@@ -44,6 +44,12 @@ and the client. `meno tasks start` has no timeout (an old `--timeout` fails with
 
 ## MCP
 
+A server that declares capabilities without `tools` (only resources or prompts) starts
+without a tool list; those features are not used yet. An HTTP session the server has
+forgotten (404) is restarted once with a new `initialize`. Tools keep `title`,
+`outputSchema` and `annotations` as the server sent them; annotations are hints and
+never grant permission.
+
 The daemon owns one MCP runtime shared by the interface and agent. Use `/mcp`
 to create a server. Changes apply to the agent without restarting the daemon.
 The dialog refreshes running, starting, and error status while open. Environment
@@ -75,6 +81,14 @@ There are no file or web commands. The model reads and edits files with `cat`, `
 PNG or JPEG to the model (see [images](ui.md#images)).
 
 ## Skills and instructions
+
+Skills are found in `.meno/skills` and `~/.meno/skills`, and also in the shared
+`.agents/skills` of the project and of your home directory (not when `MENO_HOME` is
+custom). Order, lowest to highest: `~/.agents/skills`, `~/.meno/skills`,
+`<project>/.agents/skills`, `<project>/.meno/skills`; a later skill replaces an earlier one
+with the same name. `SKILL.md` frontmatter is read as YAML. A skill with problems still
+loads; `meno doctor` lists the warnings. After compaction the summary lists the skill
+files the model had read, so it can read them again.
 
 Skills are listed in the system prompt; the model reads one with `cat`. Your
 The project `AGENTS.md` is added to the prompt as described in the [README](../README.md).

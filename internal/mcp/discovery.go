@@ -23,7 +23,7 @@ func (c *Client) request(ctx context.Context, method string, params any, timeout
 	ch := make(chan rpcMsg, 1)
 	c.conn.pending.Store(id, ch)
 	defer c.conn.pending.Delete(id)
-	msg := map[string]any{"jsonrpc": "2.0", "id": id, "method": method, "params": params}
+	msg := map[string]any{"jsonrpc": "2.0", "id": id, "method": method, "params": c.withMeta(params)}
 	sent := make(chan error, 1)
 	go func() {
 		if c.sendRemote != nil {
@@ -54,12 +54,21 @@ func (c *Client) request(ctx context.Context, method string, params any, timeout
 }
 
 func (c *Client) initialize(ctx context.Context) error {
+	if err := c.handshake(ctx); err != nil {
+		return err
+	}
+	return c.refresh(ctx)
+}
+
+// handshake runs initialize and the initialized notification, without listing tools.
+func (c *Client) handshake(ctx context.Context) error {
 	raw, err := c.request(ctx, "initialize", map[string]any{"protocolVersion": protocolVersion, "capabilities": map[string]any{}, "clientInfo": map[string]any{"name": "meno", "version": version.Number()}}, handshakeTimeout)
 	if err != nil {
 		return err
 	}
 	var init struct {
-		Version string `json:"protocolVersion"`
+		Version string          `json:"protocolVersion"`
+		Caps    json.RawMessage `json:"capabilities"`
 	}
 	if err = json.Unmarshal(raw, &init); err != nil {
 		return err
@@ -69,6 +78,9 @@ func (c *Client) initialize(ctx context.Context) error {
 	default:
 		return fmt.Errorf("mcp: unsupported protocol version %q", init.Version)
 	}
+	c.toolsMu.Lock()
+	c.caps = parseCapabilities(init.Caps)
+	c.toolsMu.Unlock()
 	if c.setVersion != nil {
 		c.setVersion(init.Version)
 	}
@@ -78,16 +90,18 @@ func (c *Client) initialize(ctx context.Context) error {
 	} else {
 		err = c.conn.send(msg)
 	}
-	if err != nil {
-		return err
-	}
-	return c.refresh(ctx)
+	return err
 }
 
 func (c *Client) refresh(ctx context.Context) error {
 	c.refreshMu.Lock()
 	defer c.refreshMu.Unlock()
+	if !c.Capabilities().listsTools() {
+		return nil // resources/prompts only: no tools, and not an error
+	}
 	tools := []Tool{}
+	c.pending = headerIndex{}
+	c.rejected = nil
 	cursor := ""
 	seen := map[string]bool{}
 	for {
@@ -97,6 +111,9 @@ func (c *Client) refresh(ctx context.Context) error {
 		}
 		raw, err := c.request(ctx, "tools/list", params, discoveryTimeout)
 		if err != nil {
+			if isMethodNotFound(err) && len(tools) == 0 && cursor == "" {
+				break // the server has no tools
+			}
 			return err
 		}
 		var out struct {
@@ -106,7 +123,7 @@ func (c *Client) refresh(ctx context.Context) error {
 		if err = json.Unmarshal(raw, &out); err != nil {
 			return err
 		}
-		tools = append(tools, out.Tools...)
+		tools = append(tools, c.usableTools(out.Tools)...)
 		if out.Next == "" {
 			break
 		}
@@ -118,6 +135,7 @@ func (c *Client) refresh(ctx context.Context) error {
 	}
 	c.toolsMu.Lock()
 	c.tools = tools
+	c.headerSpecs = c.pending
 	c.toolsMu.Unlock()
 	return nil
 }

@@ -46,11 +46,16 @@ these files with keys in them. Files are written with mode 0600.
   `session.models()`; a stored effort the model does not take is replaced by
   `medium`, `high` or its first level. In `/login` the `run` command has its own field;
   `models` can only be set in `provider.json` or by editing the file.
-- `mcp.json`: `[{"name", "transport", "command" or "url", "args", "cwd", "env", "headers", "enabled"}]`;
+- `mcp.json`: `[{"name", "transport", "command" or "url", "args", "cwd", "env", "headers", "protocol", "enabled"}]`;
   `enabled` defaults to true, `transport` to `stdio`. A stdio server may name its
   arguments and its working directory separately (`"command": "python3"`,
   `"args": ["server.py"]`), the usual shape of a server configuration. Without
-  `args` the whole `command` is used as it is.
+  `args` the whole `command` is used as it is. `protocol` is `auto` (default: try the
+  2026-07-28 protocol first, fall back to the legacy `initialize` handshake), `legacy`
+  (handshake only, versions 2024-11-05 to 2025-06-18; use it for a server that
+  misbehaves when probed) or `modern`. A silent legacy stdio server is started twice and
+  can delay startup by up to 10 seconds; set `legacy` to avoid that. The modern protocol
+  supports tools only; a tool that asks for more input is reported as an error.
 - `theme.json`: `[{"name", "dark", "bg", "fg", "dim", "blue", "purple", "green",
   "yellow", "red", "orange"}]` with colors as `RRGGBB`; the other shades are derived.
 

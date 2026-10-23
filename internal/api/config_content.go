@@ -2,11 +2,12 @@ package api
 
 // ConfigSkill describes an installed skill and its enabled state.
 type ConfigSkill struct {
-	Name    string `json:"name"`
-	Scope   string `json:"scope"`
-	Desc    string `json:"desc"`
-	Path    string `json:"path"`
-	Enabled bool   `json:"enabled"`
+	Name     string   `json:"name"`
+	Scope    string   `json:"scope"`
+	Desc     string   `json:"desc"`
+	Path     string   `json:"path"`
+	Enabled  bool     `json:"enabled"`
+	Warnings []string `json:"warnings,omitempty"`
 }
 type SkillsResponse struct {
 	Skills []ConfigSkill `json:"skills"`
@@ -28,6 +29,7 @@ type ConfigMCPServer struct {
 	Env       map[string]string `json:"env,omitempty"`
 	URL       string            `json:"url,omitempty"`
 	Headers   map[string]string `json:"headers,omitempty"`
+	Protocol  string            `json:"protocol,omitempty"`
 	Enabled   bool              `json:"enabled"`
 	Source    string            `json:"source"`
 	Running   bool              `json:"running"`

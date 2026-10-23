@@ -64,7 +64,7 @@ func (s *Service) skillsResponse() (api.SkillsResponse, error) {
 	}
 	out := make([]api.ConfigSkill, 0, len(list))
 	for _, x := range list {
-		out = append(out, api.ConfigSkill{Name: x.Name, Scope: x.Scope, Desc: x.Desc, Path: x.Path, Enabled: x.Enabled})
+		out = append(out, api.ConfigSkill{Name: x.Name, Scope: x.Scope, Desc: x.Desc, Path: x.Path, Enabled: x.Enabled, Warnings: x.Warnings})
 	}
 	return api.SkillsResponse{Skills: out}, nil
 }

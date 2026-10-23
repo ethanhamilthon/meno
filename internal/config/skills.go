@@ -21,6 +21,9 @@ type Skill struct {
 	// ManualOnly is the skill's `disable-model-invocation: true`: the model is
 	// not told about it; only an explicit /skill:name selection uses it.
 	ManualOnly bool `json:"manual_only,omitempty"`
+	// Warnings are authoring problems found while loading (see skills_diag.go).
+	// A skill with warnings is still loaded.
+	Warnings []string `json:"warnings,omitempty"`
 }
 
 // maxSkillHead bounds how much of a skill file is read to find its description.
@@ -33,40 +36,6 @@ func SkillName(s string) string {
 	s = strings.ToLower(strings.TrimSpace(s))
 	s = skillNameRe.ReplaceAllString(s, "-")
 	return strings.Trim(s, "-_")
-}
-
-// ParseFrontmatter splits an optional "---" header of "key: value" lines from
-// the body of a markdown file.
-func ParseFrontmatter(text string) (map[string]string, string) {
-	text = strings.TrimPrefix(text, "\ufeff")
-	lines := strings.Split(text, "\n")
-	if len(lines) == 0 || strings.TrimSpace(lines[0]) != "---" {
-		return nil, text
-	}
-	meta := map[string]string{}
-	last := ""
-	for i := 1; i < len(lines); i++ {
-		line := strings.TrimRight(lines[i], "\r")
-		if strings.TrimSpace(line) == "---" {
-			return meta, strings.Join(lines[i+1:], "\n")
-		}
-		// An indented line continues the previous value.
-		if last != "" && (strings.HasPrefix(line, " ") || strings.HasPrefix(line, "\t")) {
-			meta[last] = strings.TrimSpace(meta[last] + " " + strings.TrimSpace(line))
-			continue
-		}
-		k, v, ok := strings.Cut(line, ":")
-		if !ok {
-			continue
-		}
-		v = strings.TrimSpace(v)
-		if len(v) >= 2 && (v[0] == '"' && v[len(v)-1] == '"' || v[0] == '\'' && v[len(v)-1] == '\'') {
-			v = v[1 : len(v)-1]
-		}
-		last = strings.ToLower(strings.TrimSpace(k))
-		meta[last] = v
-	}
-	return nil, text // never closed: it was not a header
 }
 
 // firstLine is the first line of body that is neither blank nor a heading.
@@ -91,8 +60,13 @@ func readSkill(path, fallback, scope string) (Skill, bool) {
 	if err != nil {
 		return Skill{}, false
 	}
-	meta, body := ParseFrontmatter(string(b))
-	name := SkillName(meta["name"])
+	meta, body, warn := ParseFrontmatterDiag(string(b))
+	var warnings []string
+	if warn != "" {
+		warnings = append(warnings, warn)
+	}
+	rawName := meta["name"]
+	name := SkillName(rawName)
 	if name == "" {
 		name = SkillName(fallback)
 	}
@@ -104,7 +78,8 @@ func readSkill(path, fallback, scope string) (Skill, bool) {
 		desc = strings.Join(strings.Fields(firstLine(body)), " ")
 	}
 	manual := strings.EqualFold(strings.TrimSpace(meta["disable-model-invocation"]), "true")
-	return Skill{Name: name, Scope: scope, Desc: desc, Path: path, ManualOnly: manual}, true
+	warnings = append(warnings, lintSkill(rawName, name, meta["description"], desc, fallback, meta != nil, dirSkill(path))...)
+	return Skill{Name: name, Scope: scope, Desc: desc, Path: path, ManualOnly: manual, Warnings: warnings}, true
 }
 
 // scanSkillDir finds "name.md" files and "name/SKILL.md" directories.
@@ -144,12 +119,25 @@ func scanSkillDir(dir, scope string) []Skill {
 // DiscoverSkills lists the skills of the project directory and the global one,
 // sorted by name. A project skill replaces a global skill with the same name.
 func DiscoverSkills(globalDir, projectDir string) []Skill {
+	return DiscoverSkillDirs([]SkillDir{{globalDir, "global"}, {projectDir, "project"}})
+}
+
+// SkillDir is one directory to scan for skills and the scope its skills get.
+type SkillDir struct {
+	Dir, Scope string
+}
+
+// DiscoverSkillDirs scans the directories in order, sorted by name. A skill
+// from a later directory replaces one with the same name from an earlier one.
+func DiscoverSkillDirs(dirs []SkillDir) []Skill {
 	byName := map[string]Skill{}
-	for _, s := range scanSkillDir(globalDir, "global") {
-		byName[s.Name] = s
-	}
-	for _, s := range scanSkillDir(projectDir, "project") {
-		byName[s.Name] = s
+	for _, d := range dirs {
+		if d.Dir == "" {
+			continue
+		}
+		for _, s := range scanSkillDir(d.Dir, d.Scope) {
+			byName[s.Name] = s
+		}
 	}
 	out := make([]Skill, 0, len(byName))
 	for _, s := range byName {
@@ -181,7 +169,7 @@ func (s *Store) LoadSkills() ([]Skill, error) {
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	list := DiscoverSkills(s.P.GlobalSkillsDir(), s.P.ProjectSkillsDir())
+	list := DiscoverSkillDirs(s.P.SkillDirs())
 	for i := range list {
 		list[i].Enabled = !off[list[i].Name]
 	}

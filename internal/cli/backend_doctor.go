@@ -36,6 +36,7 @@ func (a *DaemonAPI) Doctor(r DoctorRequest) (DoctorReport, error) {
 		add("daemon socket", "ok", sock, "")
 	}
 	out = append(out, configChecks(a.home)...)
+	out = append(out, skillChecks(a.home)...)
 	out = append(out, databaseCheck(a.home))
 	if up {
 		out = append(out, a.daemonChecks(r.Probe)...)

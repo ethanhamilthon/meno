@@ -7,7 +7,7 @@ import (
 )
 
 // skillsIntro opens the skills element.
-const skillsIntro = "A skill is an instruction file for one type of work. When the task matches a skill, read its file with cat before you start. Obey the file. If the user writes /skill:<name>, read that skill first."
+const skillsIntro = "A skill is an instruction file for one type of work. When the task matches a skill, read its file with cat before you start. Obey the file. Relative paths in a skill file (scripts/, references/, assets/) are relative to the directory that holds that file. If the user writes /skill:<name>, read that skill first."
 
 func skillsSection(skills []Skill) string {
 	if len(skills) == 0 {

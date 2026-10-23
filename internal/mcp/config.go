@@ -28,6 +28,11 @@ type Server struct {
 	// (for example Authorization).
 	Headers map[string]string `json:"headers,omitempty"`
 	Enabled bool              `json:"enabled"`
+	// Protocol picks the protocol era: "auto" or empty (probe the modern
+	// 2026-07-28 era first and fall back to legacy), "legacy" (initialize
+	// handshake only, 2024-11-05 to 2025-06-18) or "modern". sse servers are
+	// always legacy.
+	Protocol string `json:"protocol,omitempty"`
 }
 
 func ValidateServer(s Server) error {
@@ -38,6 +43,15 @@ func ValidateServer(s Server) error {
 		if !(r == '-' || r == '_' || (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9')) {
 			return errString("name may contain only a-z, 0-9, - and _")
 		}
+	}
+	switch s.Protocol {
+	case "", ProtocolLegacy, ProtocolAuto:
+	case ProtocolModern:
+		if s.Transport == TransportSSE {
+			return errString("the sse transport cannot use the modern protocol")
+		}
+	default:
+		return errString("protocol must be legacy, auto or modern")
 	}
 	switch s.Transport {
 	case TransportStdio:

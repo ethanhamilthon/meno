@@ -63,6 +63,13 @@ type remote struct {
 	session string // Mcp-Session-Id of a streamable-http session
 	version string
 	legacy  bool // sse transport: answers come back on the event stream
+
+	// reinit starts a new session after the server forgot the old one (HTTP 404
+	// to a request that carried Mcp-Session-Id). Set by newRemote.
+	reinit   func(ctx context.Context) error
+	modern   bool                           // set before the first request
+	specs    func(tool string) []headerSpec // x-mcp-header annotations of a tool
+	reinitMu sync.Mutex
 }
 
 func (r *remote) newRequest(method, target string, body []byte) (*http.Request, error) {
@@ -96,6 +103,14 @@ func (r *remote) Write(b []byte) (int, error) {
 func (r *remote) post(body []byte) error { return r.postContext(r.ctx, body) }
 
 func (r *remote) postContext(ctx context.Context, body []byte) error {
+	return r.postOnce(ctx, body, true)
+}
+
+// postOnce posts one message. When the server answers 404 to a request that
+// carried a session ID, the session has expired: the transport specification
+// requires a new initialize without a session ID. The 404 means the server did
+// not dispatch the message, so it is sent again, once, on the new session.
+func (r *remote) postOnce(ctx context.Context, body []byte, mayRecover bool) error {
 	r.mu.Lock()
 	target, session, version := r.target, r.session, r.version
 	r.mu.Unlock()
@@ -117,6 +132,9 @@ func (r *remote) postContext(ctx context.Context, body []byte) error {
 	if request.Method != "initialize" {
 		req.Header.Set("MCP-Protocol-Version", version)
 	}
+	if r.modern {
+		r.modernHeaders(req, body)
+	}
 	resp, err := r.client.Do(req)
 	if err != nil {
 		return err
@@ -127,9 +145,16 @@ func (r *remote) postContext(ctx context.Context, body []byte) error {
 		r.session = id
 		r.mu.Unlock()
 	}
+	if resp.StatusCode == http.StatusNotFound && session != "" && mayRecover && !r.legacy && r.reinit != nil && request.Method != "initialize" {
+		resp.Body.Close()
+		if err := r.recoverSession(ctx, session); err != nil {
+			return fmt.Errorf("mcp: session expired and could not be restarted: %w", err)
+		}
+		return r.postOnce(ctx, body, false)
+	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		msg, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
-		return fmt.Errorf("http %d: %s", resp.StatusCode, strings.TrimSpace(string(msg)))
+		return &httpError{Status: resp.StatusCode, Body: string(msg)}
 	}
 	if r.legacy {
 		return nil
@@ -189,6 +214,7 @@ func newRemote(ctx context.Context, s Server) (*remote, *Client) {
 		defer cancel()
 		return r.postContext(request, body)
 	}
+	r.reinit = c.handshake
 	c.setVersion = func(version string) { r.mu.Lock(); r.version = version; r.mu.Unlock() }
 	c.conn.notify = c.notification
 	c.closer = func() { r.cancel(); transport.CloseIdleConnections() }
@@ -199,6 +225,12 @@ func newRemote(ctx context.Context, s Server) (*remote, *Client) {
 // startHTTP connects to a streamable-http server. The session starts with the
 // initialize request, so there is nothing to open beforehand.
 func startHTTP(ctx context.Context, s Server) (*Client, error) {
+	if s.wantsModern() {
+		c, err := startHTTPModern(ctx, s)
+		if err == nil || !fallsBackToLegacy(s, err) {
+			return c, err
+		}
+	}
 	_, c := newRemote(ctx, s)
 	if err := c.initialize(ctx); err != nil {
 		c.Close()

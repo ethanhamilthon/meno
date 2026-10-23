@@ -20,23 +20,36 @@ type Tool struct {
 	Name        string          `json:"name"`
 	Description string          `json:"description"`
 	InputSchema json.RawMessage `json:"inputSchema"`
+	// Metadata the server may send. Annotations are hints from the server and
+	// are never a basis for authorization.
+	Title        string          `json:"title,omitempty"`
+	OutputSchema json.RawMessage `json:"outputSchema,omitempty"`
+	Annotations  json.RawMessage `json:"annotations,omitempty"`
+	Meta         json.RawMessage `json:"_meta,omitempty"`
 }
 
 type Client struct {
-	Server     Server
-	cmd        *exec.Cmd
-	closer     func() // set by remote transports
-	conn       *conn
-	tools      []Tool
-	toolsMu    sync.RWMutex
-	refreshMu  sync.Mutex
-	closeOnce  sync.Once
-	doneOnce   sync.Once
-	ctx        context.Context
-	cancel     context.CancelFunc
-	sendRemote func(context.Context, any) error
-	setVersion func(string)
-	done       chan struct{}
+	Server Server
+	cmd    *exec.Cmd
+	closer func() // set by remote transports
+	conn   *conn
+	tools  []Tool
+	caps   Capabilities
+	modern bool // the modern per-request-metadata era is in use
+	// headerSpecs: x-mcp-header annotations per tool (modern HTTP). pending is
+	// the set being built by refresh, which holds refreshMu.
+	headerSpecs headerIndex
+	pending     headerIndex
+	rejected    []string
+	toolsMu     sync.RWMutex
+	refreshMu   sync.Mutex
+	closeOnce   sync.Once
+	doneOnce    sync.Once
+	ctx         context.Context
+	cancel      context.CancelFunc
+	sendRemote  func(context.Context, any) error
+	setVersion  func(string)
+	done        chan struct{}
 	// errs keeps the stderr of a stdio server for the error message.
 	errs *stderrBuffer
 }
@@ -51,6 +64,7 @@ func Start(ctx context.Context, s Server) (*Client, error) {
 	default:
 		return nil, fmt.Errorf("unknown transport %q", s.Transport)
 	}
+	parent := ctx
 	ctx, cancel := context.WithCancel(ctx)
 	cmd, errs, err := stdioProcess(ctx, s)
 	if err != nil {
@@ -80,6 +94,21 @@ func Start(ctx context.Context, s Server) (*Client, error) {
 		_ = cmd.Wait()
 		c.markDone()
 	}()
+	if s.wantsModern() {
+		c.modern = true
+		err := c.startModern(ctx)
+		if err == nil {
+			return c, nil
+		}
+		c.Close()
+		if parent.Err() != nil || !fallsBackToLegacy(s, err) {
+			return nil, c.withStderr(err)
+		}
+		// A legacy server may have answered oddly, stayed silent or exited:
+		// start it again for the initialize handshake.
+		s.Protocol = ProtocolLegacy
+		return Start(parent, s)
+	}
 	if err := c.initialize(ctx); err != nil {
 		c.Close()
 		return nil, c.withStderr(err)

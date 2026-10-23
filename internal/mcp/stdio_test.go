@@ -119,7 +119,7 @@ func TestStdioStartupErrorCarriesStderr(t *testing.T) {
 
 func TestStartupTimeoutNamesTheStep(t *testing.T) {
 	p := writeScript(t, "silent.py", "import sys\nfor line in sys.stdin:\n    pass\n")
-	s := Server{Name: "silent", Transport: TransportStdio, Command: "python3 " + p, Enabled: true}
+	s := Server{Name: "silent", Transport: TransportStdio, Command: "python3 " + p, Enabled: true, Protocol: ProtocolLegacy}
 	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
 	defer cancel()
 	_, err := Start(ctx, s)

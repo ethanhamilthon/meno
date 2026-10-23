@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.6.11
+
+Restart the daemon after updating. No data is migrated. `mcp.json` gains an optional `protocol` field.
+
+- **MCP, modern protocol (2026-07-28), tools only.** By default (`protocol` empty or `auto`) meno probes a server with
+  `server/discover` first and falls back to the legacy `initialize` handshake. `legacy` and `modern` pin one era. Supported:
+  per-request `_meta`, `Mcp-Method`/`Mcp-Name` and `x-mcp-header` request headers, `resultType`. Not supported: `subscriptions/listen`,
+  list-changed refresh, caching, multi round-trip input (`input_required` is reported as an error), OAuth, resources and prompts.
+  It has been tested against in-repo fake servers (stdio and HTTP) only, not against a real modern server.
+- **Auto fallback limits.** On HTTP only a 400/404/405 or a non-modern answer means "legacy"; 401, 5xx and network errors are real errors.
+  A legacy stdio server that stays silent is started twice and can delay startup by up to 10 seconds: set `"protocol": "legacy"`.
+  The `sse` transport is always legacy.
+- **Legacy MCP:** a forgotten HTTP session (404) is restarted once; a server without the `tools` capability starts without
+  tools; `title`, `outputSchema`, `annotations` and `_meta` of tools are kept (annotations are hints, never permission).
+- **Skills:** `.agents/skills` of the project and of your home directory are read as well (not with a custom `MENO_HOME`);
+  `SKILL.md` frontmatter is parsed as YAML with a lenient fallback; a skill with problems still loads and `meno doctor` lists
+  warnings; skill paths in the prompt are relative where possible; after compaction the summary lists skill files that were read.
+  `allowed-tools`, `license` and `compatibility` are not modeled.
+
 ## 0.6.10
 
 Restart the daemon after updating. The database schema goes to version 17 (additive).

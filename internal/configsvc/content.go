@@ -46,7 +46,7 @@ func (s *Service) skillsResource(method, path string, req api.ResourceRequest) (
 	s.changed("settings_changed")
 	for _, x := range list {
 		if x.Name == name {
-			return api.SkillResponse{Skill: api.ConfigSkill{Name: x.Name, Scope: x.Scope, Desc: x.Desc, Path: x.Path, Enabled: x.Enabled}}, nil
+			return api.SkillResponse{Skill: api.ConfigSkill{Name: x.Name, Scope: x.Scope, Desc: x.Desc, Path: x.Path, Enabled: x.Enabled, Warnings: x.Warnings}}, nil
 		}
 	}
 	return nil, notFound("no skill named " + name)

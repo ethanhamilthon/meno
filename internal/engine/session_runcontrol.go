@@ -51,7 +51,7 @@ func (e *Engine) Compact(ctx context.Context, id string, q api.CompactRequest) (
 	}
 	system, _, _ := e.prepare(ctx, s, effort, false)
 	before := s.session.Len()
-	_, _, err = agent.CompactWith(ctx, e.client(p), p, model, s.session, agent.CompactOptions{Keep: q.Keep, SummaryTokens: e.cfg().CompactSummaryTokens, Effort: effort, System: system, ToolDesc: "", RecordChanged: func() { e.agentEvent(s, agent.Ev{Kind: agent.EvRequestRecord}) }}, nil)
+	_, _, err = agent.CompactWith(ctx, e.client(p), p, model, s.session, agent.CompactOptions{Keep: q.Keep, SummaryTokens: e.cfg().CompactSummaryTokens, Effort: effort, System: system, ToolDesc: "", SkillPaths: e.skillPaths(cwd), RecordChanged: func() { e.agentEvent(s, agent.Ev{Kind: agent.EvRequestRecord}) }}, nil)
 	if err != nil {
 		return api.CompactResponse{}, err
 	}

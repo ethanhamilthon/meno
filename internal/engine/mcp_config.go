@@ -21,7 +21,7 @@ func (e *Engine) mcpServers(ctx context.Context) ([]mcp.Server, error) {
 	}
 	servers := make([]mcp.Server, 0, len(out.Servers))
 	for _, v := range out.Servers {
-		servers = append(servers, mcp.Server{Name: v.Name, Transport: v.Transport, Command: v.Command, Env: v.Env, URL: v.URL, Headers: v.Headers, Enabled: v.Enabled})
+		servers = append(servers, mcp.Server{Name: v.Name, Transport: v.Transport, Command: v.Command, Env: v.Env, URL: v.URL, Headers: v.Headers, Enabled: v.Enabled, Protocol: v.Protocol})
 	}
 	return servers, nil
 }
