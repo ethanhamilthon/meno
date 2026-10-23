@@ -61,10 +61,9 @@ every push and pull request on Linux and macOS and installs a snapshot build wit
 
 | | |
 | --- | --- |
-| [The agent's tool](docs/tools.md) | the `bash` tool and the `meno` command the model uses: files, tasks, mcp, web, view, ask |
-| [Command line](docs/cli.md), [daemon](docs/daemon.md) | `meno sessions`, `send`, `tail`, `doctor`, `web`; the background daemon |
+| [The agent's tool](docs/tools.md) | the `bash` tool and the `meno` command the model uses: files, tasks, mcp, view, ask |
+| [Command line](docs/cli.md), [daemon](docs/daemon.md) | `meno sessions`, `send`, `tail`, `doctor`; the background daemon |
 | [ACP agent](docs/acp.md) | `meno acp`: use Meno from any ACP client |
-| [Web](docs/web.md) | web search and fetch |
 | [Sessions, history and events](docs/sessions.md) | /new, /fork, /cd, compaction, steering, /stop |
 | [Accounts and providers](docs/login.md) | `/login` |
 | [Interface](docs/ui.md) | keys, commands, timeline, Markdown, images, tool-call display |

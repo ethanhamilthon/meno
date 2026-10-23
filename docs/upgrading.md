@@ -1,5 +1,13 @@
 # Upgrading, data and privacy
 
+## 0.6.9: `meno web` removed
+
+Restart the daemon after updating.
+
+- Removed: `meno web search`, `meno web fetch`, and the `web_search` and
+  `web_allow_local` settings. Use `curl` or an MCP server. Old settings keys are
+  ignored and are not written back. No data is migrated.
+
 ## 0.6.8: providers and MCP servers in JSON files, `--no-ask`
 
 Restart the daemon after updating.

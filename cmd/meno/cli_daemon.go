@@ -14,7 +14,7 @@ import (
 // isDaemonGroup reports the commands that talk to the daemon.
 func isDaemonGroup(name string) bool {
 	switch name {
-	case "mcp", "tasks", "ask", "goal", "view", "models", "sessions", "send", "tail", "doctor", "web":
+	case "mcp", "tasks", "ask", "goal", "view", "models", "sessions", "send", "tail", "doctor":
 		return true
 	}
 	return false

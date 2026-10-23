@@ -25,8 +25,6 @@ type ConfigSettings struct {
 	CompactKeep          int    `json:"compact_keep"`
 	CompactSummaryTokens int    `json:"compact_summary_tokens"`
 	ImagesProtocol       string `json:"images_protocol"`
-	WebSearch            string `json:"web_search"`
-	WebAllowLocal        bool   `json:"web_allow_local"`
 }
 
 type SettingsRequest struct {

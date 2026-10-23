@@ -25,4 +25,3 @@ internal/render 89
 internal/store 69
 internal/tui 65
 internal/update 78
-internal/web 88

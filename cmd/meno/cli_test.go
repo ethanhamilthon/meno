@@ -33,12 +33,19 @@ func TestUnknownCommandFails(t *testing.T) {
 	if code, _, errOut := runCLI("update", "now"); code != 1 || !strings.Contains(errOut, "meno -h") {
 		t.Fatalf("update with arguments: %d %q", code, errOut)
 	}
+	// meno web was removed in 0.6.9: it is an ordinary unknown command.
+	if code, out, errOut := runCLI("web", "search", "x"); code != 1 || out != "" || !strings.Contains(errOut, `unknown command "web"`) {
+		t.Fatalf("meno web: %d %q %q", code, out, errOut)
+	}
+	if _, out, _ := runCLI("-h"); strings.Contains(out, "web") {
+		t.Fatalf("meno -h still mentions web: %q", out)
+	}
 }
 
 // Every command the cli package implements must be routed to it by the entry
 // point, or the real binary answers "unknown command".
 func TestEveryCLICommandIsRoutedToTheDaemonGroup(t *testing.T) {
-	for _, name := range []string{"mcp", "tasks", "ask", "view", "models", "sessions", "send", "tail", "doctor", "web"} {
+	for _, name := range []string{"mcp", "tasks", "ask", "view", "models", "sessions", "send", "tail", "doctor"} {
 		if !isDaemonGroup(name) {
 			t.Errorf("%q is not routed to the cli package", name)
 		}

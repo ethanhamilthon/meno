@@ -3,13 +3,20 @@ package engine
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"sync"
 	"sync/atomic"
 	"testing"
 
 	"meno/internal/api"
+	"meno/internal/daemon"
 	"meno/internal/llm"
 )
+
+func isCode(err error, code string) bool {
+	var a *daemon.APIError
+	return errors.As(err, &a) && a.Code == code
+}
 
 // Several clients answer the same question at once: exactly one wins and the
 // others get an explicit conflict, never a silent success.

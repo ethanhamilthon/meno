@@ -20,12 +20,6 @@ type fakeAPI struct {
 func (f *fakeAPI) Doctor(DoctorRequest) (DoctorReport, error) {
 	return f.report, f.check()
 }
-func (f *fakeAPI) WebSearch(q string) (WebSearchResult, error) {
-	return WebSearchResult{Query: q, Answer: "an answer", Sources: []WebSource{{URL: "https://x.test"}}}, f.check()
-}
-func (f *fakeAPI) WebFetch(u string) (WebPage, error) {
-	return WebPage{URL: u, FinalURL: u, Title: "T", Text: "body", Truncated: true, Notice: "cut"}, f.check()
-}
 func (f *fakeAPI) check() error {
 	if f.forbidden {
 		return &APIError{Code: "forbidden", Message: "not allowed"}

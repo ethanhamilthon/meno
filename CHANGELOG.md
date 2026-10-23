@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.9
+
+Restart the daemon after updating. No data is migrated.
+
+- **Removed** `meno web search` and `meno web fetch`, and the `web_search` and
+  `web_allow_local` settings. Use `curl` or an MCP server. `meno web` is now an
+  ordinary unknown command. Old settings files that still have the two keys load
+  fine and drop them at the next save.
+
 ## 0.6.8
 
 Restart the daemon after updating. Providers and MCP servers move from the

@@ -56,9 +56,3 @@ these files with keys in them. Files are written with mode 0600.
 Settings without a row in the dialog live in the settings JSON (`meno.db`):
 `compact_keep` (8) and `compact_summary_tokens` (4000) tune the automatic
 compaction safety net, see [sessions](sessions.md).
-
-## Web
-
-- `web_search`: `PROVIDER/MODEL` used by `meno web search`. Empty means off.
-- `web_allow_local`: let `meno web fetch` reach loopback and private addresses
-  (the cloud metadata address stays blocked).

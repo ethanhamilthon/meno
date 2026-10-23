@@ -147,3 +147,18 @@ func TestTimingSettings(t *testing.T) {
 		t.Fatal("timing settings carry no number")
 	}
 }
+
+// The web settings were removed in 0.6.9; an old settings file that still has
+// them loads, and the keys are not written back.
+func TestRemovedWebSettingsAreIgnored(t *testing.T) {
+	var got Settings
+	if err := json.Unmarshal([]byte(`{"web_search":"p/m","web_allow_local":true,"effort":"high"}`), &got); err != nil || got.Effort != "high" {
+		t.Fatalf("%+v %v", got, err)
+	}
+	out, _ := json.Marshal(got)
+	for _, key := range []string{"web_search", "web_allow_local"} {
+		if strings.Contains(string(out), key) {
+			t.Errorf("removed key written back: %s", key)
+		}
+	}
+}

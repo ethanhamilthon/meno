@@ -9,7 +9,6 @@
 | `meno send [-s ID \| --new [--no-ask]] [--detach] TEXT` | write to a session and print the answer; `--detach` does not wait. If the session is already running, the message is only queued and the command returns at once |
 | `meno tail ID` | print the events of a session as JSON lines |
 | `meno doctor [--probe]` | read-only health check with suggested fixes |
-| `meno web search QUERY \| fetch URL` | search the web with your chosen provider, or fetch a page as text |
 | `meno update` | install the latest GitHub release |
 | `meno -v`, `meno -h` | version, usage |
 
@@ -30,10 +29,6 @@ anything. It checks the daemon socket, version and protocol, the JSON config
 files, the integrity of `meno.db`, providers and MCP servers. It works without a
 running daemon. `--probe` also lists the models of each enabled provider (bounded
 network calls). Secrets are never printed. Exit codes: 0 healthy, 4 warnings, 1 errors.
-
-## meno web
-
-`meno web search QUERY` and `meno web fetch URL`, see [web](web.md).
 
 ## meno acp
 

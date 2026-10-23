@@ -219,7 +219,7 @@ func newToken() (string, error) {
 }
 func groupsFor(names []string) map[string]bool {
 	m := map[string]bool{}
-	for _, g := range []string{"tasks", "mcp", "view", "models", "ask", "help", "web"} {
+	for _, g := range []string{"tasks", "mcp", "view", "models", "ask", "help"} {
 		m[g] = true
 	}
 	return m

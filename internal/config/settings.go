@@ -40,11 +40,6 @@ type Settings struct {
 	// ImagesProtocol is auto, off, kitty, sixel or iterm: which terminal
 	// graphics protocol draws images in the timeline.
 	ImagesProtocol string `json:"images_protocol"`
-	// WebSearch is PROVIDER/MODEL: the provider whose native web search
-	// `meno web search` uses. Empty means search is off; it is never guessed.
-	WebSearch string `json:"web_search"`
-	// WebAllowLocal lets `meno web fetch` reach loopback and private addresses.
-	WebAllowLocal bool `json:"web_allow_local"`
 }
 
 // UnmarshalJSON restores safe defaults for obsolete enum values and invalid
