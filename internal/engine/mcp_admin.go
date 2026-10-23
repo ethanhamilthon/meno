@@ -46,10 +46,10 @@ func (e *Engine) adminMCP(ctx context.Context, s *runState, op, name string) (an
 	if err != nil {
 		return nil, fmt.Errorf("configured MCP server %q not available; use /mcp to create it: %w", name, err)
 	}
-	if before.Source != "" && op != "restart" {
-		return nil, dapi(api.CodeForbidden, "file-defined MCP configuration is read only")
-	}
 	if op != "restart" {
+		if s.session.NoAsk {
+			return nil, dapi(api.CodeForbidden, "changing MCP servers needs the user's approval and asking is turned off for this session (--no-ask). Tell the user in the chat what to change; they can use /mcp.")
+		}
 		// Adding or removing a server changes the configuration and needs the
 		// user. The question is bounded: an unanswered question must not hold
 		// the agent forever.

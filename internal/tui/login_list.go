@@ -3,7 +3,6 @@ package tui
 import (
 	"strings"
 
-	"meno/internal/config"
 	"meno/internal/llm"
 	"meno/internal/render"
 )
@@ -96,9 +95,6 @@ func (a *App) loginItem(r loginRow) item {
 			state = "models: " + a.st.ModelErr[p.Name]
 		}
 		detail := "API key · " + protoLabel(p.Protocol) + " · " + state + " · space on/off · d remove"
-		if t := fileTag(p.FromFile(), config.ProviderFileName); t != "" {
-			detail = t
-		}
 		return item{glyph: g, glyphFG: fg, label: p.Name, right: p.BaseURL, detail: detail}
 	case rowOAuth:
 		acc := a.st.Accounts[r.i]

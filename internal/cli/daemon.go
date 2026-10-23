@@ -61,20 +61,23 @@ func runSessions(args []string, s IO, a API, j bool) (int, error) {
 	return 0, emit(s, j, items, formatList(items, func(x Session) string { return x.ID + "\t" + x.Status + "\t" + x.Name + "\t" + x.CWD }))
 }
 func runSend(args []string, s IO, a API, j bool) (int, error) {
-	values, switches, pos, err := parseFlags(args, map[string]bool{"s": true}, map[string]bool{"new": true, "detach": true})
+	values, switches, pos, err := parseFlags(args, map[string]bool{"s": true}, map[string]bool{"new": true, "detach": true, "no-ask": true})
 	if err != nil {
 		return 0, err
 	}
 	if len(pos) == 0 {
-		return 0, usageError("usage: meno send [-s ID|--new] [--detach] TEXT")
+		return 0, usageError("usage: meno send [-s ID|--new [--no-ask]] [--detach] TEXT")
 	}
 	if switches["new"] && values["s"] != "" {
 		return 0, usageError("--new cannot be combined with -s")
 	}
+	if switches["no-ask"] && !switches["new"] {
+		return 0, usageError("--no-ask applies to a new session: use it with --new")
+	}
 	if err = apiRequired(a); err != nil {
 		return 0, err
 	}
-	res, err := a.Send(SendRequest{Text: strings.Join(pos, " "), SessionID: values["s"], New: switches["new"], Detach: switches["detach"]})
+	res, err := a.Send(SendRequest{Text: strings.Join(pos, " "), SessionID: values["s"], New: switches["new"], NoAsk: switches["no-ask"], Detach: switches["detach"]})
 	if err != nil {
 		return 0, err
 	}

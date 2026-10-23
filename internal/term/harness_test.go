@@ -79,9 +79,11 @@ func start(t *testing.T, o options) *session {
 	work := t.TempDir()
 	if o.fake != nil {
 		st := config.NewStore(config.Paths{Home: o.home, Cwd: work})
-		proto := o.proto
-		if proto == "" {
-			proto = llm.ProtoChat
+		// Scenarios say "chat" or "responses"; provider.json is validated and
+		// needs the full protocol names.
+		proto := llm.ProtoChat
+		if o.proto == "responses" {
+			proto = llm.ProtoResponses
 		}
 		if err := st.SaveProviders([]llm.Provider{{Name: "fake", BaseURL: o.fake.URL(), APIKey: "k", Protocol: proto}}); err != nil {
 			t.Fatal(err)

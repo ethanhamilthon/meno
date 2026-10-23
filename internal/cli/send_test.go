@@ -53,3 +53,22 @@ func TestSendLiteralSessionFlag(t *testing.T) {
 		t.Fatalf("code=%d errors=%q requests=%+v", code, errs, a.requests)
 	}
 }
+
+func TestSendNoAskNeedsANewSession(t *testing.T) {
+	a := &sendRecorder{}
+	code, _, errs := run([]string{"send", "--new", "--no-ask", "--detach", "hi"}, a, "")
+	want := []SendRequest{{Text: "hi", New: true, NoAsk: true, Detach: true}}
+	if code != 0 || errs != "" || !reflect.DeepEqual(a.requests, want) {
+		t.Fatalf("code=%d errors=%q requests=%+v", code, errs, a.requests)
+	}
+	for _, args := range [][]string{
+		{"send", "--no-ask", "hi"},
+		{"send", "-s", "abc", "--no-ask", "hi"},
+	} {
+		b := &sendRecorder{}
+		code, _, errs := run(args, b, "")
+		if code != 2 || !strings.Contains(errs, "--no-ask applies to a new session") || len(b.requests) != 0 {
+			t.Fatalf("%v: code=%d errors=%q requests=%+v", args, code, errs, b.requests)
+		}
+	}
+}

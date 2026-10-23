@@ -44,3 +44,15 @@ func TestEveryCLICommandIsRoutedToTheDaemonGroup(t *testing.T) {
 		}
 	}
 }
+
+// --no-ask is accepted by `meno` alone and by `meno acp`; nothing else is.
+func TestNoAskFlagIsNarrow(t *testing.T) {
+	code, _, errOut := runCLI("--no-ask", "send", "x")
+	if code != 1 || !strings.Contains(errOut, `unknown command "--no-ask"`) {
+		t.Fatalf("meno --no-ask send: %d %q", code, errOut)
+	}
+	var o, e bytes.Buffer
+	if code := runACP([]string{"--bogus"}, strings.NewReader(""), &o, &e); code != 2 || !strings.Contains(e.String(), "acp takes only --no-ask") {
+		t.Fatalf("acp --bogus: %d %q", code, e.String())
+	}
+}

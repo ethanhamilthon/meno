@@ -19,3 +19,4 @@ Form:
 - timeout: optional seconds; without it the question waits until answered.
 - The user can always type a custom answer in addition to the options.
 - Unknown fields are rejected.
+- Sessions started with --no-ask refuse this command (exit 3); the agent asks in the chat.

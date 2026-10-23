@@ -78,6 +78,11 @@ func runDaemon(home string, errOut io.Writer) int {
 	if backup != "" {
 		fmt.Fprintln(errOut, "meno 0.5.0 starts with a fresh database; previous data backed up to", backup)
 	}
+	// Providers and MCP servers moved from the database to provider.json and mcp.json
+	// in 0.6.8. A failure is not fatal: the next start tries again.
+	if err := config.MigrateToFiles(config.Paths{Home: home}); err != nil {
+		fmt.Fprintln(errOut, "meno: moving providers and MCP servers to JSON files:", err)
+	}
 	manager := mcp.NewManager()
 	service, e := configsvc.New(configsvc.Options{MCP: manager, Paths: config.Paths{Home: home}})
 	if e != nil {

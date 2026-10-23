@@ -85,13 +85,15 @@ type peer struct {
 	done   chan error
 }
 
-func startPeer(t *testing.T, b Backend) *peer {
+func startPeer(t *testing.T, b Backend) *peer { return startPeerWith(t, b, Options{Version: "test"}) }
+
+func startPeerWith(t *testing.T, b Backend, o Options) *peer {
 	t.Helper()
 	inR, inW := io.Pipe()
 	outR, outW := io.Pipe()
 	p := &peer{t: t, in: inW, waits: map[string]chan message{}, done: make(chan error, 1)}
 	go func() {
-		p.done <- Run(context.Background(), inR, outW, b, Options{Version: "test"})
+		p.done <- Run(context.Background(), inR, outW, b, o)
 		_ = outW.Close()
 	}()
 	go func() {

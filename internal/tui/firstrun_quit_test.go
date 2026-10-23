@@ -23,8 +23,8 @@ func TestCtrlCDoesNotQuitNormally(t *testing.T) {
 	}
 }
 
-func TestQuitCommandAndLegacyBangBothDetach(t *testing.T) {
-	for _, cmd := range []string{"q", "q!", "quit", "quit!"} {
+func TestQuitCommandDetaches(t *testing.T) {
+	for _, cmd := range []string{"q", "quit"} {
 		a, _ := newTestApp(t)
 		a.runCommand(cmd)
 		if !a.quit {
@@ -33,14 +33,13 @@ func TestQuitCommandAndLegacyBangBothDetach(t *testing.T) {
 	}
 }
 
-func TestStopAllNeedsConfirmation(t *testing.T) {
-	a, _ := newTestApp(t)
-	a.st.Runtime.Running = true
-	a.runCommand("stop-all")
-	if !a.stopAllAsk.After(a.stopAllAsk.Add(-1)) || a.stopAllAsk.IsZero() {
-		t.Fatal("the first /stop-all only asks")
-	}
-	if !a.st.Runtime.Running {
-		t.Fatal("nothing may be stopped before confirmation")
+// The removed commands are ordinary unknown commands and never leave.
+func TestRemovedCommandsDoNotLeave(t *testing.T) {
+	for _, cmd := range []string{"q!", "quit!", "stop-all"} {
+		a, _ := newTestApp(t)
+		a.runCommand(cmd)
+		if a.quit {
+			t.Errorf("/%s must not leave", cmd)
+		}
 	}
 }

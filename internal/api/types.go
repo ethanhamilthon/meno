@@ -61,6 +61,7 @@ type SessionItem struct {
 	Status      string `json:"status,omitempty"`
 	Running     bool   `json:"running"`
 	NeedsYou    bool   `json:"needs_you"`
+	NoAsk       bool   `json:"no_ask,omitempty"`
 	TurnCount   int    `json:"turn_count"`
 	UpdatedAt   string `json:"updated_at,omitempty"`
 }
@@ -80,6 +81,7 @@ type SessionsListResponse struct {
 // SessionCreateRequest creates a session.
 type SessionCreateRequest struct {
 	Cwd      string            `json:"cwd"`
+	NoAsk    bool              `json:"no_ask,omitempty"`
 	Model    string            `json:"model,omitempty"`
 	Env      map[string]string `json:"env,omitempty"`
 	ClientID string            `json:"client_id"`

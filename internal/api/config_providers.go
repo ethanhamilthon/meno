@@ -27,6 +27,7 @@ type ConfigProvider struct {
 
 type ProvidersResponse struct {
 	Providers []ConfigProvider `json:"providers"`
+	Warnings  []string         `json:"warnings,omitempty"`
 }
 type ProviderRequest struct {
 	Provider ConfigProvider `json:"provider"`

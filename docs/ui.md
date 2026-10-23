@@ -34,7 +34,7 @@ grapheme boundaries. Visual wrapping does not change stored text.
 | /new /sessions /fork /rename /cd /compact /export | Session actions |
 | /model /settings /skills /mcp /login /tasks | Model and management dialogs |
 | /context | ctx/max, spent, in/out and cache hit for the last turn, the session and the current request |
-| /stop /q /stop-all | Stop this turn; leave (work keeps running); stop every turn after confirmation. `/q!` is an alias of `/q` |
+| /stop /q | Stop this turn; leave (work keeps running) |
 
 A mouse selection is copied to the clipboard on release and stays highlighted
 until the next key or click. The wheel, PgUp and PgDn scroll the timeline.

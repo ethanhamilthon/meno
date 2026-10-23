@@ -111,8 +111,10 @@ type Session struct {
 	// Provider, Model and Effort are the model this session talks to; each
 	// session has its own. Sessions saved before this was per session may have
 	// only Model.
-	Provider  string    `json:"provider,omitempty"`
-	Tool      string    `json:"tool,omitempty"`
+	Provider string `json:"provider,omitempty"`
+	Tool     string `json:"tool,omitempty"`
+	// NoAsk turns the ask tool off: `meno ask` answers with an error.
+	NoAsk     bool      `json:"no_ask,omitempty"`
 	Model     string    `json:"model"`
 	Effort    string    `json:"effort,omitempty"`
 	UpdatedAt time.Time `json:"updated_at"`

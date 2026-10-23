@@ -23,7 +23,7 @@ add `--json` for structured output.
 | --- | --- |
 | mcp | `servers`, `tools SERVER`, `call SERVER TOOL [ARGS]`, `results ID`, `add`, `remove`, `restart` |
 | tasks | `start CMD`, `list`, `status ID`, `logs ID`, `wait ID`, `cancel ID` |
-| ask | `meno ask FILE\|-` shows a form to the user and prints the answers |
+| ask | `meno ask FILE\|-` shows a form to the user and prints the answers; a session started with `--no-ask` refuses it (exit 3) and the agent asks in the chat |
 | view | `meno view IMAGE` shows an image to the model |
 | models | the models of the configured providers |
 
@@ -58,9 +58,8 @@ to their session and are removed when that session is deleted.
 `meno mcp add SERVER` enables an existing saved definition and `remove` deletes
 it; both ask for human approval. `restart` reconnects a server that is already
 configured and runs without a question, so an agent can recover a server that
-stopped answering. Unknown definitions must be created with `/mcp`. File
-definitions remain read-only, but an enabled one can be restarted. File edits
-require restarting the daemon.
+stopped answering. Unknown definitions must be created with `/mcp`. A server
+you added to `mcp.json` by hand is an ordinary definition; the daemon sees the edit at the next read.
 
 A stdio server that answers slowly is not a failure: the handshake and the tool
 list wait up to 30 seconds, and a server that writes to a pipe gets an unbuffered

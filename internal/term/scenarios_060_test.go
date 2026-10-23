@@ -40,19 +40,3 @@ func TestQuitDetachesAndTheRunSurvives(t *testing.T) {
 	b.Cmd("sessions")
 	b.WaitFor("running")
 }
-
-// /stop-all asks before it stops anything.
-func TestStopAllNeedsConfirmation(t *testing.T) {
-	f := newFakeLLM(t)
-	f.Handler = func(q *llmReq) {
-		q.TextPartial("working ")
-		time.Sleep(4 * time.Second)
-		q.Text("finished-marker")
-	}
-	s := start(t, options{fake: f, cols: 110, rows: 28})
-	s.Say("go")
-	s.WaitFor("working")
-	s.Cmd("stop-all")
-	s.WaitFor("repeat /stop-all")
-	s.WaitFor("finished-marker") // still running: the first command only asked
-}

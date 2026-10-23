@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"os"
 
 	"meno/internal/config"
 )
@@ -19,9 +20,12 @@ func (e *Engine) reloadConfig() error {
 	if err != nil {
 		return fmt.Errorf("settings: %w", err)
 	}
-	providers, err := st.LoadProviders()
-	if err != nil {
-		return err
+	providers, perr := st.LoadProvidersResolved(os.Getenv)
+	if perr != nil {
+		// A file broken by hand keeps the last good list.
+		e.mu.Lock()
+		providers = e.providers
+		e.mu.Unlock()
 	}
 	if e.resources != nil {
 		// The config service knows the full list: saved providers, provider.json
@@ -30,9 +34,12 @@ func (e *Engine) reloadConfig() error {
 			providers = all
 		}
 	}
-	servers, _ := st.LoadServers()
-	serverFiles, _ := config.LoadMCPFile(e.paths.MCPFile())
-	servers, _ = config.MergeServers(servers, serverFiles)
+	servers, serr := st.LoadServers()
+	if serr != nil {
+		e.mu.Lock()
+		servers = e.servers
+		e.mu.Unlock()
+	}
 	catalog, _ := st.LoadCatalog()
 	e.mu.Lock()
 	e.settings, e.providers, e.servers = settings, providers, servers

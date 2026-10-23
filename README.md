@@ -89,7 +89,7 @@ Everything lives in `$MENO_HOME` (default `~/.meno`; `make run` uses `~/.meno-de
 | `tasks/` | bounded logs of background tasks |
 | `mcp-results/` | complete MCP tool results and their binary artifacts, per session |
 | `skills/` | global skills |
-| `provider.json`, `mcp.json`, `theme.json` | optional: add providers, MCP servers and themes, see [settings](docs/settings.md) |
+| `provider.json`, `mcp.json`, `theme.json` | providers and MCP servers (edited by `/login`, `/mcp` or by hand) and optional themes, see [settings](docs/settings.md) |
 
 ## Upgrading to 0.5.0
 

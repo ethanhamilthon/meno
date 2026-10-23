@@ -6,7 +6,6 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 
-	"meno/internal/config"
 	"meno/internal/mcp"
 	"meno/internal/render"
 )
@@ -40,9 +39,6 @@ func (a *App) mcpItems() []item {
 			right = "error"
 			detail = a.st.ServerInfo[s.Name].Err
 		}
-		if s.FromFile() {
-			right += " · " + config.MCPFileName
-		}
 		out = append(out, item{glyph: g, glyphFG: gfg, label: s.Name, right: right, detail: detail})
 	}
 	return append(out, item{glyph: "+", glyphFG: render.Blue, label: "new mcp server", accent: true})
@@ -56,8 +52,6 @@ func (a *App) mcpKey(k *tcell.EventKey) {
 		a.openMCPEdit(a.st.Sel)
 	case isKey(k, 'n'):
 		a.openMCPEdit(-1)
-	case k.Rune() == ' ' && a.st.Sel < n && a.st.Servers[a.st.Sel].FromFile():
-		a.fileEntryNotice(config.MCPFileName)
 	case k.Rune() == ' ' && a.st.Sel < n:
 		s := &a.st.Servers[a.st.Sel]
 		s.Enabled = !s.Enabled
@@ -80,10 +74,6 @@ func (a *App) startMCP(i int) {
 }
 
 func (a *App) openMCPEdit(i int) {
-	if i >= 0 && i < len(a.st.Servers) && a.st.Servers[i].FromFile() {
-		a.fileEntryNotice(config.MCPFileName)
-		return
-	}
 	if i < 0 || i >= len(a.st.Servers) {
 		a.st.EditMCP = mcp.Server{Transport: "stdio", Enabled: true}
 		a.st.EditIdx = -1

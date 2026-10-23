@@ -94,10 +94,6 @@ func (a *App) toggleProvider(i int) {
 		return
 	}
 	p := &a.st.Providers[i]
-	if p.FromFile() {
-		a.fileEntryNotice("provider.json")
-		return
-	}
 	p.Disabled = !p.Disabled
 	a.persistProviders()
 	a.notify(p.Name + map[bool]string{true: " is off", false: " is on"}[p.Disabled])
@@ -110,10 +106,6 @@ func (a *App) deleteProvider(i int) {
 		return
 	}
 	p := a.st.Providers[i]
-	if p.FromFile() {
-		a.fileEntryNotice("provider.json")
-		return
-	}
 	a.st.Providers = append(a.st.Providers[:i], a.st.Providers[i+1:]...)
 	name := p.Name
 	a.pushSave(func() {

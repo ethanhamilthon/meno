@@ -55,7 +55,7 @@ func (a *DaemonAPI) Send(r SendRequest) (SendResult, error) {
 	}
 	if id == "" {
 		cwd, _ := os.Getwd()
-		c, err := a.c.CreateSession(ctx, api.SessionCreateRequest{Cwd: cwd, ClientID: clientID()})
+		c, err := a.c.CreateSession(ctx, api.SessionCreateRequest{Cwd: cwd, ClientID: clientID(), NoAsk: r.NoAsk})
 		if err != nil {
 			return SendResult{}, wrap(err)
 		}

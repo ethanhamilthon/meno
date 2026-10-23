@@ -6,7 +6,7 @@
 | --- | --- |
 | `meno daemon run\|start\|stop\|restart [--force]\|status\|logs [-f]` | manage the [daemon](daemon.md) |
 | `meno sessions [--cwd DIR]` | list sessions: id, status, name, directory |
-| `meno send [-s ID \| --new] [--detach] TEXT` | write to a session and print the answer; `--detach` does not wait. If the session is already running, the message is only queued and the command returns at once |
+| `meno send [-s ID \| --new [--no-ask]] [--detach] TEXT` | write to a session and print the answer; `--detach` does not wait. If the session is already running, the message is only queued and the command returns at once |
 | `meno tail ID` | print the events of a session as JSON lines |
 | `meno doctor [--probe]` | read-only health check with suggested fixes |
 | `meno web search QUERY \| fetch URL` | search the web with your chosen provider, or fetch a page as text |
@@ -37,4 +37,8 @@ network calls). Secrets are never printed. Exit codes: 0 healthy, 4 warnings, 1 
 
 ## meno acp
 
-`meno acp` serves Meno as an Agent Client Protocol agent on stdin/stdout, see [ACP](acp.md).
+`meno acp` serves Meno as an Agent Client Protocol agent on stdin/stdout, see [ACP](acp.md). `--no-ask` creates sessions without `meno ask`.
+
+## --no-ask
+
+`meno --no-ask`, `meno send --new --no-ask` and `meno acp --no-ask` create sessions in which `meno ask` is turned off: the tool answers with an error (exit 3) that tells the agent to write its question in the chat. The setting belongs to the session: it is stored, other windows see it, and a fork keeps it. It cannot be turned off later. A session you open with `/sessions` keeps the setting it was created with.

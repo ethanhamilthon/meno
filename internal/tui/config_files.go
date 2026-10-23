@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"meno/internal/api"
 	"meno/internal/client"
@@ -29,6 +30,7 @@ type settingsLoaded struct {
 	providers []llm.Provider
 	servers   []mcp.Server
 	info      map[string]mcpInfo
+	warnings  []string // what is wrong with provider.json and mcp.json
 	skills    []config.Skill
 	err       error
 }
@@ -70,6 +72,7 @@ func (a *App) onSettingsLoaded(m settingsLoaded) {
 	}
 	a.cfgSeen = m.seq
 	a.applyConfig(m)
+	a.showFileWarnings(m.warnings)
 	a.fetchModels()
 	a.afterProvidersChanged()
 }
@@ -93,6 +96,8 @@ func (a *App) fetchConfig() settingsLoaded {
 			return err
 		}
 		out.settings = settingsFromWire(bundle.Settings.Settings)
+		out.warnings = append(out.warnings, bundle.Providers.Warnings...)
+		out.warnings = append(out.warnings, bundle.MCP.Warnings...)
 		for _, p := range bundle.Providers.Providers {
 			out.providers = append(out.providers, providerFromWire(p))
 		}
@@ -146,11 +151,11 @@ func providerToWire(p llm.Provider) api.ConfigProvider {
 }
 
 func serverFromWire(w api.ConfigMCPServer) mcp.Server {
-	return mcp.Server{Name: w.Name, Transport: w.Transport, Command: w.Command, Args: w.Args, Cwd: w.Cwd, Env: w.Env, URL: w.URL, Headers: w.Headers, Enabled: w.Enabled, Source: w.Source}
+	return mcp.Server{Name: w.Name, Transport: w.Transport, Command: w.Command, Args: w.Args, Cwd: w.Cwd, Env: w.Env, URL: w.URL, Headers: w.Headers, Enabled: w.Enabled}
 }
 
 func serverToWire(s mcp.Server) api.ConfigMCPServer {
-	return api.ConfigMCPServer{Name: s.Name, Transport: s.Transport, Command: s.Command, Args: s.Args, Cwd: s.Cwd, Env: s.Env, URL: s.URL, Headers: s.Headers, Enabled: s.Enabled, Source: s.Source}
+	return api.ConfigMCPServer{Name: s.Name, Transport: s.Transport, Command: s.Command, Args: s.Args, Cwd: s.Cwd, Env: s.Env, URL: s.URL, Headers: s.Headers, Enabled: s.Enabled}
 }
 
 // reportWarnings shows what was wrong at start, once.
@@ -161,17 +166,17 @@ func (a *App) reportWarnings() {
 	a.warnings = nil
 }
 
-// fileTag is the second line of a list row for an entry read from a file.
-func fileTag(fromFile bool, name string) string {
-	if !fromFile {
-		return ""
-	}
-	return "from " + name + " · read only"
-}
-
-// fileEntryNotice explains why an entry read from a file cannot be changed here.
-func (a *App) fileEntryNotice(name string) {
-	a.notifyErr("defined in " + name + " and read only: edit the file and restart meno")
-}
-
 var _ = fmt.Sprint
+
+// showFileWarnings tells about a provider.json or mcp.json that has a broken
+// entry or is not valid JSON, once per distinct problem.
+func (a *App) showFileWarnings(warns []string) {
+	text := strings.Join(warns, "\n")
+	if text == a.fileWarning {
+		return
+	}
+	a.fileWarning = text
+	if text != "" {
+		a.notifyErr(text)
+	}
+}

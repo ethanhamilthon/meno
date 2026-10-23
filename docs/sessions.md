@@ -30,7 +30,7 @@ providers, MCP servers and settings are shared.
 - `/stop` / `Ctrl+C` cancel the active root request: its running turn, the bash calls
   still running in the foreground, and its pending events. Background tasks
   (`meno tasks start`, or a call moved to a task by your message) keep running;
-  cancel one with `meno tasks cancel ID`. `/q` (and the legacy `/q!`) only detaches the terminal; runs and tasks keep going. `/stop-all` cancels every running turn after a repeated confirmation.
+  cancel one with `meno tasks cancel ID`. `/q` only detaches the terminal; runs and tasks keep going.
 
 ## Steering and events
 

@@ -1,5 +1,25 @@
 # Upgrading, data and privacy
 
+## 0.6.8: providers and MCP servers in JSON files, `--no-ask`
+
+Restart the daemon after updating.
+
+- **Providers and MCP servers live in `provider.json` and `mcp.json`** in `$MENO_HOME`.
+  `/login`, `/mcp` and `meno mcp` write them; you can edit them by hand and the
+  daemon sees the change. At the first start of 0.6.8 the providers and servers
+  that were in `meno.db` are copied into the files (database entries first; on a
+  name clash the database entry wins, as before). A file that already existed is
+  copied to `provider.json.bak-0.6.7` / `mcp.json.bak-0.6.7` first. The old
+  database tables stay untouched and unused, so going back to 0.6.7 works but
+  loses every change made after the move. Keys are plain text in these files (or
+  `env:NAME`); keep `$MENO_HOME` private. A file that is not valid JSON is
+  reported and never overwritten. `theme.json` is unchanged.
+- **`--no-ask`**: `meno --no-ask`, `meno send --new --no-ask` and `meno acp --no-ask`
+  create sessions where `meno ask` answers with an error and the agent asks in the
+  chat. The flag is stored with the session (schema version 16, additive).
+- Removed: `/stop-all` and `/q!`. `/q` leaves the terminal, `/stop` and `Ctrl+C`
+  stop the current turn, `meno daemon restart --force` stops everything.
+
 ## 0.6.7: simpler composer, ACP fixes
 
 - Removed: the vim-style EDIT and VISUAL modes (`/edit`, motions, registers),

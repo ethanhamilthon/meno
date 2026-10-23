@@ -20,16 +20,17 @@ import (
 var version = ver.Number()
 
 func main() {
-	if len(os.Args) > 1 {
+	noAsk := len(os.Args) == 2 && os.Args[1] == "--no-ask"
+	if len(os.Args) > 1 && !noAsk {
 		os.Exit(cli(os.Args[1:], os.Stdout, os.Stderr))
 	}
-	if err := run(); err != nil {
+	if err := run(noAsk); err != nil {
 		fmt.Fprintln(os.Stderr, "meno:", err)
 		os.Exit(1)
 	}
 }
 
-func run() error {
+func run(noAsk bool) error {
 	paths, err := config.DefaultPaths()
 	if err != nil {
 		return err
@@ -50,7 +51,11 @@ func run() error {
 		scr.Fini()
 		return err
 	}
-	a, err := tui.New(scr, paths, cl)
+	var opts []tui.Option
+	if noAsk {
+		opts = append(opts, tui.WithNoAsk())
+	}
+	a, err := tui.New(scr, paths, cl, opts...)
 	if err != nil {
 		return err
 	}

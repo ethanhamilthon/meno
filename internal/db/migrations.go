@@ -248,4 +248,7 @@ ALTER TABLE sessions ADD COLUMN tool TEXT NOT NULL DEFAULT 'js';
 ALTER TABLE mcp_servers ADD COLUMN args_json TEXT NOT NULL DEFAULT '[]';
 ALTER TABLE mcp_servers ADD COLUMN cwd TEXT NOT NULL DEFAULT '';
 `,
+	`-- A session can be created with the ask tool turned off (meno --no-ask).
+ALTER TABLE sessions ADD COLUMN no_ask INTEGER NOT NULL DEFAULT 0;
+`,
 }

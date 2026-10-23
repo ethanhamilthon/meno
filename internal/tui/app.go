@@ -23,6 +23,7 @@ type App struct {
 	mcpPending        bool
 	mcpRefresh        time.Time
 	mcpWarning        string
+	fileWarning       string // last warning about provider.json or mcp.json that was shown
 	commandFailed     bool
 	globalWatch       globalWatchState
 	globalSessions    []api.SessionItem
@@ -39,6 +40,7 @@ type App struct {
 	cl        *client.Client // the daemon, which owns sessions, tools, tasks and config
 	events    chan any
 	quit      bool
+	noAsk     bool // new sessions are created with meno ask turned off
 	done      chan struct{}
 	closeOnce sync.Once
 	waveOn    atomic.Bool      // the welcome screen was drawn last: keep it animating
@@ -60,7 +62,6 @@ type App struct {
 	cfgSeq               atomic.Uint64   // numbers the reads of the daemon config
 	connLost             map[string]bool // sessions whose daemon stream broke and has not recovered
 	instance             string          // identity of this window, sent as the origin of messages
-	stopAllAsk           time.Time       // when /stop-all asked for confirmation
 	cfgPending, cfgDirty bool
 	cfgSeen              uint64                  // the newest read that was applied
 	cfgBase              config.Settings         // settings as the daemon last reported them: the base of field patches
@@ -85,10 +86,19 @@ type App struct {
 
 // New builds the TUI on a connection to the daemon. It does not start the
 // daemon: the caller (cmd/meno) ensures one is running and passes the client.
-func New(scr tcell.Screen, paths config.Paths, cl *client.Client) (*App, error) {
+// Option changes how the app starts.
+type Option func(*App)
+
+// WithNoAsk creates every session of this window with the ask tool turned off.
+func WithNoAsk() Option { return func(a *App) { a.noAsk = true } }
+
+func New(scr tcell.Screen, paths config.Paths, cl *client.Client, opts ...Option) (*App, error) {
 	a := &App{
 		scr: scr, paths: paths, cl: cl, done: make(chan struct{}),
 		events: make(chan any, 512), rts: map[string]*Runtime{},
+	}
+	for _, o := range opts {
+		o(a)
 	}
 	a.openURL = openBrowser
 	a.instance = newInstanceID()

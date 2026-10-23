@@ -12,7 +12,6 @@ func TestDisabledProviderRoundTripAndManagedIsNeverSaved(t *testing.T) {
 		{Name: "on", BaseURL: "http://a", Protocol: llm.ProtoChat},
 		{Name: "off", BaseURL: "http://b", Protocol: llm.ProtoResponses, Disabled: true},
 		{Name: llm.OAuthName, BaseURL: "http://c", Source: llm.SourceOAuth},
-		{Name: "file", BaseURL: "http://d", Source: llm.SourceFile},
 	}
 	if err := st.SaveProviders(OwnProviders(in)); err != nil {
 		t.Fatal(err)

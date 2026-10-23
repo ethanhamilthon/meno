@@ -13,9 +13,9 @@ import (
 func readSession(db *sql.DB, id string) (*Session, error) {
 	var s Session
 	var metrics, updated string
-	var legacy int
-	err := db.QueryRow("SELECT id,title,cwd,provider,model,effort,summary,metrics,updated_at,kind,parent_id,fork_source,fork_boundary,next_hid,coverage,legacy,tool FROM sessions WHERE id = ?", id).
-		Scan(&s.ID, &s.Title, &s.Cwd, &s.Provider, &s.Model, &s.Effort, &s.Summary, &metrics, &updated, &s.Kind, &s.ParentID, &s.ForkSource, &s.ForkBoundary, &s.NextHID, &s.Coverage, &legacy, &s.Tool)
+	var legacy, noAsk int
+	err := db.QueryRow("SELECT id,title,cwd,provider,model,effort,summary,metrics,updated_at,kind,parent_id,fork_source,fork_boundary,next_hid,coverage,legacy,tool,no_ask FROM sessions WHERE id = ?", id).
+		Scan(&s.ID, &s.Title, &s.Cwd, &s.Provider, &s.Model, &s.Effort, &s.Summary, &metrics, &updated, &s.Kind, &s.ParentID, &s.ForkSource, &s.ForkBoundary, &s.NextHID, &s.Coverage, &legacy, &s.Tool, &noAsk)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, os.ErrNotExist
 	}
@@ -27,6 +27,7 @@ func readSession(db *sql.DB, id string) (*Session, error) {
 	}
 	s.UpdatedAt = parseTS(updated)
 	s.Legacy = legacy != 0
+	s.NoAsk = noAsk != 0
 	if err := json.Unmarshal([]byte(metrics), &s.Metrics); err != nil {
 		return nil, fmt.Errorf("session %s metrics: %w", id, err)
 	}

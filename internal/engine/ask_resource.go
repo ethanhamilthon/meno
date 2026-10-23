@@ -13,6 +13,9 @@ import (
 // that asked, blocks until the form is answered, cancelled or times out, and
 // returns the answers.
 func (e *Engine) askResource(ctx context.Context, s *runState, call string, data map[string]any) (any, error) {
+	if s.session.NoAsk {
+		return nil, dapi(api.CodeForbidden, NoAskMessage)
+	}
 	spec, _ := data["form"].(map[string]any)
 	if spec == nil {
 		return nil, dapi(api.CodeBadRequest, "ask needs a form object")
@@ -44,3 +47,8 @@ func (e *Engine) askResource(ctx context.Context, s *runState, call string, data
 	b, _ := json.Marshal(out)
 	return map[string]json.RawMessage{"answers": b}, nil
 }
+
+// NoAskMessage is what the model reads when it calls `meno ask` in a session
+// that was created with --no-ask.
+const NoAskMessage = "asking the user with meno ask is turned off for this session (--no-ask). " +
+	"Do not use meno ask: write your question directly in the chat and wait for the user's reply."

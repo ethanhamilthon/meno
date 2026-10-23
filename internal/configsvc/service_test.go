@@ -84,7 +84,7 @@ func TestDaemonConfigRoutesAndTypedClient(t *testing.T) {
 	}
 }
 
-func TestOverlaysReloadAndStayReadOnly(t *testing.T) {
+func TestProviderAndMCPFilesReloadAndAreEditable(t *testing.T) {
 	paths := config.Paths{Home: t.TempDir(), Cwd: t.TempDir()}
 	svc, err := New(Options{Paths: paths})
 	if err != nil {
@@ -106,12 +106,14 @@ func TestOverlaysReloadAndStayReadOnly(t *testing.T) {
 	if err = json.Unmarshal(r.Data, &got); err != nil {
 		t.Fatal(err)
 	}
-	if len(got.Providers) != 1 || got.Providers[0].Source != "file" {
+	if len(got.Providers) != 1 || got.Providers[0].Name != "overlay" {
 		t.Fatalf("providers: %+v", got)
 	}
-	_, err = b.Resource(context.Background(), "DELETE", "/v1/providers/overlay", "", api.ResourceRequest{})
-	if err == nil {
-		t.Fatal("expected read-only overlay error")
+	if _, err = b.Resource(context.Background(), "DELETE", "/v1/providers/overlay", "", api.ResourceRequest{}); err != nil {
+		t.Fatal(err)
+	}
+	if data, _ := os.ReadFile(paths.ProviderFile()); strings.Contains(string(data), "overlay") {
+		t.Fatalf("provider still in the file: %s", data)
 	}
 	if err = os.WriteFile(paths.MCPFile(), []byte("[{\"name\":\"server\",\"transport\":\"stdio\",\"command\":\"true\"}]"), 0600); err != nil {
 		t.Fatal(err)
@@ -195,5 +197,58 @@ func TestFileSearchAndDebug(t *testing.T) {
 	resp, err = svc.Resource(context.Background(), "GET", "/v1/debug/requests", "session=s", api.ResourceRequest{})
 	if err != nil || !strings.Contains(string(resp.Data), `"session":"s"`) {
 		t.Fatalf("debug %s %v", resp.Data, err)
+	}
+}
+
+// A key written as env:NAME is shown to the engine with the variable's value
+// and stays a reference on disk, even after the UI changes the provider.
+func TestEnvKeyStaysAReferenceOnDisk(t *testing.T) {
+	t.Setenv("MENO_TEST_KEY", "from-env")
+	paths := config.Paths{Home: t.TempDir(), Cwd: t.TempDir()}
+	if err := os.WriteFile(paths.ProviderFile(), []byte(`[{"name":"p","base_url":"https://x/v1","api_key":"env:MENO_TEST_KEY","protocol":"chat completions"}]`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	svc, err := New(Options{Paths: paths})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer svc.Close()
+	if got := svc.Providers(); len(got) != 1 || got[0].APIKey != "from-env" {
+		t.Fatalf("engine list: %+v", got)
+	}
+	body := json.RawMessage(`{"provider":{"name":"p","base_url":"https://x/v1","protocol":"chat completions","disabled":true}}`)
+	if _, err = (cfgBackend{svc: svc}).Resource(context.Background(), "PUT", "/v1/providers/p", "", api.ResourceRequest{Data: body}); err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(paths.ProviderFile())
+	if !strings.Contains(string(data), `"env:MENO_TEST_KEY"`) || strings.Contains(string(data), "from-env") || !strings.Contains(string(data), `"disabled": true`) {
+		t.Fatalf("file after the edit:\n%s", data)
+	}
+}
+
+// A hand edit of mcp.json is seen by the next read without a restart.
+func TestHandEditOfMCPFileIsSeen(t *testing.T) {
+	paths := config.Paths{Home: t.TempDir(), Cwd: t.TempDir()}
+	svc, err := New(Options{Paths: paths})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer svc.Close()
+	b := cfgBackend{svc: svc}
+	read := func() string {
+		r, err := b.Resource(context.Background(), "GET", "/v1/mcp/servers", "", api.ResourceRequest{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(r.Data)
+	}
+	if strings.Contains(read(), "hand") {
+		t.Fatal("unexpected server")
+	}
+	if err = os.WriteFile(paths.MCPFile(), []byte(`[{"name":"hand","command":"true"}]`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(read(), "hand") {
+		t.Fatal("the edit was not seen")
 	}
 }

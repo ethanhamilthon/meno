@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.6.8
+
+Restart the daemon after updating. Providers and MCP servers move from the
+database to `provider.json` and `mcp.json` at the first start (a backup of an
+existing file is kept as `*.bak-0.6.7`); see [docs/upgrading.md](docs/upgrading.md).
+
+- **JSON configuration.** `provider.json` and `mcp.json` are now the stored
+  configuration: the dialogs and `meno mcp` edit them, so do you. A broken file is
+  reported and never overwritten.
+- **`--no-ask`** for `meno`, `meno send --new` and `meno acp`: sessions without
+  `meno ask`; the agent is told to ask in the chat.
+- **Removed** `/stop-all` and `/q!`.
+
 ## 0.6.6
 
 Restart the daemon after updating. No data is deleted or migrated; the daemon

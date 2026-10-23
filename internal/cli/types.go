@@ -102,6 +102,7 @@ type SendRequest struct {
 	Text      string `json:"text"`
 	SessionID string `json:"sessionId,omitempty"`
 	New       bool   `json:"new,omitempty"`
+	NoAsk     bool   `json:"noAsk,omitempty"`
 	Detach    bool   `json:"detach,omitempty"`
 }
 

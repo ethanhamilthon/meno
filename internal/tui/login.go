@@ -6,7 +6,6 @@ import (
 	"github.com/gdamore/tcell/v2"
 
 	"meno/internal/client"
-	"meno/internal/config"
 	"meno/internal/llm"
 )
 
@@ -32,10 +31,6 @@ func (a *App) loginEnter(r loginRow) {
 	switch r.kind {
 	case rowAPI:
 		p := a.st.Providers[r.i]
-		if p.FromFile() {
-			a.fileEntryNotice(config.ProviderFileName)
-			return
-		}
 		a.openProviderEdit(p, r.i)
 	case rowOAuth:
 		a.notify("space turns the account on or off · d logs it out")

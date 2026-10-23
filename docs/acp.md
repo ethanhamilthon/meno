@@ -6,6 +6,10 @@ client gets special treatment. Diagnostics go to stderr; stdout carries only pro
 messages. The command starts the daemon of `MENO_HOME` when it is not running, and
 never stops it.
 
+`meno acp --no-ask` creates every new session with `meno ask` turned off: the agent asks
+its questions in the chat, and `/answer` is never needed. Sessions opened with
+`session/load` keep the setting they were created with.
+
 ACP sessions are ordinary Meno sessions: they appear in `/sessions` and
 `meno sessions`, use the same providers, skills, MCP servers and settings, and can
 be opened in the terminal app.

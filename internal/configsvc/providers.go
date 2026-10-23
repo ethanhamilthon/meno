@@ -66,7 +66,7 @@ func (s *Service) providerResource(ctx context.Context, method, path, rawQuery s
 		return nil, notFound("no provider named " + name)
 	}
 	p := ps[idx]
-	if p.FromFile() || p.Managed() {
+	if p.Managed() {
 		return nil, apiErr(api.CodeForbidden, "provider is managed and read only")
 	}
 	if len(parts) == 1 {

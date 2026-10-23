@@ -1,15 +1,10 @@
 package tui
 
 import (
-	"context"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
-	"time"
 
-	"meno/internal/api"
-	"meno/internal/client"
 	"meno/internal/render"
 )
 
@@ -32,12 +27,9 @@ func (a *App) runCommand(raw string) {
 	}
 	args := fields[1:]
 	switch name {
-	case "q", "quit", "q!", "quit!":
+	case "q", "quit":
 		// Leaving only detaches this terminal: runs and tasks stay in the daemon.
-		// "q!" used to cancel everything; it is kept as an alias of the safe exit.
 		a.quit = true
-	case "stop-all":
-		a.stopAll()
 	case "new":
 		a.newSession()
 		a.st.Mode = render.ModeInput
@@ -121,41 +113,6 @@ func (a *App) changeDir(arg string) {
 	a.setCwd(a.st.Runtime, target)
 	a.reloadSkills()
 	a.notify("working directory: " + target)
-}
-
-// cancelAll stops the running turn of every followed session.
-// stopAll cancels every running turn, but only after the same command is
-// repeated within ten seconds: bulk cancellation is never implicit.
-func (a *App) stopAll() {
-	var running []string
-	for _, rt := range a.rtList {
-		if rt.Running {
-			running = append(running, "“"+rt.sessionTitle()+"”")
-		}
-	}
-	if len(running) == 0 {
-		a.notify("no turn is running")
-		return
-	}
-	if now := nowFn(); a.stopAllAsk.IsZero() || now.Sub(a.stopAllAsk) > 10*time.Second {
-		a.stopAllAsk = now
-		a.notifyErr("this stops " + strings.Join(running, ", ") + " · repeat /stop-all within 10s to confirm")
-		return
-	}
-	a.stopAllAsk = time.Time{}
-	a.cancelAll()
-	a.notify("stopped " + strconv.Itoa(len(running)) + " turn(s)")
-}
-
-func (a *App) cancelAll() {
-	for _, rt := range a.rtList {
-		if rt.Running {
-			sid, rid := rt.ID(), rt.RequestID
-			a.rpc(func(ctx context.Context, c *client.Client) error {
-				return c.Stop(ctx, sid, api.StopRequest{RequestID: rid})
-			})
-		}
-	}
 }
 
 // markUnseen flags a finished turn of a session that is not on screen.

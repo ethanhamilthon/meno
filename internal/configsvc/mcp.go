@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"meno/internal/api"
-	"meno/internal/config"
 	"meno/internal/mcp"
 )
 
@@ -17,13 +16,14 @@ func (s *Service) servers() ([]mcp.Server, error) {
 	return all, err
 }
 func (s *Service) serverDefinitions() ([]mcp.Server, []string, error) {
-	own, err := s.store.LoadServers()
+	all, warnings, err := s.store.LoadServersFile()
 	if err != nil {
-		return nil, nil, err
+		return nil, []string{err.Error()}, nil
 	}
-	files, warnings := config.LoadMCPFile(s.paths.MCPFile())
-	all, more := config.MergeServers(own, files)
-	return all, append(warnings, more...), nil
+	if s.updateStamp(s.paths.MCPFile(), s.stamp(s.paths.MCPFile())) {
+		s.changed("mcp_changed")
+	}
+	return all, warnings, nil
 }
 func (s *Service) mcpResource(ctx context.Context, method, path string, req api.ResourceRequest) (any, error) {
 	if method != "GET" {
@@ -86,9 +86,6 @@ func (s *Service) mcpResource(ctx context.Context, method, path string, req api.
 		if !reflect.DeepEqual(current, *req.ExpectedMCP) {
 			return nil, conflict("MCP definition changed after approval")
 		}
-	}
-	if x.FromFile() && method != "GET" && !(len(parts) == 2 && parts[1] == "restart" && method == "POST") {
-		return nil, apiErr(api.CodeForbidden, "MCP server is defined in mcp.json and is read only")
 	}
 	if len(parts) == 1 {
 		switch method {
@@ -194,7 +191,6 @@ func (s *Service) mcpWire(x mcp.Server) api.ConfigMCPServer {
 	b, _ := json.Marshal(x)
 	var out api.ConfigMCPServer
 	_ = json.Unmarshal(b, &out)
-	out.Source = x.Source
 	status := s.mcp.Snapshot(x.Name)
 	out.Running, out.Starting, out.Error = status.Running, status.Starting, status.Error
 	return out
@@ -203,6 +199,5 @@ func mcpValue(x api.ConfigMCPServer) mcp.Server {
 	b, _ := json.Marshal(x)
 	var out mcp.Server
 	_ = json.Unmarshal(b, &out)
-	out.Source = x.Source
 	return out
 }

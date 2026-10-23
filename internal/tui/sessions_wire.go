@@ -12,7 +12,7 @@ import (
 func (a *App) createSession(cwd string) (*sessView, error) {
 	var sn api.Snapshot
 	err := a.rpc(func(ctx context.Context, c *client.Client) error {
-		r, err := c.CreateSession(ctx, api.SessionCreateRequest{Cwd: cwd, ClientID: newClientID()})
+		r, err := c.CreateSession(ctx, api.SessionCreateRequest{Cwd: cwd, ClientID: newClientID(), NoAsk: a.noAsk})
 		if err != nil {
 			return err
 		}

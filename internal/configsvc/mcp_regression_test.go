@@ -8,12 +8,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 )
 
-func TestMCPFileRestartAndReadOnlyDefinition(t *testing.T) {
+func TestMCPFileServerRestartsAndIsEditable(t *testing.T) {
 	var starts atomic.Int32
 	fake := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
@@ -59,8 +60,12 @@ func TestMCPFileRestartAndReadOnlyDefinition(t *testing.T) {
 	if starts.Load() != 1 {
 		t.Fatalf("starts=%d", starts.Load())
 	}
-	if _, err = svc.Resource(ctx, "DELETE", path, "", api.ResourceRequest{}); err == nil {
-		t.Fatal("file definition writable")
+	// mcp.json is the stored configuration: deleting removes the entry from the file.
+	if _, err = svc.Resource(ctx, "DELETE", path, "", api.ResourceRequest{}); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(paths.MCPFile()); strings.Contains(string(b), "file-server") {
+		t.Fatalf("entry still in the file: %s", b)
 	}
 }
 
@@ -90,7 +95,14 @@ func TestMCPApprovalPreconditionAndWarnings(t *testing.T) {
 	}
 	var out api.McpServersResponse
 	_ = json.Unmarshal(response.Data, &out)
-	if len(out.Warnings) == 0 || len(out.Servers) != 1 {
-		t.Fatalf("lost config/warnings %+v", out)
+	if len(out.Warnings) == 0 || !strings.Contains(out.Warnings[0], "mcp.json") {
+		t.Fatalf("a broken file must be reported: %+v", out)
+	}
+	data, _ = json.Marshal(api.McpServerRequest{Server: api.ConfigMCPServer{Name: "other", Transport: "stdio", Command: "true"}})
+	if _, err = svc.Resource(context.Background(), "POST", "/v1/mcp/servers", "", api.ResourceRequest{Data: data}); err == nil {
+		t.Fatal("a save over a broken file must be refused")
+	}
+	if b, _ := os.ReadFile(paths.MCPFile()); string(b) != "broken JSON" {
+		t.Fatalf("the broken file was changed: %s", b)
 	}
 }

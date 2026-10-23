@@ -34,7 +34,7 @@ func (s *Service) settingsResponse() (api.SettingsResponse, error) {
 }
 
 func (s *Service) providersResponse() (api.ProvidersResponse, error) {
-	ps, err := s.providers()
+	ps, warnings, err := s.providerDefinitions()
 	if err != nil {
 		return api.ProvidersResponse{}, err
 	}
@@ -42,7 +42,7 @@ func (s *Service) providersResponse() (api.ProvidersResponse, error) {
 	for _, p := range ps {
 		out = append(out, providerWire(p))
 	}
-	return api.ProvidersResponse{Providers: out}, nil
+	return api.ProvidersResponse{Providers: out, Warnings: warnings}, nil
 }
 
 func (s *Service) mcpResponse() (api.McpServersResponse, error) {

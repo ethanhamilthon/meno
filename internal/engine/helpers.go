@@ -27,6 +27,7 @@ func item(s *runState) api.SessionItem {
 		Status:    status,
 		Running:   s.running,
 		NeedsYou:  s.ask != nil,
+		NoAsk:     sess.NoAsk,
 		TurnCount: turns,
 		UpdatedAt: sess.UpdatedAt.UTC().Format(time.RFC3339Nano),
 	}

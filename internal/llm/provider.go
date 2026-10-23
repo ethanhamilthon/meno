@@ -10,10 +10,6 @@ const (
 	ProtoChat      = "chat completions"
 )
 
-// SourceFile marks a provider read from provider.json: it is read only and
-// never saved to the database.
-const SourceFile = "file"
-
 // SourceOAuth marks the provider meno derives from the OAuth accounts of the
 // local helper. It is rebuilt at every start and never saved.
 const SourceOAuth = "oauth"
@@ -42,9 +38,6 @@ func (p Provider) Active() bool { return !p.Disabled }
 
 // Managed reports whether meno derives the provider from OAuth accounts.
 func (p Provider) Managed() bool { return p.Source == SourceOAuth }
-
-// FromFile reports whether the provider is defined in provider.json.
-func (p Provider) FromFile() bool { return p.Source == SourceFile }
 
 func Validate(p Provider) error {
 	if strings.TrimSpace(p.Name) == "" {

@@ -24,11 +24,14 @@ Look and signal settings (`theme`, `notify`, `notify sound`, `notify volume`, `n
 
 ## Files that add to the app
 
-Three optional files in `$MENO_HOME` add providers, MCP servers and themes without
-touching `meno.db`. They are read at start, only add (a name the app already has is
-ignored with a notice), are read only in the dialogs (marked `from provider.json` /
-`mcp.json`) and are never saved to the database. A broken file or entry gives a
-notice and the rest still loads.
+Providers, MCP servers and themes live in JSON files in `$MENO_HOME`, next to `meno.db`.
+`/login`, `/mcp` and `meno mcp` read and write `provider.json` and `mcp.json`; you can also edit
+them by hand, and the next request or dialog read sees the change (no restart). `theme.json` is
+read only. A bad entry gives a notice and is skipped, and it stays in the file when meno saves
+the others. A file that is not valid JSON is reported and never overwritten: fix it and meno
+saves again. A key written as `env:NAME` is read from the environment and stays that text in the
+file. API keys are otherwise stored as plain text, so keep `$MENO_HOME` private and do not commit
+these files with keys in them. Files are written with mode 0600.
 
 - `provider.json`: `[{"name", "base_url", "api_key", "protocol", "run", "models"}]`. `api_key` may be
   `env:NAME` to read an environment variable. `run` is a shell command meno starts at launch
@@ -41,7 +44,7 @@ notice and the rest still loads.
   `input` and `output` are set. `efforts` replaces the standard levels for that model in `/model`,
   `session.models()`; a stored effort the model does not take is replaced by
   `medium`, `high` or its first level. In `/login` the `run` command has its own field;
-  `models` can only be set in `provider.json` (a saved provider keeps what it has).
+  `models` can only be set in `provider.json` or by editing the file.
 - `mcp.json`: `[{"name", "transport", "command" or "url", "args", "cwd", "env", "headers", "enabled"}]`;
   `enabled` defaults to true, `transport` to `stdio`. A stdio server may name its
   arguments and its working directory separately (`"command": "python3"`,

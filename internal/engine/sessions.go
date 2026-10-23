@@ -73,6 +73,7 @@ func (e *Engine) CreateSession(ctx context.Context, q api.SessionCreateRequest) 
 	sess := agent.NewSession(abs, model)
 	sess.Provider = e.cfg().Provider
 	sess.Effort = e.cfg().Effort
+	sess.NoAsk = q.NoAsk
 	s, err := e.adopt(sess)
 	if err != nil {
 		return api.SessionCreateResponse{}, err

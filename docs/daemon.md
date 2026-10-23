@@ -32,8 +32,8 @@ The daemon owns configuration reads and writes; the TUI uses these routes too. R
   when the file does not exist. It checks the file modification time on reads.
 - `GET|POST /providers`, `GET|PUT|DELETE /providers/{name}`,
   `PUT /providers/{name}/enabled`, and
-  `PUT /providers/{name}/models` manage API-key providers. Provider JSON and
-  managed OAuth entries are read-only. API keys are not returned; `has_api_key`
+  `PUT /providers/{name}/models` manage API-key providers. Entries of `provider.json` are
+  edited like any other; the managed OAuth entry is read-only. API keys are not returned; `has_api_key`
   reports whether one is set. An update without a key keeps the current key.
   Set `clear_api_key` to remove it.
 - `GET /login/services`, `POST /login/start`,
@@ -44,8 +44,7 @@ The daemon owns configuration reads and writes; the TUI uses these routes too. R
 - `GET /session-state` returns daemon-wide session attention and live-task counts.
 - `POST /sessions/{id}/read` acknowledges the displayed completion generation.
 - `GET|POST /mcp/servers`, `GET|PUT|DELETE /mcp/servers/{name}`, and
-  `POST /mcp/servers/{name}/restart` manage MCP servers. mcp.json entries
-  are read-only. Responses report starting, running, and error state.
+  `POST /mcp/servers/{name}/restart` manage MCP servers stored in `mcp.json`. Responses report starting, running, and error state.
 - `GET /models?refresh=true` lists provider models and catalog pricing.
   Refresh also requests provider models and public catalog metadata.
 - `GET /fs/search?root=…&q=…` performs the @ picker search.

@@ -21,11 +21,12 @@ func TestProviderRunAndModelSettingsRoundTripAndFileLoad(t *testing.T) {
 	if got[1].Run != "" || got[1].Models != nil {
 		t.Fatalf("a plain provider gained fields: %+v", got[1])
 	}
-	file := writeOverlay(t, "provider.json", `[
+	st2, p2 := storeIn(t)
+	writeFile(t, p2.ProviderFile(), `[
 		{"name":"f","base_url":"http://127.0.0.1:2/v1","protocol":"responses","run":"serve","models":{"x":{"context":128000,"input":1,"output":2,"efforts":["low","high"]}}},
 		{"name":"bad","base_url":"http://y","protocol":"responses","models":{"x":{"context":-5}}}
 	]`)
-	ps2, warns := LoadProviderFile(file, func(string) string { return "" })
+	ps2, warns, _ := st2.LoadProvidersFile()
 	if len(ps2) != 1 || ps2[0].Run != "serve" || ps2[0].Models["x"].Context != 128000 || len(warns) != 1 {
 		t.Fatalf("%+v %v", ps2, warns)
 	}

@@ -18,6 +18,8 @@ const ProtocolVersion = 1
 // Options configures a Server.
 type Options struct {
 	Version string
+	// NoAsk creates every session with the ask tool turned off.
+	NoAsk bool
 }
 
 // Server is one ACP connection to one client.
@@ -113,7 +115,7 @@ func (s *Server) newSession(raw json.RawMessage) (any, error) {
 	if err := p.check(); err != nil {
 		return nil, err
 	}
-	res, err := s.backend.CreateSession(s.ctx, api.SessionCreateRequest{Cwd: p.Cwd, ClientID: clientID()})
+	res, err := s.backend.CreateSession(s.ctx, api.SessionCreateRequest{Cwd: p.Cwd, ClientID: clientID(), NoAsk: s.opts.NoAsk})
 	if err != nil {
 		return nil, err
 	}

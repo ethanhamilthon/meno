@@ -127,18 +127,10 @@ func New(o Options) (*Engine, error) {
 	if err != nil {
 		return nil, err
 	}
-	providers, err := st.LoadProviders()
-	if err != nil {
-		return nil, err
-	}
-	files, _ := config.LoadProviderFile(paths.ProviderFile(), os.Getenv)
-	providers, _ = config.MergeProviders(providers, files)
-	servers, err := st.LoadServers()
-	if err != nil {
-		return nil, err
-	}
-	serverFiles, _ := config.LoadMCPFile(paths.MCPFile())
-	servers, _ = config.MergeServers(servers, serverFiles)
+	// A provider or MCP file the user broke by hand must not stop the daemon: the
+	// lists stay empty and the config service reports the file.
+	providers, _ := st.LoadProvidersResolved(os.Getenv)
+	servers, _ := st.LoadServers()
 	catalog, err := st.LoadCatalog()
 	if err != nil {
 		return nil, err

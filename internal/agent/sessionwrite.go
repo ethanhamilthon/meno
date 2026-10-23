@@ -54,13 +54,13 @@ func writeSessionTx(tx *sql.Tx, s *Session) (pend Pending, err error) {
 	if kind == "" {
 		kind = KindMain
 	}
-	if _, err = tx.Exec(`INSERT INTO sessions(id,title,cwd,provider,model,effort,summary,metrics,updated_at,kind,parent_id,fork_source,fork_boundary,next_hid,coverage,legacy,tool)
-		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+	if _, err = tx.Exec(`INSERT INTO sessions(id,title,cwd,provider,model,effort,summary,metrics,updated_at,kind,parent_id,fork_source,fork_boundary,next_hid,coverage,legacy,tool,no_ask)
+		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 		ON CONFLICT(id) DO UPDATE SET title=excluded.title, cwd=excluded.cwd, provider=excluded.provider, model=excluded.model,
 		effort=excluded.effort, summary=excluded.summary, metrics=excluded.metrics, updated_at=excluded.updated_at,
 		next_hid=excluded.next_hid, coverage=excluded.coverage, tool=excluded.tool`,
 		s.ID, s.Title, s.Cwd, s.Provider, s.Model, s.Effort, s.Summary, string(metrics), ts(s.UpdatedAt),
-		kind, s.ParentID, s.ForkSource, s.ForkBoundary, s.NextHID, s.Coverage, b2i(s.Legacy), s.toolName()); err != nil {
+		kind, s.ParentID, s.ForkSource, s.ForkBoundary, s.NextHID, s.Coverage, b2i(s.Legacy), s.toolName(), b2i(s.NoAsk)); err != nil {
 		return pend, err
 	}
 	for _, t := range pend.Archive {

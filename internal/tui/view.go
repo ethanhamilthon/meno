@@ -119,7 +119,6 @@ var commandList = []cmdDef{
 	{"/export", "export markdown"},
 	{"/stop", "stop this turn"},
 	{"/help", "keys & commands"},
-	{"/stop-all", "stop every running turn (asks to confirm)"},
 	{"/q", "leave meno; work keeps running"},
 }
 
