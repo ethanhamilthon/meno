@@ -22,6 +22,11 @@ func (e *Engine) mcpResource(ctx context.Context, s *runState, tail []string, me
 			status := e.mcp.Snapshot(srv.Name)
 			out = append(out, map[string]any{"name": srv.Name, "enabled": srv.Enabled, "running": status.Running, "starting": status.Starting, "error": status.Error})
 		}
+		if scoped := e.scopedManager(s); scoped != nil {
+			for _, name := range scoped.Names() {
+				out = append(out, map[string]any{"name": name, "enabled": true, "running": true, "starting": false, "error": ""})
+			}
+		}
 		return out, nil
 	}
 	if op == "tools" {
@@ -30,7 +35,7 @@ func (e *Engine) mcpResource(ctx context.Context, s *runState, tail []string, me
 			name = tail[1]
 		}
 		var out []any
-		for _, t := range e.mcp.ToolsOf(name) {
+		for _, t := range e.sessionMCP(s, name).ToolsOf(name) {
 			var schema any
 			_ = json.Unmarshal(t.InputSchema, &schema)
 			item := map[string]any{"name": t.Name, "description": t.Description, "inputSchema": schema}

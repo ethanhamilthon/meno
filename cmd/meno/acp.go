@@ -31,7 +31,11 @@ func runACP(args []string, in io.Reader, out, errOut io.Writer) int {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	if err := acp.Run(ctx, in, out, c, acp.Options{Version: version, NoAsk: noAsk}); err != nil {
+	var diagnostics io.Writer
+	if os.Getenv("MENO_ACP_DIAGNOSTICS") == "1" {
+		diagnostics = errOut
+	}
+	if err := acp.Run(ctx, in, out, c, acp.Options{Version: version, NoAsk: noAsk, Diagnostics: diagnostics}); err != nil {
 		fmt.Fprintln(errOut, "meno: acp:", err)
 		return 1
 	}

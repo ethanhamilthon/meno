@@ -49,7 +49,7 @@ func (e *Engine) wakeIfPending(sid string) {
 	s.commit.Lock()
 	defer s.commit.Unlock()
 	s.mu.Lock()
-	if s.running || s.ask != nil || e.isClosed() {
+	if s.running || s.scopeChanging || s.ask != nil || e.isClosed() {
 		s.mu.Unlock()
 		return
 	}

@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"io"
 	"meno/internal/config"
+	"meno/internal/mcp"
 	"meno/internal/prompt"
 	"os"
 	"path/filepath"
@@ -52,10 +53,16 @@ func (e *Engine) prepare(ctx context.Context, s *runState, effort string, first 
 	project := filepath.Join(cwd, "AGENTS.md")
 	in.ProjectAgents, _ = prompt.LoadInstructions(project)
 	base.files[project] = hashFile(project)
-	for _, name := range e.mcp.Names() {
-		for _, t := range e.mcp.ToolsOf(name) {
-			in.Tools = append(in.Tools, prompt.Tool{Server: name, Name: t.Name, Desc: t.Description, Params: t.Signature()})
-			base.tools = append(base.tools, name+"."+t.Name)
+	managers := []*mcp.Manager{e.mcp}
+	if scoped := e.scopedManager(s); scoped != nil {
+		managers = append(managers, scoped)
+	}
+	for _, manager := range managers {
+		for _, name := range manager.Names() {
+			for _, t := range manager.ToolsOf(name) {
+				in.Tools = append(in.Tools, prompt.Tool{Server: name, Name: t.Name, Desc: t.Description, Params: t.Signature()})
+				base.tools = append(base.tools, name+"."+t.Name)
+			}
 		}
 	}
 	sort.Strings(base.tools)

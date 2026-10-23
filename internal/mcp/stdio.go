@@ -5,6 +5,8 @@ import (
 	"os"
 	"os/exec"
 	"sync"
+	"syscall"
+	"time"
 )
 
 // stderrBuffer keeps the last bytes a child process wrote to stderr. MCP
@@ -75,5 +77,19 @@ func stdioProcess(ctx context.Context, s Server) (*exec.Cmd, *stderrBuffer, erro
 	cmd.Env = stdioEnv(s)
 	cmd.Dir = s.Cwd
 	cmd.Stderr = errs
+	if s.Ephemeral {
+		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+		cmd.Cancel = func() error {
+			if cmd.Process == nil {
+				return nil
+			}
+			err := syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+			if err == syscall.ESRCH {
+				return os.ErrProcessDone
+			}
+			return err
+		}
+		cmd.WaitDelay = time.Second
+	}
 	return cmd, errs, nil
 }

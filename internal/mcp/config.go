@@ -12,6 +12,8 @@ const (
 )
 
 type Server struct {
+	// Ephemeral isolates client-supplied process trees; never persisted in config.
+	Ephemeral bool   `json:"-"`
 	Name      string `json:"name"`
 	Transport string `json:"transport"`
 	Command   string `json:"command"`

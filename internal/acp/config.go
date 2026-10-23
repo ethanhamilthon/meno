@@ -202,7 +202,7 @@ func (s *Server) sendCommands(x *session) {
 func (s *Server) skillsText() string {
 	res, err := s.backend.Skills(s.ctx)
 	if err != nil {
-		return "Skills are unavailable: " + err.Error()
+		return "Skills are unavailable."
 	}
 	var b strings.Builder
 	for _, sk := range res.Skills {

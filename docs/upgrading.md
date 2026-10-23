@@ -1,5 +1,22 @@
 # Upgrading, data and privacy
 
+## 0.6.12: ACP session MCP and lifecycle reliability
+
+After installing, restart the daemon yourself when existing work is idle to use
+new daemon-side MCP leases. This release does not migrate the database or change
+permissions, local tool trust, or `--no-ask` policy.
+
+- ACP accepts client-supplied stdio, HTTP and SSE MCP per session without changing
+  global MCP configuration or saving supplied credentials. Setup is bounded,
+  failures roll back, and disconnect/deletion/shutdown release scoped transports.
+- Initialization validates protocol version and advertises implemented transports.
+  JSON-RPC envelopes are checked; internal/provider error details are redacted.
+- Provider failure ends the ACP prompt with an error instead of hanging. Recovery
+  snapshots replay missed turns once; list supports validated cursor pagination.
+- Optional `MENO_ACP_DIAGNOSTICS=1` emits metadata-only stderr records, off by default.
+  Compatibility is covered by a pinned official schema and deterministic sandbox
+  tests, not a live T3 GUI guarantee. See [ACP](acp.md) for constraints.
+
 ## 0.6.10: sessions for orchestration, custom system prompts
 
 Restart the daemon after updating. The database schema goes to version 17 (additive: three

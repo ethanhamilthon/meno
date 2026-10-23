@@ -118,6 +118,8 @@ func (e *Engine) DeleteSession(ctx context.Context, id string) error {
 	if err != nil {
 		return notFound(err)
 	}
+	s.scopeMu.Lock()
+	defer s.scopeMu.Unlock()
 	s.mu.Lock()
 	if s.running || s.ask != nil {
 		s.mu.Unlock()
@@ -131,6 +133,10 @@ func (e *Engine) DeleteSession(ctx context.Context, id string) error {
 	}
 	_, err = d.Exec("DELETE FROM sessions WHERE id=?", id)
 	if err == nil {
+		s.mu.Lock()
+		scope := s.scope
+		s.mu.Unlock()
+		e.clearScope(s, scope)
 		e.mu.Lock()
 		delete(e.sessions, id)
 		e.mu.Unlock()

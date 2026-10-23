@@ -8,6 +8,7 @@ require (
 	github.com/gdamore/tcell/v2 v2.13.10
 	github.com/hinshun/vt10x v0.0.0-20220301184237-5011da428d02
 	github.com/rivo/uniseg v0.4.7
+	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2
 	github.com/yuin/goldmark v1.7.13
 	golang.org/x/sys v0.48.0
 	gopkg.in/yaml.v3 v3.0.1

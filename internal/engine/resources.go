@@ -35,6 +35,9 @@ func (e *Engine) sessionResource(ctx context.Context, method, path, query string
 		return api.ResourceResponse{}, notFound(err)
 	}
 	group := parts[1]
+	if group == "client-mcp" && len(parts) == 2 {
+		return e.scopeResource(ctx, s, method, q)
+	}
 	if group == "export" && method == "GET" && len(parts) == 2 && q.Token == "" {
 		return e.exportResource(ctx, id)
 	}

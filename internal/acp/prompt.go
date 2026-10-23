@@ -92,7 +92,7 @@ func (s *Server) command(x *session, name, args string) (any, error) {
 	case name == "compact":
 		res, err := s.backend.Compact(s.ctx, x.id, api.CompactRequest{ClientID: clientID()})
 		if err != nil {
-			x.say("Compaction failed: " + err.Error())
+			x.say("Compaction failed.")
 		} else {
 			x.say("Compacted the conversation: removed " + itoa(res.Removed) + " messages.")
 		}
@@ -102,7 +102,7 @@ func (s *Server) command(x *session, name, args string) (any, error) {
 			break
 		}
 		if _, err := s.backend.PatchSession(s.ctx, x.id, api.PatchSessionRequest{Name: &args}); err != nil {
-			x.say("Rename failed: " + err.Error())
+			x.say("Rename failed.")
 		} else {
 			x.say("Renamed to " + args + ".")
 		}
@@ -168,7 +168,7 @@ func (s *Server) answer(x *session, args string) (any, error) {
 	}
 	if err := s.backend.AnswerAsk(s.ctx, x.id, id, req); err != nil {
 		x.abandon()
-		x.say("The answer was not accepted: " + err.Error() + ". The question stays open.")
+		x.say("The answer was not accepted. The question stays open.")
 		return stopResult("end_turn"), nil
 	}
 	x.mu.Lock()

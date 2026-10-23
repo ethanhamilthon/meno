@@ -22,9 +22,10 @@ type outcome struct {
 // session is one ACP session: a daemon session followed for as long as the
 // adapter runs. Updates reach the client even outside a foreground prompt.
 type session struct {
-	id   string
-	srv  *Server
-	stop context.CancelFunc
+	id    string
+	srv   *Server
+	stop  context.CancelFunc
+	scope *clientScope
 
 	mu          sync.Mutex
 	loading     bool
@@ -60,7 +61,12 @@ func (s *session) follow(ctx context.Context) error {
 	errc := make(chan error, 1)
 	go func() {
 		err := s.srv.backend.Follow(ctx, s.id, s.apply)
+		s.mu.Lock()
+		if err != nil && ctx.Err() == nil && s.waiter != nil {
+			s.resolve(outcome{err: fmt.Errorf("session stream disconnected")})
+		}
 		s.readyOnce.Do(func() { close(s.ready) })
+		s.mu.Unlock()
 		errc <- err
 	}()
 	select {
@@ -124,17 +130,24 @@ func (s *session) apply(u client.ProjectionUpdate) error {
 		}
 		s.send(toolEnd(e.CallID, e.Output, e.Exit, e.TaskID))
 	}
-	if u.Changed&client.TurnsChanged != 0 && !u.Reset {
+	if u.Changed&client.TurnsChanged != 0 && (!u.Reset || !first) {
 		s.applyTurns(v.Turns)
 	}
 	if u.Changed&client.UsageChanged != 0 {
 		s.applyUsage(v)
 	}
 	if u.Effects.Error != nil {
-		s.lastErr = u.Effects.Error.Message
+		s.lastErr = "agent run failed"
+		if !v.Running && u.Effects.Error.RequestID != "" {
+			s.finish(false)
+		}
 	}
 	if u.Changed&client.AskChanged != 0 {
 		s.applyAsk(v.Ask)
+	}
+	if u.Reset && !first && !v.Running && s.waiter != nil {
+		s.lastErr = v.LastError
+		s.finish(false)
 	}
 	if u.Effects.Finished {
 		s.finish(u.Effects.Aborted)
@@ -242,10 +255,12 @@ func (s *session) finish(aborted bool) {
 	}
 	o := outcome{stop: "end_turn"}
 	switch {
-	case aborted || s.cancelled:
+	case s.cancelled:
 		o.stop = "cancelled"
 	case s.lastErr != "":
-		o.err = fmt.Errorf("%s", s.lastErr)
+		o.err = fmt.Errorf("agent run failed")
+	case aborted:
+		o.stop = "cancelled"
 	}
 	s.resolve(o)
 }
@@ -316,6 +331,7 @@ func (s *session) detach() {
 	if s.stop != nil {
 		s.stop()
 	}
+	s.scope.close()
 }
 
 // formatQuestion renders a form as a normal chat message with its answer syntax.

@@ -31,6 +31,10 @@ func (e *Engine) Message(ctx context.Context, id string, q api.MessageRequest) (
 	s.commit.Lock()
 	defer s.commit.Unlock()
 	s.mu.Lock()
+	if s.scopeChanging {
+		s.mu.Unlock()
+		return api.MessageResponse{}, dapi(api.CodeConflict, "session MCP setup is in progress")
+	}
 	if s.compacting {
 		s.mu.Unlock()
 		return api.MessageResponse{}, dapi(api.CodeConflict, "session is being compacted")

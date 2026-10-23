@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"sync"
+	"time"
 )
 
 // MaxLineBytes bounds one incoming JSON-RPC message.
@@ -60,8 +61,9 @@ type afterReply struct {
 
 // conn is a newline-delimited JSON-RPC 2.0 connection. Writes are serialized.
 type conn struct {
-	out io.Writer
-	wmu sync.Mutex
+	diagnostics *diagnostics
+	out         io.Writer
+	wmu         sync.Mutex
 
 	mu       sync.Mutex
 	inflight map[string]bool
@@ -98,7 +100,7 @@ func (c *conn) reply(id json.RawMessage, result any, err error) {
 	if err != nil {
 		var re *rpcError
 		if !errors.As(err, &re) {
-			re = &rpcError{Code: codeInternal, Message: err.Error()}
+			re = &rpcError{Code: codeInternal, Message: "daemon operation failed"}
 		}
 		_ = c.write(message{ID: id, Error: re})
 		return
@@ -108,7 +110,7 @@ func (c *conn) reply(id json.RawMessage, result any, err error) {
 	}
 	raw, merr := json.Marshal(result)
 	if merr != nil {
-		_ = c.write(message{ID: id, Error: &rpcError{Code: codeInternal, Message: merr.Error()}})
+		_ = c.write(message{ID: id, Error: &rpcError{Code: codeInternal, Message: "response encoding failed"}})
 		return
 	}
 	_ = c.write(message{ID: id, Result: raw})
@@ -159,19 +161,24 @@ func (c *conn) dispatch(line []byte, tooLong bool, methods map[string]handler) {
 		_ = c.write(message{ID: json.RawMessage("null"), Error: &rpcError{Code: codeInvalidRequest, Message: "message exceeds the size limit"}})
 		return
 	}
-	var m message
-	if err := json.Unmarshal(line, &m); err != nil {
+	if !json.Valid(line) {
 		_ = c.write(message{ID: json.RawMessage("null"), Error: &rpcError{Code: codeParse, Message: "parse error"}})
 		return
 	}
-	if m.Method == "" {
-		return // a response to a request of ours: none are sent
+	var m message
+	if json.Unmarshal(line, &m) != nil || m.JSONRPC != "2.0" || !validID(m.ID) || m.Method == "" {
+		_ = c.write(message{ID: json.RawMessage("null"), Error: &rpcError{Code: codeInvalidRequest, Message: "invalid request"}})
+		return
+	}
+	// Request-only methods must not cause side effects when sent as notifications.
+	if len(m.ID) == 0 && m.Method != "session/cancel" {
+		return
 	}
 	h := methods[m.Method]
 	isRequest := len(m.ID) > 0
 	if h == nil {
 		if isRequest {
-			c.reply(m.ID, nil, &rpcError{Code: codeNoMethod, Message: "method not found: " + m.Method})
+			c.reply(m.ID, nil, &rpcError{Code: codeNoMethod, Message: "method not found"})
 		}
 		return
 	}
@@ -179,28 +186,40 @@ func (c *conn) dispatch(line []byte, tooLong bool, methods map[string]handler) {
 		key := string(m.ID)
 		c.mu.Lock()
 		dup := c.inflight[key]
-		c.inflight[key] = true
+		if !dup {
+			c.inflight[key] = true
+		}
 		c.mu.Unlock()
 		if dup {
-			c.reply(m.ID, nil, &rpcError{Code: codeInvalidRequest, Message: "duplicate request id " + key})
+			c.reply(m.ID, nil, &rpcError{Code: codeInvalidRequest, Message: "duplicate request id"})
 			return
 		}
 	}
 	c.wg.Add(1)
 	go func() {
 		defer c.wg.Done()
+		if isRequest {
+			defer func() { c.mu.Lock(); delete(c.inflight, string(m.ID)); c.mu.Unlock() }()
+		}
 		defer func() {
 			if p := recover(); p != nil && isRequest {
-				c.reply(m.ID, nil, &rpcError{Code: codeInternal, Message: fmt.Sprint("internal error: ", p)})
+				c.reply(m.ID, nil, &rpcError{Code: codeInternal, Message: "internal error"})
 			}
 		}()
+		start := time.Now()
 		res, err := h(m.Params)
+		code := 0
+		if err != nil {
+			code = codeInternal
+			var re *rpcError
+			if errors.As(err, &re) {
+				code = re.Code
+			}
+		}
+		c.diagnostics.record(m.Method, code, start)
 		if !isRequest {
 			return
 		}
-		c.mu.Lock()
-		delete(c.inflight, string(m.ID))
-		c.mu.Unlock()
 		var then func()
 		if r, ok := res.(afterReply); ok {
 			res, then = r.value, r.then
@@ -210,4 +229,24 @@ func (c *conn) dispatch(line []byte, tooLong bool, methods map[string]handler) {
 			then()
 		}
 	}()
+}
+
+// validID rejects compound and fractional identifiers before dispatch.
+func validID(raw json.RawMessage) bool {
+	if len(raw) == 0 {
+		return true
+	}
+	if string(raw) == "null" {
+		return false
+	}
+	var s string
+	if json.Unmarshal(raw, &s) == nil {
+		return true
+	}
+	var n json.Number
+	if json.Unmarshal(raw, &n) != nil {
+		return false
+	}
+	_, err := n.Int64()
+	return err == nil
 }

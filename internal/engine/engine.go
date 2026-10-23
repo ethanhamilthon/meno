@@ -48,6 +48,9 @@ type Options struct {
 }
 
 type runState struct {
+	scopeMu          sync.Mutex
+	scope            *mcpScope
+	scopeChanging    bool
 	session          *agent.Session
 	cwd, prevCwd     string
 	env              map[string]string
@@ -179,6 +182,14 @@ func (e *Engine) Close() {
 		s.mu.Unlock()
 	}
 	e.runs.Wait()
+	for _, s := range all {
+		s.scopeMu.Lock()
+		s.mu.Lock()
+		scope := s.scope
+		s.mu.Unlock()
+		e.clearScope(s, scope)
+		s.scopeMu.Unlock()
+	}
 	e.tasks.Shutdown()
 }
 

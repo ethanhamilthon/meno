@@ -19,7 +19,7 @@ func decodeData(raw json.RawMessage, v any) error {
 // callMCP calls one tool of a running MCP server and stores the full result
 // under an id the agent can read later with "meno mcp results".
 func (e *Engine) callMCP(ctx context.Context, s *runState, server, tool string, args map[string]any) (api.MCPResult, error) {
-	c, ok := e.mcp.Client(server)
+	c, ok := e.sessionMCP(s, server).Client(server)
 	if !ok {
 		return api.MCPResult{}, fmt.Errorf("MCP server %q is not running", server)
 	}

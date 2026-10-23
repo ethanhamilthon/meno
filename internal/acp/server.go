@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/url"
+	"path/filepath"
 	"sync"
 
 	"meno/internal/api"
@@ -20,6 +21,8 @@ type Options struct {
 	Version string
 	// NoAsk creates every session with the ask tool turned off.
 	NoAsk bool
+	// Diagnostics optionally receives metadata-only JSON records; nil disables it.
+	Diagnostics io.Writer
 }
 
 // Server is one ACP connection to one client.
@@ -29,25 +32,37 @@ type Server struct {
 	conn    *conn
 	ctx     context.Context
 
-	mu       sync.Mutex
-	sessions map[string]*session
-	models   []api.ConfigModel
+	lifecycle    sync.Mutex
+	capabilities json.RawMessage
+	mu           sync.Mutex
+	sessions     map[string]*session
+	models       []api.ConfigModel
 }
 
 // Run serves ACP on in and out until in ends or ctx is done. Diagnostics must
 // go to stderr by the caller: out carries only protocol messages.
 func Run(ctx context.Context, in io.Reader, out io.Writer, b Backend, o Options) error {
+	parent := ctx
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	s := &Server{backend: b, opts: o, conn: newConn(out), ctx: ctx, sessions: map[string]*session{}}
-	return s.conn.serve(in, s.methods(), func() {
-		s.shutdown()
-		cancel()
+	s.conn.diagnostics = &diagnostics{out: o.Diagnostics}
+	cleanup := sync.OnceFunc(func() { s.shutdown(); cancel() })
+	defer cleanup()
+	stop := context.AfterFunc(parent, func() {
+		cleanup()
+		if closer, ok := in.(io.Closer); ok {
+			_ = closer.Close()
+		}
 	})
+	defer stop()
+	return s.conn.serve(in, s.methods(), cleanup)
 }
 
 // shutdown detaches every session: executing runs stop, paused questions stay.
 func (s *Server) shutdown() {
+	s.lifecycle.Lock()
+	defer s.lifecycle.Unlock()
 	s.mu.Lock()
 	all := make([]*session, 0, len(s.sessions))
 	for _, x := range s.sessions {
@@ -72,6 +87,23 @@ func (s *Server) methods() map[string]handler {
 }
 
 func (s *Server) initialize(params json.RawMessage) (any, error) {
+	var p struct {
+		Version      int             `json:"protocolVersion"`
+		Capabilities json.RawMessage `json:"clientCapabilities"`
+	}
+	if json.Unmarshal(params, &p) != nil || p.Version != ProtocolVersion {
+		return nil, errParams("unsupported protocolVersion: Meno supports version 1")
+	}
+	// ACP defaults malformed optional capabilities. No optional client requests
+	// are issued, even when filesystem/terminal capabilities are present.
+	var caps map[string]json.RawMessage
+	if json.Unmarshal(p.Capabilities, &caps) != nil || caps == nil {
+		p.Capabilities = json.RawMessage(`{}`)
+	}
+	s.mu.Lock()
+	s.capabilities = append(json.RawMessage(nil), p.Capabilities...)
+	s.mu.Unlock()
+
 	return map[string]any{
 		"protocolVersion": ProtocolVersion,
 		"agentInfo":       map[string]any{"name": "meno", "title": "Meno", "version": s.opts.Version},
@@ -79,7 +111,7 @@ func (s *Server) initialize(params json.RawMessage) (any, error) {
 		"agentCapabilities": map[string]any{
 			"loadSession":         true,
 			"promptCapabilities":  map[string]any{"image": true, "audio": false, "embeddedContext": true},
-			"mcpCapabilities":     map[string]any{"http": false, "sse": false},
+			"mcpCapabilities":     map[string]any{"http": true, "sse": true},
 			"sessionCapabilities": map[string]any{"list": map[string]any{}},
 		},
 	}, nil
@@ -92,11 +124,8 @@ type newParams struct {
 }
 
 func (p newParams) check() error {
-	if p.Cwd == "" {
-		return errParams("cwd is required")
-	}
-	if len(p.MCPServers) > 0 {
-		return errParams("mcpServers are not supported: configure MCP servers in Meno with `meno mcp`")
+	if !filepath.IsAbs(p.Cwd) {
+		return errParams("cwd must be absolute")
 	}
 	return nil
 }
@@ -108,6 +137,8 @@ func clientID() string {
 }
 
 func (s *Server) newSession(raw json.RawMessage) (any, error) {
+	s.lifecycle.Lock()
+	defer s.lifecycle.Unlock()
 	var p newParams
 	if err := json.Unmarshal(raw, &p); err != nil {
 		return nil, errParams("invalid params: %v", err)
@@ -119,25 +150,30 @@ func (s *Server) newSession(raw json.RawMessage) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	x, err := s.attach(res.Session.ID, false)
+	scope, err := s.configureMCP(res.Session.ID, p.Cwd, p.MCPServers, nil)
 	if err != nil {
 		return nil, err
 	}
+	x, err := s.attach(res.Session.ID, false)
+	if err != nil {
+		scope.close()
+		return nil, err
+	}
+	x.scope = scope
 	out := s.sessionResult(x)
 	out["sessionId"] = x.id
 	return afterReply{value: out, then: func() { s.sendCommands(x) }}, nil
 }
 
 func (s *Server) loadSession(raw json.RawMessage) (any, error) {
+	s.lifecycle.Lock()
+	defer s.lifecycle.Unlock()
 	var p newParams
 	if err := json.Unmarshal(raw, &p); err != nil {
 		return nil, errParams("invalid params: %v", err)
 	}
 	if p.SessionID == "" {
 		return nil, errParams("sessionId is required")
-	}
-	if len(p.MCPServers) > 0 {
-		return nil, errParams("mcpServers are not supported: configure MCP servers in Meno with `meno mcp`")
 	}
 	snap, err := s.backend.Snapshot(s.ctx, p.SessionID)
 	if err != nil {
@@ -146,11 +182,41 @@ func (s *Server) loadSession(raw json.RawMessage) (any, error) {
 	if p.Cwd != "" && snap.Cwd != "" && p.Cwd != snap.Cwd {
 		return nil, errParams("session %s belongs to %s, not %s", p.SessionID, snap.Cwd, p.Cwd)
 	}
-	s.detachExisting(p.SessionID)
-	x, err := s.attach(p.SessionID, true)
+	s.mu.Lock()
+	old := s.sessions[p.SessionID]
+	s.mu.Unlock()
+	if old != nil {
+		old.mu.Lock()
+		busy := old.waiter != nil || old.running
+		old.mu.Unlock()
+		if busy {
+			return nil, errParams("cannot load an active session")
+		}
+	}
+	cwd := p.Cwd
+	if cwd == "" {
+		cwd = snap.Cwd
+	}
+	var previous *clientScope
+	if old != nil {
+		previous = old.scope
+	}
+	scope, err := s.configureMCP(p.SessionID, cwd, p.MCPServers, previous)
 	if err != nil {
 		return nil, err
 	}
+	// Replacing the lease already stopped the old transports. Do not release
+	// the newly installed lease through the old adapter object.
+	if old != nil {
+		old.scope = nil
+	}
+	s.detachExisting(p.SessionID)
+	x, err := s.attach(p.SessionID, true)
+	if err != nil {
+		scope.close()
+		return nil, err
+	}
+	x.scope = scope
 	return afterReply{value: s.sessionResult(x), then: func() { s.sendCommands(x) }}, nil
 }
 
@@ -159,8 +225,8 @@ func (s *Server) detachExisting(id string) {
 	old := s.sessions[id]
 	delete(s.sessions, id)
 	s.mu.Unlock()
-	if old != nil && old.stop != nil {
-		old.stop()
+	if old != nil {
+		old.detach()
 	}
 }
 
@@ -180,29 +246,6 @@ func (s *Server) attach(id string, loading bool) (*session, error) {
 	x.ctxSize = s.contextWindow(x.prov, x.model)
 	x.mu.Unlock()
 	return x, nil
-}
-
-func (s *Server) listSessions(raw json.RawMessage) (any, error) {
-	var p struct {
-		Cwd string `json:"cwd"`
-	}
-	_ = json.Unmarshal(raw, &p)
-	res, err := s.backend.ListSessions(s.ctx, api.SessionsListRequest{Cwd: p.Cwd, Limit: 200})
-	if err != nil {
-		return nil, err
-	}
-	items := make([]map[string]any, 0, len(res.Sessions))
-	for _, it := range res.Sessions {
-		m := map[string]any{"sessionId": it.ID, "cwd": it.Cwd}
-		if it.Name != "" {
-			m["title"] = it.Name
-		}
-		if it.UpdatedAt != "" {
-			m["updatedAt"] = it.UpdatedAt
-		}
-		items = append(items, m)
-	}
-	return map[string]any{"sessions": items}, nil
 }
 
 func (s *Server) session(id string) (*session, error) {
