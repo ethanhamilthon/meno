@@ -52,6 +52,11 @@ func (s *Settings) Get(key string) string {
 		return s.NotifyCommand
 	case "compact_percent":
 		return "percent"
+	case "system_prompt":
+		if s.SystemPrompt == "" {
+			return DefaultSystemPrompt
+		}
+		return s.SystemPrompt
 	}
 	return ""
 }
@@ -69,6 +74,16 @@ func (s *Settings) Set(key, val string) error {
 		return nil
 	case "notify_command":
 		s.NotifyCommand = strings.TrimSpace(val)
+		return nil
+	case "system_prompt":
+		if val == "" || val == DefaultSystemPrompt {
+			s.SystemPrompt = ""
+			return nil
+		}
+		if err := ValidSystemPromptName(val); err != nil {
+			return err
+		}
+		s.SystemPrompt = val
 		return nil
 	case "notify_volume":
 		val = strings.TrimSuffix(val, "%")

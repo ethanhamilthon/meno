@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/gdamore/tcell/v2"
@@ -25,6 +26,7 @@ var settingTabs = []settingTab{
 		rows: []settingRow{
 			{"theme", "theme"},
 			{"images", "images"},
+			{"system prompt", "system_prompt"},
 		},
 	},
 	{
@@ -165,6 +167,14 @@ func (a *App) settingChoices(key string) []string {
 		out := make([]string, len(themes))
 		for i, t := range themes {
 			out[i] = t.Name
+		}
+		return out
+	case "system_prompt":
+		// The built-in prompt, then the files of system-prompts/. A name that
+		// is set but has no file stays listed, so the row shows what is stored.
+		out := append([]string{config.DefaultSystemPrompt}, a.paths.ListSystemPrompts()...)
+		if cur := a.st.Settings.SystemPrompt; cur != "" && !slices.Contains(out, cur) {
+			out = append(out, cur)
 		}
 		return out
 	default:

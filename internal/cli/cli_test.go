@@ -57,9 +57,14 @@ func (f *fakeAPI) Models(string, bool) ([]Model, error) { return nil, f.check() 
 func (f *fakeAPI) Daemon(string, bool) (DaemonStatus, error) {
 	return DaemonStatus{Running: true}, f.check()
 }
-func (f *fakeAPI) Sessions(string) ([]Session, error)     { return nil, f.check() }
-func (f *fakeAPI) Send(r SendRequest) (SendResult, error) { return SendResult{Text: r.Text}, f.check() }
-func (f *fakeAPI) Tail(string) ([]Event, error)           { return nil, f.check() }
+func (f *fakeAPI) Sessions(SessionsRequest) ([]Session, error) { return nil, f.check() }
+func (f *fakeAPI) SessionShow(id string) (SessionDetail, error) {
+	return SessionDetail{Session: Session{ID: id, Status: "idle"}}, f.check()
+}
+func (f *fakeAPI) SessionCancel(string) error                { return f.check() }
+func (f *fakeAPI) SessionAnswer(AnswerRequest) error         { return f.check() }
+func (f *fakeAPI) Send(r SendRequest) (SendResult, error)    { return SendResult{Text: r.Text}, f.check() }
+func (f *fakeAPI) Tail(TailRequest, func(Event) error) error { return f.check() }
 func run(args []string, a API, input string) (int, string, string) {
 	var out, errOut bytes.Buffer
 	c := Run(args, IO{In: strings.NewReader(input), Out: &out, Err: &errOut, Dir: "."}, a)

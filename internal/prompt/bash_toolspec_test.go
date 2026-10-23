@@ -10,7 +10,7 @@ func TestBashDescriptionDescribesTheTool(t *testing.T) {
 	for _, want := range []string{
 		"fresh shell", "do not persist between calls",
 		"meno mcp", "meno tasks", "meno ask FILE|-", "meno view IMAGE", "meno models [--provider --refresh]",
-		"meno sessions [--cwd DIR]", "meno send [-s ID|--new] [--detach] TEXT", "meno tail ID", "meno help [TOPIC]",
+		"meno sessions [--cwd DIR", "meno sessions show ID", "meno send (-s ID|--new|--fork SESSION)", "--model PROVIDER/MODEL", "meno tail ID...", "meno help [TOPIC]",
 		"meno --help", "[exit N] or [cancelled]", "already running the message is only queued",
 		"Never create new sessions or send messages to other sessions without explicit user permission.",
 	} {

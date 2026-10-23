@@ -13,7 +13,11 @@ func Build(in Input) string {
 			parts = append(parts, s)
 		}
 	}
-	add(identityPrompt)
+	if id := strings.TrimSpace(in.Identity); id != "" {
+		add(id)
+	} else {
+		add(identityPrompt)
+	}
 	add(skillsSection(in.Skills))
 	add(instructionsSection("project-instructions", in.ProjectAgents))
 	add(element("working-rules", operatingRules))

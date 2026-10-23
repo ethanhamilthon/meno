@@ -177,3 +177,25 @@ func TestDescribeOSAndDate(t *testing.T) {
 		t.Fatal(got)
 	}
 }
+
+// A custom system prompt replaces only the identity line; the built-in line is
+// the fallback, and the sections after it do not change.
+func TestCustomIdentityReplacesOnlyTheIdentityLine(t *testing.T) {
+	base := Build(full())
+	if !strings.HasPrefix(base, identityPrompt+"\n\n") || len(strings.Fields(identityPrompt)) != 6 {
+		t.Fatalf("built-in identity: %q", base[:40])
+	}
+	in := full()
+	in.Identity = "  You review code.\n"
+	custom := Build(in)
+	if !strings.HasPrefix(custom, "You review code.\n\n") || strings.Contains(custom, identityPrompt) {
+		t.Fatalf("custom identity: %q", custom[:60])
+	}
+	if strings.TrimPrefix(custom, "You review code.") != strings.TrimPrefix(base, identityPrompt) {
+		t.Fatal("the sections after the identity changed")
+	}
+	in.Identity = " \n"
+	if Build(in) != base {
+		t.Fatal("a blank identity must fall back to the built-in line")
+	}
+}

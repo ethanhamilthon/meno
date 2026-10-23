@@ -69,3 +69,32 @@ func TestDoctorTreatsVPrefixedVersionAsEqual(t *testing.T) {
 		t.Fatal("prefix handling")
 	}
 }
+
+func TestDoctorReportsAMissingSystemPromptFile(t *testing.T) {
+	home := t.TempDir()
+	if got := systemPromptCheck(home); got != nil {
+		t.Fatalf("no settings file: %+v", got)
+	}
+	write := func(name, text string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(home, name), []byte(text), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("settings.json", `{"system_prompt":"house"}`)
+	got := systemPromptCheck(home)
+	if len(got) != 1 || got[0].Status != "warn" || !strings.Contains(got[0].Fix, "house.md") {
+		t.Fatalf("missing file: %+v", got)
+	}
+	if err := os.MkdirAll(filepath.Join(home, "system-prompts"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	write("system-prompts/house.md", "House rules.")
+	if got = systemPromptCheck(home); len(got) != 1 || got[0].Status != "ok" {
+		t.Fatalf("usable file: %+v", got)
+	}
+	write("settings.json", `{"system_prompt":"default"}`)
+	if got = systemPromptCheck(home); got != nil {
+		t.Fatalf("default: %+v", got)
+	}
+}

@@ -33,6 +33,10 @@ func (e *Engine) ListSessions(ctx context.Context, q api.SessionsListRequest) (a
 				Model:     r.Model,
 				Provider:  r.Provider,
 				Effort:    r.Effort,
+				NoAsk:     r.NoAsk,
+				SpawnedBy: r.SpawnedBy,
+				ForkOf:    r.ForkSource,
+				System:    r.SystemName,
 				TurnCount: r.Turns,
 				UpdatedAt: r.UpdatedAt.UTC().Format(time.RFC3339Nano),
 			}
@@ -66,14 +70,31 @@ func (e *Engine) CreateSession(ctx context.Context, q api.SessionCreateRequest) 
 	if st, er := os.Stat(abs); er != nil || !st.IsDir() {
 		return api.SessionCreateResponse{}, dapi(api.CodeBadRequest, "cwd must be an existing directory")
 	}
-	model := q.Model
-	if model == "" {
-		model = e.cfg().Model
+	cfg := e.cfg()
+	choice, err := e.pickModel(q.Model, q.Effort, modelChoice{cfg.Provider, cfg.Model, cfg.Effort})
+	if err != nil {
+		return api.SessionCreateResponse{}, err
 	}
-	sess := agent.NewSession(abs, model)
-	sess.Provider = e.cfg().Provider
-	sess.Effort = e.cfg().Effort
+	title := ""
+	if q.Title != "" {
+		if title, err = agent.NormalizeTitle(q.Title); err != nil {
+			return api.SessionCreateResponse{}, dapi(api.CodeBadRequest, err.Error())
+		}
+	}
+	systemName, systemText, err := e.systemPrompt(q.System)
+	if err != nil {
+		return api.SessionCreateResponse{}, err
+	}
+	if err = e.checkSpawn(ctx, q.SpawnedBy); err != nil {
+		return api.SessionCreateResponse{}, err
+	}
+	sess := agent.NewSession(abs, choice.model)
+	sess.Provider = choice.provider
+	sess.Effort = choice.effort
 	sess.NoAsk = q.NoAsk
+	sess.Title = title
+	sess.SpawnedBy = q.SpawnedBy
+	sess.SystemName, sess.SystemPrompt = systemName, systemText
 	s, err := e.adopt(sess)
 	if err != nil {
 		return api.SessionCreateResponse{}, err

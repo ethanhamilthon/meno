@@ -62,6 +62,9 @@ type SessionItem struct {
 	Running     bool   `json:"running"`
 	NeedsYou    bool   `json:"needs_you"`
 	NoAsk       bool   `json:"no_ask,omitempty"`
+	SpawnedBy   string `json:"spawned_by,omitempty"` // the session whose agent created this one
+	ForkOf      string `json:"fork_of,omitempty"`
+	System      string `json:"system,omitempty"` // name of the custom system prompt
 	TurnCount   int    `json:"turn_count"`
 	UpdatedAt   string `json:"updated_at,omitempty"`
 }
@@ -80,11 +83,21 @@ type SessionsListResponse struct {
 
 // SessionCreateRequest creates a session.
 type SessionCreateRequest struct {
-	Cwd      string            `json:"cwd"`
-	NoAsk    bool              `json:"no_ask,omitempty"`
-	Model    string            `json:"model,omitempty"`
-	Env      map[string]string `json:"env,omitempty"`
-	ClientID string            `json:"client_id"`
+	Cwd   string `json:"cwd"`
+	NoAsk bool   `json:"no_ask,omitempty"`
+	// Model is PROVIDER/MODEL (a bare model id means a model of the default
+	// provider). Effort must be one the model supports.
+	Model  string `json:"model,omitempty"`
+	Effort string `json:"effort,omitempty"`
+	Title  string `json:"title,omitempty"`
+	// System names a custom system prompt (see settings: system_prompt);
+	// "default" is the built-in one.
+	System string `json:"system,omitempty"`
+	// SpawnedBy is the session whose agent creates this one; the daemon limits
+	// the depth and the number of such sessions.
+	SpawnedBy string            `json:"spawned_by,omitempty"`
+	Env       map[string]string `json:"env,omitempty"`
+	ClientID  string            `json:"client_id"`
 }
 
 // SessionCreateResponse identifies a created session.
@@ -158,17 +171,36 @@ type PatchSessionRequest struct {
 	Provider *string `json:"provider,omitempty"`
 	Model    *string `json:"model,omitempty"`
 	Effort   *string `json:"effort,omitempty"`
+	// Select changes the model of an idle session as one checked step: the
+	// provider and model must exist and the effort must suit the model.
+	Select *ModelSelection `json:"select,omitempty"`
+}
+
+// ModelSelection is PROVIDER/MODEL and/or an effort; empty parts stay as they are.
+type ModelSelection struct {
+	Model  string `json:"model,omitempty"`
+	Effort string `json:"effort,omitempty"`
 }
 
 // ForkRequest creates a session from an existing session.
 type ForkRequest struct {
 	Turn     int    `json:"turn,omitempty"`
 	ClientID string `json:"client_id"`
+	// The fork keeps the model, effort, title, directory and system prompt of
+	// its source unless these say otherwise. NoAsk can only be turned on.
+	Model     string `json:"model,omitempty"`
+	Effort    string `json:"effort,omitempty"`
+	Title     string `json:"title,omitempty"`
+	Cwd       string `json:"cwd,omitempty"`
+	System    string `json:"system,omitempty"`
+	NoAsk     bool   `json:"no_ask,omitempty"`
+	SpawnedBy string `json:"spawned_by,omitempty"`
 }
 
 // ForkResponse describes the forked session.
 type ForkResponse struct {
-	Session SessionItem `json:"session"`
+	Session  SessionItem `json:"session"`
+	Warnings []string    `json:"warnings,omitempty"`
 }
 
 // Turn is a persisted conversation item.

@@ -38,6 +38,10 @@ const MaxInstructions = 256 << 10
 
 // Input is everything the system prompt depends on.
 type Input struct {
+	// Identity replaces the built-in identity line when it is not blank (a custom
+	// system prompt). Everything after it stays: skills, AGENTS.md, rules, tools
+	// and the environment.
+	Identity      string
 	Cwd           string
 	Skills        []Skill
 	ProjectAgents Instructions

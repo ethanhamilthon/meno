@@ -15,6 +15,10 @@ const (
 	ExitUsage = 2
 	// ExitForbidden means the active mode disallows a command.
 	ExitForbidden = 3
+	// ExitNeedsAnswer means a session waits for an answer to a question of its agent.
+	ExitNeedsAnswer = 5
+	// ExitAborted means the run that was waited for was stopped.
+	ExitAborted = 6
 	// ExitWaitTimeout means a wait timed out without cancelling its work.
 	ExitWaitTimeout = 124
 )

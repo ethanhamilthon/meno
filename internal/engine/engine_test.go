@@ -22,6 +22,8 @@ type fakeProvider struct {
 	calls int
 	wait  bool
 	seen  chan struct{}
+	// systems is the system prompt of every request, in order.
+	systems []string
 }
 
 func (f *fakeProvider) Stream(ctx context.Context, req llm.Request, emit func(llm.Event)) error {
@@ -29,6 +31,7 @@ func (f *fakeProvider) Stream(ctx context.Context, req llm.Request, emit func(ll
 	f.calls++
 	n := f.calls
 	wait := f.wait
+	f.systems = append(f.systems, req.System)
 	f.mu.Unlock()
 	if wait {
 		if f.seen != nil {

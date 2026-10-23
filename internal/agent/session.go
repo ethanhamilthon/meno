@@ -114,11 +114,17 @@ type Session struct {
 	Provider string `json:"provider,omitempty"`
 	Tool     string `json:"tool,omitempty"`
 	// NoAsk turns the ask tool off: `meno ask` answers with an error.
-	NoAsk     bool      `json:"no_ask,omitempty"`
-	Model     string    `json:"model"`
-	Effort    string    `json:"effort,omitempty"`
-	UpdatedAt time.Time `json:"updated_at"`
-	Summary   string    `json:"summary,omitempty"`
+	NoAsk bool `json:"no_ask,omitempty"`
+	// SpawnedBy is the session whose agent created this one with `meno send`.
+	SpawnedBy string `json:"spawned_by,omitempty"`
+	// SystemName names the custom system prompt file; SystemPrompt is its text,
+	// frozen when the session was created. Empty means the built-in identity.
+	SystemName   string    `json:"system_name,omitempty"`
+	SystemPrompt string    `json:"system_prompt,omitempty"`
+	Model        string    `json:"model"`
+	Effort       string    `json:"effort,omitempty"`
+	UpdatedAt    time.Time `json:"updated_at"`
+	Summary      string    `json:"summary,omitempty"`
 	// Kind is KindMain or KindChild (empty = main). ParentID owns a child.
 	Kind     string `json:"kind,omitempty"`
 	ParentID string `json:"parent_id,omitempty"`
@@ -170,16 +176,20 @@ func (s *Session) Replace(turns []Turn) { s.ensureLog().Replace(turns) }
 func (s *Session) SetSystem(i int, system string) { s.ensureLog().SetSystem(i, system) }
 
 type SessionInfo struct {
-	ID        string
-	Title     string
-	Cwd       string
-	UpdatedAt time.Time
-	Turns     int
-	ToolRuns  int
-	Provider  string
-	Model     string
-	Effort    string
-	Tool      string
+	ID         string
+	Title      string
+	Cwd        string
+	UpdatedAt  time.Time
+	Turns      int
+	ToolRuns   int
+	Provider   string
+	Model      string
+	Effort     string
+	Tool       string
+	SpawnedBy  string
+	ForkSource string
+	SystemName string
+	NoAsk      bool
 }
 
 func NewID() string {

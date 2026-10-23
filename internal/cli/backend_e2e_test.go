@@ -149,7 +149,7 @@ func asAPI(err error, target **APIError) bool {
 
 func TestSessionsListAndSend(t *testing.T) {
 	_, _, sess, dapi := start(t, &scripted{steps: [][]llm.Event{{{Kind: llm.EvText, Text: "pong"}, {Kind: llm.EvDone}}}})
-	items, err := dapi.Sessions("")
+	items, err := dapi.Sessions(SessionsRequest{})
 	if err != nil || len(items) != 0 {
 		t.Fatalf("a session without a message must not be listed: %v %v", items, err)
 	}
@@ -157,7 +157,7 @@ func TestSessionsListAndSend(t *testing.T) {
 	if err != nil || !res.Done || !strings.Contains(res.Text, "pong") {
 		t.Fatalf("send %+v %v", res, err)
 	}
-	items, err = dapi.Sessions("")
+	items, err = dapi.Sessions(SessionsRequest{})
 	if err != nil || len(items) != 1 || items[0].ID != sess.Session.ID {
 		t.Fatalf("sessions after the first message %v %v", items, err)
 	}
@@ -176,7 +176,7 @@ func TestSendNewCreatesExactlyOneListedSession(t *testing.T) {
 	if err != nil || res.SessionID == "" || !res.Done {
 		t.Fatalf("send %+v %v", res, err)
 	}
-	items, err := dapi.Sessions("")
+	items, err := dapi.Sessions(SessionsRequest{})
 	if err != nil || len(items) != 1 || items[0].ID != res.SessionID {
 		t.Fatalf("sessions %v %v", items, err)
 	}

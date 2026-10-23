@@ -47,7 +47,7 @@ func TestSessionListMetadataUnloadedLoadedRestartCompactedAndZero(t *testing.T) 
 	e := newTestEngine(t, home)
 	defer func() { e.Close(); db.CloseAll() }()
 
-	r, err := e.CreateSession(context.Background(), api.SessionCreateRequest{Cwd: t.TempDir(), ClientID: "c1", Model: "custom-model"})
+	r, err := e.CreateSession(context.Background(), api.SessionCreateRequest{Cwd: t.TempDir(), ClientID: "c1", Model: "custom-prov/custom-model"})
 	if err != nil {
 		t.Fatal(err)
 	}

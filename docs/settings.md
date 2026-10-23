@@ -12,6 +12,7 @@ Look and signal settings (`theme`, `notify`, `notify sound`, `notify volume`, `n
 | --- | --- | --- |
 | General | theme | `default` or a custom theme from `theme.json`; live preview |
 | General | images | `auto`, `off`, `kitty`, `sixel`, `iterm` — see [terminal graphics](graphics.md) |
+| General | system prompt | `default` (the built-in prompt) or a file of `system-prompts/` — see [system prompts](#system-prompts) |
 | Display | bash code | `all`, `lines <n>`, `off` — how much command text the timeline shows |
 | Display | bash output | `all`, `lines <n>`, `off` |
 | Display | thinking | `all`, `lines <n>` (the newest rows), `off` |
@@ -55,4 +56,21 @@ these files with keys in them. Files are written with mode 0600.
 
 Settings without a row in the dialog live in the settings JSON (`meno.db`):
 `compact_keep` (8) and `compact_summary_tokens` (4000) tune the automatic
-compaction safety net, see [sessions](sessions.md).
+compaction safety net, see [sessions](sessions.md). `max_spawn_depth` (2) and
+`max_workers` (8) limit sessions that agents start with `meno send`, see
+[the command line](cli.md#driving-sessions-from-scripts-and-agents).
+
+## System prompts
+
+The system prompt starts with one identity line: *You are Meno, a coding agent.* A custom
+system prompt replaces only that line. What follows it stays: the skills, the project
+`AGENTS.md`, the working rules, the MCP tools and the environment.
+
+A custom prompt is a Markdown file `$MENO_HOME/system-prompts/NAME.md` (`NAME`: letters, digits,
+dots, dashes and underscores, at most 64 characters). The text is trimmed; an empty file or one
+over 64 KB is refused. Pick it in `/settings` (General, *system prompt*), or set `"system_prompt":
+"NAME"` in the settings JSON. It applies to **new** sessions: a session keeps the text it was
+created with, so editing the file does not change a running conversation or its provider cache.
+A fork keeps the prompt of its source. `meno send --new|--fork --system NAME` picks one for a
+single session (`--system default` is the built-in line). When the chosen file is missing the
+built-in line is used, and `meno doctor` warns about it.

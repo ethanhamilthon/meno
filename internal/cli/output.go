@@ -16,6 +16,9 @@ func fail(streams IO, err error) int {
 	if err == nil {
 		return ExitOK
 	}
+	if isAborted(err) {
+		code = ExitAborted
+	}
 	var usage usageFailure
 	if errors.As(err, &usage) {
 		code = ExitUsage

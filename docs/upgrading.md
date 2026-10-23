@@ -1,5 +1,22 @@
 # Upgrading, data and privacy
 
+## 0.6.10: sessions for orchestration, custom system prompts
+
+Restart the daemon after updating. The database schema goes to version 17 (additive: three
+columns on `sessions`, nothing is rewritten); going back to 0.6.9 works and ignores them.
+
+- **`meno send` needs a target.** It no longer writes to `$MENO_SESSION` when you give no `-s`,
+  `--new` or `--fork`: that is now a usage error (exit 2). Scripts that relied on it add `-s "$MENO_SESSION"`.
+- **New:** `--fork SESSION [--at N]`, `--model`, `--effort`, `--cwd`, `--title`, `--system`, `--timeout`,
+  `--keep-running`, `--cancel-on-exit`; `meno sessions show|cancel|answer` and filters; `meno tail` streams while the
+  session runs, takes several sessions, `--events`, `--children-of` and `--from`. Details in
+  [the command line](cli.md#driving-sessions-from-scripts-and-agents).
+- **`meno send` returns when the agent asks a question** (exit 5) instead of waiting for you in the other window.
+  `meno send --new` prints only the answer as before; `--json` has the session id and status.
+- **`meno tail --json`** prints JSON lines like plain `tail` (it used to print one array at the end).
+- **System prompts:** files in `$MENO_HOME/system-prompts/` replace the identity line; see
+  [settings](settings.md#system-prompts). New settings `system_prompt`, `max_spawn_depth` (2), `max_workers` (8).
+
 ## 0.6.9: `meno web` removed
 
 Restart the daemon after updating.

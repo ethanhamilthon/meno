@@ -48,9 +48,31 @@ func (e *Engine) PatchSession(ctx context.Context, id string, q api.PatchSession
 	if err != nil {
 		return api.SessionItem{}, notFound(err)
 	}
+	var pick *modelChoice
+	if q.Select != nil {
+		s.mu.Lock()
+		cur := modelChoice{s.session.Provider, s.session.Model, s.session.Effort}
+		busy := s.running
+		s.mu.Unlock()
+		if busy {
+			return api.SessionItem{}, dapi(api.CodeConflict, "the model can be changed only while the session is idle")
+		}
+		p, er := e.pickModel(q.Select.Model, q.Select.Effort, cur)
+		if er != nil {
+			return api.SessionItem{}, er
+		}
+		pick = &p
+	}
 	s.commit.Lock()
 	defer s.commit.Unlock()
 	s.mu.Lock()
+	if pick != nil {
+		if s.running {
+			s.mu.Unlock()
+			return api.SessionItem{}, dapi(api.CodeConflict, "the model can be changed only while the session is idle")
+		}
+		s.session.Provider, s.session.Model, s.session.Effort = pick.provider, pick.model, pick.effort
+	}
 	if q.Name != nil {
 		n, er := agent.NormalizeTitle(*q.Name)
 		if er != nil {

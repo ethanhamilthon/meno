@@ -25,6 +25,9 @@ type ConfigSettings struct {
 	CompactKeep          int    `json:"compact_keep"`
 	CompactSummaryTokens int    `json:"compact_summary_tokens"`
 	ImagesProtocol       string `json:"images_protocol"`
+	SystemPrompt         string `json:"system_prompt"`
+	MaxSpawnDepth        int    `json:"max_spawn_depth"`
+	MaxWorkers           int    `json:"max_workers"`
 }
 
 type SettingsRequest struct {

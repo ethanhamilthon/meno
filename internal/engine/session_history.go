@@ -11,6 +11,10 @@ func (e *Engine) Fork(ctx context.Context, id string, q api.ForkRequest) (api.Fo
 	if err != nil {
 		return api.ForkResponse{}, notFound(err)
 	}
+	over, err := e.forkOverrides(ctx, src, q)
+	if err != nil {
+		return api.ForkResponse{}, err
+	}
 	all, err := agent.AllTurns(e.home, id)
 	if err != nil {
 		return api.ForkResponse{}, err
@@ -22,12 +26,18 @@ func (e *Engine) Fork(ctx context.Context, id string, q api.ForkRequest) (api.Fo
 	if boundary == 0 && len(all) > 0 {
 		boundary = all[len(all)-1].HID
 	}
-	child, warn, err := agent.ForkSession(e.home, id, boundary, "")
+	src.mu.Lock()
+	var warnings []string
+	if src.running {
+		warnings = append(warnings, "the source session is running: the fork starts from its last saved turn")
+	}
+	src.mu.Unlock()
+	child, warn, err := agent.ForkSession(e.home, id, boundary, over.cwd)
 	if err != nil {
 		return api.ForkResponse{}, dapi(api.CodeBadRequest, err.Error())
 	}
 	if warn != "" {
-		_ = warn
+		warnings = append(warnings, warn)
 	}
 	s, err := e.load(ctx, child.ID)
 	if err != nil {
@@ -36,11 +46,14 @@ func (e *Engine) Fork(ctx context.Context, id string, q api.ForkRequest) (api.Fo
 	src.mu.Lock()
 	s.env = cloneMap(src.env)
 	src.mu.Unlock()
+	if err = e.applyForkOverrides(s, over); err != nil {
+		return api.ForkResponse{}, err
+	}
 	e.announce(api.EventSessionCreated, child.ID, id)
 	s.mu.Lock()
 	it := item(s)
 	s.mu.Unlock()
-	return api.ForkResponse{Session: it}, nil
+	return api.ForkResponse{Session: it, Warnings: warnings}, nil
 }
 func (e *Engine) Turns(ctx context.Context, id string, q api.TurnsPageRequest) (api.TurnsPage, error) {
 	s, err := e.load(ctx, id)

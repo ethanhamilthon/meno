@@ -27,8 +27,10 @@ add `--json` for structured output.
 | view | `meno view IMAGE` shows an image to the model |
 | models | the models of the configured providers |
 
-The other commands (`daemon`, `sessions`, `send`, `tail`) are for people and scripts, see
-[the command line](cli.md). All normal tool groups are available without application modes.
+The commands `sessions`, `send` and `tail` also work inside a call: an agent can start, fork and follow
+other sessions (it needs your explicit permission to do so), and a session that it starts records it as its
+origin. `daemon` is for people. See [the command line](cli.md#driving-sessions-from-scripts-and-agents). All normal
+tool groups are available without application modes.
 
 Daemon-backed groups reach the daemon through the `MENO_SOCK`, `MENO_SESSION`, `MENO_TOKEN`
 and `MENO_CALL` variables that the daemon puts in the environment of each call. The token is

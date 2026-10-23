@@ -54,13 +54,14 @@ func writeSessionTx(tx *sql.Tx, s *Session) (pend Pending, err error) {
 	if kind == "" {
 		kind = KindMain
 	}
-	if _, err = tx.Exec(`INSERT INTO sessions(id,title,cwd,provider,model,effort,summary,metrics,updated_at,kind,parent_id,fork_source,fork_boundary,next_hid,coverage,legacy,tool,no_ask)
-		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+	if _, err = tx.Exec(`INSERT INTO sessions(id,title,cwd,provider,model,effort,summary,metrics,updated_at,kind,parent_id,fork_source,fork_boundary,next_hid,coverage,legacy,tool,no_ask,spawned_by,system_name,system_prompt)
+		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 		ON CONFLICT(id) DO UPDATE SET title=excluded.title, cwd=excluded.cwd, provider=excluded.provider, model=excluded.model,
 		effort=excluded.effort, summary=excluded.summary, metrics=excluded.metrics, updated_at=excluded.updated_at,
-		next_hid=excluded.next_hid, coverage=excluded.coverage, tool=excluded.tool`,
+		next_hid=excluded.next_hid, coverage=excluded.coverage, tool=excluded.tool,
+		spawned_by=excluded.spawned_by, system_name=excluded.system_name, system_prompt=excluded.system_prompt`,
 		s.ID, s.Title, s.Cwd, s.Provider, s.Model, s.Effort, s.Summary, string(metrics), ts(s.UpdatedAt),
-		kind, s.ParentID, s.ForkSource, s.ForkBoundary, s.NextHID, s.Coverage, b2i(s.Legacy), s.toolName(), b2i(s.NoAsk)); err != nil {
+		kind, s.ParentID, s.ForkSource, s.ForkBoundary, s.NextHID, s.Coverage, b2i(s.Legacy), s.toolName(), b2i(s.NoAsk), s.SpawnedBy, s.SystemName, s.SystemPrompt); err != nil {
 		return pend, err
 	}
 	for _, t := range pend.Archive {

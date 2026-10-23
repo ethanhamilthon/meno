@@ -1,10 +1,6 @@
 package cli
 
-import (
-	"encoding/json"
-	"fmt"
-	"strings"
-)
+import "fmt"
 
 func runDaemon(args []string, s IO, a API, j bool) (int, error) {
 	if len(args) == 0 {
@@ -42,64 +38,4 @@ func daemonText(action string, d DaemonStatus) string {
 		return "stopped\n"
 	}
 	return action + " requested\n"
-}
-func runSessions(args []string, s IO, a API, j bool) (int, error) {
-	values, _, pos, err := parseFlags(args, map[string]bool{"cwd": true}, nil)
-	if err != nil {
-		return 0, err
-	}
-	if len(pos) > 0 {
-		return 0, usageError("usage: meno sessions [--cwd DIR]")
-	}
-	if err = apiRequired(a); err != nil {
-		return 0, err
-	}
-	items, err := a.Sessions(values["cwd"])
-	if err != nil {
-		return 0, err
-	}
-	return 0, emit(s, j, items, formatList(items, func(x Session) string { return x.ID + "\t" + x.Status + "\t" + x.Name + "\t" + x.CWD }))
-}
-func runSend(args []string, s IO, a API, j bool) (int, error) {
-	values, switches, pos, err := parseFlags(args, map[string]bool{"s": true}, map[string]bool{"new": true, "detach": true, "no-ask": true})
-	if err != nil {
-		return 0, err
-	}
-	if len(pos) == 0 {
-		return 0, usageError("usage: meno send [-s ID|--new [--no-ask]] [--detach] TEXT")
-	}
-	if switches["new"] && values["s"] != "" {
-		return 0, usageError("--new cannot be combined with -s")
-	}
-	if switches["no-ask"] && !switches["new"] {
-		return 0, usageError("--no-ask applies to a new session: use it with --new")
-	}
-	if err = apiRequired(a); err != nil {
-		return 0, err
-	}
-	res, err := a.Send(SendRequest{Text: strings.Join(pos, " "), SessionID: values["s"], New: switches["new"], NoAsk: switches["no-ask"], Detach: switches["detach"]})
-	if err != nil {
-		return 0, err
-	}
-	return 0, emit(s, j, res, res.Text)
-}
-func runTail(args []string, s IO, a API, j bool) (int, error) {
-	if len(args) != 1 {
-		return 0, usageError("usage: meno tail ID")
-	}
-	if err := apiRequired(a); err != nil {
-		return 0, err
-	}
-	events, err := a.Tail(args[0])
-	if err != nil {
-		return 0, err
-	}
-	if j {
-		return 0, emit(s, true, events, "")
-	}
-	for _, e := range events {
-		b, _ := json.Marshal(e)
-		fmt.Fprintln(s.Out, string(b))
-	}
-	return 0, nil
 }

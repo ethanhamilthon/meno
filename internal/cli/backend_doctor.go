@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"meno/internal/api"
+	"meno/internal/config"
 	"meno/internal/version"
 
 	_ "modernc.org/sqlite" // read-only integrity check of meno.db
@@ -139,7 +140,27 @@ func configChecks(home string) []Check {
 			out = append(out, Check{Name: name, Status: "ok"})
 		}
 	}
-	return out
+	return append(out, systemPromptCheck(home)...)
+}
+
+// systemPromptCheck reports a system_prompt setting that names a file that
+// cannot be used: new sessions then fall back to the built-in prompt.
+func systemPromptCheck(home string) []Check {
+	b, err := os.ReadFile(filepath.Join(home, "settings.json"))
+	if err != nil {
+		return nil
+	}
+	var st struct {
+		SystemPrompt string `json:"system_prompt"`
+	}
+	if json.Unmarshal(b, &st) != nil || st.SystemPrompt == "" || st.SystemPrompt == config.DefaultSystemPrompt {
+		return nil
+	}
+	paths := config.Paths{Home: home}
+	if _, err := paths.LoadSystemPrompt(st.SystemPrompt); err != nil {
+		return []Check{{Name: "system prompt", Status: "warn", Detail: oneLine(err.Error()), Fix: "create " + filepath.Join(paths.SystemPromptsDir(), st.SystemPrompt+".md") + " or choose another prompt in the settings"}}
+	}
+	return []Check{{Name: "system prompt", Status: "ok", Detail: st.SystemPrompt}}
 }
 
 // databaseCheck opens meno.db read-only and runs SQLite's quick integrity check.

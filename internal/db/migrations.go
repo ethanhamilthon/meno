@@ -251,4 +251,10 @@ ALTER TABLE mcp_servers ADD COLUMN cwd TEXT NOT NULL DEFAULT '';
 	`-- A session can be created with the ask tool turned off (meno --no-ask).
 ALTER TABLE sessions ADD COLUMN no_ask INTEGER NOT NULL DEFAULT 0;
 `,
+	`-- Orchestration: which session started this one, and the system prompt it was
+-- created with (the name, and the text frozen at creation).
+ALTER TABLE sessions ADD COLUMN spawned_by TEXT NOT NULL DEFAULT '';
+ALTER TABLE sessions ADD COLUMN system_name TEXT NOT NULL DEFAULT '';
+ALTER TABLE sessions ADD COLUMN system_prompt TEXT NOT NULL DEFAULT '';
+`,
 }

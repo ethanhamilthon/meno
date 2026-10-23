@@ -24,9 +24,12 @@ type API interface {
 	View(path string) (ViewResult, error)
 	Models(provider string, refresh bool) ([]Model, error)
 	Daemon(action string, force bool) (DaemonStatus, error)
-	Sessions(cwd string) ([]Session, error)
+	Sessions(SessionsRequest) ([]Session, error)
+	SessionShow(id string) (SessionDetail, error)
+	SessionCancel(id string) error
+	SessionAnswer(AnswerRequest) error
 	Send(SendRequest) (SendResult, error)
-	Tail(id string) ([]Event, error)
+	Tail(req TailRequest, emit func(Event) error) error
 	Doctor(DoctorRequest) (DoctorReport, error)
 }
 

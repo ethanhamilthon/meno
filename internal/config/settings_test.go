@@ -24,7 +24,7 @@ func TestLoadSettingsNormalizesInvalidValues(t *testing.T) {
 
 func TestSettingsDecodeValidAndLegacy(t *testing.T) {
 	for _, lines := range []int{1, 50} {
-		want := Settings{Provider: "custom", Model: "custom-model", Effort: "max", Tool: "bash", BashCode: "off", BashLines: lines, BashOutput: "off", BashOutputLines: 7, BashTiming: "slow", TurnSummary: "off", Thinking: "off", ThinkLines: 4, DaemonIdleExitMin: 30, Theme: "dracula", Notify: "done", NotifyCommand: "say hi", NotifySound: "chime", NotifyVolume: 60, CompactPercent: 70, CompactKeep: 10, CompactSummaryTokens: 3000}
+		want := Settings{Provider: "custom", Model: "custom-model", Effort: "max", Tool: "bash", BashCode: "off", BashLines: lines, BashOutput: "off", BashOutputLines: 7, BashTiming: "slow", TurnSummary: "off", Thinking: "off", ThinkLines: 4, DaemonIdleExitMin: 30, Theme: "dracula", Notify: "done", NotifyCommand: "say hi", NotifySound: "chime", NotifyVolume: 60, CompactPercent: 70, CompactKeep: 10, CompactSummaryTokens: 3000, SystemPrompt: "writer", MaxSpawnDepth: 3, MaxWorkers: 5}
 		b, err := json.Marshal(want)
 		if err != nil {
 			t.Fatal(err)

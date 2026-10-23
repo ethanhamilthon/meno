@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.6.10
+
+Restart the daemon after updating. The database schema goes to version 17 (additive).
+See [docs/upgrading.md](docs/upgrading.md) for the one behavior change.
+
+- **`meno send --fork SESSION [--at N]`** creates a session from the history of another and sends a
+  message to it. The session must be named: `send` without `-s`, `--new` or `--fork` is a usage error and no
+  longer writes to `$MENO_SESSION`.
+- **Choose the model and the setting of a session:** `--model PROVIDER/MODEL`, `--effort`, `--cwd`, `--title`,
+  `--system` for `--new` and `--fork`; `--model` and `--effort` also change an idle session with `-s`. The daemon
+  checks them before anything is created.
+- **`send` for agents:** `--timeout`, a JSON result with the session id, status, usage and warnings, a question of the
+  agent ends the wait with exit 5, a stopped run gives exit 6, and an interrupted `send` cancels the run it created
+  (`--keep-running`, `--cancel-on-exit`). Background work is `meno tasks start "meno send ..."`.
+- **`meno sessions`:** `--status`, `--spawned-by`, `--title-prefix`, `--limit`, and `show`, `cancel` and `answer`.
+  Sessions record which session started them; `max_spawn_depth` and `max_workers` limit that (exit 3).
+- **`meno tail`** streams while the session runs, follows several sessions or `--children-of`, filters with
+  `--events` and continues with `--from`.
+- **Custom system prompts.** Files in `~/.meno/system-prompts/NAME.md` replace the identity line; pick one in
+  `/settings`, with the `system_prompt` setting, or per session. Without one the built-in line is used. `meno doctor`
+  checks the file.
+- The tool description of the model lists the new `send`, `sessions` and `tail` forms.
+
 ## 0.6.9
 
 Restart the daemon after updating. No data is migrated.
