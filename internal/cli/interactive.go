@@ -2,8 +2,10 @@ package cli
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
+	"sort"
 )
 
 func runAsk(args []string, s IO, a API, j bool) (int, error) {
@@ -62,9 +64,14 @@ func runModels(args []string, s IO, a API, j bool) (int, error) {
 	if err = apiRequired(a); err != nil {
 		return 0, err
 	}
-	items, err := a.Models(values["provider"], switches["refresh"])
+	list, err := a.Models(values["provider"], switches["refresh"])
 	if err != nil {
 		return 0, err
+	}
+	reportModelErrors(s, list.Errors)
+	items := list.Models
+	if items == nil {
+		items = []Model{}
 	}
 	return 0, emit(s, j, items, formatList(items, func(x Model) string {
 		if x.Name != "" {
@@ -72,4 +79,16 @@ func runModels(args []string, s IO, a API, j bool) (int, error) {
 		}
 		return x.Provider + "/" + x.ID
 	}))
+}
+
+// reportModelErrors tells on stderr which providers could not list models.
+func reportModelErrors(s IO, errs map[string]string) {
+	names := make([]string, 0, len(errs))
+	for name := range errs {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		fmt.Fprintf(s.Err, "meno: models: %s: %s\n", name, oneLine(errs[name]))
+	}
 }

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.13
+
+Restart the daemon after updating (`meno models` runs in the daemon). No data is migrated.
+
+- **`meno models` lists models again.** It returned an empty list for providers without explicit model settings, because
+  it ignored the catalog and the provider's `/models`. It now serves the same list as the model picker: catalog plus
+  discovered models. `--refresh` asks the providers; without it the cached list is used and, if empty, filled once.
+  Providers that cannot be asked are named on stderr (`meno: models: NAME: reason`); `--json` is still a list.
+  `meno doctor --probe` warns for such a provider.
+
 ## 0.6.11
 
 Restart the daemon after updating. No data is migrated. `mcp.json` gains an optional `protocol` field.

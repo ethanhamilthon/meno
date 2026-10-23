@@ -22,7 +22,7 @@ type API interface {
 	TaskCancel(id string) (Task, error)
 	Ask(form []byte) (map[string]any, error)
 	View(path string) (ViewResult, error)
-	Models(provider string, refresh bool) ([]Model, error)
+	Models(provider string, refresh bool) (ModelList, error)
 	Daemon(action string, force bool) (DaemonStatus, error)
 	Sessions(SessionsRequest) ([]Session, error)
 	SessionShow(id string) (SessionDetail, error)

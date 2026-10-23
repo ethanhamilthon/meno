@@ -53,7 +53,7 @@ func (f *fakeAPI) GoalBlocked(string) error { return f.check() }
 func (f *fakeAPI) View(p string) (ViewResult, error) {
 	return ViewResult{Path: p, Displayed: true}, f.check()
 }
-func (f *fakeAPI) Models(string, bool) ([]Model, error) { return nil, f.check() }
+func (f *fakeAPI) Models(string, bool) (ModelList, error) { return ModelList{}, f.check() }
 func (f *fakeAPI) Daemon(string, bool) (DaemonStatus, error) {
 	return DaemonStatus{Running: true}, f.check()
 }

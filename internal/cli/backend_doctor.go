@@ -113,13 +113,15 @@ func (a *DaemonAPI) probeModels(ctx context.Context) []Check {
 			continue
 		}
 		pc, cancel := context.WithTimeout(ctx, 10*time.Second)
-		var items []Model
+		var items ModelList
 		err := a.resource(pc, "GET", "models", "", "provider="+p.Name, nil, &items)
 		cancel()
 		if err != nil {
 			out = append(out, Check{Name: "probe " + p.Name, Status: "warn", Detail: oneLine(err.Error())})
+		} else if msg := items.Errors[p.Name]; msg != "" {
+			out = append(out, Check{Name: "probe " + p.Name, Status: "warn", Detail: oneLine(msg)})
 		} else {
-			out = append(out, Check{Name: "probe " + p.Name, Status: "ok", Detail: fmt.Sprintf("%d models", len(items))})
+			out = append(out, Check{Name: "probe " + p.Name, Status: "ok", Detail: fmt.Sprintf("%d models", len(items.Models))})
 		}
 	}
 	return out

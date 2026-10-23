@@ -6,7 +6,6 @@ import (
 	"meno/internal/agent"
 	"meno/internal/api"
 	"meno/internal/content"
-	"net/url"
 	"os"
 	"path/filepath"
 )
@@ -42,20 +41,6 @@ func (e *Engine) viewResource(s *runState, data map[string]any) (any, error) {
 	return map[string]any{"path": abs, "displayed": true}, nil
 }
 
-func (e *Engine) modelResource(query string) any {
-	v, _ := url.ParseQuery(query)
-	provider := v.Get("provider")
-	out := []map[string]any{}
-	for _, p := range e.providerList() {
-		if p.Disabled || provider != "" && provider != p.Name {
-			continue
-		}
-		for id := range p.Models {
-			out = append(out, map[string]any{"provider": p.Name, "id": id})
-		}
-	}
-	return out
-}
 func stringValue(m map[string]any, k string) string { v, _ := m[k].(string); return v }
 func boolValue(m map[string]any, k string, def bool) bool {
 	v, ok := m[k].(bool)

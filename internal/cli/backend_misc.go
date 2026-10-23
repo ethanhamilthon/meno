@@ -22,8 +22,8 @@ func (a *DaemonAPI) View(path string) (ViewResult, error) {
 }
 
 // Models lists the models of the enabled providers.
-func (a *DaemonAPI) Models(provider string, refresh bool) ([]Model, error) {
-	var out []Model
+func (a *DaemonAPI) Models(provider string, refresh bool) (ModelList, error) {
+	var out ModelList
 	q := url.Values{}
 	if provider != "" {
 		q.Set("provider", provider)

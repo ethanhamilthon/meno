@@ -1,5 +1,10 @@
 # Upgrading, data and privacy
 
+## 0.6.13: `meno models`
+
+Restart the daemon after updating. `meno models` now lists the catalog and the models each provider reports on
+`/models` (before, only explicit model settings, so usually nothing). Provider errors go to stderr; `--json` is unchanged.
+
 ## 0.6.12: ACP session MCP and lifecycle reliability
 
 After installing, restart the daemon yourself when existing work is idle to use

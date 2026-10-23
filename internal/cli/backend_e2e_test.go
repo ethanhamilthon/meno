@@ -44,6 +44,12 @@ func start(t *testing.T, f llm.Client) (home string, eng *engine.Engine, sess ap
 
 func startRig(t *testing.T, f llm.Client) (home string, eng *engine.Engine, sess api.Snapshot, dapi *DaemonAPI, socket string) {
 	t.Helper()
+	p := llm.Provider{Name: "test", BaseURL: "http://127.0.0.1", Protocol: llm.ProtoResponses, Models: map[string]llm.ModelSettings{"fake": {Context: 100000}}}
+	return startRigWith(t, f, []llm.Provider{p}, func(context.Context, llm.Provider) ([]llm.Model, error) { return nil, nil })
+}
+
+func startRigWith(t *testing.T, f llm.Client, providers []llm.Provider, fetch func(context.Context, llm.Provider) ([]llm.Model, error)) (home string, eng *engine.Engine, sess api.Snapshot, dapi *DaemonAPI, socket string) {
+	t.Helper()
 	home = t.TempDir()
 	st := config.NewStore(config.Paths{Home: home})
 	s := config.DefaultSettings()
@@ -51,13 +57,12 @@ func startRig(t *testing.T, f llm.Client) (home string, eng *engine.Engine, sess
 	if err := st.SaveSettings(s); err != nil {
 		t.Fatal(err)
 	}
-	p := llm.Provider{Name: "test", BaseURL: "http://127.0.0.1", Protocol: llm.ProtoResponses, Models: map[string]llm.ModelSettings{"fake": {Context: 100000}}}
-	if err := st.SaveProviders([]llm.Provider{p}); err != nil {
+	if err := st.SaveProviders(providers); err != nil {
 		t.Fatal(err)
 	}
 	hub, global := daemon.NewHub("b", 2000), daemon.NewGlobalHub("b", 100)
 	manager := mcp.NewManager()
-	svc, err := configsvc.New(configsvc.Options{Paths: config.Paths{Home: home}, MCP: manager, FetchMetadata: func(context.Context) (map[string]llm.ModelInfo, error) { return nil, nil }, FetchModels: func(context.Context, llm.Provider) ([]llm.Model, error) { return nil, nil }})
+	svc, err := configsvc.New(configsvc.Options{Paths: config.Paths{Home: home}, MCP: manager, FetchMetadata: func(context.Context) (map[string]llm.ModelInfo, error) { return nil, nil }, FetchModels: fetch})
 	if err != nil {
 		t.Fatal(err)
 	}

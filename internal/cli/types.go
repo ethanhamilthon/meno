@@ -237,3 +237,10 @@ type DoctorReport struct {
 	Status string  `json:"status"`
 	Checks []Check `json:"checks"`
 }
+
+// ModelList is the answer of `meno models`: the models and the providers that
+// could not be asked, with the reason.
+type ModelList struct {
+	Models []Model           `json:"models"`
+	Errors map[string]string `json:"errors,omitempty"`
+}

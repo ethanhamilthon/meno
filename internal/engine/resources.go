@@ -58,7 +58,7 @@ func (e *Engine) sessionResource(ctx context.Context, method, path, query string
 	case "view":
 		out, err = e.viewResource(s, data)
 	case "models":
-		out = e.modelResource(query)
+		out, err = e.modelResource(ctx, query)
 	case "queue":
 		out = e.queueResource(s, method)
 	case "ask":
