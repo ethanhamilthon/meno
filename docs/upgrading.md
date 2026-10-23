@@ -25,7 +25,7 @@ permissions, local tool trust, or `--no-ask` policy.
   snapshots replay missed turns once; list supports validated cursor pagination.
 - Optional `MENO_ACP_DIAGNOSTICS=1` emits metadata-only stderr records, off by default.
   Compatibility is covered by a pinned official schema and deterministic sandbox
-  tests, not a live T3 GUI guarantee. See [ACP](acp.md) for constraints.
+  tests, not a live client guarantee. See [ACP](acp.md) for constraints.
 
 ## 0.6.10: sessions for orchestration, custom system prompts
 

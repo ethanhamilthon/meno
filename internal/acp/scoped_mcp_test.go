@@ -69,10 +69,10 @@ func TestMCPSessionIsolationLoadAndCleanup(t *testing.T) {
 	p := startPeer(t, c)
 	p.call("initialize", map[string]any{"protocolVersion": 1})
 	cwd := t.TempDir()
-	servers := []any{map[string]any{"type": "http", "name": "t3-tools", "url": url, "headers": []any{map[string]string{"name": "Authorization", "value": "sandbox-secret"}}}}
+	servers := []any{map[string]any{"type": "http", "name": "sandbox-tools", "url": url, "headers": []any{map[string]string{"name": "Authorization", "value": "sandbox-secret"}}}}
 	id := result(t, p.call("session/new", map[string]any{"cwd": cwd, "mcpServers": servers}))["sessionId"].(string)
 	call := func(id string) error {
-		_, err := c.Resource(context.Background(), "POST", "/v1/sessions/"+id+"/mcp/call", "", api.ResourceRequest{Data: json.RawMessage(`{"server":"t3-tools","tool":"echo","args":{}}`)})
+		_, err := c.Resource(context.Background(), "POST", "/v1/sessions/"+id+"/mcp/call", "", api.ResourceRequest{Data: json.RawMessage(`{"server":"sandbox-tools","tool":"echo","args":{}}`)})
 		return err
 	}
 	if err := call(id); err != nil {

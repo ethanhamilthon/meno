@@ -107,7 +107,7 @@ headers or credentials. Internal/provider errors use generic wire messages.
 Normal protocol responses and tool cards still contain their intended content.
 
 Deterministic stdio integration tests use local fake providers and sandbox MCP
-servers, including a T3-like nonempty MCP payload. A live T3 GUI/provider roundtrip
+servers, including a nonempty MCP payload. A live client/provider roundtrip
 has not been validated for this release; client rendering and provider setup can
 still fail independently. This is not a claim of complete ACP conformance.
 
