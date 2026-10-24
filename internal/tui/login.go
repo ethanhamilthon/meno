@@ -1,16 +1,14 @@
 package tui
 
 import (
-	"context"
-
 	"github.com/gdamore/tcell/v2"
 
-	"meno/internal/client"
 	"meno/internal/llm"
 )
 
-// /login is the one place for providers: accounts that signed in with OAuth,
-// providers added with an API key, and the choices to add more of either.
+// /login manages API-key and custom providers.
+
+func (a *App) openLogin() { a.openOverlay(OverLogin) }
 
 func (a *App) loginKey(k *tcell.EventKey) {
 	rows := a.loginRows()
@@ -32,14 +30,8 @@ func (a *App) loginEnter(r loginRow) {
 	case rowAPI:
 		p := a.st.Providers[r.i]
 		a.openProviderEdit(p, r.i)
-	case rowOAuth:
-		a.notify("space turns the account on or off · d logs it out")
 	case rowAddAPI:
 		a.openProviderEdit(a.newAPIDraft(r.proto), -1)
-	case rowAddOAuth:
-		a.startLogin(r.svc)
-	case rowHelperRestart:
-		a.restartOAuthHelper()
 	}
 }
 
@@ -56,22 +48,15 @@ func (a *App) loginToggle(r loginRow) {
 	switch r.kind {
 	case rowAPI:
 		a.toggleProvider(r.i)
-	case rowOAuth:
-		acc := a.st.Accounts[r.i]
-		a.accountAction("account", func(ctx context.Context, c *client.Client) error {
-			return c.SetLoginAccountEnabled(ctx, acc.File, acc.Disabled)
-		})
 	}
 }
 
-// loginRemove deletes a provider or logs an account out; the second press confirms.
+// loginRemove deletes a provider; the second press confirms.
 func (a *App) loginRemove(r loginRow) {
 	var key, name string
 	switch r.kind {
 	case rowAPI:
 		key, name = "api:"+a.st.Providers[r.i].Name, a.st.Providers[r.i].Name
-	case rowOAuth:
-		key, name = "acc:"+a.st.Accounts[r.i].File, a.st.Accounts[r.i].Label
 	default:
 		return
 	}
@@ -81,11 +66,6 @@ func (a *App) loginRemove(r loginRow) {
 		return
 	}
 	a.st.LoginDel = ""
-	if r.kind == rowAPI {
-		a.deleteProvider(r.i)
-		a.st.Sel = clampSel(a.st.Sel, len(a.loginRows()))
-		return
-	}
-	file := a.st.Accounts[r.i].File
-	a.accountAction("log out", func(ctx context.Context, c *client.Client) error { return c.RemoveLoginAccount(ctx, file) })
+	a.deleteProvider(r.i)
+	a.st.Sel = clampSel(a.st.Sel, len(a.loginRows()))
 }

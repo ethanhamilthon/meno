@@ -38,7 +38,7 @@ func (a *App) persistProviders() {
 	// Only entries this client changed are sent; the others may have been
 	// edited elsewhere and must not be overwritten by a stale copy.
 	var own []llm.Provider
-	for _, p := range config.OwnProviders(a.st.Providers) {
+	for _, p := range a.st.Providers {
 		if old, ok := a.cfgProv[p.Name]; !ok || string(mustJSON(providerToWire(old))) != string(mustJSON(providerToWire(p))) {
 			own = append(own, p)
 		}

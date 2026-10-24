@@ -11,8 +11,5 @@ func (s *Service) syncProvider(p llm.Provider) {
 		s.daemons.Stop(p.Name)
 		return
 	}
-	if p.Managed() {
-		_ = s.oauth.WriteConfig()
-	}
 	_ = s.daemons.Start(p.Name, p.Run, s.paths.Cwd, os.Environ())
 }

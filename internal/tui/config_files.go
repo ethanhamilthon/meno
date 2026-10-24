@@ -132,7 +132,6 @@ func providerFromWire(w api.ConfigProvider) llm.Provider {
 	b, _ := json.Marshal(w)
 	var p llm.Provider
 	_ = json.Unmarshal(b, &p)
-	p.Source = w.Source
 	if w.HasAPIKey && p.APIKey == "" {
 		p.APIKey = "•" // the daemon keeps the key; the UI only needs to know there is one
 	}
@@ -143,7 +142,6 @@ func providerToWire(p llm.Provider) api.ConfigProvider {
 	b, _ := json.Marshal(p)
 	var w api.ConfigProvider
 	_ = json.Unmarshal(b, &w)
-	w.Source = p.Source
 	if p.APIKey == "•" {
 		w.APIKey = ""
 	}

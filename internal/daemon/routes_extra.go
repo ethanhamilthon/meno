@@ -9,7 +9,7 @@ import (
 // registerExtraRoutes adds opaque agent, config, search, and debug endpoints.
 func (s *Server) registerExtraRoutes(m *http.ServeMux) {
 	m.Handle("/v1/sessions/{id}/{resource...}", s.resourceHandler())
-	for _, base := range []string{"session-state", "settings", "providers", "login", "skills", "mcp/servers", "models"} {
+	for _, base := range []string{"session-state", "settings", "providers", "skills", "mcp/servers", "models"} {
 		m.Handle("/v1/"+base, s.resourceHandler())
 		m.Handle("/v1/"+base+"/{resource...}", s.resourceHandler())
 	}

@@ -1,5 +1,24 @@
 # Upgrading, data and privacy
 
+## 0.6.15: API-key providers only
+
+Built-in OAuth browser logins and the managed `oauth` provider are removed, along
+with automatic cliproxyapi installation, updates, and supervision. `/login` stays
+as the API-key/custom-provider editor. Existing ordinary providers, including
+externally managed proxies and their `run` commands, are unchanged.
+
+The daemon protocol is **8**: finish active work, close old clients, update, and
+reopen Meno so both client and daemon use the new version. `meno update` stops
+an idle daemon; it does not restart it. The removed `/v1/login/*` routes return 404.
+No database migration or session remapping is performed. Old sessions remain
+readable; if their provider is `oauth`, choose a configured provider with `/model`
+before continuing. A default provider of `oauth` must also be changed.
+
+`$MENO_HOME/cliproxy/` is left untouched, including tokens in `auth/`. Meno no
+longer reads or starts it. After stopping the old daemon, you may manually remove
+that directory if it is no longer needed. Deleting local token copies does not
+revoke them at the provider: revoke access with the provider separately.
+
 ## 0.6.14: ACP version negotiation
 
 Restart the ACP client after updating. `meno acp` now answers `initialize` with protocol version 1 when the client

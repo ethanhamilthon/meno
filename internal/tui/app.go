@@ -67,7 +67,6 @@ type App struct {
 	cfgBase              config.Settings         // settings as the daemon last reported them: the base of field patches
 	win                  windowState             // what belongs to this window only: setting overrides, status-bar layout
 	cfgProv              map[string]llm.Provider // own providers as the daemon last reported them
-	flowSeq              int                     // number of the last login, to tell a stale one from the current
 	closing              bool                    // Close is running
 	cdKey                string                  // input and directory the /cd completions in cdCache belong to
 	cdCache              []string                // rows of the /cd completion
@@ -127,7 +126,6 @@ func New(scr tcell.Screen, paths config.Paths, cl *client.Client, opts ...Option
 // stops a run or a task.
 func (a *App) Close() {
 	a.closing = true
-	a.cancelFlow()
 	a.clearImages()
 	a.closeOnce.Do(func() { close(a.done) })
 	for _, rt := range a.rtList {
@@ -246,8 +244,6 @@ func (a *App) handle(msg any) {
 		a.onModelsLoaded(m)
 	case settingsLoaded:
 		a.onSettingsLoaded(m)
-	case accountsLoaded, flowStep, flowLogin, flowDone:
-		a.onLoginEvent(m)
 	case forked:
 		a.onForked(m)
 	case tasksLoaded:

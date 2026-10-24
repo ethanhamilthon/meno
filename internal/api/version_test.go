@@ -61,7 +61,7 @@ func TestOriginRequiresProtocolBumpFrom060(t *testing.T) {
 
 // The MCP server wire format gained fields, so the protocol number moved on.
 func TestMCPArgumentsRequireCoordinatedProtocolSeven(t *testing.T) {
-	if Protocol != 7 {
-		t.Fatalf("MCP server wire contract requires protocol 7, got %d", Protocol)
+	if Protocol < 7 {
+		t.Fatalf("MCP server wire contract requires at least protocol 7, got %d", Protocol)
 	}
 }

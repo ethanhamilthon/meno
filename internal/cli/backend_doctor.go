@@ -65,7 +65,7 @@ func (a *DaemonAPI) daemonChecks(probe bool) []Check {
 	} else {
 		usable := 0
 		for _, p := range ps.Providers {
-			if !p.Disabled && (p.HasAPIKey || p.Run != "" || p.Source == "oauth") {
+			if !p.Disabled && (p.HasAPIKey || p.Run != "") {
 				usable++
 			}
 		}

@@ -23,7 +23,6 @@ const (
 	OverModel
 	OverSettings
 	OverLogin
-	OverLoginFlow
 	OverProviderEdit
 	OverSkills
 	OverMCP
@@ -106,12 +105,8 @@ type State struct {
 	// FormNote says why the open form is not saved yet (empty = saved).
 	FormNote string
 
-	// Login (/login): the OAuth accounts of the local helper, the running
-	// login, and the entry waiting for a second press of d to be removed.
-	Accounts    []oauthAccount
-	AccountsErr string
-	LoginDel    string
-	Flow        loginFlow
+	// LoginDel is the provider waiting for a second press of d to be removed.
+	LoginDel string
 	// Locked keeps the login list open until a working provider exists.
 	Locked bool
 

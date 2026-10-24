@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"meno/internal/api"
-	"meno/internal/config"
 	"meno/internal/llm"
 )
 
@@ -23,7 +22,6 @@ func (s *Service) providerResource(ctx context.Context, method, path, rawQuery s
 				return nil, bad(err)
 			}
 			p := request.Provider
-			p.Source = ""
 			ps, err := s.store.LoadProviders()
 			if err != nil {
 				return nil, err
@@ -40,7 +38,7 @@ func (s *Service) providerResource(ctx context.Context, method, path, rawQuery s
 				return nil, bad(err)
 			}
 			ps = append(ps, providerValue(p))
-			if err = s.store.SaveProviders(config.OwnProviders(ps)); err != nil {
+			if err = s.store.SaveProviders(ps); err != nil {
 				return nil, err
 			}
 			s.mu.Lock()
@@ -66,9 +64,6 @@ func (s *Service) providerResource(ctx context.Context, method, path, rawQuery s
 		return nil, notFound("no provider named " + name)
 	}
 	p := ps[idx]
-	if p.Managed() {
-		return nil, apiErr(api.CodeForbidden, "provider is managed and read only")
-	}
 	if len(parts) == 1 {
 		switch method {
 		case "GET":
@@ -79,7 +74,6 @@ func (s *Service) providerResource(ctx context.Context, method, path, rawQuery s
 				return nil, bad(e)
 			}
 			v := request.Provider
-			v.Source = ""
 			if v.Name != name {
 				return nil, bad(fmt.Errorf("provider name cannot change"))
 			}

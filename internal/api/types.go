@@ -2,9 +2,9 @@
 package api
 
 // Protocol is the HTTP API compatibility number. Clients require exact equality.
-// Protocol 7 adds the arguments and the working directory of a stdio MCP server.
+// Protocol 8 removes built-in account login routes and provider source metadata.
 // Clients and daemons must upgrade together.
-const Protocol = 7
+const Protocol = 8
 
 // Error codes returned in an ErrorEnvelope.
 const (

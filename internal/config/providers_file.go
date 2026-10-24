@@ -80,8 +80,7 @@ func ResolveKeys(ps []llm.Provider, getenv func(string) string) []llm.Provider {
 	return out
 }
 
-// SaveProviders writes the providers to provider.json. Providers derived from
-// OAuth accounts are never written. Entries of the file that could not be read
+// SaveProviders writes the providers to provider.json. Entries that could not be read
 // stay in it as they were; a file that is not a JSON array is not touched.
 func (s *Store) SaveProviders(ps []llm.Provider) error {
 	listMu.Lock()
@@ -97,7 +96,7 @@ func (s *Store) SaveProviders(ps []llm.Provider) error {
 // saveProviderEntries writes ps followed by the raw entries that were rejected.
 func (s *Store) saveProviderEntries(ps []llm.Provider, bad []json.RawMessage) error {
 	out := []json.RawMessage{}
-	for _, p := range OwnProviders(ps) {
+	for _, p := range ps {
 		b, err := json.Marshal(p)
 		if err != nil {
 			return err
@@ -105,18 +104,6 @@ func (s *Store) saveProviderEntries(ps []llm.Provider, bad []json.RawMessage) er
 		out = append(out, b)
 	}
 	return store.SaveJSON(s.P.ProviderFile(), append(out, bad...))
-}
-
-// OwnProviders drops the providers that meno derives from OAuth accounts: only
-// the rest is saved.
-func OwnProviders(ps []llm.Provider) []llm.Provider {
-	var out []llm.Provider
-	for _, p := range ps {
-		if p.Source != llm.SourceOAuth {
-			out = append(out, p)
-		}
-	}
-	return out
 }
 
 // Getenv is os.Getenv; callers pass it to the resolving functions.

@@ -11,7 +11,7 @@ type ConfigModelSettings struct {
 	Efforts    []string `json:"efforts,omitempty"`
 }
 
-// ConfigProvider is a provider with its source included for clients.
+// ConfigProvider describes a configured API provider for clients.
 type ConfigProvider struct {
 	Name        string                         `json:"name"`
 	BaseURL     string                         `json:"base_url"`
@@ -19,7 +19,6 @@ type ConfigProvider struct {
 	HasAPIKey   bool                           `json:"has_api_key,omitempty"`
 	ClearAPIKey bool                           `json:"clear_api_key,omitempty"`
 	Protocol    string                         `json:"protocol"`
-	Source      string                         `json:"source"`
 	Disabled    bool                           `json:"disabled,omitempty"`
 	Run         string                         `json:"run,omitempty"`
 	Models      map[string]ConfigModelSettings `json:"models,omitempty"`

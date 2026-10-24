@@ -6,14 +6,13 @@ import (
 	"meno/internal/llm"
 )
 
-func TestDisabledProviderRoundTripAndManagedIsNeverSaved(t *testing.T) {
+func TestDisabledProviderRoundTrip(t *testing.T) {
 	st := NewStore(Paths{Home: t.TempDir()})
 	in := []llm.Provider{
 		{Name: "on", BaseURL: "http://a", Protocol: llm.ProtoChat},
 		{Name: "off", BaseURL: "http://b", Protocol: llm.ProtoResponses, Disabled: true},
-		{Name: llm.OAuthName, BaseURL: "http://c", Source: llm.SourceOAuth},
 	}
-	if err := st.SaveProviders(OwnProviders(in)); err != nil {
+	if err := st.SaveProviders(in); err != nil {
 		t.Fatal(err)
 	}
 	got, err := st.LoadProviders()

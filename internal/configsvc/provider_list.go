@@ -7,9 +7,7 @@ import (
 	"meno/internal/llm"
 )
 
-// providers is the list the daemon works with: provider.json (api keys of the
-// form env:NAME replaced by the environment value) and the provider derived from
-// the OAuth accounts.
+// providers reads provider.json and resolves env:NAME API keys.
 func (s *Service) providers() ([]llm.Provider, error) {
 	all, _, err := s.providerDefinitions()
 	return all, err
@@ -28,9 +26,5 @@ func (s *Service) providerDefinitions() ([]llm.Provider, []string, error) {
 		s.changed("providers_changed")
 	}
 	all := config.ResolveKeys(own, os.Getenv)
-	st := s.oauth.State()
-	if st.Accounts > 0 && st.HasAccounts {
-		all = append(all, llm.Provider{Name: llm.OAuthName, BaseURL: s.oauth.APIURL(), APIKey: s.oauth.APIKey(), Protocol: llm.ProtoChat, Run: s.oauth.Command(), Source: llm.SourceOAuth})
-	}
 	return all, warnings, nil
 }

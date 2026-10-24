@@ -8,7 +8,6 @@ internal/agent 77
 internal/api 97
 internal/cli 52
 internal/client 52
-internal/cliproxy 84
 internal/config 79
 internal/configsvc 57
 internal/content 81

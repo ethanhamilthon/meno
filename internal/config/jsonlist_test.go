@@ -98,7 +98,6 @@ func TestSaveAndLoadRoundTrip(t *testing.T) {
 		{Name: "a", BaseURL: "http://x", APIKey: "env:K", Protocol: llm.ProtoChat, Run: "proxy", Disabled: true,
 			Models: map[string]llm.ModelSettings{"m": {Context: 1000}}},
 		{Name: "b", BaseURL: "https://y", APIKey: "k", Protocol: llm.ProtoResponses},
-		{Name: llm.OAuthName, BaseURL: "http://z", Protocol: llm.ProtoChat, Source: llm.SourceOAuth},
 	}
 	if err := st.SaveProviders(in); err != nil {
 		t.Fatal(err)
@@ -107,9 +106,6 @@ func TestSaveAndLoadRoundTrip(t *testing.T) {
 	if err != nil || len(got) != 2 || got[0].Name != "a" || !got[0].Disabled || got[0].Run != "proxy" ||
 		got[0].APIKey != "env:K" || got[0].Models["m"].Context != 1000 || got[1].APIKey != "k" {
 		t.Fatalf("%+v %v", got, err)
-	}
-	if strings.Contains(readText(t, p.ProviderFile()), "oauth") {
-		t.Fatal("an OAuth provider must never be written")
 	}
 	if fi, _ := os.Stat(p.ProviderFile()); fi.Mode().Perm() != 0o600 {
 		t.Fatalf("mode %v", fi.Mode().Perm())

@@ -28,8 +28,7 @@ func (e *Engine) reloadConfig() error {
 		e.mu.Unlock()
 	}
 	if e.resources != nil {
-		// The config service knows the full list: saved providers, provider.json
-		// and the one derived from the OAuth accounts.
+		// The config service supplies the current resolved provider list.
 		if all := e.providersFromService(); len(all) > 0 {
 			providers = all
 		}

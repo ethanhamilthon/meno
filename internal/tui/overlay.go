@@ -32,9 +32,6 @@ func (a *App) backOverlay() {
 			a.st.Sel = a.loginRowOfProvider(a.st.EditIdx)
 		}
 		a.afterProvidersChanged()
-	case OverLoginFlow:
-		a.cancelFlow()
-		a.st.Over, a.st.Sel = OverLogin, 0
 	case OverMCPEdit:
 		a.st.Over, a.st.Sel, a.st.Field = OverMCP, max(a.st.EditIdx, 0), 0
 	case OverTasks:
@@ -66,8 +63,6 @@ func (a *App) onOverlayKey(k *tcell.EventKey) {
 		a.settingsKey(k)
 	case OverLogin:
 		a.loginKey(k)
-	case OverLoginFlow:
-		a.loginFlowKey(k)
 	case OverProviderEdit:
 		a.providerEditKey(k)
 	case OverSkills:
@@ -97,8 +92,6 @@ func (a *App) drawOverlay(c render.Canvas, w, h int) {
 		a.drawSettings(c, w, h)
 	case OverLogin:
 		a.drawLogin(c, w, h)
-	case OverLoginFlow:
-		a.drawLoginFlow(c, w, h)
 	case OverProviderEdit:
 		a.drawProviderEdit(c, w, h)
 	case OverSkills:

@@ -9,16 +9,13 @@ import (
 )
 
 // The API-key side of /login: providers the user adds by hand. They are saved
-// in meno.db and can be edited, switched off and removed.
+// in provider.json and can be edited, switched off and removed.
 
 // usable reports whether a provider can serve a request: it is switched on,
-// valid, and has a key (or runs locally, or comes from the OAuth accounts).
+// valid, and has a key (or runs locally).
 func usable(p llm.Provider) bool {
 	if p.Disabled {
 		return false
-	}
-	if p.Managed() {
-		return true
 	}
 	q := p // an older or hand-written protocol name still works at run time
 	if q.Protocol != llm.ProtoResponses {
@@ -56,7 +53,7 @@ func (a *App) enforceProvider() {
 func (a *App) afterProvidersChanged() {
 	if a.st.Locked && !a.needProvider() {
 		a.st.Locked = false
-		if a.st.Over == OverLogin || a.st.Over == OverLoginFlow {
+		if a.st.Over == OverLogin {
 			a.closeOverlay()
 		}
 		a.notify("ready · choose a model with /model")

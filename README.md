@@ -49,9 +49,9 @@ every push and pull request on Linux and macOS and installs a snapshot build wit
 
 1. `/login` — meno opens it by itself when there is no provider, and it stays open
    until one works. Add an **API key** provider (name, base URL such as
-   `https://api.openai.com/v1`, key; choose *Responses* or *Chat Completions*), or
-   **log in** with your browser to Claude, ChatGPT/Codex, Antigravity, xAI, Meta or
-   Kimi (see [accounts](docs/login.md)). Everything you add stays in the list; `space`
+   `https://api.openai.com/v1`, key; choose *Responses* or *Chat Completions*).
+   Local servers and custom proxies work too (see [providers](docs/login.md)).
+   Everything you add stays in the list; `space`
    switches an entry off and on, `d` removes it.
 2. `/model` — pick a model (the list comes from the provider's `/models`) and an
    effort level. It applies to the current session.
@@ -65,7 +65,7 @@ every push and pull request on Linux and macOS and installs a snapshot build wit
 | [Command line](docs/cli.md), [daemon](docs/daemon.md) | `meno sessions`, `send`, `tail`, `doctor`; the background daemon |
 | [ACP agent](docs/acp.md) | `meno acp`: use Meno from any ACP client |
 | [Sessions, history and events](docs/sessions.md) | /new, /fork, /cd, compaction, steering, /stop |
-| [Accounts and providers](docs/login.md) | `/login` |
+| [Providers](docs/login.md) | `/login` |
 | [Interface](docs/ui.md) | keys, commands, timeline, Markdown, images, tool-call display |
 | [Settings](docs/settings.md), [notifications](docs/notifications.md) | |
 | [Upgrading, data and privacy](docs/upgrading.md) | migrations, where data lives, what is logged |

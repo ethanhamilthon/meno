@@ -2,15 +2,12 @@ package configsvc
 
 import (
 	"context"
-	"errors"
 	"time"
 
-	"meno/internal/cliproxy"
 	"meno/internal/llm"
 )
 
-// Start starts enabled providers and MCP servers. It also starts an installed
-// OAuth helper when account state says that accounts may exist.
+// Start starts enabled providers and MCP servers.
 func (s *Service) Start(ctx context.Context) error {
 	s.mu.Lock()
 	if s.cancel != nil {
@@ -21,15 +18,6 @@ func (s *Service) Start(ctx context.Context) error {
 	s.ctx = runCtx
 	s.cancel = cancel
 	s.mu.Unlock()
-	oldExit := s.daemons.OnExit
-	s.daemons.OnExit = func(name string, err error, log string) {
-		if oldExit != nil {
-			oldExit(name, err, log)
-		}
-		if name == llm.OAuthName && s.oauth.State().Accounts > 0 {
-			go s.recoverHelper(runCtx)
-		}
-	}
 	s.bg.Add(1)
 	go func() {
 		defer s.bg.Done()
@@ -41,7 +29,7 @@ func (s *Service) Start(ctx context.Context) error {
 		return err
 	}
 	for _, p := range providers {
-		if p.Active() && !p.Managed() {
+		if p.Active() {
 			s.syncProvider(p)
 			prov := p
 			s.bg.Add(1)
@@ -62,14 +50,10 @@ func (s *Service) Start(ctx context.Context) error {
 			s.mcp.StartAsync(runCtx, server)
 		}
 	}
-	st := s.oauth.State()
-	if s.oauth.Installed() && (st.Accounts > 0 || !st.AccountsKnown) {
-		go s.startHelper(runCtx)
-	}
 	return nil
 }
 
-// Close stops the helper, MCP clients, and supervised provider processes.
+// Close stops MCP clients and supervised provider processes.
 func (s *Service) Close() {
 	s.mu.Lock()
 	if s.cancel != nil {
@@ -111,55 +95,4 @@ func (s *Service) refreshModels(ctx context.Context, p llm.Provider) {
 	}
 	s.knownModels[p.Name] = models
 	delete(s.modelErrors, p.Name)
-}
-
-func (s *Service) startHelper(ctx context.Context) {
-	if err := s.ensureHelper(ctx); err != nil || ctx.Err() != nil {
-		return
-	}
-	_ = s.refreshAccountState(ctx)
-}
-func (s *Service) recoverHelper(ctx context.Context) {
-	backoff := time.Second
-	for ctx.Err() == nil {
-		if s.oauth.State().Accounts == 0 {
-			return
-		}
-		if err := s.withHelper(ctx, func() error { return nil }); err == nil {
-			return
-		}
-		select {
-		case <-ctx.Done():
-			return
-		case <-time.After(backoff):
-		}
-		if backoff < 30*time.Second {
-			backoff *= 2
-		}
-	}
-}
-func (s *Service) withHelper(ctx context.Context, fn func() error) error {
-	s.helperMu.Lock()
-	defer s.helperMu.Unlock()
-	for try := 0; try < 2; try++ {
-		if !s.oauth.Ready(ctx) {
-			if err := s.oauth.Ensure(ctx, nil); err != nil {
-				return err
-			}
-			if err := s.restartHelper(ctx); err != nil {
-				return err
-			}
-		}
-		err := fn()
-		if !errors.Is(err, cliproxy.ErrHelperDown) {
-			return err
-		}
-		if try == 1 {
-			return err
-		}
-		if err = s.restartHelper(ctx); err != nil {
-			return err
-		}
-	}
-	return nil
 }

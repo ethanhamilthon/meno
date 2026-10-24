@@ -13,7 +13,6 @@ import (
 	"sync"
 
 	"meno/internal/api"
-	"meno/internal/cliproxy"
 	"meno/internal/config"
 	"meno/internal/daemon"
 	"meno/internal/llm"
@@ -25,7 +24,6 @@ import (
 type Options struct {
 	Paths         config.Paths
 	Store         *config.Store
-	OAuth         *cliproxy.Manager
 	Daemons       *process.Daemons
 	MCP           *mcp.Manager
 	Notify        func(event string)
@@ -38,7 +36,6 @@ type Options struct {
 type Service struct {
 	paths          config.Paths
 	store          *config.Store
-	oauth          *cliproxy.Manager
 	daemons        *process.Daemons
 	mcp            *mcp.Manager
 	notify         func(string)
@@ -48,7 +45,6 @@ type Service struct {
 	mu             sync.Mutex
 	settingsMu     sync.Mutex
 	mcpMu          sync.Mutex
-	helperMu       sync.Mutex
 	files          map[string]fileStamp
 	settings       config.Settings
 	settingsLoaded bool
@@ -80,16 +76,13 @@ func New(o Options) (*Service, error) {
 	if o.Store == nil {
 		o.Store = config.NewStore(o.Paths)
 	}
-	if o.OAuth == nil {
-		o.OAuth = cliproxy.New(o.Paths.Home)
-	}
 	if o.Daemons == nil {
 		o.Daemons = process.NewDaemons(o.Paths.File("providers"))
 	}
 	if o.MCP == nil {
 		o.MCP = mcp.NewManager()
 	}
-	svc := &Service{paths: o.Paths, store: o.Store, oauth: o.OAuth, daemons: o.Daemons, mcp: o.MCP,
+	svc := &Service{paths: o.Paths, store: o.Store, daemons: o.Daemons, mcp: o.MCP,
 		notify: o.Notify, debug: o.DebugRequests, fetchModels: o.FetchModels, fetchMetadata: o.FetchMetadata,
 		files: map[string]fileStamp{}, knownModels: map[string][]llm.Model{}, modelErrors: map[string]string{}}
 	svc.mcp.SetOnChange(func(string) { svc.changed("mcp_changed") })
@@ -111,8 +104,6 @@ func (s *Service) Resource(ctx context.Context, method, path, query string, req 
 		data, err = s.settingsResource(method, req)
 	case path == "/providers" || strings.HasPrefix(path, "/providers/"):
 		data, err = s.providerResource(ctx, method, path, query, req)
-	case path == "/login" || strings.HasPrefix(path, "/login/"):
-		data, err = s.loginResource(ctx, method, path, query, req)
 	case path == "/skills" || strings.HasPrefix(path, "/skills/"):
 		data, err = s.skillsResource(method, path, req)
 	case path == "/mcp/servers" || strings.HasPrefix(path, "/mcp/servers/"):
@@ -147,6 +138,7 @@ func (s *Service) changed(event string) {
 	}
 }
 func apiErr(code, message string) error { return &daemon.APIError{Code: code, Message: message} }
+func badString(message string) error    { return apiErr(api.CodeBadRequest, message) }
 func bad(err error) error               { return apiErr(api.CodeBadRequest, err.Error()) }
 func notFound(message string) error     { return apiErr(api.CodeNotFound, message) }
 func conflict(message string) error     { return apiErr(api.CodeConflict, message) }

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.15
+
+- **Breaking: built-in OAuth logins removed.** Meno no longer installs or runs
+  cliproxyapi, derives an `oauth` provider, or exposes `/v1/login/*`. `/login`
+  continues to manage API-key and custom providers; external proxies still work.
+- Daemon protocol is **8**. Update both clients and daemon. Stored sessions and
+  helper tokens are not changed or deleted; see [upgrading](docs/upgrading.md).
+
 ## 0.6.14
 
 No restart is needed for data; restart the ACP client (and the daemon when idle) to use the new `meno acp`.

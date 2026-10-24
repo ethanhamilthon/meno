@@ -33,13 +33,9 @@ The daemon owns configuration reads and writes; the TUI uses these routes too. R
 - `GET|POST /providers`, `GET|PUT|DELETE /providers/{name}`,
   `PUT /providers/{name}/enabled`, and
   `PUT /providers/{name}/models` manage API-key providers. Entries of `provider.json` are
-  edited like any other; the managed OAuth entry is read-only. API keys are not returned; `has_api_key`
+  editable. API keys are not returned; `has_api_key`
   reports whether one is set. An update without a key keeps the current key.
   Set `clear_api_key` to remove it.
-- `GET /login/services`, `POST /login/start`,
-  `GET /login/status?state=…`, `POST /login/callback`,
-  `GET /login/accounts`, `PUT|DELETE /login/accounts/{file}`,
-  `GET /login/helper`, and `POST /login/restart` manage OAuth logins.
 - `GET /skills` and `PUT /skills/{name}/enabled` list and toggle skills.
 - `GET /session-state` returns daemon-wide session attention and live-task counts.
 - `POST /sessions/{id}/read` acknowledges the displayed completion generation.

@@ -42,7 +42,7 @@ func TestLayeringImports(t *testing.T) {
 
 func forbiddenImports(dir string) (map[string]bool, error) {
 	bad := map[string]bool{}
-	forbidden := map[string]bool{"agent": true, "llm": true, "db": true, "mcp": true, "process": true, "cliproxy": true, "config": true}
+	forbidden := map[string]bool{"agent": true, "llm": true, "db": true, "mcp": true, "process": true, "config": true}
 	files, err := filepath.Glob(filepath.Join(dir, "*.go"))
 	if err != nil {
 		return nil, err

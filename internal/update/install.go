@@ -16,8 +16,7 @@ import (
 const maxBinary = 200 << 20
 
 // Asset says which files of a release to use: the list of checksums, the
-// archive for this platform, and the file to take out of the archive. meno and
-// the cliproxyapi helper are both installed this way.
+// archive for this platform, and the file to take out of the archive.
 type Asset struct {
 	Sums   string // name of the checksum list, for example "SHA256SUMS"
 	Suffix string // end of the archive name for this platform
