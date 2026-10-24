@@ -29,13 +29,6 @@ func (a *App) rpc(fn func(ctx context.Context, c *client.Client) error) error {
 	return fn(ctx, a.cl)
 }
 
-// rpcCtx is rpc under a caller's context (a login that can be cancelled).
-func (a *App) rpcCtx(ctx context.Context, fn func(ctx context.Context, c *client.Client) error) error {
-	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
-	defer cancel()
-	return fn(ctx, a.cl)
-}
-
 // spawn runs fn off the UI goroutine and keeps Close waiting for it.
 func (a *App) spawn(fn func()) {
 	a.running.Add(1)
