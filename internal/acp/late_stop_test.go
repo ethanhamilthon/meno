@@ -18,6 +18,7 @@ type slowBackend struct {
 	entered chan struct{}
 	mu      sync.Mutex
 	stopped []string
+	client  string
 }
 
 func (b *slowBackend) CreateSession(context.Context, api.SessionCreateRequest) (api.SessionCreateResponse, error) {
@@ -34,7 +35,8 @@ func (b *slowBackend) Follow(ctx context.Context, _ string, recv func(client.Pro
 	<-ctx.Done()
 	return ctx.Err()
 }
-func (b *slowBackend) Message(ctx context.Context, _ string, _ api.MessageRequest) (api.MessageResponse, error) {
+func (b *slowBackend) Message(ctx context.Context, _ string, q api.MessageRequest) (api.MessageResponse, error) {
+	b.client = q.Client
 	close(b.entered)
 	<-b.release
 	if ctx.Err() != nil {
@@ -55,6 +57,9 @@ func TestDisconnectBeforeRequestIDStillStopsTheRun(t *testing.T) {
 	id := newSessionOn(t, p)
 	p.start("session/prompt", map[string]any{"sessionId": id, "prompt": []any{map[string]any{"type": "text", "text": "go"}}})
 	<-b.entered
+	if b.client != "acp" {
+		t.Fatalf("message client = %q", b.client)
+	}
 	_ = p.in.Close()
 	time.Sleep(50 * time.Millisecond)
 	close(b.release)

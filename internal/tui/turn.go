@@ -48,7 +48,7 @@ func (a *App) clearDraft() {
 func (a *App) send(msg msgDraft) {
 	rt := a.st.Runtime
 	sid := rt.ID()
-	req := api.MessageRequest{Text: msg.Text, ClientID: newClientID(), Origin: a.instance}
+	req := api.MessageRequest{Text: msg.Text, ClientID: newClientID(), Origin: a.instance, Client: "tui"}
 	for _, at := range msg.Attachments {
 		req.Attachments = append(req.Attachments, api.Attachment{Name: "image", MIME: at.Mime, Data: base64Of(msg.data[at.SHA])})
 	}

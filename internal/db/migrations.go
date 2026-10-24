@@ -257,4 +257,6 @@ ALTER TABLE sessions ADD COLUMN spawned_by TEXT NOT NULL DEFAULT '';
 ALTER TABLE sessions ADD COLUMN system_name TEXT NOT NULL DEFAULT '';
 ALTER TABLE sessions ADD COLUMN system_prompt TEXT NOT NULL DEFAULT '';
 `,
+	`-- Old completions have no message author; hide their unread generations.
+UPDATE session_attention SET read_through = completed WHERE read_through < completed;`,
 }

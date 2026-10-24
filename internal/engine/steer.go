@@ -88,6 +88,7 @@ func (e *Engine) wakeIfPending(sid string) {
 		e.publish(sid, api.EventError, api.ErrorData{Message: reloadErr.Error()})
 		return
 	}
+	s.authors = []bool{false}
 	s.running, s.phase = true, "preparing"
 	rid := s.requestID
 	ctx, cancel := context.WithCancel(context.Background())

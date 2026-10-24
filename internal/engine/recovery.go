@@ -36,7 +36,7 @@ func recoverInterrupted(home string, d *sql.DB) error {
 		if len(turns) > 0 && (turns[len(turns)-1].Run == nil || turns[len(turns)-1].Run.Status == "") {
 			s.Append(agent.Turn{Role: "assistant", Text: "[interrupted: meno restarted while this request was running]", Time: now})
 			s.SetRun(agent.RunStats{Status: agent.RunStop, Err: "interrupted by restart"})
-			if er = agent.SaveCompletion(home, s); er != nil {
+			if er = agent.SaveCompletion(home, s, false); er != nil {
 				return er
 			}
 		}

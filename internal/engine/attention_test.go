@@ -16,7 +16,7 @@ func TestDurableReadAcknowledgmentDoesNotClearNewerRun(t *testing.T) {
 		t.Fatal(err)
 	}
 	for i := 0; i < 2; i++ {
-		if err = agent.SaveCompletion(e.home, s.session); err != nil {
+		if err = agent.SaveCompletion(e.home, s.session, true); err != nil {
 			t.Fatal(err)
 		}
 	}

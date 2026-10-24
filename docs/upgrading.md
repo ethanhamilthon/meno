@@ -1,6 +1,16 @@
 # Upgrading, data and privacy
 
-## 0.6.15: API-key providers only
+## 0.6.15: TUI-only Done counts and API-key providers
+
+### Done counts only TUI-authored runs
+
+Done now counts a run only when its last accepted written message came from the
+TUI. Existing unread completions are hidden on upgrade; history is preserved.
+Restart all windows after updating: old clients do not identify TUI messages and
+will not produce new Done counts against the updated daemon. Crash-recovered
+runs also preserve history without adding Done counts.
+
+### API-key providers only
 
 Built-in OAuth browser logins and the managed `oauth` provider are removed, along
 with automatic cliproxyapi installation, updates, and supervision. `/login` stays
@@ -10,7 +20,8 @@ externally managed proxies and their `run` commands, are unchanged.
 The daemon protocol is **8**: finish active work, close old clients, update, and
 reopen Meno so both client and daemon use the new version. `meno update` stops
 an idle daemon; it does not restart it. The removed `/v1/login/*` routes return 404.
-No database migration or session remapping is performed. Old sessions remain
+The OAuth removal does not remap sessions. The Done migration only hides
+existing unread completions; it preserves history. Old sessions remain
 readable; if their provider is `oauth`, choose a configured provider with `/model`
 before continuing. A default provider of `oauth` must also be changed.
 

@@ -55,7 +55,10 @@ Labels and counts use dim gray. Typed input stays bright.
 - running: active sessions, excluding those waiting for an answer.
 - tasks: live background Bash processes.
 - Asking: sessions waiting for an agent question form.
-- done: sessions with unread completed runs, including failures/stops.
+- done: sessions with unread completed runs, including failures/stops, where the
+  last accepted written message was yours from the TUI. ACP, agents, `meno send`,
+  and automatic task wake-ups do not count. Queued messages follow acceptance
+  order; messages left for a follow-up run count only for that run.
 
 Counts cover the whole daemon, not only the current project. Zero counts are hidden.
 Each counter keeps its own color on a narrow bar too, where it shrinks to `2r`; click one to open `/sessions` filtered to it. When the stream of the session breaks, the center reads `offline · state may be stale` in the warning color.

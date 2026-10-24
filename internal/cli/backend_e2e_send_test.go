@@ -59,6 +59,9 @@ func TestSendForkKeepsHistoryAndRecordsOrigin(t *testing.T) {
 		t.Fatalf("%+v %v", res, err)
 	}
 	before, _ := dapi.c.Snapshot(context.Background(), src)
+	if before.Session.Completed != 0 {
+		t.Fatal("CLI send counted toward Done")
+	}
 	res, err := dapi.Send(SendRequest{Text: "again", Fork: src, Effort: "low", Title: "child"})
 	if err != nil || !res.Done || res.ForkOf != src || res.SessionID == src || res.Status != "done" || res.Text != "pong" {
 		t.Fatalf("%+v %v", res, err)

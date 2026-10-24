@@ -58,6 +58,7 @@ type runState struct {
 	phase, requestID string
 	cancel           context.CancelFunc
 	queue            agent.Queue
+	authors          []bool // accepted written messages, in commit-lock order; last author decides Done
 	live             api.LiveState
 	ask              *askState
 	retry            *api.RetryState

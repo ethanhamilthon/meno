@@ -74,6 +74,7 @@ func TestFinishTailPublishesNewRunAndConsumedTurn(t *testing.T) {
 	s.session.Append(agent.Turn{Role: llm.RoleUser, Text: "first"})
 	s.session.Append(agent.Turn{Role: llm.RoleAssistant, Text: "finished"})
 	s.queue.Push(agent.Message{Text: "tail"})
+	s.authors = []bool{false, false}
 	s.mu.Unlock()
 	e.finish(s, nil)
 	select {

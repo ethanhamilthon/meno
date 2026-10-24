@@ -84,6 +84,7 @@ type ErrorData struct {
 
 // DoneData reports final request statistics.
 type DoneData struct {
+	Counted   bool       `json:"counted,omitempty"`
 	RequestID string     `json:"request_id,omitempty"`
 	Metrics   Metrics    `json:"metrics"`
 	Error     *ErrorData `json:"error,omitempty"`

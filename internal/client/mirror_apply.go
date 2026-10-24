@@ -153,6 +153,7 @@ func (m *Mirror) ApplyUpdate(e api.Event) (ProjectionUpdate, bool) {
 		s.Retry = nil
 		fields |= LiveChanged | ActivityChanged | RetryChanged
 		effects.Finished = true
+		effects.Counted = d.Counted
 		effects.Aborted = e.Type == api.EventAborted
 		if !effects.Aborted {
 			s.LastError = ""

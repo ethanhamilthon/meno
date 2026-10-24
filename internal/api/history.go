@@ -34,6 +34,8 @@ type Attachment struct {
 
 // MessageRequest submits or queues a user message.
 type MessageRequest struct {
+	// Client identifies the sender kind; only tui messages count toward Done.
+	Client      string       `json:"client,omitempty"`
 	Text        string       `json:"text"`
 	Attachments []Attachment `json:"attachments,omitempty"`
 	ClientID    string       `json:"client_id"`

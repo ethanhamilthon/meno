@@ -36,7 +36,9 @@ func (a *App) projectionEffects(rt *Runtime, e client.ProjectionEffects) {
 		a.noticeFor(rt, e.Error.Message, true, false)
 	}
 	if e.Finished {
-		a.markUnseen(rt.ID())
+		if e.Counted {
+			a.markUnseen(rt.ID())
+		}
 		event := "done"
 		if e.Aborted {
 			event = ""

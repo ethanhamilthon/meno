@@ -6,7 +6,7 @@ import (
 )
 
 // SaveCompletion commits final run history and its unread generation atomically.
-func SaveCompletion(home string, s *Session) error {
+func SaveCompletion(home string, s *Session, countDone bool) error {
 	if s.ID == "" {
 		return errors.New("session id is empty")
 	}
@@ -28,10 +28,12 @@ func SaveCompletion(home string, s *Session) error {
 	if err != nil {
 		return err
 	}
-	_, err = tx.Exec(`INSERT INTO session_attention(session_id,completed) VALUES(?,1)
+	if countDone {
+		_, err = tx.Exec(`INSERT INTO session_attention(session_id,completed) VALUES(?,1)
  ON CONFLICT(session_id) DO UPDATE SET completed=completed+1`, s.ID)
-	if err != nil {
-		return err
+		if err != nil {
+			return err
+		}
 	}
 	if err = tx.Commit(); err != nil {
 		return err

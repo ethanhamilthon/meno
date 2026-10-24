@@ -227,6 +227,11 @@ func TestCrashRecoveryMarksTasksInterrupted(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer e.Close()
+	assertCompleted(t, e, sess.ID, 0)
+	recovered, loadErr := agent.LoadSession(home, sess.ID)
+	if loadErr != nil || recovered.Len() != 2 {
+		t.Fatalf("recovered history: %v", loadErr)
+	}
 	var status string
 	if err = d.QueryRow("SELECT status FROM tasks WHERE id='t1'").Scan(&status); err != nil || status != "interrupted" {
 		t.Fatalf("task status=%q err=%v", status, err)

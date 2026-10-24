@@ -92,6 +92,9 @@ func (s *Server) message(w http.ResponseWriter, r *http.Request) {
 	if !body(w, r, &q) {
 		return
 	}
+	if r.Header.Get("X-Meno-Token") != "" {
+		q.Client = "agent"
+	}
 	s.idempotent(w, r, messageKey(q), func() (any, error) { return s.backend.Message(r.Context(), r.PathValue("id"), q) }, 202)
 }
 func (s *Server) stopSession(w http.ResponseWriter, r *http.Request) {

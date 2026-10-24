@@ -52,6 +52,7 @@ func (e *Engine) Message(ctx context.Context, id string, q api.MessageRequest) (
 		// The queue is the one path into a running turn: the runner takes the
 		// entry at its next step, so an image makes the model answer again.
 		s.queue.Push(agent.Message{Text: q.Text, Attachments: att})
+		s.authors = append(s.authors, q.Client == "tui")
 		rid := s.requestID
 		e.publishQueue(s, api.InjectedData{Text: q.Text, By: "user"})
 		s.mu.Unlock()
@@ -71,6 +72,7 @@ func (e *Engine) Message(ctx context.Context, id string, q api.MessageRequest) (
 		s.mu.Unlock()
 		return api.MessageResponse{}, err
 	}
+	s.authors = []bool{q.Client == "tui"}
 	rid := agent.NewID()
 	s.requestID = rid
 	s.origin = q.Origin

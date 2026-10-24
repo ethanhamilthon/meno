@@ -17,6 +17,7 @@ func (e *Engine) queueResource(s *runState, method string) any {
 		return map[string]any{"queued": texts}
 	}
 	items := s.queue.TakeWritten()
+	s.authors = s.authors[:len(s.authors)-len(items)]
 	// A recall changes what every client shows as waiting: publish it.
 	e.publishQueue(s, api.InjectedData{Kind: "recall", By: "user"})
 	texts := make([]string, 0, len(items))

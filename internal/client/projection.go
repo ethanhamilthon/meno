@@ -28,6 +28,7 @@ type ProjectionEffects struct {
 	Retry       *api.RetryData
 	Error       *api.ErrorData
 	Finished    bool
+	Counted     bool
 	Aborted     bool
 }
 

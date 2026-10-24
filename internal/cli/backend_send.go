@@ -66,7 +66,7 @@ func (a *DaemonAPI) Send(r SendRequest) (SendResult, error) {
 		}
 		res.Warnings = append(res.Warnings, warning)
 	}
-	m, err := a.c.Message(ctx, id, api.MessageRequest{Text: r.Text, ClientID: clientID()})
+	m, err := a.c.Message(ctx, id, api.MessageRequest{Text: r.Text, ClientID: clientID(), Client: "cli"})
 	if err != nil {
 		return a.discard(res, id, created, wrap(err))
 	}

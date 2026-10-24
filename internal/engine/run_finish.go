@@ -23,8 +23,19 @@ func (e *Engine) finish(s *runState, err error) {
 	if err != nil && !errors.Is(err, context.Canceled) {
 		s.lastErr = err.Error()
 	}
-	saveErr := agent.SaveCompletion(e.home, s.session)
 	queued := s.queue.Take()
+	// Undrained written messages belong to the follow-up run, not this one.
+	k := 0
+	for _, m := range queued {
+		if !m.Viewed {
+			k++
+		}
+	}
+	split := len(s.authors) - k
+	countDone := lastAuthorCounts(s.authors[:split])
+	leftoverAuthors := s.authors[split:]
+	s.authors = nil
+	saveErr := agent.SaveCompletion(e.home, s.session, countDone)
 	s.visibleQueue = nil
 	requestID, metrics := s.requestID, s.metrics
 	s.mu.Unlock()
@@ -41,14 +52,15 @@ func (e *Engine) finish(s *runState, err error) {
 	e.publishSessionChanged(s, "run", "unread")
 	e.publish(id, api.EventStatus, api.StatusData{Running: false, RequestID: requestID})
 	if err != nil && errors.Is(err, context.Canceled) {
-		e.publish(id, api.EventAborted, api.DoneData{RequestID: requestID})
+		e.publish(id, api.EventAborted, api.DoneData{Counted: countDone, RequestID: requestID})
 	} else if err != nil {
 		e.publish(id, api.EventError, api.ErrorData{RequestID: requestID, Message: err.Error()})
 	} else {
-		e.publish(id, api.EventDone, api.DoneData{RequestID: requestID, Metrics: metrics})
+		e.publish(id, api.EventDone, api.DoneData{Counted: countDone, RequestID: requestID, Metrics: metrics})
 	}
 	if len(queued) > 0 && err == nil {
 		s.mu.Lock()
+		s.authors = leftoverAuthors
 		msg := agent.Combine(queued)
 		s.session.Append(agent.Turn{Role: llm.RoleUser, Text: msg.Text, Attachments: msg.Attachments, Time: time.Now().UTC()})
 		_ = e.save(s)
