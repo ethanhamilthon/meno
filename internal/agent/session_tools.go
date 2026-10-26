@@ -1,6 +1,9 @@
 package agent
 
 import (
+	"fmt"
+	"strings"
+
 	"meno/internal/llm"
 )
 
@@ -14,8 +17,17 @@ func toolResult(t Turn) llm.Msg {
 
 func (s *Session) userMsg(t Turn) llm.Msg {
 	m := llm.Msg{Role: llm.RoleUser, Text: withSystem(t)}
+	var paths []string
 	for _, a := range t.Attachments {
-		m.Images = append(m.Images, llm.Image{N: a.N, Mime: a.Mime, Path: s.AttachmentPath(a)})
+		path := s.AttachmentPath(a)
+		m.Images = append(m.Images, llm.Image{N: a.N, Mime: a.Mime, Path: path})
+		paths = append(paths, fmt.Sprintf("%s path: %q", ImageToken(a.N), path))
+	}
+	if len(paths) > 0 {
+		if m.Text != "" {
+			m.Text += "\n\n"
+		}
+		m.Text += strings.Join(paths, "\n")
 	}
 	return m
 }

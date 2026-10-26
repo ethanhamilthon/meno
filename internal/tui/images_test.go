@@ -34,6 +34,7 @@ func imageApp(t *testing.T, proto string) (*App, *syncBuf) {
 	sink := &syncBuf{}
 	a.imgs.out = sink
 	a.st.Settings.ImagesProtocol = proto
+	a.st.Settings.View = "full"
 	img := image.NewNRGBA(image.Rect(0, 0, 160, 160))
 	for i := range img.Pix {
 		img.Pix[i] = byte(i)
@@ -152,4 +153,39 @@ func TestMissingStoredBytesKeepTheCaption(t *testing.T) {
 
 func screenTextOf(a *App) string {
 	return screenText(a.scr.(tcell.SimulationScreen))
+}
+
+func TestImageVisibilityFollowsViewSwitches(t *testing.T) {
+	for proto, marker := range map[string]string{"kitty": "a=T", "sixel": "\x1bPq", "iterm": "\x1b]1337;File=inline=1"} {
+		t.Run(proto, func(t *testing.T) {
+			a, sink := imageApp(t, proto)
+			a.st.Settings.View = "compact"
+			a.draw()
+			if sink.String() != "" || len(a.imgs.cache) != 0 || strings.Contains(screenTextOf(a), "▣ Image") {
+				t.Fatal("compact must not draw, decode, or caption images")
+			}
+			a.st.Settings.View = "full"
+			drawUntil(t, a, sink, func(s string) bool { return strings.Contains(s, marker) })
+			sink.Reset()
+			a.st.Settings.View = "compact"
+			a.draw()
+			if strings.Contains(sink.String(), marker) || a.imgs.placed != "" || len(a.imgs.vis) != 0 || strings.Contains(screenTextOf(a), "▣ Image") {
+				t.Fatal("switching to compact must remove images and captions")
+			}
+			if proto == "kitty" && !strings.Contains(sink.String(), "a=d,d=A") {
+				t.Fatal("switching to compact must delete the Kitty placement")
+			}
+			// A late decode completion must not resurrect a hidden picture.
+			a.handle(imageDecoded{})
+			a.draw()
+			if strings.Contains(sink.String(), marker) || !strings.Contains(screenTextOf(a), "look [Image #1]") {
+				t.Fatal("compact must keep only ordinary message text")
+			}
+			a.st.Settings.View = "bash_only"
+			drawUntil(t, a, sink, func(s string) bool { return strings.Contains(s, marker) })
+			if !strings.Contains(screenTextOf(a), "▣ Image #1") {
+				t.Fatal("bash-only must restore image captions")
+			}
+		})
+	}
 }

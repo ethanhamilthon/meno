@@ -1,10 +1,12 @@
 # Terminal graphics
 
 Images in the timeline (sent attachments and `view()` results) are drawn with a terminal
-graphics protocol when one is available. Setting `images`: `auto` (default), `off`,
+graphics protocol when one is available, in `full` and `bash_only` views only.
+`compact` hides both pictures and generated captions, without reserving picture rows;
+inline `[Image #N]` references in message text remain. Setting `images`: `auto` (default), `off`,
 `kitty`, `sixel`, `iterm` (`/settings`, or `images_protocol` in the settings JSON).
 
-- Every image has a caption line (`▣ Image #1 · 640×480 · png · attachment`). Without
+- In `full` and `bash_only`, every image has a caption line (`▣ Image #1 · 640×480 · png · attachment`). Without
   graphics the caption is all there is.
 - With graphics, rows are reserved under the caption: the picture is scaled
   proportionally, never cropped and never enlarged, at most the message width wide and at

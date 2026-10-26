@@ -78,16 +78,20 @@ func BuildLines(turns []Turn, w int, js JSOpts) []Line {
 			out = append(out, transcriptRows("/skill:"+skillName(t.Text)+" loaded", "◌", w)...)
 		case t.Role == RoleUser && t.Kind == KindView:
 			out = append(out, transcriptRows(t.Text, "◌", w)...)
-			for _, at := range t.Attachments {
-				out = append(out, imageBlock(at, "view()", w, js.Images)...)
+			if js.View != ViewCompact {
+				for _, at := range t.Attachments {
+					out = append(out, imageBlock(at, "view()", w, js.Images)...)
+				}
 			}
 		case t.Role == RoleUser:
 			out = append(out, Band(BgUser))
 			shown := t.Text
 			out = append(out, WrapLines(withObjectLabels(shown), wrapW, userLineMaker())...)
 			out = append(out, Band(BgUser))
-			for _, at := range t.Attachments {
-				out = append(out, imageBlock(at, "attachment", w, js.Images)...)
+			if js.View != ViewCompact {
+				for _, at := range t.Attachments {
+					out = append(out, imageBlock(at, "attachment", w, js.Images)...)
+				}
 			}
 		case t.Code != "":
 			if t.Text != "" {

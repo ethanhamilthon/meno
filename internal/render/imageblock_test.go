@@ -44,3 +44,36 @@ func TestImageBlocksReserveRowsOrFallBackToCaption(t *testing.T) {
 		t.Fatalf("layout grew by %d rows, want %d", len(on)-len(off), refs[0].Rows+refs[1].Rows)
 	}
 }
+
+func TestImageBlocksFollowViewMode(t *testing.T) {
+	for _, kind := range []string{"", KindView} {
+		for _, view := range []ViewMode{ViewFull, ViewBashOnly, ViewCompact} {
+			for _, enabled := range []bool{false, true} {
+				turn := Turn{Role: RoleUser, Kind: kind, Text: "look [Image #1]", Attachments: []Attachment{{N: 1, Mime: "image/png", SHA: "abc", W: 160, H: 160}}}
+				opts := JSOpts{View: view, Images: ImageOpts{Enabled: enabled, CellW: 8, CellH: 16, MaxRows: 12}}
+				lines := BuildLines([]Turn{turn}, 100, opts)
+				refs, captions := 0, 0
+				for _, l := range lines {
+					if l.Image != nil {
+						refs++
+					}
+					if strings.Contains(l.Text(), "▣ Image") {
+						captions++
+					}
+				}
+				if !strings.Contains(summaryText(lines), turn.Text) {
+					t.Fatal("ordinary message text was lost")
+				}
+				if view == ViewCompact {
+					turn.Attachments = nil
+					plain := BuildLines([]Turn{turn}, 100, opts)
+					if refs != 0 || captions != 0 || len(lines) != len(plain) {
+						t.Fatalf("compact kind=%q enabled=%v: refs=%d captions=%d rows=%d, want %d", kind, enabled, refs, captions, len(lines), len(plain))
+					}
+				} else if captions != 1 || enabled && refs != 1 || !enabled && refs != 0 {
+					t.Fatalf("view=%d kind=%q enabled=%v: refs=%d captions=%d", view, kind, enabled, refs, captions)
+				}
+			}
+		}
+	}
+}

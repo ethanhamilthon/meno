@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 
 	"meno/internal/llm"
@@ -131,7 +132,7 @@ func TestOnlyNewestImagesAreSent(t *testing.T) {
 		t.Fatalf("images sent: %d", total)
 	}
 	// The total is even and so is the limit: the oldest turns lose both images.
-	if msgs[0].Text != "a [image omitted] b [image omitted]" || len(msgs[0].Images) != 0 || len(msgs[2].Images) != 2 {
+	if !strings.HasPrefix(msgs[0].Text, "a [image omitted] b [image omitted]\n\n") || len(msgs[0].Images) != 0 || len(msgs[2].Images) != 2 {
 		t.Fatalf("omitted: %+v %+v", msgs[0], msgs[2])
 	}
 }

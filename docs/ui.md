@@ -122,8 +122,15 @@ graphics, whose pixels are removed by repainting the cells under them (see
 
 `[Image #N]` tokens are one unit in the input. At most 5 images per message, 5 MB
 each, PNG or JPEG, scaled to 1568 px. The agent can look with `meno view PATH`. With a
-capable terminal the timeline shows the pictures themselves, see
-[terminal graphics](graphics.md); otherwise a text block names number, size and type.
+capable terminal, `full` and `bash_only` show the pictures themselves, see
+[terminal graphics](graphics.md); without graphics these views show a caption naming
+number, size and type. `compact` hides pictures and captions, leaving ordinary message
+text and inline `[Image #N]` references unchanged.
+
+The agent receives the image plus its stored file path, for example
+`[Image #1] path: "/Users/me/.meno/attachments/abc123.png"`, so it can use the
+attachment in Bash commands. The composer and transcript keep the short tokens;
+the path metadata is added only to model-facing messages.
 
 ## Exporting a session
 

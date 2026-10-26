@@ -35,6 +35,9 @@ type Message struct {
 
 var imageTokenRe = regexp.MustCompile(`\[Image #(\d+)\]`)
 
+// Keep numbered file references usable even when their image payload is omitted.
+var imageOmissionTokenRe = regexp.MustCompile(`\[Image #(\d+)\]( path:)?`)
+
 // ImageToken is the text that stands for image n in a message.
 func ImageToken(n int) string { return "[Image #" + strconv.Itoa(n) + "]" }
 
@@ -108,7 +111,10 @@ func omitOldImages(msgs []llm.Msg, limit int) {
 		for _, im := range m.Images[:drop] {
 			gone[im.N] = true
 		}
-		m.Text = imageTokenRe.ReplaceAllStringFunc(m.Text, func(tok string) string {
+		m.Text = imageOmissionTokenRe.ReplaceAllStringFunc(m.Text, func(tok string) string {
+			if strings.HasSuffix(tok, " path:") {
+				return tok
+			}
 			n, _ := strconv.Atoi(imageTokenRe.FindStringSubmatch(tok)[1])
 			if gone[n] {
 				return "[image omitted]"
