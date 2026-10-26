@@ -39,19 +39,16 @@ func (a *App) searchListEmpty(c render.Canvas, w, h, bw, total int, title, place
 	if len(items) == 0 {
 		bh++
 	}
-	b := centered(w, h, bw, bh)
+	b := a.panelBox(w, h, bw, bh)
 	b.frame(c)
-	q := &a.st.Query
-	if a.st.Editing {
-		q = &a.st.Edit // a rename takes over the search row
-	}
-	titledSearch(c, b, title, itoa(len(items))+" / "+itoa(total), q, placeholder)
+	titleRow(title, itoa(len(items))+" / "+itoa(total))(c, b)
 	if len(items) == 0 {
 		if empty == "" {
 			empty = "nothing here"
 		}
-		b.put(c, 4, 4, render.Truncate(empty, max(0, b.w-8)), render.FgDim, render.BgPopup)
+		b.put(c, 4, 2, render.Truncate(empty, max(0, b.w-8)), render.FgDim, render.BgPopup)
 	}
-	drawItems(c, b, 4, items, sel)
+	drawItems(c, b, 2, items, sel)
+	a.recordItems(b, 2, items, sel)
 	b.hint(c, hint)
 }

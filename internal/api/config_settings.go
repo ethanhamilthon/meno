@@ -10,7 +10,6 @@ type ConfigSettings struct {
 	Tool                 string `json:"tool"`
 	View                 string `json:"view"`
 	TurnSummary          string `json:"turn_summary"`
-	Theme                string `json:"theme"`
 	Notify               string `json:"notify"`
 	NotifyCommand        string `json:"notify_command"`
 	NotifySound          string `json:"notify_sound"`

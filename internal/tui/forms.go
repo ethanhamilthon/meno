@@ -91,9 +91,13 @@ func (a *App) editKey(k *tcell.EventKey, f field, commit func()) {
 	}
 }
 
-func drawForm(c render.Canvas, b box, y int, fs []field, selField int, editing bool, ed *textEdit) {
-	for i, f := range fs {
-		isSel := i == selField
+func (a *App) drawForm(c render.Canvas, b box, y int, fs []field, selField int, editing bool, ed *textEdit) {
+	room := max(1, b.h-y-2)
+	start := max(0, selField-room+1)
+	for index := start; index < len(fs) && index < start+room; index++ {
+		i, f := index-start, fs[index]
+		a.panelHits[b.y+y+i] = index
+		isSel := index == selField
 		bg := b.bg(isSel)
 		b.fill(c, y+i, bg)
 		mark := " "

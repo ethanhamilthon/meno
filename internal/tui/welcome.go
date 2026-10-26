@@ -115,12 +115,10 @@ func keyHints() []seg {
 	}
 }
 
-// drawWelcome draws the animated MENO wordmark and the info rows, all centered
+// drawWelcome draws the static prompt header and the info rows, all centered
 // in the log area. The rest of the area stays blank.
 func (a *App) drawWelcome(c render.Canvas, x, y, w, h int) {
-	a.animOn.Store(true)
-	t := float64(a.clock().UnixMilli()) / 1000
-	full := w >= logoW+10 && h >= welcomeBlockH
+	full := w >= 76 && h >= welcomeBlockH
 	blockH := compactBlockH
 	if full {
 		blockH = welcomeBlockH
@@ -128,16 +126,15 @@ func (a *App) drawWelcome(c render.Canvas, x, y, w, h int) {
 	top := y + max(0, (h-blockH)/2)
 	row := func(i int) (int, bool) { return top + i, top+i < y+h }
 
-	logoX, logoY := x+(w-logoW)/2, top+3
 	tag := []seg{{tagline, render.FgSoft, false}}
 	hints := keyHints()
+	header := append([]seg{{"> ", render.Green, false}, {"meno", render.Blue, true}, {" ─ ", render.FgDim, false}}, a.versionSegs()...)
 	if full {
-		if r, ok := row(0); ok {
-			drawSegs(c, x, r, w, tag)
+		if r, ok := row(6); ok {
+			drawSegs(c, x, r, w, header)
 		}
-		drawLogo(c, logoX, logoY, x, y, w, h, t)
-		if r, ok := row(12); ok {
-			drawSegs(c, x, r, w, a.versionSegs())
+		if r, ok := row(8); ok {
+			drawSegs(c, x, r, w, tag)
 		}
 		if r, ok := row(15); ok {
 			drawSegs(c, x, r, w, a.infoLine(w))
@@ -148,7 +145,7 @@ func (a *App) drawWelcome(c render.Canvas, x, y, w, h int) {
 		return
 	}
 	if r, ok := row(0); ok {
-		drawSegs(c, x, r, w, append([]seg{{"meno", render.Blue, true}, {" ", render.FgDim, false}}, a.versionSegs()...))
+		drawSegs(c, x, r, w, header)
 	}
 	if r, ok := row(1); ok {
 		drawSegs(c, x, r, w, tag)
@@ -161,7 +158,7 @@ func (a *App) drawWelcome(c render.Canvas, x, y, w, h int) {
 	}
 }
 
-// animTicker wakes the render loop while the welcome screen is on show.
+// animTicker wakes only when an animated composer requested another frame.
 func (a *App) animTicker() {
 	t := time.NewTicker(logoInterval)
 	defer t.Stop()

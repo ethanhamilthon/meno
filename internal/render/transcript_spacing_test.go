@@ -1,7 +1,7 @@
 package render
 
 import (
-	"encoding/json"
+	"meno/internal/config"
 	"testing"
 )
 
@@ -35,15 +35,8 @@ func TestToolTurnsHaveNoExtraGap(t *testing.T) {
 }
 
 func TestDefaultMatchesFilePalette(t *testing.T) {
-	raw := []byte(`{"name":"sample","dark":true,"bg":"000000","fg":"EDEDED","dim":"888888","blue":"52A8FF","purple":"BF7AF0","green":"62C073","yellow":"FFCA16","red":"FF6166","orange":"F5A623"}`)
-	var want Theme
-	for _, th := range Themes() {
-		if th.Name == DefaultTheme {
-			want = th
-		}
-	}
-	got, warnings := ThemesFromJSON([]json.RawMessage{raw})
-	if len(warnings) != 0 || len(got) != 1 || got[0].Palette != want.Palette {
-		t.Fatalf("palette mismatch: %v", warnings)
+	colors := config.DefaultThemeColors()
+	if PaletteFromColors(colors.Colors()) != DefaultPalette() {
+		t.Fatal("default palette mismatch")
 	}
 }

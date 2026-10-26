@@ -57,6 +57,11 @@ every push and pull request on Linux and macOS and installs a snapshot build wit
    effort level. It applies to the current session.
 3. Type a task in INPUT and press Enter.
 
+Commands and agent questions open panels above the composer, leaving the
+conversation visible. `/settings` is one list; edit `~/.meno/theme.json` for live
+palette changes. Unused daemons exit after a 10-second grace period and restart
+on the next launch without losing saved sessions.
+
 ## Documentation
 
 | | |
@@ -87,7 +92,7 @@ Everything lives in `$MENO_HOME` (default `~/.meno`; `make run` uses `~/.meno-de
 | `tasks/` | bounded logs of background tasks |
 | `mcp-results/` | complete MCP tool results and their binary artifacts, per session |
 | `skills/` | global skills |
-| `provider.json`, `mcp.json`, `theme.json` | providers and MCP servers (edited by `/login`, `/mcp` or by hand) and optional themes, see [settings](docs/settings.md) |
+| `provider.json`, `mcp.json`, `theme.json` | providers and MCP servers (edited by `/login`, `/mcp` or by hand) and the live palette, see [settings](docs/settings.md) |
 
 ## Upgrading to 0.5.0
 

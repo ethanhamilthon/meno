@@ -22,7 +22,7 @@ func TestNamespacedSkillSelection(t *testing.T) {
 	s.Cmd("skills")
 	s.WaitFor("review marker")
 	s.Send(Esc)
-	s.WaitGone("search skills")
+	s.WaitGone("tab auto-load")
 	s.Type("/skill:rev")
 	s.WaitFor("review marker")
 	s.Send("\t")

@@ -65,13 +65,13 @@ func (a *App) drawSessions(c render.Canvas, w, h int) {
 	if len(items) == 0 {
 		bh++
 	}
-	b := centered(w, h, 0, bh)
+	b := a.panelBox(w, h, 0, bh)
 	b.frame(c)
 	titleRow("sessions", itoa(len(items))+" / "+itoa(len(rows)))(c, b)
-	searchRow(c, b, 2, &a.st.Query, "search title, date or path", "")
 	if len(items) == 0 {
-		b.put(c, 4, 4, "no matching sessions", render.FgDim, render.BgPopup)
+		b.put(c, 4, 2, "no matching sessions", render.FgDim, render.BgPopup)
 	}
-	drawItems(c, b, 4, items, clampSel(a.st.Sel, len(items)))
+	drawItems(c, b, 2, items, clampSel(a.st.Sel, len(items)))
+	a.recordItems(b, 2, items, clampSel(a.st.Sel, len(items)))
 	b.hint(c, "↑/↓ select · enter open · tab filter: "+filterNames[a.st.AttnFilter]+" · ctrl+u clear · esc close")
 }

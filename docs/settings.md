@@ -1,32 +1,66 @@
 # Settings (`/settings`)
 
-Settings live in tabs: **General**, **Display**, **Notify**, **Context**.
-`Tab` or `]` moves to the next tab, `Shift+Tab` or `[` to the
-previous one. `↑`/`↓` or `j`/`k` selects a row; `←`/`→`, space or Enter
-changes a choice; `+`/`-` changes a number. Enter edits a text value (the
-notify command), Enter saves it and Esc cancels. Every change is saved at once.
+Settings appear in one scrollable panel above the composer. `↑`/`↓` or `j`/`k`
+selects a row; `←`/`→`, space or Enter changes a choice; `+`/`-` changes a number.
+Enter edits a text value, Enter saves it and Esc cancels. Every change is saved
+at once. Esc closes the panel without losing your composer draft.
 
-Look and signal settings (`theme`, `notify`, `notify sound`, `notify volume`, `notify command`) can be kept for one window: press `s` to switch the scope between *shared* and *this window*, and change the setting. A window override is never sent to the daemon and survives a refresh of the shared settings; an edit in the shared scope replaces it. `r` drops every override of the window.
+Notification settings can be kept for one window: `s` switches between *shared*
+and *this window*. Window overrides are not sent to the daemon and survive
+refreshes; a shared edit replaces the override. `r` drops all window overrides.
 
-| Tab | Setting | Values |
-| --- | --- | --- |
-| General | theme | `default` or a custom theme from `theme.json`; live preview |
-| General | system prompt | `default` (the built-in prompt) or a file of `system-prompts/` — see [system prompts](#system-prompts) |
-| Display | view | `full`, `bash_only`, `compact` (default) — how much of the work the timeline shows; see [the interface](ui.md#timeline-and-bash) |
-| Notify | notify | `off`, `question`, `done` — see [notification sounds](notifications.md) |
-| Notify | notify sound | `default`, `bell`, or one of 25 built-in sounds; changing it previews |
-| Notify | notify volume | `20`…`100` percent; previews on change; ignored for a custom command |
-| Notify | notify command | optional shell command that replaces the sound |
-| Context | auto compact | the percentage of the context window at which meno compacts before a request |
-| Context | elide percent | `elide_percent` in `settings.json` only (default 50, 10 to 100): the percentage of the context window at which meno first cuts the bulky output of old tool calls, before it asks the model for a summary. At or above `auto compact` it never acts, which switches it off. See [tools](tools.md#elision-of-old-output) |
-| Context | daemon idle exit | minutes (default 30); 0 means never |
+| Setting | Values |
+| --- | --- |
+| system prompt | `default` (built-in) or a file of `system-prompts/`; see below |
+| view | `full`, `bash_only`, `compact` (default); see [the interface](ui.md#timeline-and-bash) |
+| notify | `off`, `question`, `done`; see [notifications](notifications.md) |
+| notify sound | `default`, `bell`, or one of 25 built-in sounds; previews on change |
+| notify volume | `20`…`100` percent; ignored for a custom command |
+| notify command | optional shell command replacing the sound |
+| auto compact | context percentage at which meno compacts before a request |
+
+The daemon exits after 10 continuous seconds without an attached event-stream
+client, active session work, or running background task. An in-flight request,
+reconnection, or new work restarts the grace period. Saved sessions and finished
+tasks do not keep it alive. The next launch restores saved sessions. There is no
+idle-timeout setting; old `daemon_idle_exit_min` values, including zero, are ignored.
+
+## Palette
+
+There is one palette in `$MENO_HOME/theme.json` (normally `~/.meno/theme.json`),
+not a list of selectable themes. It starts with these colors:
+
+```json
+{
+  "dark": true,
+  "bg": "17191C",
+  "fg": "DBDFE5",
+  "dim": "888F99",
+  "blue": "8CB8FF",
+  "purple": "B7A5DE",
+  "green": "9DCC9D",
+  "yellow": "E1CD8C",
+  "red": "E39A9A",
+  "orange": "E9BC86"
+}
+```
+
+Edit the file to recolor every open window using that home, normally within two
+seconds; no restart or selection is needed. Colors accept `RRGGBB` or `#RRGGBB`.
+Surface shades are derived. Invalid or incomplete saves keep the last valid
+palette and show a notice; saving a valid object recovers automatically. The file
+is initialized if missing at startup. An invalid existing file is never replaced.
+
+On upgrade, an old array is backed up unchanged to `theme.json.legacy.bak` and
+converted to one object: its valid `panel-dark` entry, or the new default palette.
+The backup retains other custom themes. Restore it before downgrading to a
+version that expects an array. Named-theme settings/window overrides are retired.
 
 ## Files that add to the app
 
 Providers, MCP servers and themes live in JSON files in `$MENO_HOME`, next to `meno.db`.
 `/login`, `/mcp` and `meno mcp` read and write `provider.json` and `mcp.json`; you can also edit
-them by hand, and the next request or dialog read sees the change (no restart). `theme.json` is
-read only. A bad entry gives a notice and is skipped, and it stays in the file when meno saves
+them by hand, and the next request or dialog read sees the change (no restart). `theme.json` reloads automatically. A bad entry gives a notice and is skipped, and it stays in the file when meno saves
 the others. A file that is not valid JSON is reported and never overwritten: fix it and meno
 saves again. A key written as `env:NAME` is read from the environment and stays that text in the
 file. API keys are otherwise stored as plain text, so keep `$MENO_HOME` private and do not commit
@@ -54,8 +88,7 @@ these files with keys in them. Files are written with mode 0600.
   misbehaves when probed) or `modern`. A silent legacy stdio server is started twice and
   can delay startup by up to 10 seconds; set `legacy` to avoid that. The modern protocol
   supports tools only; a tool that asks for more input is reported as an error.
-- `theme.json`: `[{"name", "dark", "bg", "fg", "dim", "blue", "purple", "green",
-  "yellow", "red", "orange"}]` with colors as `RRGGBB`; the other shades are derived.
+- `theme.json`: one palette object, described above.
 
 Settings without a row in the dialog live in the settings JSON (`meno.db`):
 `compact_keep` (8) and `compact_summary_tokens` (4000) tune the automatic
@@ -71,7 +104,7 @@ system prompt replaces only that line. What follows it stays: the skills, the pr
 
 A custom prompt is a Markdown file `$MENO_HOME/system-prompts/NAME.md` (`NAME`: letters, digits,
 dots, dashes and underscores, at most 64 characters). The text is trimmed; an empty file or one
-over 64 KB is refused. Pick it in `/settings` (General, *system prompt*), or set `"system_prompt":
+over 64 KB is refused. Pick it in `/settings` (*system prompt*), or set `"system_prompt":
 "NAME"` in the settings JSON. It applies to **new** sessions: a session keeps the text it was
 created with, so editing the file does not change a running conversation or its provider cache.
 A fork keeps the prompt of its source. `meno send --new|--fork --system NAME` picks one for a

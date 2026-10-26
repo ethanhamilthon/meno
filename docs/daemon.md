@@ -7,6 +7,14 @@ several clients can use one session. A client talks HTTP and SSE over the unix s
 The first client that finds no daemon takes a startup lock, starts `meno daemon run` from its
 own executable and waits for the socket. Every `MENO_HOME` has its own daemon.
 
+After 10 continuous seconds with no event-stream clients, finite requests, active
+session work, or live background tasks, the daemon exits gracefully. Reconnecting
+or starting work resets the grace period. Retries, questions, compaction, queues,
+and task-to-run handoffs count as work; saved sessions and completed tasks do not.
+ACP keeps an event stream attached even before creating its first session.
+The next launch restarts the daemon and restores saved sessions. This policy is
+fixed; old minute-based timeout values, including zero, no longer apply.
+
 The daemon puts `MENO_SOCK`, `MENO_SESSION`, `MENO_TOKEN` and `MENO_CALL` in the environment
 of each bash call. The token is valid for one session; the `meno` commands inside the call
 send it in the `X-Meno-Token` header.

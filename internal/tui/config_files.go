@@ -11,17 +11,7 @@ import (
 	"meno/internal/config"
 	"meno/internal/llm"
 	"meno/internal/mcp"
-	"meno/internal/render"
 )
-
-// loadThemeFile registers the themes of theme.json. It must run before the
-// saved theme is applied, which may be one of them.
-func (a *App) loadThemeFile() {
-	raw, warns := config.ReadObjects(a.paths.ThemeFile())
-	themes, more := render.ThemesFromJSON(raw)
-	render.SetExtraThemes(themes)
-	a.warnings = append(a.warnings, append(warns, more...)...)
-}
 
 // settingsLoaded carries the daemon's configuration to the UI goroutine.
 type settingsLoaded struct {
@@ -118,13 +108,6 @@ func settingsFromWire(w api.ConfigSettings) config.Settings {
 	b, _ := json.Marshal(w)
 	_ = json.Unmarshal(b, &s)
 	return s
-}
-
-func settingsToWire(s config.Settings) api.ConfigSettings {
-	var w api.ConfigSettings
-	b, _ := json.Marshal(s)
-	_ = json.Unmarshal(b, &w)
-	return w
 }
 
 func providerFromWire(w api.ConfigProvider) llm.Provider {

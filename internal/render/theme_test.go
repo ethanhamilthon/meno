@@ -27,31 +27,8 @@ func contrast(a, b tcell.Color) float64 {
 	return (la + 0.05) / (lb + 0.05)
 }
 
-func TestThemeCatalog(t *testing.T) {
-	list := Themes()
-	if len(list) != 1 {
-		t.Fatalf("%d themes, want 1", len(list))
-	}
-	seen := map[string]bool{}
-	dark, light := 0, 0
-	for _, th := range list {
-		if seen[th.Name] {
-			t.Fatalf("duplicate theme %s", th.Name)
-		}
-		seen[th.Name] = true
-		if th.Dark {
-			dark++
-		} else {
-			light++
-		}
-	}
-	if !seen[DefaultTheme] || dark != 1 || light != 0 {
-		t.Fatalf("default %v, dark %d, light %d", seen[DefaultTheme], dark, light)
-	}
-}
-
 func TestThemesAreReadable(t *testing.T) {
-	for _, th := range Themes() {
+	for _, th := range testPalettes() {
 		p := th.Palette
 		bgs := map[string]tcell.Color{"term": p.BgTerm, "user": p.BgUser, "popup": p.BgPopup, "popup-sel": p.BgPopupSel, "diff-add": p.BgDiffAdd, "select": p.BgSelect}
 		for name, bg := range bgs {
@@ -79,12 +56,24 @@ func TestThemesAreReadable(t *testing.T) {
 	}
 }
 
-func TestSetTheme(t *testing.T) {
-	defer SetTheme(DefaultTheme)
-	if SetTheme("no-such-theme") || CurrentTheme() != DefaultTheme {
-		t.Fatal("unknown theme accepted")
+func TestApplyPalette(t *testing.T) {
+	defer ApplyPalette(DefaultPalette())
+	p := DefaultPalette()
+	p.Blue = tcell.NewRGBColor(1, 2, 3)
+	ApplyPalette(p)
+	if CurrentPalette() != p || Blue != p.Blue {
+		t.Fatal("complete palette was not applied")
 	}
-	if !SetTheme(DefaultTheme) || BgTerm != tcell.NewRGBColor(0, 0, 0) || Blue != tcell.NewRGBColor(0x52, 0xA8, 0xFF) {
-		t.Fatalf("default not applied: %v", BgTerm)
-	}
+}
+
+func testPalettes() []struct {
+	Name    string
+	Dark    bool
+	Palette Palette
+} {
+	return []struct {
+		Name    string
+		Dark    bool
+		Palette Palette
+	}{{"default", true, DefaultPalette()}}
 }

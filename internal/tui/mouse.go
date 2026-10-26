@@ -27,6 +27,7 @@ const doubleClick = 400 * time.Millisecond
 
 func (a *App) onMouse(m *tcell.EventMouse) {
 	if a.st.Over != OverNone {
+		a.panelMouse(m)
 		return
 	}
 	if a.st.Ask != nil {

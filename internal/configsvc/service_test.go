@@ -48,9 +48,9 @@ func TestDaemonConfigRoutesAndTypedClient(t *testing.T) {
 	if settings.Settings.Effort != "high" {
 		t.Fatalf("settings: %+v", settings)
 	}
-	settings.Settings.Theme = "test-theme"
+	settings.Settings.SystemPrompt = "test-theme"
 	saved, err := cl.PutSettings(context.Background(), settings.Settings)
-	if err != nil || saved.Settings.Theme != "test-theme" {
+	if err != nil || saved.Settings.SystemPrompt != "test-theme" {
 		t.Fatalf("settings save: %+v %v", saved, err)
 	}
 	provider, err := cl.CreateProvider(context.Background(), api.ConfigProvider{Name: "test", BaseURL: "https://example.test/v1", APIKey: "key", Protocol: llm.ProtoChat})
@@ -135,7 +135,7 @@ func TestSettingsFileReloadAndValidation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = os.WriteFile(paths.SettingsFile(), []byte("{\"effort\":\"low\",\"theme\":\"outside\"}"), 0600); err != nil {
+	if err = os.WriteFile(paths.SettingsFile(), []byte("{\"effort\":\"low\",\"system_prompt\":\"outside\"}"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	r, err := b.Resource(context.Background(), "GET", "/v1/settings", "", api.ResourceRequest{})
@@ -146,7 +146,7 @@ func TestSettingsFileReloadAndValidation(t *testing.T) {
 	if err = json.Unmarshal(r.Data, &setting); err != nil {
 		t.Fatal(err)
 	}
-	if setting.Settings.Effort != "low" || setting.Settings.Theme != "outside" {
+	if setting.Settings.Effort != "low" || setting.Settings.SystemPrompt != "outside" {
 		t.Fatalf("reload: %+v", setting)
 	}
 	if _, err = b.Resource(context.Background(), "PUT", "/v1/settings", "", api.ResourceRequest{Data: json.RawMessage("{\"settings\":{\"view\":7}}")}); err == nil {

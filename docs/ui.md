@@ -10,11 +10,19 @@ Use `/skill:<name>` to insert a skill reference; `/skills` manages skills. A bar
 Old colon commands and bare `/name` skill references are ordinary text. Esc without a list keeps INPUT, the draft, and the cursor. INPUT is the only
 mode: there is no NORMAL, EDIT, VISUAL or COMMAND mode.
 
-The welcome screen shows the MENO wordmark, whose glyphs keep changing while its shape
-stays, a tagline, the version (with the update notice when one exists), and one row of facts:
-model and effort (or `/model`, or `/login` when no provider works), the folder, the number of
-skills, the number of enabled MCP servers (with `N failed` in red when one cannot start) and
-whether an `AGENTS.md` was found. The rest of the screen stays blank.
+The welcome screen shows a static `> meno ─ version` header and
+`Keep your agent simple.`, with an update notice when one exists. Below it is
+one row of facts: model and effort (or `/model`, or `/login` when no provider
+works), folder, skills, enabled MCP servers (with `N failed` in red), and whether
+an `AGENTS.md` was found. Key hints remain below the facts.
+
+Commands, provider/MCP editors, task logs, and agent questions use full-width
+panels directly above the composer, not centered windows. The conversation stays
+visible and undimmed. Lists scroll inside the panel; searchable panels put their
+query in the composer while keeping the ordinary draft aside. Closing or backing
+out restores it. Settings is one list without tabs. A question keeps its explicit
+Cancel action; Esc alone does not cancel it, and Ctrl+O opens sessions without
+answering or discarding a pending question.
 
 An empty composer shows one of three hints: `Type to start building anything` (new
 session), `Tell the working agent something` (an agent is running) and
@@ -38,18 +46,20 @@ grapheme boundaries. Visual wrapping does not change stored text.
 | ←/→ in /model | Preview an effort; Enter applies, Esc cancels |
 | Esc in INPUT (no command list) | Keep typing without changing the draft |
 | /new /sessions /fork /rename /cd /compact /export | Session actions |
-| /model /settings /skills /mcp /login /tasks | Model and management dialogs |
+| /model /settings /skills /mcp /login /tasks | Model and management panels |
 | /context | ctx/max, spent, in/out and cache hit for the last turn, the session and the current request |
 | /stop /q | Stop this turn; leave (work keeps running) |
 
 A mouse selection is copied to the clipboard on release and stays highlighted
 until the next key or click. The wheel, PgUp and PgDn scroll the timeline.
 
-Dialogs opened by a command return to INPUT when they close. Errors retain the
-command text for correction. Direct-shortcut dialogs preserve origin.
+Panels opened by a command return to INPUT when they close. Errors retain the
+command text for correction. Direct-shortcut panels preserve origin.
 
 The footer shows the session title, or its folder when untitled. Automatic titles
-replace file/folder/skill tags with readable labels before truncating.
+replace file/folder/skill tags with readable labels before truncating. Auto-loaded
+skills are appended after two newlines on the first user message and are excluded
+from its automatic title. Explicit skill references stay where you typed them.
 
 ## Status bar
 

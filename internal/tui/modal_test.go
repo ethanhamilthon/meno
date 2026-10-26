@@ -29,7 +29,7 @@ func TestWelcomeShownWhenEmpty(t *testing.T) {
 	defer scr.Fini()
 	a.draw()
 	out := screenText(scr)
-	for _, want := range []string{"thin and efficient AI coding harness", "@", "skills", "/help", version.Label(), "gpt-5.5"} {
+	for _, want := range []string{"Keep your agent simple.", "@", "skills", "/help", version.Label(), "gpt-5.5"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("welcome missing %q:\n%s", want, out)
 		}

@@ -22,14 +22,9 @@ func TestBackgroundCountIncludesOnlyActiveTasks(t *testing.T) {
 }
 
 func TestRemovedAgentFeaturesAreNotExposed(t *testing.T) {
-	for _, tab := range settingTabs {
-		if tab.name == "Agents" {
-			t.Fatal("the removed settings tab is still visible")
-		}
-		for _, row := range tab.rows {
-			if strings.HasPrefix(row.key, "subagent_") {
-				t.Fatalf("removed setting is still visible: %s", row.key)
-			}
+	for _, row := range settingRows {
+		if strings.HasPrefix(row.key, "subagent_") {
+			t.Fatalf("removed setting: %s", row.key)
 		}
 	}
 	for _, cmd := range commandList {

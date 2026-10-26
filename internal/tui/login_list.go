@@ -100,5 +100,5 @@ func (a *App) drawLogin(c render.Canvas, w, h int) {
 		hint = "j/k select · enter add · ctrl+c quits"
 	}
 	sel := clampSel(a.st.Sel, len(rows))
-	listBox(c, w, h, 73, titleRow(title, ""), a.loginItems(), sel, hint)
+	a.listBox(c, w, h, 73, titleRow(title, ""), a.loginItems(), sel, hint)
 }

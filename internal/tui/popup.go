@@ -6,37 +6,17 @@ import (
 	"meno/internal/render"
 )
 
-// box is the content area of a dialog; the painted surface (ox..) extends one
-// row above and below it so every dialog has a padding of 1.
+// box is a panel body. Its painted bounds include the separator row above it.
 type box struct{ x, y, w, h, oy, oh int }
 
-// modalWidth is the half-screen width, the floor for every dialog on a wide screen.
-func modalWidth(sw int) int { return min(max(0, sw), max(1, sw/2)) }
-
-// dialogWidth fits a dialog to its content on the screen it is on. On a wide
-// screen it keeps the calm half-screen width (or the requested width when the
-// content needs more); on a narrow one it takes nearly the whole row, because
-// half of 60 columns cannot hold a key hint, and never exceeds the screen.
-func dialogWidth(sw, want int) int {
-	w := max(modalWidth(sw), min(want, sw-4))
-	if sw < 100 {
-		w = max(w, sw-4)
-	}
-	return min(max(w, 1), max(sw, 0))
-}
-
-func centered(sw, sh, want, h int) box {
-	w := dialogWidth(sw, want)
-	oh := max(0, min(h+2, sh))
-	oy := (sh - oh) / 2
-	return box{x: (sw - w) / 2, y: oy + 1, w: w, h: max(0, oh-2), oy: oy, oh: oh}
-}
+// modalWidth is the shared panel text width inside the transcript gutters.
+func modalWidth(sw int) int { return max(0, sw-2*render.Gutter) }
 
 func (b box) bg(sel bool) tcell.Color {
 	if sel {
 		return render.BgPopupSel
 	}
-	return render.BgPopup
+	return render.BgTerm
 }
 
 func (b box) fill(c render.Canvas, y int, bg tcell.Color) {
@@ -44,6 +24,9 @@ func (b box) fill(c render.Canvas, y int, bg tcell.Color) {
 		return
 	}
 	inset := 0
+	if bg == render.BgPopup {
+		bg = render.BgTerm
+	}
 	if bg == render.BgPopupSel || bg == render.BgPopupIn {
 		inset = min(2, b.w/2)
 	}
@@ -53,6 +36,9 @@ func (b box) fill(c render.Canvas, y int, bg tcell.Color) {
 func (b box) put(c render.Canvas, x, y int, text string, fg, bg tcell.Color) int {
 	if x < 0 || y < 0 || y >= b.h {
 		return 0
+	}
+	if bg == render.BgPopup {
+		bg = render.BgTerm
 	}
 	return c.Text(b.x+x, b.y+y, max(0, b.w-x-2), text, tcell.StyleDefault.Foreground(fg).Background(bg))
 }
@@ -68,8 +54,7 @@ func (b box) hint(c render.Canvas, text string) {
 }
 
 func (b box) frame(c render.Canvas) {
-	c.Dim()
-	c.Fill(b.x, b.oy, b.w, b.oh, render.BgPopup)
+	render.DrawPanel(c, render.PanelBounds{X: b.x, Y: b.oy, Width: b.w, Height: b.oh})
 }
 
 type item struct {
@@ -165,18 +150,19 @@ func titleRow(title, sub string) headerFn {
 	}
 }
 
-func listBox(c render.Canvas, w, h, bw int, header headerFn, items []item, sel int, hint string) box {
+func (a *App) listBox(c render.Canvas, w, h, bw int, header headerFn, items []item, sel int, hint string) box {
 	bh := 4 + itemsHeight(items, sel)
 	if len(items) == 0 {
 		bh++
 	}
-	b := centered(w, h, bw, bh)
+	b := a.panelBox(w, h, bw, bh)
 	b.frame(c)
 	header(c, b)
 	if len(items) == 0 {
 		b.put(c, 4, 2, "nothing here", render.FgDim, render.BgPopup)
 	}
 	drawItems(c, b, 2, items, sel)
+	a.recordItems(b, 2, items, sel)
 	b.hint(c, hint)
 	return b
 }
@@ -190,25 +176,4 @@ func chips(c render.Canvas, b box, y, x int, opts []string, cur string) int {
 		x += b.put(c, x, y, " "+o+" ", fg, bg) + 1
 	}
 	return x
-}
-
-// searchRow draws the search input on a slightly darker surface. An empty
-// query shows the dim placeholder after the cursor.
-func searchRow(c render.Canvas, b box, y int, query *textEdit, placeholder, count string) {
-	if y < 0 || y >= b.h {
-		return
-	}
-	b.fill(c, y, render.BgPopupIn)
-	b.put(c, 2, y, "/", render.Blue, render.BgPopupIn)
-	queryW := max(0, b.w-6-render.TextWidth(count)-2)
-	query.Placeholder = placeholder
-	query.Draw(c, b.x+4, b.y+y, queryW, 1, render.Style{FG: render.FgWhite, BG: render.BgPopupIn}.TCell(), true)
-	b.putRight(c, y, count, render.FgDim, render.BgPopupIn)
-}
-
-// titledSearch is the shared header of searchable lists: title row, blank row,
-// search row. Lists start at row 4.
-func titledSearch(c render.Canvas, b box, title, sub string, query *textEdit, placeholder string) {
-	titleRow(title, sub)(c, b)
-	searchRow(c, b, 2, query, placeholder, "")
 }

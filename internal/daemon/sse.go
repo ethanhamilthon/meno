@@ -27,6 +27,12 @@ func (s *Server) sse(w http.ResponseWriter, r *http.Request, key string) {
 		http.Error(w, "streaming unavailable", 500)
 		return
 	}
+	s.admission.RLock()
+	if s.stopping {
+		s.admission.RUnlock()
+		s.result(w, nil, &APIError{Code: api.CodeDaemonStopping, Message: "daemon is stopping; reopen meno"})
+		return
+	}
 	var ch <-chan api.Event
 	var cancel func()
 	var resync bool
@@ -35,7 +41,9 @@ func (s *Server) sse(w http.ResponseWriter, r *http.Request, key string) {
 	} else {
 		ch, cancel, resync = s.hub.Subscribe(key, parseAfter(r), bootFrom(r))
 	}
-	defer cancel()
+	s.touchIdle()
+	s.admission.RUnlock()
+	defer func() { s.admission.RLock(); cancel(); s.touchIdle(); s.admission.RUnlock() }()
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")

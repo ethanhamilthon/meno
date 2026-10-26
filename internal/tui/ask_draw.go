@@ -44,15 +44,6 @@ func askButtonLabels(inner int) (labels [focusCount]string, gap int) {
 	return sets[len(sets)-1], 1
 }
 
-// askBoxFor sizes the dialog: wider than the other dialogs, never wider than
-// the terminal.
-func askBoxFor(sw, sh, contentH int) box {
-	bw := min(sw, max(20, min(100, sw-2)))
-	oh := max(0, min(contentH+2, sh))
-	oy := (sh - oh) / 2
-	return box{x: (sw - bw) / 2, y: oy + 1, w: bw, h: max(0, oh-2), oy: oy, oh: oh}
-}
-
 // askLines is the content of the form as drawn rows, built from the state alone
 // so a resize only reflows it.
 type askRow struct {
@@ -67,7 +58,8 @@ func (a *App) drawAskForm(c render.Canvas, w, h int) {
 	if st == nil || w < 12 || h < 6 {
 		return
 	}
-	bw := min(w, max(20, min(100, w-2)))
+	b := a.panelBox(w, h, 0, 0)
+	bw := b.w
 	inner := max(1, bw-4)
 	bg := render.BgPopup
 	var rows []askRow
@@ -170,7 +162,7 @@ func (a *App) drawAskForm(c render.Canvas, w, h int) {
 	}
 
 	// Keep the cursor row visible when the form is taller than the screen.
-	maxRows := max(3, h-4)
+	maxRows := max(3, b.h)
 	first := 0
 	if len(rows) > maxRows {
 		cursor := 0
@@ -188,14 +180,13 @@ func (a *App) drawAskForm(c render.Canvas, w, h int) {
 		s := min(max(0, first-1), max(0, len(mid)-room))
 		rows = append(append(head, mid[s:min(len(mid), s+room)]...), tail...)
 	}
-	b := askBoxFor(w, h, len(rows))
 	b.frame(c)
 	st.hits = st.hits[:0]
 	btnY := -1
 	for i, r := range rows {
 		b.fill(c, i, r.bg)
 		b.put(c, 2, i, render.Truncate(r.text, inner), r.fg, r.bg)
-		if r.hit != nil {
+		if r.hit != nil && i < b.h {
 			hit := *r.hit
 			hit.x, hit.y, hit.w = b.x, b.y+i, b.w
 			st.hits = append(st.hits, hit)
@@ -223,7 +214,18 @@ func (a *App) drawAskForm(c render.Canvas, w, h int) {
 // askMouse handles a click on the form.
 func (a *App) askMouse(e *tcell.EventMouse) {
 	st := a.st.Ask
-	if st == nil || e.Buttons()&tcell.Button1 == 0 {
+	if st == nil {
+		return
+	}
+	if e.Buttons()&tcell.WheelUp != 0 {
+		a.askKey(tcell.NewEventKey(tcell.KeyUp, 0, 0))
+		return
+	}
+	if e.Buttons()&tcell.WheelDown != 0 {
+		a.askKey(tcell.NewEventKey(tcell.KeyDown, 0, 0))
+		return
+	}
+	if e.Buttons()&tcell.Button1 == 0 {
 		return
 	}
 	x, y := e.Position()

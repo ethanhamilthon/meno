@@ -30,7 +30,7 @@ func patch(t *testing.T, svc *Service, body string) (any, error) {
 // Two clients edit different fields from the same starting point: both survive.
 func TestSettingsPatchMergesDisjointFields(t *testing.T) {
 	svc := patchFixture(t)
-	if _, err := patch(t, svc, `{"fields":{"theme":"dark"}}`); err != nil {
+	if _, err := patch(t, svc, `{"fields":{"system_prompt":"dark"}}`); err != nil {
 		t.Fatal(err)
 	}
 	_, err := patch(t, svc, `{"fields":{"notify_volume":60}}`)
@@ -39,8 +39,8 @@ func TestSettingsPatchMergesDisjointFields(t *testing.T) {
 	}
 
 	got, _ := svc.Settings()
-	if got.Theme != "dark" || got.NotifyVolume != 60 {
-		t.Fatalf("theme=%q volume=%d", got.Theme, got.NotifyVolume)
+	if got.SystemPrompt != "dark" || got.NotifyVolume != 60 {
+		t.Fatalf("theme=%q volume=%d", got.SystemPrompt, got.NotifyVolume)
 	}
 }
 

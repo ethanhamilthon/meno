@@ -12,7 +12,7 @@ import (
 
 // skillTurns loads the skills a user message names with /skill:name, each once.
 // On the first message of a new session the skills marked auto-load are added,
-// in front of the text, as ordinary skill references. A skill that is disabled,
+// after the text, as ordinary skill references. A skill that is disabled,
 // missing or unreadable is skipped. It returns the text to store and the turns
 // that carry the skill texts.
 func (e *Engine) skillTurns(s *runState, text string, first bool) (string, []agent.Turn) {
@@ -37,15 +37,15 @@ func (e *Engine) skillTurns(s *runState, text string, first bool) (string, []age
 		}
 	}
 	if first {
-		var prefix []string
+		var suffix []string
 		for _, k := range skills {
 			if k.Auto && k.Enabled && !seen[k.Name] {
 				add(k.Name)
-				prefix = append(prefix, content.Object{Kind: content.Skill, Ref: k.Name}.Tag())
+				suffix = append(suffix, content.Object{Kind: content.Skill, Ref: k.Name}.Tag())
 			}
 		}
-		if len(prefix) > 0 {
-			text = strings.Join(prefix, " ") + " " + text
+		if len(suffix) > 0 {
+			text += "\n\n" + strings.Join(suffix, " ")
 		}
 	}
 	var turns []agent.Turn

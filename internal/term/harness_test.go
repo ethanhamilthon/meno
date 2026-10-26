@@ -3,7 +3,9 @@
 package term
 
 import (
+	"context"
 	"fmt"
+	"meno/internal/client"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -22,6 +24,7 @@ import (
 )
 
 var binPath string
+var ownedHomes sync.Map
 
 // TestMain builds the real binary once.
 func TestMain(m *testing.M) {
@@ -76,6 +79,25 @@ func start(t *testing.T, o options) *session {
 	}
 	if o.home == "" {
 		o.home = t.TempDir()
+	}
+	// Registered before the window cleanup: all windows owned by this test stop
+	// first (LIFO), then the per-home daemon stops before TempDir removes its home.
+	if _, owned := ownedHomes.LoadOrStore(o.home, true); !owned {
+		t.Cleanup(func() {
+			defer ownedHomes.Delete(o.home)
+			ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
+			defer cancel()
+			cl := client.New(o.home)
+			if _, err := cl.Hello(ctx); err != nil {
+				return
+			}
+			ownership, err := client.StopConfirmed(ctx, o.home, false)
+			if err != nil {
+				t.Errorf("daemon cleanup: %v", err)
+				return
+			}
+			ownership.Close()
+		})
 	}
 	work := t.TempDir()
 	if o.fake != nil {

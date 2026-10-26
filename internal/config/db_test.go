@@ -33,7 +33,7 @@ func TestDBRoundTrips(t *testing.T) {
 	st := NewStore(Paths{Home: t.TempDir()})
 	t.Cleanup(db.CloseAll)
 	s := DefaultSettings()
-	s.Model, s.Theme = "gpt", "nord"
+	s.Model, s.SystemPrompt = "gpt", "nord"
 	if err := st.SaveSettings(s); err != nil {
 		t.Fatal(err)
 	}

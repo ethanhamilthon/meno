@@ -19,6 +19,11 @@ func (a *App) drawMain(c render.Canvas, w, h int) {
 	} else {
 		a.drawLog(c, 0, 0, w, logH, lines)
 	}
+	if a.panelOpen() {
+		ch := min(h, a.composerHeightFor(w)+1)
+		a.drawBottom(c, 0, h-ch, w, ch)
+		return
+	}
 	if gap := a.logGap(); gap > 0 && bottom > gap {
 		c.Fill(0, logH, w, gap, render.BgTerm)
 		a.drawBottom(c, 0, logH+gap, w, bottom-gap)
@@ -37,7 +42,10 @@ func (a *App) logGap() int {
 	return 1
 }
 
-func (a *App) bottomHeight() int { return a.bottomBase() }
+func (a *App) bottomHeight() int {
+	w, h := a.scr.Size()
+	return a.bottomBase() + a.panelBounds(w, h).Height
+}
 
 // bottomBase is the bottom area: input, completions,
 // status bar and the gap above them.

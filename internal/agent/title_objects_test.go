@@ -21,3 +21,10 @@ func TestAutomaticTitleObjectLabels(t *testing.T) {
 		}
 	}
 }
+
+func TestLiteralUntitledRemainsTheFirstAutomaticTitle(t *testing.T) {
+	s := &Session{Turns: []Turn{{Role: llm.RoleUser, Text: "untitled"}, {Role: llm.RoleUser, Text: "later message"}}}
+	if got := deriveTitle(s); got != "untitled" {
+		t.Fatalf("first title skipped: %s", got)
+	}
+}

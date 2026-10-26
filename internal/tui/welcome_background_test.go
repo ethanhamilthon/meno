@@ -16,23 +16,20 @@ import (
 func welcomeLayout(a *App, w, h int) (top, logH, boxX, boxY int) {
 	logH = h - a.bottomHeight()
 	top = (logH - welcomeBlockH) / 2
-	return top, logH, (w - logoW) / 2, top + 3
+	return top, logH, 0, top + 6
 }
 
 // welcomeStrays lists the cells of the log area that hold anything but a blank
 // terminal cell, outside the wordmark box and the four text rows.
 func welcomeStrays(a *App, s tcell.SimulationScreen, w, h int) []string {
-	top, logH, boxX, boxY := welcomeLayout(a, w, h)
-	textRows := map[int]bool{top: true, top + 12: true, top + 15: true, top + 18: true}
+	top, logH, _, _ := welcomeLayout(a, w, h)
+	textRows := map[int]bool{top + 6: true, top + 8: true, top + 15: true, top + 18: true}
 	var out []string
 	for y := 0; y < logH; y++ {
 		if textRows[y] {
 			continue
 		}
 		for x := 0; x < w; x++ {
-			if x >= boxX && x <= boxX+logoW && y >= boxY && y <= boxY+logoH {
-				continue
-			}
 			r, _, st, _ := s.GetContent(x, y)
 			_, bg, _ := st.Decompose()
 			if r != ' ' || bg != render.BgTerm {
@@ -85,35 +82,21 @@ func runesOf(s tcell.SimulationScreen) []rune {
 	return out
 }
 
-func TestWelcomeLogoAnimates(t *testing.T) {
+func TestWelcomeHeaderDoesNotAnimate(t *testing.T) {
 	a, s := visualFixture(t, 112, 36)
 	base := time.Now()
 	a.now = func() time.Time { return base }
 	a.draw()
-	if !a.animOn.Load() {
-		t.Fatal("welcome screen does not request animation ticks")
+	if a.animOn.Load() {
+		t.Fatal("static welcome requested animation")
 	}
-	_, _, boxX, boxY := welcomeLayout(a, 112, 36)
 	before := runesOf(s)
-	a.now = func() time.Time { return base.Add(500 * time.Millisecond) }
+	a.now = func() time.Time { return base.Add(time.Second) }
 	a.draw()
 	after := runesOf(s)
-	inBox, outside := 0, 0
 	for i := range before {
-		if before[i] == after[i] {
-			continue
+		if before[i] != after[i] {
+			t.Fatal("static welcome changed")
 		}
-		x, y := i%112, i/112
-		if x >= boxX && x <= boxX+logoW && y >= boxY && y <= boxY+logoH {
-			inBox++
-		} else {
-			outside++
-		}
-	}
-	if inBox == 0 {
-		t.Fatal("the wordmark glyphs did not change")
-	}
-	if outside != 0 {
-		t.Fatalf("%d cells outside the wordmark changed", outside)
 	}
 }

@@ -14,10 +14,11 @@ import (
 // tasksView is the /tasks dialog: the tasks of the current session as the
 // daemon last said, and the log of the opened one.
 type tasksView struct {
-	Logs     []taskLogLine
-	LogID    string // the task whose log is open ("" = the list)
-	HideDone bool
-	inflight bool
+	Logs       []taskLogLine
+	LogID      string // the task whose log is open ("" = the list)
+	HideDone   bool
+	inflight   bool
+	inflightID string
 	// Up is how many rows the log is scrolled above its newest row. Zero means
 	// follow: new output keeps the view at the end. Scrolling up stops
 	// following until the user returns to the end with G or End.
@@ -43,10 +44,11 @@ func (a *App) openTasks() {
 
 // refreshTasks reloads the open log; session task lists arrive through the watcher.
 func (a *App) refreshTasks() {
-	if a.st.Over != OverTasks || a.st.TasksUI.inflight {
+	if a.st.Over != OverTasks || (a.st.TasksUI.inflight && a.st.TasksUI.inflightID == a.st.TasksUI.LogID) || a.st.TasksUI.LogID == "" {
 		return
 	}
 	a.st.TasksUI.inflight = true
+	a.st.TasksUI.inflightID = a.st.TasksUI.LogID
 	sid, logID := a.st.Session.ID(), a.st.TasksUI.LogID
 	a.spawn(func() {
 		var logs []taskLogLine
@@ -75,8 +77,10 @@ func (a *App) refreshTasks() {
 }
 
 func (a *App) onTasksLoaded(m tasksLoaded) {
-	a.st.TasksUI.inflight = false
-	if m.sid == a.st.Session.ID() {
+	if m.sid == a.st.Session.ID() && m.id == a.st.TasksUI.inflightID {
+		a.st.TasksUI.inflight = false
+	}
+	if m.sid == a.st.Session.ID() && m.id == a.st.TasksUI.LogID {
 		a.st.TasksUI.Logs = m.logs
 	}
 }
@@ -164,13 +168,14 @@ func (a *App) drawTasks(c render.Canvas, w, h int) {
 	if len(items) == 0 {
 		bh++
 	}
-	b := centered(w, h, 0, bh)
+	b := a.panelBox(w, h, 0, bh)
 	b.frame(c)
 	titleRow("tasks", itoa(len(items)))(c, b)
 	if len(items) == 0 {
 		b.put(c, 4, 2, "no tasks in this session", render.FgDim, render.BgPopup)
 	}
 	drawItems(c, b, 2, items, sel)
+	a.recordItems(b, 2, items, sel)
 	b.hint(c, hint)
 }
 
@@ -182,7 +187,7 @@ func (a *App) drawTaskLog(c render.Canvas, w, h int) {
 			task = t
 		}
 	}
-	b := centered(w, h, 0, max(6, h-4))
+	b := a.panelBox(w, h, 0, max(6, h-4))
 	b.frame(c)
 	titleRow("task "+v.LogID+" · "+task.Status, "")(c, b)
 	b.put(c, 2, 1, render.Truncate(oneLine(task.Command), max(1, b.w-4)), render.FgDim, render.BgPopup)

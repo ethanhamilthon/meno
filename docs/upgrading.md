@@ -1,5 +1,21 @@
 # Upgrading, data and privacy
 
+## 0.7.4: composer panels, live palette and idle exit
+
+Restart your windows after updating. Commands and questions now use panels above
+the composer, settings is one list, and the welcome header is static. The single
+palette in `theme.json` reloads automatically; the old array is preserved in
+`theme.json.legacy.bak` before conversion. Its `panel-dark` palette is used when
+available; otherwise the new default is written. Restore the backup before
+downgrading to a version that expects arrays. Named-theme settings are retired.
+
+Unused daemons now exit after 10 seconds without clients, requests, active runs
+or live background tasks; the next launch restores sessions. Old
+`daemon_idle_exit_min` values, including zero, are ignored. There is no database
+migration. Auto skills move to the end of the first message and no longer prefix
+new session titles; existing names are unchanged.
+
+
 ## 0.7.1: view modes and skill loading
 
 Restart the daemon and every window after updating. The database gets one migration (a column in

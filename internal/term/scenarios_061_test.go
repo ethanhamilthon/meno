@@ -53,7 +53,7 @@ func TestSlashFindsSkillWithoutTheSkillPrefix(t *testing.T) {
 	s.Cmd("skills")
 	s.WaitFor("plan marker")
 	s.Send(Esc)
-	s.WaitGone("search skills")
+	s.WaitGone("tab auto-load")
 	s.Type("/plann")
 	s.WaitFor("/skill:planning")
 	s.Send(Enter)

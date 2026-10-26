@@ -74,8 +74,11 @@ func TestNamedAndAutoSkillsLoadIntoTheFirstMessage(t *testing.T) {
 	if strings.Contains(skills[0], "description:") || strings.Contains(strings.Join(skills, ""), "Hidden.") {
 		t.Fatalf("frontmatter or a disabled skill leaked: %q", skills)
 	}
-	if !strings.HasPrefix(user, "<skill>always</skill> go ") {
+	if user != "go <skill>plan</skill> and <skill>plan</skill>\n\n<skill>always</skill>" {
 		t.Fatalf("auto skill missing in the message: %q", user)
+	}
+	if snap.Session.Name != "go /skill:plan and /skill:plan" {
+		t.Fatalf("auto references contaminated title: %q", snap.Session.Name)
 	}
 	// A later message loads only what it names, and never adds the auto skills again.
 	if _, err = e.Message(context.Background(), id, api.MessageRequest{Text: "next", ClientID: "c"}); err != nil {

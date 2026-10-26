@@ -10,12 +10,8 @@ type Settings struct {
 	Effort   string `json:"effort"`
 	Tool     string `json:"tool"`
 	// View is how much of the work the timeline shows: full, bash_only or compact.
-	View              string `json:"view"`
-	DaemonIdleExitMin int    `json:"daemon_idle_exit_min"`
-	TurnSummary       string `json:"turn_summary"`
-	// Theme is the name of a ui theme; the app falls back to the default for
-	// names it does not know.
-	Theme string `json:"theme"`
+	View        string `json:"view"`
+	TurnSummary string `json:"turn_summary"`
 	// Notify is when to signal that the user is needed: off, question (the agent
 	// asks with askUser) or done (also when a turn ends, with success or error).
 	Notify string `json:"notify"`
@@ -67,16 +63,10 @@ func (s *Settings) UnmarshalJSON(data []byte) error {
 	if _, hasTool := raw["tool"]; !hasTool && hasLegacyJSSetting(raw) {
 		st.Tool = "js"
 	}
-	if _, hasBash := raw["daemon_idle_exit_min"]; !hasBash {
-		st.DaemonIdleExitMin = defaults.DaemonIdleExitMin
-	}
 	for key := range choices {
 		if err := st.Set(key, st.Get(key)); err != nil {
 			st.setRaw(key, defaults.Get(key))
 		}
-	}
-	if st.Theme == "" {
-		st.Theme = defaults.Theme
 	}
 	if st.CompactPercent < MinCompactPercent || st.CompactPercent > MaxCompactPercent {
 		st.CompactPercent = defaults.CompactPercent
@@ -99,7 +89,6 @@ func (s *Settings) UnmarshalJSON(data []byte) error {
 	if st.MaxWorkers < 1 || st.MaxWorkers > 64 {
 		st.MaxWorkers = defaults.MaxWorkers
 	}
-	normalizeBash(&st, defaults)
 	if st.Tool != "js" && st.Tool != "bash" {
 		st.Tool = defaults.Tool
 	}
@@ -109,10 +98,9 @@ func (s *Settings) UnmarshalJSON(data []byte) error {
 
 func DefaultSettings() Settings {
 	return Settings{
-		Tool: "bash", View: "compact", DaemonIdleExitMin: 30,
+		Tool: "bash", View: "compact",
 		Effort:         "high",
 		TurnSummary:    "on",
-		Theme:          "default",
 		CompactPercent: 80, CompactKeep: 8, CompactSummaryTokens: 4000, ElidePercent: 50,
 		MaxSpawnDepth: 2, MaxWorkers: 8,
 		Notify:       "off",

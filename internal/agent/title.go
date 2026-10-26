@@ -39,32 +39,44 @@ func deriveTitle(s *Session) string {
 		if t.Role != llm.RoleUser || t.Kind != "" {
 			continue
 		}
-		var b strings.Builder
-		for _, part := range content.Split(t.Text, nil) {
-			if part.Obj != nil {
-				b.WriteString(part.Obj.Label())
-			} else {
-				b.WriteString(part.Text)
-			}
+		if title, ok := titleFromText(t.Text); ok {
+			return title
 		}
-		text := strings.Map(func(r rune) rune {
-			if unicode.IsSpace(r) {
-				return ' '
-			}
-			if unicode.IsControl(r) || r == '\u2063' {
-				return -1
-			}
-			return r
-		}, b.String())
-		text = strings.Join(strings.Fields(text), " ")
-		if text == "" {
-			continue
-		}
-		r := []rune(text)
-		if len(r) > 60 {
-			r = r[:60]
-		}
-		return string(r)
 	}
 	return "untitled"
+}
+
+// TitleFromText derives a short name from the original user input.
+func TitleFromText(input string) string { title, _ := titleFromText(input); return title }
+
+func titleFromText(input string) (string, bool) {
+	var b strings.Builder
+	meaningful := false
+	for _, part := range content.Split(input, nil) {
+		if part.Obj != nil {
+			b.WriteString(part.Obj.Label())
+			meaningful = meaningful || part.Obj.Kind != content.Skill
+		} else {
+			b.WriteString(part.Text)
+			meaningful = meaningful || strings.TrimSpace(part.Text) != ""
+		}
+	}
+	text := strings.Map(func(r rune) rune {
+		if unicode.IsSpace(r) {
+			return ' '
+		}
+		if unicode.IsControl(r) || r == '\u2063' {
+			return -1
+		}
+		return r
+	}, b.String())
+	text = strings.Join(strings.Fields(text), " ")
+	if text == "" || !meaningful {
+		return "untitled", false
+	}
+	r := []rune(text)
+	if len(r) > 60 {
+		r = r[:60]
+	}
+	return string(r), true
 }

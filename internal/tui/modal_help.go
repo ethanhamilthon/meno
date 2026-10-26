@@ -54,7 +54,7 @@ func (a *App) drawHelp(c render.Canvas, w, h int) {
 		maxH = h - 4
 	}
 	bh := min(len(rows)+4, maxH)
-	b := centered(w, h, 80, bh)
+	b := a.panelBox(w, h, 80, bh)
 	b.frame(c)
 	title := "help · meno keybindings & commands"
 	if b.w < render.TextWidth(title)+10 {

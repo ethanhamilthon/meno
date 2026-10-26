@@ -6,7 +6,7 @@ import (
 )
 
 func TestErrorBackgroundExistsInEveryTheme(t *testing.T) {
-	for _, th := range Themes() {
+	for _, th := range testPalettes() {
 		p := th.Palette
 		if p.BgDiffDel == 0 || p.BgDiffDel == p.BgTerm || p.BgDiffDel == p.BgDiffAdd {
 			t.Errorf("%s: BgDiffDel %v", th.Name, p.BgDiffDel)
@@ -24,13 +24,13 @@ func TestErrorBackgroundExistsInEveryTheme(t *testing.T) {
 			t.Errorf("%s: added line marker %.1f", th.Name, c)
 		}
 	}
-	defer SetTheme(DefaultTheme)
-	SetTheme(DefaultTheme)
+	defer ApplyPalette(DefaultPalette())
+	ApplyPalette(DefaultPalette())
 	if BgDiffDel == 0 || BgDiffDel == BgTerm {
 		t.Fatal("theme switch did not set the error background")
 	}
-	SetTheme(DefaultTheme)
-	if fmt.Sprint(BgDiffDel) != fmt.Sprint(Themes()[0].BgDiffDel) {
+	ApplyPalette(DefaultPalette())
+	if fmt.Sprint(BgDiffDel) != fmt.Sprint(testPalettes()[0].Palette.BgDiffDel) {
 		t.Fatal("default restored")
 	}
 }

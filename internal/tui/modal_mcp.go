@@ -92,7 +92,7 @@ func (a *App) drawMCP(c render.Canvas, w, h int) {
 		}
 	}
 	header := titleRow("mcp servers", itoa(running)+" running")
-	listBox(c, w, h, 73, header, a.mcpItems(), a.st.Sel,
+	a.listBox(c, w, h, 73, header, a.mcpItems(), a.st.Sel,
 		"j/k select · space toggle · enter edit · n new · r restart · esc close")
 }
 
@@ -174,7 +174,7 @@ func (a *App) saveMCPEdit() {
 
 func (a *App) drawMCPEdit(c render.Canvas, w, h int) {
 	fs := a.mcpFields()
-	b := centered(w, h, 73, len(fs)+6)
+	b := a.panelBox(w, h, 73, len(fs)+6)
 	b.frame(c)
 	b.put(c, 2, 0, "mcp /", render.FgDim, render.BgPopup)
 	name := a.st.EditMCP.Name
@@ -187,7 +187,7 @@ func (a *App) drawMCPEdit(c render.Canvas, w, h int) {
 	} else {
 		b.putRight(c, 0, "○ stopped", render.FgDim, render.BgPopup)
 	}
-	drawForm(c, b, 2, fs, a.st.Field, a.st.Editing, &a.st.Edit)
+	a.drawForm(c, b, 2, fs, a.st.Field, a.st.Editing, &a.st.Edit)
 	drawFormNote(c, b, a.st.FormNote)
 	b.hint(c, "j/k move · enter edit · r restart · d delete · esc back")
 }

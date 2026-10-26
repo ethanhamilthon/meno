@@ -16,15 +16,14 @@ import (
 // ErrAlreadyRunning means the per-home daemon lock is held.
 var ErrAlreadyRunning = errors.New("daemon is already running")
 
-// Options configures daemon lifecycle and transport. IdleExit accepts a duration;
-// IdleExitMin accepts the corresponding setting in minutes.
+// Options configures daemon lifecycle. A positive IdleExit overrides the fixed
+// production grace interval for tests. Zero selects the production policy.
 type Options struct {
 	StartupLock   *os.File
 	Home, Version string
 	OnStart       func(context.Context) error
 	OnStop        func()
 	IdleExit      time.Duration
-	IdleExitMin   int
 	Backend       Backend
 	Hub           *Hub
 	Global        *GlobalHub
@@ -43,15 +42,19 @@ type Server struct {
 	http                                           *http.Server
 	listener                                       net.Listener
 	admission                                      sync.RWMutex
+	startMu                                        sync.Mutex
 	stopping                                       bool
+	requests                                       int
+	requestChanged                                 chan struct{}
+	idleMu                                         sync.Mutex
+	lastActive                                     time.Time
 	stopOnce                                       sync.Once
 	done                                           chan struct{}
 	lock                                           *os.File
 	onStart                                        func(context.Context) error
 }
 
-// New creates a daemon. IdleExit sets a duration. IdleExitMin sets the matching setting in minutes.
-// Zero disables idle exit.
+// New creates a daemon with automatic idle shutdown enabled.
 func New(o Options) (*Server, error) {
 	if o.Home == "" {
 		return nil, errors.New("daemon home is required")
@@ -86,10 +89,10 @@ func New(o Options) (*Server, error) {
 	hub.SetBootID(boot)
 	global.SetBootID(boot)
 	idle := o.IdleExit
-	if idle == 0 && o.IdleExitMin > 0 {
-		idle = time.Duration(o.IdleExitMin) * time.Minute
+	if idle <= 0 {
+		idle = idleExitDefault
 	}
-	return &Server{home: o.Home, runDir: run, socket: SocketPath(o.Home), logPath: filepath.Join(logs, "daemon.log"), version: o.Version, bootID: boot, pid: os.Getpid(), started: time.Now(), idle: idle, backend: o.Backend, hub: hub, global: global, done: make(chan struct{}), lock: o.StartupLock, onStart: o.OnStart, onStop: o.OnStop}, nil
+	return &Server{home: o.Home, runDir: run, socket: SocketPath(o.Home), logPath: filepath.Join(logs, "daemon.log"), version: o.Version, bootID: boot, pid: os.Getpid(), started: time.Now(), idle: idle, lastActive: time.Now(), requestChanged: make(chan struct{}), backend: o.Backend, hub: hub, global: global, done: make(chan struct{}), lock: o.StartupLock, onStart: o.OnStart, onStop: o.OnStop}, nil
 }
 func privateDir(path string) error {
 	if e := os.MkdirAll(path, 0o700); e != nil {

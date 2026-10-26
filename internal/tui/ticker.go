@@ -2,7 +2,7 @@ package tui
 
 import "time"
 
-// ticker wakes the render loop twice a second while the agent is running.
+// ticker wakes the render loop four times a second while the agent is running.
 func (a *App) ticker() {
 	t := time.NewTicker(250 * time.Millisecond)
 	defer t.Stop()

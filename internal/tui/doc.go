@@ -6,10 +6,15 @@ import "meno/internal/render"
 func (a *App) logText() vtext {
 	w, _ := a.scr.Size()
 	lines := a.transcriptWithSelection(w)
+	c := &a.st.transcript
+	if c.text != nil && c.textStamp == c.stamp {
+		return c.text
+	}
 	text := make(vtext, len(lines))
 	for i, l := range lines {
 		text[i] = []rune(l.Text())
 	}
+	c.text, c.textStamp = text, c.stamp
 	return text
 }
 

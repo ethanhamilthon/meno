@@ -91,6 +91,9 @@ func (a *App) cmdSync() {
 // completionHeight is the popup above the composer: command rows, completions
 // or the queue.
 func (a *App) completionHeight(w int) int {
+	if a.panelOpen() {
+		return 0
+	}
 	if a.cmdActive() {
 		return acRowCount(len(commandRows(a)), w)
 	}

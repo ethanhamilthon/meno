@@ -108,6 +108,9 @@ func (e *Engine) appendMessage(s *runState, q api.MessageRequest) error {
 	if err != nil {
 		return err
 	}
+	if len(s.session.Turns) == 0 && (s.session.Title == "" || s.session.Title == "untitled") {
+		s.session.Title = agent.TitleFromText(q.Text)
+	}
 	text, skills := e.skillTurns(s, q.Text, len(s.session.Turns) == 0)
 	for _, t := range skills {
 		s.session.Append(t)

@@ -1,29 +1,10 @@
 package daemon
 
 import (
-	"context"
 	"net/http"
 
 	"meno/internal/api"
 )
-
-// mutationGate makes admission and the idle check one coherent boundary. Streams
-// and read-only requests do not hold the gate while waiting for events.
-func (s *Server) mutationGate(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == "GET" || r.URL.Path == "/v1/shutdown/idle" {
-			next.ServeHTTP(w, r)
-			return
-		}
-		s.admission.RLock()
-		defer s.admission.RUnlock()
-		if s.stopping {
-			s.result(w, nil, &APIError{Code: api.CodeDaemonStopping, Message: "daemon is stopping; reopen meno after updating"})
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
-}
 
 func (s *Server) shutdownIdle(w http.ResponseWriter, r *http.Request) {
 	s.admission.Lock()
@@ -31,16 +12,33 @@ func (s *Server) shutdownIdle(w http.ResponseWriter, r *http.Request) {
 	if r.Context().Err() != nil {
 		return
 	}
-	busy := s.backend.HasWork(r.Context())
-	if b, ok := s.backend.(interface {
-		HasUpdateWork(context.Context) (bool, error)
-	}); ok {
-		var err error
-		busy, err = b.HasUpdateWork(r.Context())
+	// Wait for work admission to settle without blocking requests that complete
+	// an already active run (for example an answer to a long-lived ask request).
+	for s.requests > 0 {
+		busy, err := s.hasCompleteWork(r.Context())
 		if err != nil {
 			s.result(w, nil, err)
 			return
 		}
+		if busy {
+			s.result(w, nil, &APIError{Code: api.CodeConflict, Message: "daemon has active runs or background tasks; finish or stop them and retry the update"})
+			return
+		}
+		changed := s.requestChanged
+		s.admission.Unlock()
+		select {
+		case <-changed:
+		case <-r.Context().Done():
+		}
+		s.admission.Lock()
+		if r.Context().Err() != nil {
+			return
+		}
+	}
+	busy, err := s.hasCompleteWork(r.Context())
+	if err != nil {
+		s.result(w, nil, err)
+		return
 	}
 	if busy {
 		s.result(w, nil, &APIError{Code: api.CodeConflict, Message: "daemon has active runs or background tasks; finish or stop them and retry the update"})

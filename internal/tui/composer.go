@@ -86,5 +86,12 @@ func (a *App) applyCursor() {
 
 // composerHeightFor is the composer band height for a screen width w.
 func (a *App) composerHeightFor(w int) int {
+	if a.panelOpen() {
+		_, h := a.scr.Size()
+		if h < 10 {
+			return 1
+		}
+		return 3
+	}
 	return 1 + min(composerMaxText, max(1, len(layoutInput(a.st.Input, a.composerInnerWidth(w))))) + composerPadY
 }

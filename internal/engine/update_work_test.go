@@ -24,6 +24,20 @@ func TestUpdateWorkCountsRunsQueuesAndBackgroundTasks(t *testing.T) {
 		}
 	}
 	assertBusy(false)
+	s.mu.Lock()
+	s.running = true
+	s.mu.Unlock()
+	assertBusy(true)
+	s.mu.Lock()
+	s.running = false
+	s.compacting = true
+	s.mu.Unlock()
+	assertBusy(true)
+	s.mu.Lock()
+	s.compacting = false
+	s.mu.Unlock()
+	assertBusy(false)
+
 	e.mu.Lock()
 	e.activeRuns++
 	e.mu.Unlock()

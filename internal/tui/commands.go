@@ -58,6 +58,7 @@ func (a *App) runCommand(raw string) {
 	case "model":
 		a.fetchModels()
 		a.openOverlay(OverModel)
+		a.st.Query.Set(strings.Join(args, " "))
 	case "settings":
 		a.fetchModels()
 		a.openOverlay(OverSettings)
@@ -125,11 +126,11 @@ func (a *App) markUnseen(sid string) {
 // animating reports whether something on screen changes without input: a
 // running turn in any session, or the /sessions list with live statuses.
 func (a *App) animating() bool {
-	if a.st.Over == OverSessions || a.bgAny() {
+	if a.st.Running || a.bgAny() {
 		return true
 	}
 	for _, rt := range a.rtList {
-		if rt.Running {
+		if a.st.Over == OverSessions && rt.Running {
 			return true
 		}
 	}

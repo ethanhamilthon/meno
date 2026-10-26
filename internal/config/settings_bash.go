@@ -3,7 +3,6 @@ package config
 import (
 	"encoding/json"
 	"fmt"
-	"strconv"
 )
 
 var bashChoices = map[string][]string{
@@ -19,12 +18,6 @@ func hasLegacyJSSetting(raw map[string]json.RawMessage) bool {
 	return false
 }
 
-func normalizeBash(s *Settings, defaults Settings) {
-	if s.DaemonIdleExitMin < 0 || s.DaemonIdleExitMin > 10080 {
-		s.DaemonIdleExitMin = defaults.DaemonIdleExitMin
-	}
-}
-
 func contains(list []string, value string) bool {
 	for _, item := range list {
 		if item == value {
@@ -38,8 +31,6 @@ func setBash(s *Settings, key, value string) {
 	switch key {
 	case "tool":
 		s.Tool = value
-	case "daemon_idle_exit_min":
-		s.DaemonIdleExitMin, _ = strconv.Atoi(value)
 	}
 }
 
@@ -47,8 +38,6 @@ func getBash(s *Settings, key string) (string, bool) {
 	switch key {
 	case "tool":
 		return s.Tool, true
-	case "daemon_idle_exit_min":
-		return strconv.Itoa(s.DaemonIdleExitMin), true
 	}
 	return "", false
 }
@@ -64,16 +53,5 @@ func setBashSetting(s *Settings, key, value string) (bool, error) {
 		setBash(s, key, value)
 		return true, nil
 	}
-	n, err := strconv.Atoi(value)
-	if err != nil {
-		return true, fmt.Errorf("invalid value %q for %s", value, key)
-	}
-	switch key {
-	case "daemon_idle_exit_min":
-		if n < 0 || n > 10080 {
-			return true, fmt.Errorf("invalid value %q for %s", value, key)
-		}
-	}
-	setBash(s, key, value)
-	return true, nil
+	return true, fmt.Errorf("unknown setting %q", key)
 }

@@ -26,97 +26,44 @@ func optLabel(s *config.Settings, key, opt string) string {
 }
 
 func (a *App) drawSettings(c render.Canvas, w, h int) {
-	tabIdx, _, rowInTab, tab := settingTabFor(a.st.Sel)
-	bh := 4 + len(tab.rows) + 1
-	b := centered(w, h, 66, bh)
+	bh := 5 + len(settingRows)
+	b := a.panelBox(w, h, 66, bh)
 	b.frame(c)
-	b.put(c, 2, 0, "settings", render.Blue, render.BgPopup)
-	tx := 13
-	for i, t := range settingTabs {
-		need := render.TextWidth(t.name) + 2
-		if tx+need > b.w-2 {
-			break
-		}
-		if i == tabIdx {
-			b.put(c, tx, 0, " "+t.name+" ", render.FgBlack, render.Blue)
-		} else {
-			b.put(c, tx, 0, " "+t.name+" ", render.FgDim, render.BgPopup)
-		}
-		tx += need + 1
-	}
+	b.put(c, 2, 0, "settings", render.Blue, render.BgTerm)
+	rowInTab := clampSel(a.st.Sel, len(settingRows))
 	y := 2
 	visible := max(1, b.h-5)
 	start := max(0, rowInTab-visible+1)
-	for i := start; i < min(len(tab.rows), start+visible); i++ {
-		r := tab.rows[i]
+	for i := start; i < min(len(settingRows), start+visible); i++ {
+		r := settingRows[i]
 		sel := i == rowInTab
-		bg := render.BgPopup
+		bg := b.bg(sel)
+		a.panelHits[b.y+y] = i
 		b.fill(c, y, bg)
-		mark := " "
+		mark, labelFG, valueFG := " ", render.FgSoft, render.FgDim
 		if sel {
-			mark = "▸"
+			mark, labelFG, valueFG = "▸", render.Blue, render.FgWhite
 		}
 		b.put(c, 2, y, mark, render.Blue, bg)
-		fg := render.FgSoft
-		if sel {
-			fg = render.FgWhite
-		}
-		cur := a.st.Settings.Get(r.key)
+		value := optLabel(&a.st.Settings, r.key, a.st.Settings.Get(r.key))
 		if config.TextSetting(r.key) {
-			b.put(c, 4, y, render.Truncate(r.label, max(1, b.w-10)), fg, bg)
-			text := "(not set)"
-			if a.st.Editing && sel {
-				lw := render.TextWidth(render.Truncate(r.label, max(1, b.w-10)))
-				a.st.Edit.Draw(c, b.x+4+lw+2, b.y+y, max(1, b.w-lw-8), 1, render.Style{FG: render.FgWhite, BG: bg}.TCell(), true)
-				y++
-				continue
-			} else if cur != "" {
-				if r.key == "notify_command" {
-					text = llm.Mask(cur)
-				} else {
-					text = cur
-				}
-			}
-			b.putRight(c, y, text, render.FgDim, bg)
-			y++
-			continue
-		}
-		opts := a.settingChoices(r.key)
-		labels := make([]string, len(opts))
-		width := 0
-		for j, o := range opts {
-			labels[j] = optLabel(&a.st.Settings, r.key, o)
-			width += render.TextWidth(labels[j]) + 3
-		}
-		x, padding := 20, " "
-		if width-1 > b.w-x-2 {
-			x, padding = 16, ""
-			width -= 2 * len(opts)
-		}
-		if width-1 > b.w-x-2 {
-			for j, o := range opts {
-				if o == cur {
-					opts, labels = []string{o}, []string{labels[j]}
-					break
-				}
-			}
-			if len(labels) > 0 {
-				x = max(4, b.w-2-render.TextWidth(labels[0]))
-			}
-		}
-		b.put(c, 4, y, render.Truncate(r.label, max(1, x-5)), fg, bg)
-		for j, o := range opts {
-			text := padding + labels[j] + padding
-			if o == cur {
-				cbg := render.FgDim
-				if sel {
-					cbg = render.Blue
-				}
-				b.put(c, x, y, text, render.FgBlack, cbg)
+			if value == "" {
+				value = "(not set)"
 			} else {
-				b.put(c, x, y, text, render.FgDim, bg)
+				value = llm.Mask(value)
 			}
-			x += render.TextWidth(text) + 1
+		}
+		value = render.Truncate(value, max(1, b.w/2-2))
+		labelWidth := max(1, b.w-8-render.TextWidth(value))
+		if a.st.Editing && sel {
+			labelWidth = max(1, b.w/2-6)
+		}
+		b.put(c, 4, y, render.Truncate(r.label, labelWidth), labelFG, bg)
+		if a.st.Editing && sel {
+			fieldX := max(6, b.w/2)
+			a.st.Edit.Draw(c, b.x+fieldX, b.y+y, max(1, b.w-fieldX-2), 1, render.Style{FG: render.FgWhite, BG: bg}.TCell(), true)
+		} else {
+			b.putRight(c, y, value, valueFG, bg)
 		}
 		y++
 	}
@@ -124,11 +71,11 @@ func (a *App) drawSettings(c render.Canvas, w, h int) {
 	if a.st.LocalScope {
 		scope = "s scope: this window"
 	}
-	hint := "tab switch · ↑/↓ select · ←/→ change · " + scope + " · r reset · esc close"
+	hint := "↑/↓ select · ←/→ change · " + scope + " · r reset · esc close"
 	if a.st.Editing {
 		hint = "type the key · enter save · esc cancel"
 	} else if config.TextSetting(settingRows[clampSel(a.st.Sel, len(settingRows))].key) {
-		hint = "enter edit the value · tab switch · esc close"
+		hint = "enter edit the value · esc close"
 	}
 	b.hint(c, hint)
 }

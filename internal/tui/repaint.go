@@ -22,7 +22,10 @@ type frameState struct {
 // changedFrame avoids terminal hide/show cursor sequences for identical frames.
 func (a *App) changedFrame(w, h int) bool {
 	frame := frameState{w: w, h: h, cursor: a.cur, mode: int(a.st.Mode), hidden: a.st.Over != OverNone || a.askChoosing()}
-	frame.cells = make([]frameCell, 0, w*h)
+	frame.cells = a.frameScratch[:0]
+	if cap(frame.cells) < w*h {
+		frame.cells = make([]frameCell, 0, w*h)
+	}
 	for y := 0; y < h; y++ {
 		for x := 0; x < w; x++ {
 			glyph, combining, style, width := a.scr.GetContent(x, y)
@@ -31,6 +34,7 @@ func (a *App) changedFrame(w, h int) bool {
 	}
 	old := a.lastFrame
 	changed := old.w != w || old.h != h || old.cursor != frame.cursor || old.mode != frame.mode || old.hidden != frame.hidden || !slices.Equal(old.cells, frame.cells)
+	a.frameScratch = old.cells
 	a.lastFrame = frame
 	return changed
 }

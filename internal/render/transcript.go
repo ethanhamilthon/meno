@@ -138,23 +138,9 @@ func jsBlock(t Turn, w int, js JSOpts) []Line {
 		out = append(out, lines...)
 	}
 	if js.View == ViewFull {
-		out = append(out, limitRows(outputLines(t, w), OutputRows)...)
+		out = append(out, limitedTurnOutput(t, w)...)
 	}
 	return out
-}
-
-func outputLines(t Turn, w int) []Line {
-	if t.Err != "" {
-		return WrapLines("error: "+t.Err, TranscriptTextWidth(w), func(s string) Line {
-			return Plain("  "+s, Red, BgTerm)
-		})
-	}
-	if t.Output == "" {
-		return nil
-	}
-	return WrapLines(t.Output, TranscriptTextWidth(w), func(s string) Line {
-		return Plain("  "+s, FgDim, BgTerm)
-	})
 }
 
 // thinkingLines renders model reasoning dimmed, with a glyph on the first row.

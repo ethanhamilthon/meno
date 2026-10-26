@@ -8,7 +8,7 @@ import (
 // localKeys are the settings a window may override for itself: how it looks
 // and how it signals. Everything else is shared by all windows.
 var localKeys = map[string]bool{
-	"theme": true, "notify": true, "notify_sound": true, "notify_volume": true, "notify_command": true,
+	"notify": true, "notify_sound": true, "notify_volume": true, "notify_command": true,
 }
 
 // noteSettingEdit records where an edit of key belongs. With "this window"
@@ -52,14 +52,6 @@ func (a *App) resetLocal() {
 		_ = a.st.Settings.Set(k, a.cfgBase.Get(k))
 	}
 	a.win.local = nil
-	a.reapplyTheme()
-}
-
-// reapplyTheme makes the theme setting the theme on screen.
-func (a *App) reapplyTheme() {
-	if !render.SetTheme(a.st.Settings.Theme) {
-		render.SetTheme(render.DefaultTheme)
-	}
 }
 
 // windowState is what belongs to this window alone and never reaches the daemon.

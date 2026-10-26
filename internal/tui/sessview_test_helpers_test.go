@@ -7,12 +7,15 @@ import (
 
 // Append adds a turn for a test, the way the daemon's turn_added event would.
 func (s *sessView) Append(t agent.Turn) {
+	s.changed(len(s.turns))
 	s.turns = append(s.turns, viewTurn(t)) // no id: laid out every time, like the old tests
 }
 
 // Replace swaps all turns for a test.
 func (s *sessView) Replace(ts []agent.Turn) {
+	s.changed(0)
 	s.turns = s.turns[:0]
+	s.byID = nil
 	for _, t := range ts {
 		s.Append(t)
 	}

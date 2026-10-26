@@ -37,14 +37,12 @@ func (s *Server) Serve(ctx context.Context) error {
 		return err
 	}
 	s.listener = listener
-	writePID(s.runDir, s.pid)
-	if s.onStart != nil {
-		if err := s.onStart(ctx); err != nil {
-			return err
+	if err = s.startHTTP(ctx); err != nil {
+		if err == http.ErrServerClosed {
+			return nil
 		}
+		return err
 	}
-	_ = RotateLog(s.logPath)
-	s.http = &http.Server{Handler: s.routes(), ReadHeaderTimeout: 5 * time.Second}
 	go s.stopOnContext(ctx)
 	go s.idleLoop(ctx)
 	err = s.http.Serve(listener)
@@ -64,6 +62,11 @@ func (s *Server) stopOnContext(ctx context.Context) {
 // Stop publishes bye and stops HTTP listeners.
 func (s *Server) Stop(reason string) {
 	s.stopOnce.Do(func() {
+		s.startMu.Lock()
+		defer s.startMu.Unlock()
+		s.admission.Lock()
+		s.stopping = true
+		s.admission.Unlock()
 		s.hub.Close(reason)
 		s.global.Close(reason)
 		if s.onStop != nil {
@@ -92,28 +95,25 @@ func (s *Server) cleanup() {
 		_ = s.lock.Close()
 	}
 }
-func (s *Server) idleLoop(ctx context.Context) {
-	if s.idle <= 0 {
-		return
+
+// startHTTP and Stop serialize startup hooks and HTTP construction. Shutdown
+// before Serve must not leave a server listening after stopOnce has completed.
+func (s *Server) startHTTP(ctx context.Context) error {
+	s.startMu.Lock()
+	defer s.startMu.Unlock()
+	s.admission.Lock()
+	stopped := s.stopping
+	s.admission.Unlock()
+	if stopped {
+		return http.ErrServerClosed
 	}
-	tick := time.NewTicker(time.Second)
-	defer tick.Stop()
-	last := time.Now()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-s.done:
-			return
-		case <-tick.C:
-			if s.hub.Subscribers() > 0 || s.global.Subscribers() > 0 || s.backend.HasWork(ctx) {
-				last = time.Now()
-				continue
-			}
-			if time.Since(last) >= s.idle {
-				s.Stop("idle")
-				return
-			}
+	s.http = &http.Server{Handler: s.routes(), ReadHeaderTimeout: 5 * time.Second}
+	writePID(s.runDir, s.pid)
+	if s.onStart != nil {
+		if err := s.onStart(ctx); err != nil {
+			return err
 		}
 	}
+	_ = RotateLog(s.logPath)
+	return nil
 }

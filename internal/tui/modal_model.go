@@ -104,14 +104,15 @@ func (a *App) drawModel(c render.Canvas, w, h int) {
 		body = 1
 	}
 	bh := 4 + body + 3 // title, gap, search, gap | gap, effort, gap+hint
-	b := centered(w, h, bw, bh)
+	b := a.panelBox(w, h, bw, bh)
 	b.frame(c)
-	titledSearch(c, b, "model", itoa(len(list))+" / "+itoa(len(a.allModels())), &a.st.Query, "search models")
-	y := 4
-	rows := max(0, min(8, b.h-8)) // box height minus title, search, effort, hint and the detail line
+	titleRow("model", itoa(len(list))+" / "+itoa(len(a.allModels())))(c, b)
+	y := 2
+	rows := max(0, min(8, b.h-6)) // box height minus title, search, effort, hint and the detail line
 	start := max(0, a.st.Sel-rows+1)
 	for i := start; i < len(list) && i < start+rows; i++ {
 		m := list[i]
+		a.panelHits[b.y+y] = i
 		sel := i == a.st.Sel
 		bg := b.bg(sel)
 		b.fill(c, y, bg)

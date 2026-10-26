@@ -1,87 +1,49 @@
 package tui
 
 import (
-	"context"
-	"encoding/json"
-	"strings"
-	"testing"
-
-	"github.com/gdamore/tcell/v2"
-
 	"meno/internal/config"
 	"meno/internal/render"
+	"os"
+	"testing"
 )
 
-func themeApp(t *testing.T) (*App, tcell.SimulationScreen) {
-	t.Helper()
+func TestLiveThemeKeepsLastValidPalette(t *testing.T) {
 	a, s := newTestApp(t)
-	t.Cleanup(func() { render.SetTheme(render.DefaultTheme); s.Fini() })
-	return a, s
-}
-
-func TestSettingsThemeCyclesAndPersists(t *testing.T) {
-	a, s := themeApp(t)
-	extra, _ := render.ThemesFromJSON([]json.RawMessage{json.RawMessage(`{"name":"mine","dark":true,"bg":"101010","fg":"EEEEEE","dim":"777777","blue":"5555FF","purple":"AA55FF","green":"55FF55","yellow":"FFFF55","red":"FF5555","orange":"FFAA55"}`)})
-	render.SetExtraThemes(extra)
-	t.Cleanup(func() { render.SetExtraThemes(nil) })
-	a.runCommand("settings")
-	if a.st.Over != OverSettings {
-		t.Fatal("settings dialog did not open")
+	defer s.Fini()
+	defer render.ApplyPalette(render.DefaultPalette())
+	c := config.DefaultThemeColors()
+	c.Blue = "123456"
+	a.onThemeLoaded(themeLoaded{colors: c})
+	want := render.PaletteFromColors(c.Colors())
+	if render.CurrentPalette() != want {
+		t.Fatal("valid palette not applied")
 	}
-	a.draw()
-	text := screenText(s)
-	if !strings.Contains(text, "General") || !strings.Contains(text, "theme") || !strings.Contains(text, "default") {
-		t.Fatalf("General tab or theme row missing:\n%s", text)
+	if e := os.WriteFile(a.paths.ThemeFile(), []byte("{"), 0600); e != nil {
+		t.Fatal(e)
 	}
-	a.onKey(keyK(tcell.KeyRight))
-	want := render.Themes()[1].Name
-	if render.CurrentTheme() != want || a.st.Settings.Theme != want {
-		t.Fatalf("theme %q/%q, want %q", render.CurrentTheme(), a.st.Settings.Theme, want)
+	_, err := config.ReadTheme(a.paths.ThemeFile())
+	a.onThemeLoaded(themeLoaded{err: err})
+	if render.CurrentPalette() != want {
+		t.Fatal("partial edit replaced last valid palette")
 	}
-	saved, err := a.storeForTest().LoadSettings()
-	if err != nil || saved.Theme != want {
-		t.Fatalf("not persisted: %+v %v", saved, err)
+	n := len(a.st.Notices)
+	a.onThemeLoaded(themeLoaded{err: err})
+	if len(a.st.Notices) != n {
+		t.Fatal("repeated warning")
 	}
-	a.draw()
-	preview, _ := render.FindTheme(want)
-	if render.BgPopup != preview.BgPopup {
-		t.Fatal("popup colors do not follow the selected theme")
+	a.idleTick = true
+	a.onThemeLoaded(themeLoaded{colors: c})
+	if !a.idleTick {
+		t.Fatal("identical palette requested frame")
 	}
-	a.onKey(keyK(tcell.KeyEsc))
-	a.draw()
-	_, _, st, _ := s.GetContent(0, 0)
-	if _, bg, _ := st.Decompose(); bg != preview.BgTerm {
-		t.Fatalf("background %v, want %v", bg, preview.BgTerm)
+	c.Red = "010203"
+	a.onThemeLoaded(themeLoaded{colors: c})
+	if a.idleTick {
+		t.Fatal("changed palette did not request frame")
 	}
-}
-
-func TestThemeLoadedAtStartupWithFallback(t *testing.T) {
-	dir := t.TempDir()
-	st := config.NewStore(config.Paths{Home: dir, Cwd: dir})
-	set := config.DefaultSettings()
-	set.Theme = "catppuccin-mocha"
-	if err := st.SaveSettings(set); err != nil {
-		t.Fatal(err)
+	for _, r := range settingRows {
+		if r.key == "theme" {
+			t.Fatal("theme picker remains")
+		}
 	}
-	r := startRig(t, dir, &scriptedClient{})
-	defer render.SetTheme(render.DefaultTheme)
-	scr := tcell.NewSimulationScreen("UTF-8")
-	if err := scr.Init(); err != nil {
-		t.Fatal(err)
-	}
-	defer scr.Fini()
-	a, err := New(scr, config.Paths{Home: dir, Cwd: dir}, r.cl)
-	if err != nil || render.CurrentTheme() != render.DefaultTheme {
-		t.Fatalf("startup theme %q err %v", render.CurrentTheme(), err)
-	}
-	a.Close()
-	set.Theme = "no-such-theme"
-	if _, err := r.cl.PutSettings(context.Background(), settingsToWire(set)); err != nil {
-		t.Fatal(err)
-	}
-	a, err = New(scr, config.Paths{Home: dir, Cwd: dir}, r.cl)
-	if err != nil || render.CurrentTheme() != render.DefaultTheme {
-		t.Fatalf("fallback %q err %v", render.CurrentTheme(), err)
-	}
-	a.Close()
 }

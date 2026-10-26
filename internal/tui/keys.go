@@ -8,7 +8,6 @@ import (
 
 func (a *App) onKey(k *tcell.EventKey) {
 	k = normalizeCtrl(k)
-	a.clearSelection()
 	if k.Key() == tcell.KeyCtrlC {
 		// The first-run screen promises that ctrl+c quits: there is no turn to stop.
 		if a.st.Locked {
@@ -26,6 +25,7 @@ func (a *App) onKey(k *tcell.EventKey) {
 		a.askKey(k)
 		return
 	}
+	a.clearSelection()
 	switch k.Key() {
 	case tcell.KeyPgUp:
 		_, h := a.scr.Size()

@@ -32,7 +32,7 @@ func TestWelcomeHintsAreCurrent(t *testing.T) {
 
 func TestWelcomeTagline(t *testing.T) {
 	a, _ := visualFixture(t, 112, 36)
-	if !strings.Contains(welcomeText(t, a), "thin and efficient AI coding harness") {
+	if !strings.Contains(welcomeText(t, a), "Keep your agent simple.") {
 		t.Fatal("tagline missing")
 	}
 }

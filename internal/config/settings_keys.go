@@ -37,8 +37,6 @@ func (s *Settings) Get(key string) string {
 		return s.TurnSummary
 	case "effort":
 		return s.Effort
-	case "theme":
-		return s.Theme
 	case "notify_sound":
 		return s.NotifySound
 	case "notify_volume":
@@ -63,12 +61,6 @@ func (s *Settings) Set(key, val string) error {
 		return err
 	}
 	switch key {
-	case "theme":
-		if strings.TrimSpace(val) == "" {
-			return fmt.Errorf("invalid value %q for %s", val, key)
-		}
-		s.Theme = val
-		return nil
 	case "notify_command":
 		s.NotifyCommand = strings.TrimSpace(val)
 		return nil
@@ -100,8 +92,6 @@ func (s *Settings) Set(key, val string) error {
 
 func (s *Settings) setRaw(key, val string) {
 	switch key {
-	case "theme":
-		s.Theme = val
 	case "view":
 		s.View = val
 	case "turn_summary":

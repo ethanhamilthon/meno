@@ -49,20 +49,12 @@ func (a *App) applyProjection(rt *Runtime, u client.ProjectionUpdate) {
 	}
 	if f&client.TurnsChanged != 0 {
 		if u.Reset {
-			rt.Session.turns = nil
+			rt.Session.resetTurns(v.Turns)
 			rt.lines = lineCache{}
-		}
-		for _, t := range v.Turns {
-			replaced := false
-			for i := range rt.Session.turns {
-				if t.ID != "" && rt.Session.turns[i].ID == t.ID {
-					rt.Session.turns[i] = turnFromWire(t)
-					replaced = true
-					break
-				}
-			}
-			if !replaced {
-				rt.Session.add(t)
+			rt.transcript = transcriptCache{}
+		} else {
+			for _, t := range v.Turns {
+				rt.Session.upsert(t)
 			}
 		}
 	}

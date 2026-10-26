@@ -13,12 +13,14 @@ import (
 	"meno/internal/client"
 	"meno/internal/config"
 	"meno/internal/llm"
-	"meno/internal/render"
 	"meno/internal/safe"
 )
 
 type App struct {
 	lastFrame         frameState
+	frameScratch      []frameCell
+	themeWarning      string
+	panelHits         map[int]int
 	unfocused         bool
 	mcpPending        bool
 	mcpRefresh        time.Time
@@ -43,7 +45,7 @@ type App struct {
 	noAsk     bool // new sessions are created with meno ask turned off
 	done      chan struct{}
 	closeOnce sync.Once
-	animOn    atomic.Bool      // the welcome screen was drawn last: keep it animating
+	animOn    atomic.Bool      // the composer requested animation frames
 	agentsAt  time.Time        // when agentsOK was last checked
 	agentsOK  bool             // an AGENTS.md exists (cached for the welcome screen)
 	now       func() time.Time // the clock of animations; tests replace it
@@ -106,9 +108,6 @@ func New(scr tcell.Screen, paths config.Paths, cl *client.Client, opts ...Option
 	if err := a.loadAll(); err != nil {
 		return nil, err
 	}
-	if !render.SetTheme(a.st.Settings.Theme) {
-		render.SetTheme(render.DefaultTheme)
-	}
 	sess, err := a.createSession(paths.Cwd)
 	if err != nil {
 		return nil, err
@@ -141,6 +140,7 @@ func (a *App) Run(ctx context.Context) error {
 	a.scr.EnablePaste()
 	a.fetchModels()
 	a.startUpdateCheck()
+	a.themeWatcher()
 	a.refreshConfig()
 	a.enforceProvider()
 	safe.Go(func() {
@@ -155,33 +155,57 @@ func (a *App) Run(ctx context.Context) error {
 	safe.Go(a.ticker, a.reportPanic)
 	safe.Go(a.animTicker, a.reportPanic)
 	a.drawSafe()
+	schedule := frameSchedule{last: time.Now()}
+	timer := time.NewTimer(time.Hour)
+	timer.Stop()
+	defer timer.Stop()
+	var deadline <-chan time.Time
 	for !a.quit {
+		urgent := false
 		select {
 		case <-ctx.Done():
 			return nil
+		case <-deadline:
+			deadline = nil
+			a.drawSafe()
+			schedule.last = time.Now()
+			continue
 		case msg := <-a.events:
 			a.idleTick = true
+			urgent = a.frameUrgent(msg)
 			a.dispatch(msg)
-			// Coalesce bursts (wheel scroll, streaming tokens, paste) into one frame.
 		drain:
 			for n := 0; n < 256 && !a.quit; n++ {
 				select {
 				case msg = <-a.events:
+					urgent = urgent || a.frameUrgent(msg)
 					a.dispatch(msg)
 				default:
 					break drain
 				}
 			}
 		}
-		if !a.idleTick || a.animating() {
-			a.drawSafe()
+		if !a.idleTick {
+			delay := schedule.delay(time.Now(), urgent)
+			if delay == 0 {
+				if deadline != nil {
+					timer.Stop()
+					deadline = nil
+				}
+				a.drawSafe()
+				schedule.last = time.Now()
+			} else if deadline == nil {
+				timer.Reset(delay)
+				deadline = timer.C
+			}
 		}
 	}
+
 	return nil
 }
 
 func (a *App) handle(msg any) {
-	if _, ok := msg.(tick); !ok {
+	if a.eventVisible(msg) {
 		a.idleTick = false
 	}
 	switch m := msg.(type) {
@@ -267,8 +291,13 @@ func (a *App) handle(msg any) {
 				a.st.ServerInfo[v.Name] = mcpInfo{Running: v.Running, Starting: v.Starting, Err: v.Error}
 			}
 		}
+	case themeLoaded:
+		a.onThemeLoaded(m)
 	case animTick:
 	case tick:
+		if a.animating() {
+			a.idleTick = false
+		}
 		a.refreshMCPStatus()
 		a.refreshTasks()
 		if a.pruneNotices() {

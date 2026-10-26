@@ -51,7 +51,7 @@ func (a *App) onContextKey(k *tcell.EventKey) {
 }
 func (a *App) drawContext(c render.Canvas, w, h int) {
 	rows := a.contextRows()
-	b := centered(w, h, 90, min(h, len(rows)+4))
+	b := a.panelBox(w, h, 90, min(h, len(rows)+4))
 	b.frame(c)
 	titleRow("context", "Esc to close")(c, b)
 	visible := max(0, b.h-3)

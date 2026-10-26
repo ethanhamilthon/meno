@@ -41,3 +41,6 @@ func ruleLine(title, elapsed string, timeFG tcell.Color, w int) Line {
 	text := lead + title + " " + strings.Repeat("─", gap) + " "
 	return Line{Segs: []Seg{{Text: text, FG: FgFaint}, {Text: elapsed, FG: timeFG}}, BG: BgTerm, FullWidth: true}
 }
+
+// CallHeader refreshes only the animated chrome of an otherwise cached call.
+func CallHeader(t Turn, w int, opts JSOpts) Line { return bashHeader(t, w, opts) }

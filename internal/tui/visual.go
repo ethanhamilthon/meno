@@ -13,10 +13,8 @@ func (a *App) transcriptWithSelection(w int) []render.Line {
 	if a.st.Session == nil {
 		return nil
 	}
-	turns := a.st.Session.Turns()
 	js := a.jsOpts()
-	var out []render.Line
-	separate := false
+	out, separate := a.beginTranscript(w, js)
 	appendLines := func(lines []render.Line, message bool) {
 		if len(lines) == 0 {
 			return
@@ -27,46 +25,26 @@ func (a *App) transcriptWithSelection(w int) []render.Line {
 		out = append(out, lines...)
 		separate = message
 	}
-	notices := a.currentNotices()
-	for i := 0; i <= len(turns); i++ {
-		for _, n := range notices {
-			if n.After != i {
-				continue
-			}
-			fg := render.FgDim
-			if n.Err {
-				fg = render.Red
-			}
-			appendLines(render.WrapLines(n.Text, render.TranscriptTextWidth(w), func(s string) render.Line {
-				return render.Plain("  "+s, fg, render.BgTerm)
-			}), true)
-		}
-		if i < len(turns) {
-			appendLines(a.st.lines.turnLines(turns[i], w, js), render.TurnHasMessage(turns[i], js))
-		}
-	}
-
 	// The runner persists a response before the UI consumes its completion
 	// event. Hide its live copy as soon as the saved response is visible.
-	persisted := false
-	for i := max(0, a.st.LiveBase); i < len(turns); i++ {
-		if turns[i].Role == render.RoleAssistant {
-			persisted = true
-			break
-		}
-	}
+	persisted := a.st.transcript.lastAssistant >= max(0, a.st.LiveBase)
 	if js.View == render.ViewCompact {
 		if !persisted && a.st.LiveText != "" {
-			appendLines(render.BuildLines([]render.Turn{{Role: render.RoleAssistant, Text: a.st.LiveText}}, w, js), true)
+			appendLines(a.liveLines(render.Turn{Role: render.RoleAssistant, Text: a.st.LiveText}, w, js), true)
 		}
 		if a.st.Running {
 			var elapsed time.Duration
 			if !a.st.RunStart.IsZero() {
 				elapsed = time.Since(a.st.RunStart)
 			}
-			appendLines([]render.Line{render.CompactLive(a.compactWhat(), elapsed, w)}, false)
+			line := render.CompactLive(a.compactWhat(), elapsed, w)
+			if text := line.Text(); text != a.st.transcript.compactText {
+				a.st.transcript.compactText = text
+				a.st.transcript.changed = true
+			}
+			appendLines([]render.Line{line}, false)
 		}
-		return out
+		return a.finishTranscript(out)
 	}
 	live := render.Turn{Role: render.RoleAssistant}
 	if !persisted {
@@ -79,20 +57,14 @@ func (a *App) transcriptWithSelection(w int) []render.Line {
 		if !call.Running && !call.Ended {
 			continue
 		}
-		saved := false
-		for _, t := range turns {
-			if call.ID != "" && t.CallID == call.ID {
-				saved = true
-				break
-			}
-		}
+		saved := call.ID != "" && a.st.transcript.calls[call.ID]
 		if saved {
 			continue
 		}
 		if call.Ended {
 			// Drawn as the saved turn will be, so the hand-over changes nothing.
 			live.Code, live.Title, live.Output, live.ElapsedMs = call.Code, call.Title, call.Output, call.ElapsedMs
-			appendLines(render.BuildLines([]render.Turn{live}, w, js), render.TurnHasMessage(live, js))
+			appendLines(a.liveLines(live, w, js), render.TurnHasMessage(live, js))
 			live = render.Turn{Role: render.RoleAssistant}
 			continue
 		}
@@ -105,11 +77,11 @@ func (a *App) transcriptWithSelection(w int) []render.Line {
 			liveJS.Elapsed = time.Since(call.Started)
 			liveJS.Spin = int(time.Now().UnixMilli() / 100)
 		}
-		appendLines(render.BuildLines([]render.Turn{live}, w, liveJS), render.TurnHasMessage(live, liveJS))
+		appendLines(a.liveLines(live, w, liveJS), render.TurnHasMessage(live, liveJS))
 		live = render.Turn{Role: render.RoleAssistant}
 	}
-	appendLines(render.BuildLines([]render.Turn{live}, w, js), render.TurnHasMessage(live, js))
-	return out
+	appendLines(a.liveLines(live, w, js), render.TurnHasMessage(live, js))
+	return a.finishTranscript(out)
 }
 
 // compactWhat says what the running turn is doing, for the compact view: the

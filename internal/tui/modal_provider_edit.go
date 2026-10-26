@@ -54,7 +54,7 @@ func (a *App) providerFields() []field {
 }
 
 func (a *App) drawProviderEdit(c render.Canvas, w, h int) {
-	b := centered(w, h, 73, 11)
+	b := a.panelBox(w, h, 73, 11)
 	b.frame(c)
 	b.put(c, 2, 0, "login /", render.FgDim, render.BgPopup)
 	b.put(c, 14, 0, a.st.EditProv.Name, render.Blue, render.BgPopup)
@@ -64,7 +64,7 @@ func (a *App) drawProviderEdit(c render.Canvas, w, h int) {
 		status, fg = "○ no key", render.FgDim
 	}
 	b.putRight(c, 0, status, fg, render.BgPopup)
-	drawForm(c, b, 2, a.providerFields(), a.st.Field, a.st.Editing, &a.st.Edit)
+	a.drawForm(c, b, 2, a.providerFields(), a.st.Field, a.st.Editing, &a.st.Edit)
 	drawFormNote(c, b, a.st.FormNote)
 	b.hint(c, "j/k move · enter edit · d delete · esc back")
 }

@@ -7,7 +7,6 @@ import (
 	"github.com/gdamore/tcell/v2"
 
 	"meno/internal/config"
-	"meno/internal/render"
 )
 
 type settingRow struct {
@@ -15,74 +14,10 @@ type settingRow struct {
 	key   string
 }
 
-type settingTab struct {
-	name string
-	rows []settingRow
-}
-
-var settingTabs = []settingTab{
-	{
-		name: "General",
-		rows: []settingRow{
-			{"theme", "theme"},
-			{"system prompt", "system_prompt"},
-		},
-	},
-	{
-		name: "Display",
-		rows: []settingRow{
-			{"view", "view"},
-		},
-	},
-	{
-		name: "Notify",
-		rows: []settingRow{
-			{"notify", "notify"},
-			{"notify sound", "notify_sound"},
-			{"notify volume", "notify_volume"},
-			{"notify command", "notify_command"},
-		},
-	},
-	{
-		name: "Context",
-		rows: []settingRow{
-			{"auto compact", "compact_percent"},
-		},
-	},
-}
-
-var settingRows = flattenSettingRows()
-
-func flattenSettingRows() []settingRow {
-	var out []settingRow
-	for _, t := range settingTabs {
-		out = append(out, t.rows...)
-	}
-	return out
-}
-
-func settingTabFor(sel int) (tabIdx, tabStart, rowInTab int, tab settingTab) {
-	sel = clampSel(sel, len(settingRows))
-	offset := 0
-	for i, t := range settingTabs {
-		if sel < offset+len(t.rows) {
-			return i, offset, sel - offset, t
-		}
-		offset += len(t.rows)
-	}
-	last := len(settingTabs) - 1
-	t := settingTabs[last]
-	return last, offset - len(t.rows), 0, t
-}
-
-func settingTabStart(tabIdx int) int {
-	n := len(settingTabs)
-	tabIdx = ((tabIdx % n) + n) % n
-	offset := 0
-	for i := 0; i < tabIdx; i++ {
-		offset += len(settingTabs[i].rows)
-	}
-	return offset
+var settingRows = []settingRow{
+	{"system prompt", "system_prompt"}, {"view", "view"}, {"notify", "notify"},
+	{"notify sound", "notify_sound"}, {"notify volume", "notify_volume"},
+	{"notify command", "notify_command"}, {"auto compact", "compact_percent"},
 }
 
 func (a *App) settingsKey(k *tcell.EventKey) {
@@ -90,19 +25,12 @@ func (a *App) settingsKey(k *tcell.EventKey) {
 		a.settingTextKey(k)
 		return
 	}
-	tabIdx, tabStart, rowInTab, tab := settingTabFor(a.st.Sel)
 	switch {
-	case k.Key() == tcell.KeyTab || k.Rune() == ']':
-		a.st.Sel = settingTabStart(tabIdx + 1)
-		return
-	case k.Key() == tcell.KeyBacktab || k.Rune() == '[':
-		a.st.Sel = settingTabStart(tabIdx - 1)
-		return
 	case k.Key() == tcell.KeyDown || isKey(k, 'j'):
-		a.st.Sel = tabStart + (rowInTab+1)%len(tab.rows)
+		a.st.Sel = min(a.st.Sel+1, len(settingRows)-1)
 		return
 	case k.Key() == tcell.KeyUp || isKey(k, 'k'):
-		a.st.Sel = tabStart + (rowInTab-1+len(tab.rows))%len(tab.rows)
+		a.st.Sel = max(a.st.Sel-1, 0)
 		return
 	case config.TextSetting(settingRows[clampSel(a.st.Sel, len(settingRows))].key) && (k.Key() == tcell.KeyEnter || k.Rune() == ' '):
 		key := settingRows[clampSel(a.st.Sel, len(settingRows))].key
@@ -159,13 +87,6 @@ func (a *App) settingTextKey(k *tcell.EventKey) {
 
 func (a *App) settingChoices(key string) []string {
 	switch key {
-	case "theme":
-		themes := render.Themes()
-		out := make([]string, len(themes))
-		for i, t := range themes {
-			out[i] = t.Name
-		}
-		return out
 	case "system_prompt":
 		// The built-in prompt, then the files of system-prompts/. A name that
 		// is set but has no file stays listed, so the row shows what is stored.
@@ -198,10 +119,6 @@ func (a *App) cycleSetting(step int) {
 	_ = a.st.Settings.Set(key, next)
 	a.noteSettingEdit(key)
 	switch key {
-	case "theme":
-		if !render.SetTheme(a.st.Settings.Theme) {
-			render.SetTheme(render.DefaultTheme)
-		}
 	case "notify_sound":
 		a.st.Settings.NotifyCommand = ""
 		a.noteSettingEdit("notify_command")

@@ -14,6 +14,11 @@ func (a *App) draw() {
 	a.scr.Fill(' ', tcell.StyleDefault.Background(render.BgTerm))
 	c := render.Canvas{S: a.scr}
 	a.cur = cursorPos{}
+	if a.panelHits == nil {
+		a.panelHits = map[int]int{}
+	} else {
+		clear(a.panelHits)
+	}
 	a.completionVisible = false
 	a.animOn.Store(false)
 	a.drawMain(c, w, h)

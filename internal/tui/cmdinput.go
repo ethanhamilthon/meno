@@ -73,7 +73,7 @@ func (a *App) cmdRun(rows []string) {
 	if strings.TrimSpace(cmd) == "" && !(a.st.CmdPicked && len(rows) > 0) {
 		return
 	}
-	if len(rows) > 0 && !strings.HasPrefix(cmd, "cd ") {
+	if len(rows) > 0 && !t.args {
 		cmd = rows[clampSel(a.st.CmdSel, len(rows))][1:]
 	}
 	a.endInsert()

@@ -25,6 +25,7 @@ type Runtime struct {
 	RunEffort  string // effort of the request in flight, when the daemon routes it
 	RequestID  string // the request being worked on
 	lines      lineCache
+	transcript transcriptCache
 	Pick       *pickState // the @ picker, nil when closed
 	// Tasks are the background work of the session, as the daemon last said.
 	Tasks []taskRow

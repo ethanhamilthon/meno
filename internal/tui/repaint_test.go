@@ -34,3 +34,16 @@ func TestUnchangedFrameDoesNotRepaint(t *testing.T) {
 		t.Fatal("changed draft did not repaint")
 	}
 }
+
+func TestComparisonBuffersAreReused(t *testing.T) {
+	a, s := visualFixture(t, 80, 20)
+	a.draw()
+	a.draw()
+	a.draw()
+	before, spare := &a.lastFrame.cells[0], &a.frameScratch[0]
+	a.draw()
+	if &a.lastFrame.cells[0] != spare || &a.frameScratch[0] != before {
+		t.Fatal("comparison allocated new frame buffers")
+	}
+	defer s.Fini()
+}

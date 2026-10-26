@@ -13,21 +13,12 @@ import (
 	"github.com/gdamore/tcell/v2"
 )
 
-func TestModalGeometryFitsTheScreen(t *testing.T) {
-	for _, size := range [][2]int{{112, 36}, {96, 30}, {80, 24}, {60, 20}, {48, 16}, {40, 12}, {1, 1}, {0, 0}} {
-		for _, requested := range []int{0, 66, 73, 80, 660} {
-			b := centered(size[0], size[1], requested, 50)
-			if b.w < 0 || b.w > size[0] || b.oh != min(52, size[1]) || b.h != max(0, b.oh-2) || b.x != (size[0]-b.w)/2 || b.oy != (size[1]-b.oh)/2 || b.y != b.oy+1 {
-				t.Fatalf("size %v request %d: %+v", size, requested, b)
-			}
-			if size[0] >= 100 && b.w < modalWidth(size[0]) {
-				t.Fatalf("a wide screen keeps at least the half-screen width: size %v %+v", size, b)
-			}
-			if size[0] >= 20 && size[0] < 100 && b.w < size[0]-4 {
-				t.Fatalf("a narrow screen uses nearly the full row: size %v %+v", size, b)
-			}
-			if size[0] >= 100 && requested > 0 && requested <= size[0]-4 && b.w < requested {
-				t.Fatalf("content that needs %d columns must get them: size %v %+v", requested, size, b)
+func TestPanelGeometryFitsTheScreen(t *testing.T) {
+	for _, size := range [][2]int{{112, 36}, {80, 24}, {40, 12}, {20, 5}, {1, 1}, {0, 0}} {
+		for _, desired := range []int{1, 8, 13, 50} {
+			p := render.ComposerPanel(size[0], size[1], 3, desired)
+			if p.X < 0 || p.Y < 0 || p.Width < 0 || p.Height < 0 || p.X+p.Width > size[0] || p.Y+p.Height > size[1] {
+				t.Fatalf("%v %+v", size, p)
 			}
 		}
 	}
@@ -119,19 +110,18 @@ func TestAutocompleteScrollsByPages(t *testing.T) {
 	}
 }
 
-func TestModalDimsEntireBackdrop(t *testing.T) {
+func TestPanelPreservesEntireBackdrop(t *testing.T) {
 	_, s := visualFixture(t, 80, 24)
 	c := render.Canvas{S: s}
 	c.Fill(0, 0, 80, 24, render.BgUser)
 	c.Text(0, 0, 80, "background 界", render.Style{FG: render.FgWhite, BG: render.BgUser, Bold: true}.TCell())
-	b := centered(80, 24, 73, 8)
+	b := box{x: 2, y: 12, w: 76, h: 8, oy: 11, oh: 9}
 	b.frame(c)
 	for _, p := range [][2]int{{0, 0}, {79, 0}, {0, 23}, {79, 23}} {
 		_, _, st, _ := s.GetContent(p[0], p[1])
 		_, bg, _ := st.Decompose()
-		r, g, blue := render.BgUser.RGB()
-		if bg != tcell.NewRGBColor(r/2, g/2, blue/2) {
-			t.Fatalf("undimmed corner %v", p)
+		if bg != render.BgUser {
+			t.Fatalf("changed backdrop corner %v", p)
 		}
 	}
 	r, _, st, _ := s.GetContent(0, 0)
@@ -141,8 +131,8 @@ func TestModalDimsEntireBackdrop(t *testing.T) {
 	}
 	_, _, st, _ = s.GetContent(b.x, b.y)
 	_, bg, _ := st.Decompose()
-	if bg != render.BgPopup {
-		t.Fatal("modal surface was dimmed")
+	if bg != render.BgTerm {
+		t.Fatal("panel surface differs from terminal")
 	}
 }
 
@@ -159,8 +149,9 @@ func TestSessionSearchTitleDatePathAndClear(t *testing.T) {
 	if !a.st.Query.Empty() {
 		t.Fatal("query not cleared")
 	}
+	a.st.Over = OverSessions
 	a.drawSessions(render.Canvas{S: s}, 120, 36)
-	for _, text := range []string{"sessions", "search title, date or path", "Fix compiler", "/work/compiler"} {
+	for _, text := range []string{"sessions", "Fix compiler", "/work/compiler"} {
 		if !strings.Contains(screenText(s), text) {
 			t.Fatalf("missing %q", text)
 		}

@@ -9,9 +9,8 @@ import (
 	"sync"
 )
 
-// Providers, MCP servers and themes live in JSON files in the data directory.
-// Each file is a JSON array of objects; the app reads and writes provider.json
-// and mcp.json, theme.json is only read.
+// Providers and MCP servers use arrays of objects in the data directory.
+// The single palette object is handled separately in theme_file.go.
 const (
 	ProviderFileName = "provider.json"
 	MCPFileName      = "mcp.json"
@@ -59,16 +58,6 @@ func readForWrite(path string) ([]json.RawMessage, error) {
 	raw, err := readArray(path)
 	if err != nil {
 		return nil, fmt.Errorf("%s is not valid (%v); fix or remove the file, meno does not overwrite it", fileName(path), err)
-	}
-	return raw, nil
-}
-
-// ReadObjects decodes the array of objects in path into raw entries; it is the
-// shared reader for the theme file. Problems are returned as warnings.
-func ReadObjects(path string) ([]json.RawMessage, []string) {
-	raw, err := readArray(path)
-	if err != nil {
-		return nil, []string{fileName(path) + ": " + err.Error()}
 	}
 	return raw, nil
 }

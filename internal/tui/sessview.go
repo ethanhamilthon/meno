@@ -20,6 +20,10 @@ type sessView struct {
 	turns                  []render.Turn
 	UpdatedAt              time.Time
 	hasSummary             bool
+	revision               uint64
+	dirtyFrom              int
+	byID                   map[string]int
+	indexed                int
 }
 
 // ID is the session id.
@@ -51,10 +55,7 @@ func (s *sessView) load(sn api.Snapshot) {
 		s.Title = ""
 	}
 	s.Cwd, s.Provider, s.Model, s.Effort = sn.Cwd, sn.Provider, sn.Model, sn.Effort
-	s.turns = s.turns[:0]
-	for _, t := range sn.Turns {
-		s.turns = append(s.turns, turnFromWire(t))
-	}
+	s.resetTurns(sn.Turns)
 	if sn.Session.UpdatedAt != "" {
 		if t, err := time.Parse(time.RFC3339Nano, sn.Session.UpdatedAt); err == nil {
 			s.UpdatedAt = t
@@ -62,16 +63,51 @@ func (s *sessView) load(sn api.Snapshot) {
 	}
 }
 
-// add appends a turn the daemon stored.
-func (s *sessView) add(t api.Turn) bool {
-	if t.ID != "" && t.ID != "0" {
-		for _, existing := range s.turns {
-			if existing.ID == t.ID {
-				return false
-			}
+// changed marks the earliest suffix needing layout, across a batch of updates.
+func (s *sessView) changed(i int) { s.revision++; s.dirtyFrom = min(s.dirtyFrom, i) }
+func (s *sessView) indexTurns() {
+	if s.byID != nil && s.indexed == len(s.turns) {
+		return
+	}
+	s.byID = map[string]int{}
+	for i, t := range s.turns {
+		if t.ID != "" && t.ID != "0" {
+			s.byID[t.ID] = i
 		}
 	}
-	s.turns = append(s.turns, turnFromWire(t))
+	s.indexed = len(s.turns)
+}
+func (s *sessView) resetTurns(turns []api.Turn) {
+	s.turns = nil
+	s.byID = map[string]int{}
+	s.indexed = 0
+	s.changed(0)
+	for _, t := range turns {
+		s.upsert(t)
+	}
+}
+func (s *sessView) upsert(t api.Turn) {
+	s.indexTurns()
+	v := turnFromWire(t)
+	if i, ok := s.byID[v.ID]; v.ID != "" && ok {
+		s.turns[i] = v
+		s.changed(i)
+		return
+	}
+	i := len(s.turns)
+	s.turns = append(s.turns, v)
+	if v.ID != "" {
+		s.byID[v.ID] = i
+	}
+	s.indexed = len(s.turns)
+	s.changed(i)
+}
+func (s *sessView) add(t api.Turn) bool {
+	s.indexTurns()
+	if _, ok := s.byID[t.ID]; t.ID != "" && t.ID != "0" && ok {
+		return false
+	}
+	s.upsert(t)
 	return true
 }
 

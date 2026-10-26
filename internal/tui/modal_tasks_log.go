@@ -31,7 +31,8 @@ func (a *App) taskLogRows(width int) []logRow {
 func (a *App) taskLogKey(k *tcell.EventKey) {
 	v := &a.st.TasksUI
 	_, h := a.scr.Size()
-	page := max(1, h-8)
+	w, _ := a.scr.Size()
+	page := max(1, a.panelBox(w, h, 0, 0).h-4)
 	switch {
 	case k.Key() == tcell.KeyUp || isKey(k, 'k'):
 		v.Up++
@@ -49,8 +50,7 @@ func (a *App) taskLogKey(k *tcell.EventKey) {
 		a.scr.SetClipboard([]byte(a.taskLogText()))
 		a.notify("log copied")
 	}
-	w, _ := a.scr.Size()
-	v.Up = min(v.Up, max(0, len(a.taskLogRows(max(1, w/2-4)))-1))
+	v.Up = min(v.Up, max(0, len(a.taskLogRows(max(1, w-8)))-1))
 }
 
 func (a *App) taskLogText() string {
