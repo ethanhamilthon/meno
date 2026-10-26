@@ -71,6 +71,9 @@ func (fs frameSeq) reversals(skip func(x, y int) bool) []string {
 			continue
 		}
 		p := fs.cellPath(i)
+		if digitsOnly(p) {
+			continue
+		}
 		for k := 0; k+2 < len(p); k++ {
 			if p[k+2] == p[k] {
 				out = append(out, fmt.Sprintf("(%d,%d) %q back to %q", x, y, p[k+1].r, p[k].r))
@@ -79,6 +82,20 @@ func (fs frameSeq) reversals(skip func(x, y int) bool) []string {
 		}
 	}
 	return out
+}
+
+// digitsOnly reports a cell that only ever shows digits or blanks: a clock
+// (the elapsed time in a command header) that counts while the run goes on.
+func digitsOnly(p []frameCellState) bool {
+	digit := false
+	for _, c := range p {
+		if c.r >= '0' && c.r <= '9' {
+			digit = true
+		} else if c.r != ' ' {
+			return false
+		}
+	}
+	return digit
 }
 
 // restyles counts, per cell, how often its glyph stayed and only its style

@@ -54,6 +54,10 @@ func TestFlickerDetectorSeesAFlipAndIgnoresGrowth(t *testing.T) {
 	if r := flip.reversals(func(x, y int) bool { return true }); len(r) != 0 {
 		t.Fatalf("a skipped region was reported: %v", r)
 	}
+	clock := frameSeq{frame(c('1', plain)), frame(c('2', plain)), frame(c('1', plain))}
+	if r := clock.reversals(nil); len(r) != 0 {
+		t.Fatalf("a digit of a running clock was reported: %v", r)
+	}
 	recolor := frameSeq{frame(c('a', plain)), frame(c('a', plain.Foreground(tcell.ColorRed)))}
 	if n := recolor.restyles(nil); len(n) != 1 {
 		t.Fatalf("recolored text was not found: %v", n)
