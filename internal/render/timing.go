@@ -54,13 +54,6 @@ func FmtCost(c float64) string {
 	return fmt.Sprintf("$%.2f", c)
 }
 
-var spinner = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
-
-func spinFrame(i int) string {
-	n := len(spinner)
-	return spinner[(i%n+n)%n]
-}
-
 // SummaryLines closes a run with lossless usage and execution metadata.
 func SummaryLines(s *RunStats, w int) []Line {
 	if s == nil {
