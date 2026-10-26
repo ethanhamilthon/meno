@@ -27,17 +27,7 @@ func runMCP(args []string, streams IO, api API, jsonOut bool) (int, error) {
 		}
 		return 0, emit(streams, jsonOut, items, formatList(items, func(x Server) string { return x.Name + statusSuffix(x.Status) }))
 	case "tools":
-		if len(args) != 1 {
-			return 0, usageError("usage: meno mcp tools SERVER")
-		}
-		if err := checkServer(api, args[0]); err != nil {
-			return 0, err
-		}
-		items, err := api.MCPTools(args[0])
-		if err != nil {
-			return 0, err
-		}
-		return 0, emit(streams, jsonOut, items, formatList(items, func(x Tool) string { return x.Name + descriptionSuffix(x.Description) }))
+		return mcpTools(args, streams, api, jsonOut)
 	case "call":
 		return mcpCall(args, streams, api, jsonOut)
 	case "results":

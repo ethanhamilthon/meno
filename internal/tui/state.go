@@ -41,8 +41,15 @@ type liveCall struct {
 	Code    string
 	Title   string
 	Running bool
+	// Ended marks a call that has finished but whose saved turn has not arrived;
+	// Output and ElapsedMs are what that turn will show.
+	Ended     bool
+	Output    string
+	ElapsedMs int64
 	// Started is when the execution began.
 	Started time.Time
+	// Order is the position of the call in its response; calls end in any order.
+	Order int
 }
 
 // retryState describes the pending retry shown in the status bar.

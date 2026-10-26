@@ -10,6 +10,12 @@ Use `/skill:<name>` to insert a skill reference; `/skills` manages skills. A bar
 Old colon commands and bare `/name` skill references are ordinary text. Esc without a list keeps INPUT, the draft, and the cursor. INPUT is the only
 mode: there is no NORMAL, EDIT, VISUAL or COMMAND mode.
 
+The welcome screen shows the MENO wordmark, whose glyphs keep changing while its shape
+stays, a tagline, the version (with the update notice when one exists), and one row of facts:
+model and effort (or `/model`, or `/login` when no provider works), the folder, the number of
+skills, the number of enabled MCP servers (with `N failed` in red when one cannot start) and
+whether an `AGENTS.md` was found. The rest of the screen stays blank.
+
 An empty composer shows one of three hints: `Type to start building anything` (new
 session), `Tell the working agent something` (an agent is running) and
 `Type your next task here` (the agent has answered). While an agent works, a green
@@ -92,6 +98,17 @@ model-authored text or additional conversation context.
 
 The settings `bash code`, `bash output` and `thinking` control retained source,
 output and thought display. Display settings never change what is executed.
+
+## Rendering stability
+
+The screen is redrawn by changing cells, never by clearing it, and the timeline only grows
+at the end. A command block has no background of its own in any state: it appears with
+the command, shows the output under it when it ends, and a failure turns the time in its
+header red. A command that has ended stays on screen with its output until the saved turn
+replaces it, so a block never leaves and returns. Streaming text and thinking only append.
+Two things can still repaint: pictures on terminals that draw them with Sixel or iTerm
+graphics, whose pixels are removed by repainting the cells under them (see
+[terminal graphics](graphics.md)), and a terminal that does not support synchronized updates.
 
 ## Images
 

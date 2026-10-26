@@ -11,9 +11,8 @@ import (
 var (
 	BgTerm     tcell.Color
 	BgUser     tcell.Color
-	BgJSDone   tcell.Color
-	BgJSRun    tcell.Color
-	BgJSErr    tcell.Color
+	BgDiffAdd  tcell.Color
+	BgDiffDel  tcell.Color
 	BgPopup    tcell.Color
 	BgPopupIn  tcell.Color
 	BgPopupSel tcell.Color
@@ -48,9 +47,9 @@ func (s Style) TCell() tcell.Style {
 
 // Palette is the full set of colors the UI draws with.
 type Palette struct {
-	BgTerm, BgUser, BgJSDone, BgJSRun, BgJSErr, BgPopup, BgPopupIn, BgPopupSel, BgSelect tcell.Color
-	FgWhite, FgSoft, FgDim, FgFaint, FgBlack                                             tcell.Color
-	Blue, Purple, Green, Yellow, Red, Orange                                             tcell.Color
+	BgTerm, BgUser, BgDiffAdd, BgDiffDel, BgPopup, BgPopupIn, BgPopupSel, BgSelect tcell.Color
+	FgWhite, FgSoft, FgDim, FgFaint, FgBlack                                       tcell.Color
+	Blue, Purple, Green, Yellow, Red, Orange                                       tcell.Color
 }
 
 // Theme is a named palette.
@@ -90,9 +89,8 @@ func derive(name string, dark bool, bg, fg, dim, blue, purple, green, yellow, re
 	return Theme{Name: name, Dark: dark, Palette: Palette{
 		BgTerm:     b,
 		BgUser:     mix(b, f, 0.05),
-		BgJSDone:   mix(b, hex(green), 0.10),
-		BgJSRun:    mix(b, hex(green), 0.12),
-		BgJSErr:    mix(b, hex(red), 0.10),
+		BgDiffAdd:  mix(b, hex(green), 0.10),
+		BgDiffDel:  mix(b, hex(red), 0.10),
 		BgPopup:    popup,
 		BgPopupIn:  mix(popup, b, 0.5),
 		BgPopupSel: mix(b, f, 0.14),
@@ -136,7 +134,7 @@ func SetTheme(name string) bool {
 		return false
 	}
 	p := t.Palette
-	BgTerm, BgUser, BgJSDone, BgJSRun, BgJSErr = p.BgTerm, p.BgUser, p.BgJSDone, p.BgJSRun, p.BgJSErr
+	BgTerm, BgUser, BgDiffAdd, BgDiffDel = p.BgTerm, p.BgUser, p.BgDiffAdd, p.BgDiffDel
 	BgPopup, BgPopupIn, BgPopupSel, BgSelect = p.BgPopup, p.BgPopupIn, p.BgPopupSel, p.BgSelect
 	FgWhite, FgSoft, FgDim, FgFaint, FgBlack = p.FgWhite, p.FgSoft, p.FgDim, p.FgFaint, p.FgBlack
 	Blue, Purple, Green, Yellow, Red, Orange = p.Blue, p.Purple, p.Green, p.Yellow, p.Red, p.Orange

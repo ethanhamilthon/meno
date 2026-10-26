@@ -115,12 +115,16 @@ func TestRunCountersFollowAgentEvents(t *testing.T) {
 	}
 	a.applyWire(rt, wireEvent(api.EventCallEnd, api.CallEndData{CallID: "c1", ElapsedMS: 1000}))
 	a.applyWire(rt, wireEvent(api.EventUsage, api.UsageData{InputTokens: 20, OutputTokens: 3}))
-	if a.st.RunTurns != 2 || a.st.RunJS != 1 || len(a.st.LiveCalls) != 0 {
-		t.Fatalf("turns %d js %d live %d", a.st.RunTurns, a.st.RunJS, len(a.st.LiveCalls))
+	// An ended call stays on screen, finished, until the saved turn replaces it.
+	if a.st.RunTurns != 2 || a.st.RunJS != 1 || len(a.st.LiveCalls) != 1 || !a.st.LiveCalls[0].Ended || a.st.LiveCalls[0].Running {
+		t.Fatalf("turns %d js %d live %+v", a.st.RunTurns, a.st.RunJS, a.st.LiveCalls)
 	}
 	a.applyWire(rt, wireEvent(api.EventDone, api.DoneData{}))
 	if a.st.Running {
 		t.Fatal("still running after done")
+	}
+	if len(a.st.LiveCalls) != 0 {
+		t.Fatalf("an ended call outlived the run: %+v", a.st.LiveCalls)
 	}
 }
 

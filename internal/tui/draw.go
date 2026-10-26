@@ -15,7 +15,7 @@ func (a *App) draw() {
 	c := render.Canvas{S: a.scr}
 	a.cur = cursorPos{}
 	a.completionVisible = false
-	a.waveOn.Store(false)
+	a.animOn.Store(false)
 	a.drawMain(c, w, h)
 	if a.st.Over != OverNone {
 		a.drawOverlay(c, w, h)

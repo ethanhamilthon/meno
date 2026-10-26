@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"math"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -30,19 +29,19 @@ const (
 	logoLetterGap = 2
 	welcomeBlockH = 19 // tagline, wordmark, version, info line and hints
 	compactBlockH = 5
-	waveRamp      = " .:-=+*#"
 	logoRamp      = "|&%$0=][{}<>*#+~^!?/\\;:"
-	tagline       = "efficient and stable AI harness"
+	tagline       = "thin and efficient AI coding harness"
 )
 
 // versionLabel is shown on the welcome screen and in the help title.
 var versionLabel = version.Label()
 
-// waveTick wakes the render loop while the welcome screen animates.
-type waveTick struct{}
+// animTick wakes the render loop while the wordmark animates.
+type animTick struct{}
 
-// waveInterval is the frame time of the welcome background.
-const waveInterval = 100 * time.Millisecond
+// logoInterval is the frame time of the wordmark: its glyphs change six times a
+// second (logoGlyph), so a faster tick would redraw identical frames.
+const logoInterval = time.Second / 6
 
 type seg struct {
 	text string
@@ -67,38 +66,6 @@ func drawSegs(c render.Canvas, x, y, w int, ss []seg) {
 	for _, s := range ss {
 		st := render.Style{FG: s.fg, BG: render.BgTerm, Bold: s.bold}.TCell()
 		col += c.Text(col, y, max(0, hi-col), s.text, st)
-	}
-}
-
-// waveGrain is a fixed pseudo-random value in [0,1) for a cell.
-func waveGrain(col, row int) float64 {
-	h := uint32(col)*374761393 + uint32(row)*668265263
-	h = (h ^ (h >> 13)) * 1274126177
-	return float64((h^(h>>16))&0xffff) / 65536
-}
-
-// drawWave paints the faint ASCII noise wave behind the welcome screen. The
-// cells inside the hole (the wordmark and its shadow) stay empty.
-func drawWave(c render.Canvas, x, y, w, h int, t float64, hx, hy, hw, hh int) {
-	for r := 0; r < h; r++ {
-		fr := float64(r)
-		rowT := (math.Sin(fr*0.4-t*0.6) + 1) / 2
-		st := tcell.StyleDefault.Foreground(render.Mix(render.BgTerm, render.Blue, 0.05+0.10*rowT)).Background(render.BgTerm)
-		for col := 0; col < w; col++ {
-			if col >= hx && col < hx+hw && r >= hy && r < hy+hh {
-				continue
-			}
-			fc := float64(col)
-			v := (math.Sin(fc*0.11+fr*0.35+math.Sin(fr*0.2)*2-t*0.9) +
-				0.7*math.Sin(fc*0.05-fr*0.5+t*0.5) +
-				0.5*math.Sin((fc+fr*3)*0.07-t*0.7) + 2.2) / 4.4
-			k := int(v*v*8 + waveGrain(col, r)*0.8)
-			k = min(max(k, 0), len(waveRamp)-1)
-			if k == 0 {
-				continue
-			}
-			c.S.SetContent(x+col, y+r, rune(waveRamp[k]), nil, st)
-		}
 	}
 }
 

@@ -109,9 +109,9 @@ func diffLine(l string) (tcell.Color, []Seg) {
 	case strings.HasPrefix(l, "@@"):
 		return BgPopup, []Seg{seg(" "+l, Blue, false)}
 	case strings.HasPrefix(l, "+"):
-		return BgJSDone, []Seg{seg("+", Green, true), seg(" "+l[1:], FgWhite, false)}
+		return BgDiffAdd, []Seg{seg("+", Green, true), seg(" "+l[1:], FgWhite, false)}
 	case strings.HasPrefix(l, "-"):
-		return BgJSErr, []Seg{seg("-", Red, true), seg(" "+l[1:], FgWhite, false)}
+		return BgDiffDel, []Seg{seg("-", Red, true), seg(" "+l[1:], FgWhite, false)}
 	case strings.HasPrefix(l, "\\"):
 		return BgPopup, []Seg{seg(" "+l, FgDim, false)}
 	}

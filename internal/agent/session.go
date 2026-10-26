@@ -124,7 +124,8 @@ type Session struct {
 	Model        string    `json:"model"`
 	Effort       string    `json:"effort,omitempty"`
 	UpdatedAt    time.Time `json:"updated_at"`
-	Summary      string    `json:"summary,omitempty"`
+	elide        elideHolder
+	Summary      string `json:"summary,omitempty"`
 	// Kind is KindMain or KindChild (empty = main). ParentID owns a child.
 	Kind     string `json:"kind,omitempty"`
 	ParentID string `json:"parent_id,omitempty"`

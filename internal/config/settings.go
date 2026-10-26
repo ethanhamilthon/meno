@@ -37,6 +37,10 @@ type Settings struct {
 	CompactPercent       int `json:"compact_percent"`
 	CompactKeep          int `json:"compact_keep"`
 	CompactSummaryTokens int `json:"compact_summary_tokens"`
+	// ElidePercent is the share of the context window at which meno first cuts the
+	// bulky output of old tool calls, before it asks the model for a summary.
+	// 10 to 100; at or above CompactPercent it never acts, which switches it off.
+	ElidePercent int `json:"elide_percent"`
 	// ImagesProtocol is auto, off, kitty, sixel or iterm: which terminal
 	// graphics protocol draws images in the timeline.
 	ImagesProtocol string `json:"images_protocol"`
@@ -126,6 +130,9 @@ func (s *Settings) UnmarshalJSON(data []byte) error {
 	if st.CompactSummaryTokens < 500 || st.CompactSummaryTokens > 30000 {
 		st.CompactSummaryTokens = defaults.CompactSummaryTokens
 	}
+	if st.ElidePercent < 10 || st.ElidePercent > 100 {
+		st.ElidePercent = defaults.ElidePercent
+	}
 	if st.SystemPrompt == DefaultSystemPrompt || ValidSystemPromptName(st.SystemPrompt) != nil {
 		st.SystemPrompt = ""
 	}
@@ -152,7 +159,7 @@ func DefaultSettings() Settings {
 		TurnSummary:    "on",
 		ThinkLines:     5,
 		Theme:          "default",
-		CompactPercent: 80, CompactKeep: 8, CompactSummaryTokens: 4000,
+		CompactPercent: 80, CompactKeep: 8, CompactSummaryTokens: 4000, ElidePercent: 50,
 		MaxSpawnDepth: 2, MaxWorkers: 8,
 		Notify:       "off",
 		NotifySound:  "default",

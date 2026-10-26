@@ -3,8 +3,10 @@ package engine
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"meno/internal/api"
+	"meno/internal/daemon"
 	"meno/internal/form"
 	"net/url"
 	"reflect"
@@ -44,7 +46,11 @@ func (e *Engine) adminMCP(ctx context.Context, s *runState, op, name string) (an
 	}
 	before, err := read()
 	if err != nil {
-		return nil, fmt.Errorf("configured MCP server %q not available; use /mcp to create it: %w", name, err)
+		var ae *daemon.APIError
+		if errors.As(err, &ae) && ae.Code == api.CodeNotFound {
+			return nil, dapi(api.CodeNotFound, fmt.Sprintf("no MCP server %q in %s; to create one add an entry to that file (see meno mcp add --help), then run: meno mcp restart %s", name, e.paths.File("mcp.json"), name))
+		}
+		return nil, fmt.Errorf("MCP server %q is not available: %w", name, err)
 	}
 	if op != "restart" {
 		if s.session.NoAsk {

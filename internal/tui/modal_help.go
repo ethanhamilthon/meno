@@ -12,11 +12,22 @@ import (
 type helpRow struct{ key, desc string }
 
 var helpRows = []helpRow{
-	{"", "modes & navigation"}, {"/", "commands, from any word start"}, {"Esc", "close list / keep INPUT"},
-	{"/skill:<name>", "insert a skill reference"},
-	{"Ctrl+C", "cancel active work"},
-	{"/context", "context, tokens, cache and cost"}, {"/new", "new session"},
-	{"/fork", "fork from a message"}, {"/sessions", "switch sessions"}, {"/login", "providers and accounts"},
+	{"", "keys"},
+	{"/", "commands, from any word start"}, {"Esc", "close the list, keep the draft"},
+	{"Enter", "send; during a run, steer the next request"}, {"Shift+Enter", "new line"},
+	{"@", "pick a file or folder"}, {"Ctrl+V", "attach an image (or drag and drop)"},
+	{"Ctrl+C", "stop active work (quits on the first-run screen)"},
+	{"PgUp, PgDn", "scroll the timeline (also the wheel)"},
+	{"", "sessions"},
+	{"/new", "new session"}, {"/sessions", "switch sessions"}, {"/fork", "fork from a message"},
+	{"/rename", "rename this session"}, {"/cd", "change the session directory"},
+	{"/compact", "summarize the old context"}, {"/export", "export the session"},
+	{"/stop", "stop this turn"}, {"/q, /quit", "leave; work keeps running"},
+	{"", "setup"},
+	{"/model", "model and effort"}, {"/settings", "settings"}, {"/login", "providers and API keys"},
+	{"/skills", "manage skills"}, {"/skill:<name>", "insert a skill reference"},
+	{"/mcp", "MCP servers"}, {"/tasks", "background tasks"},
+	{"/context", "context, tokens, cache and cost"}, {"/help", "this list"},
 }
 
 func (a *App) helpKey(k *tcell.EventKey) {
@@ -36,7 +47,13 @@ func (a *App) drawHelp(c render.Canvas, w, h int) {
 	for _, line := range wrapParts(a.statsText(), " · ", max(1, modalWidth(w)-4)) {
 		rows = append(rows, helpRow{desc: line})
 	}
-	bh := min(len(rows)+4, h)
+	// The list is long now: on a normal terminal it leaves the top rows and the status
+	// bar visible, so counters such as "1 done" stay readable while help is open.
+	maxH := h
+	if h >= 20 {
+		maxH = h - 4
+	}
+	bh := min(len(rows)+4, maxH)
 	b := centered(w, h, 80, bh)
 	b.frame(c)
 	title := "help · meno keybindings & commands"

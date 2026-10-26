@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -24,7 +25,7 @@ func TestLoadSettingsNormalizesInvalidValues(t *testing.T) {
 
 func TestSettingsDecodeValidAndLegacy(t *testing.T) {
 	for _, lines := range []int{1, 50} {
-		want := Settings{Provider: "custom", Model: "custom-model", Effort: "max", Tool: "bash", BashCode: "off", BashLines: lines, BashOutput: "off", BashOutputLines: 7, BashTiming: "slow", TurnSummary: "off", Thinking: "off", ThinkLines: 4, DaemonIdleExitMin: 30, Theme: "dracula", Notify: "done", NotifyCommand: "say hi", NotifySound: "chime", NotifyVolume: 60, CompactPercent: 70, CompactKeep: 10, CompactSummaryTokens: 3000, SystemPrompt: "writer", MaxSpawnDepth: 3, MaxWorkers: 5}
+		want := Settings{Provider: "custom", Model: "custom-model", Effort: "max", Tool: "bash", BashCode: "off", BashLines: lines, BashOutput: "off", BashOutputLines: 7, BashTiming: "slow", TurnSummary: "off", Thinking: "off", ThinkLines: 4, DaemonIdleExitMin: 30, Theme: "dracula", Notify: "done", NotifyCommand: "say hi", NotifySound: "chime", NotifyVolume: 60, CompactPercent: 70, CompactKeep: 10, CompactSummaryTokens: 3000, ElidePercent: 60, SystemPrompt: "writer", MaxSpawnDepth: 3, MaxWorkers: 5}
 		b, err := json.Marshal(want)
 		if err != nil {
 			t.Fatal(err)
@@ -160,5 +161,24 @@ func TestRemovedWebSettingsAreIgnored(t *testing.T) {
 		if strings.Contains(string(out), key) {
 			t.Errorf("removed key written back: %s", key)
 		}
+	}
+}
+
+func TestElidePercentDefaultsAndRange(t *testing.T) {
+	if DefaultSettings().ElidePercent != 50 {
+		t.Fatalf("default %d, want 50", DefaultSettings().ElidePercent)
+	}
+	for _, c := range []struct{ in, want int }{{0, 50}, {-5, 50}, {9, 50}, {10, 10}, {70, 70}, {100, 100}, {101, 50}} {
+		var st Settings
+		if err := json.Unmarshal([]byte(fmt.Sprintf(`{"elide_percent": %d}`, c.in)), &st); err != nil {
+			t.Fatal(err)
+		}
+		if st.ElidePercent != c.want {
+			t.Errorf("elide_percent %d became %d, want %d", c.in, st.ElidePercent, c.want)
+		}
+	}
+	var absent Settings
+	if err := json.Unmarshal([]byte(`{}`), &absent); err != nil || absent.ElidePercent != 50 {
+		t.Fatalf("a file without the key: %d %v", absent.ElidePercent, err)
 	}
 }

@@ -43,7 +43,7 @@ type App struct {
 	noAsk     bool // new sessions are created with meno ask turned off
 	done      chan struct{}
 	closeOnce sync.Once
-	waveOn    atomic.Bool      // the welcome screen was drawn last: keep it animating
+	animOn    atomic.Bool      // the welcome screen was drawn last: keep it animating
 	agentsAt  time.Time        // when agentsOK was last checked
 	agentsOK  bool             // an AGENTS.md exists (cached for the welcome screen)
 	now       func() time.Time // the clock of animations; tests replace it
@@ -156,7 +156,7 @@ func (a *App) Run(ctx context.Context) error {
 		}
 	}, a.reportPanic)
 	safe.Go(a.ticker, a.reportPanic)
-	safe.Go(a.waveTicker, a.reportPanic)
+	safe.Go(a.animTicker, a.reportPanic)
 	a.drawSafe()
 	for !a.quit {
 		select {
@@ -270,7 +270,7 @@ func (a *App) handle(msg any) {
 				a.st.ServerInfo[v.Name] = mcpInfo{Running: v.Running, Starting: v.Starting, Err: v.Error}
 			}
 		}
-	case waveTick:
+	case animTick:
 	case tick:
 		a.refreshMCPStatus()
 		a.refreshTasks()

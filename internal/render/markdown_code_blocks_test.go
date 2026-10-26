@@ -182,7 +182,7 @@ func TestMarkdownDiffBlock(t *testing.T) {
 		t.Fatalf("no row %q", text)
 		return Seg{}
 	}
-	if rowBG("new").BG != BgJSDone || rowBG("old").BG != BgJSErr || rowBG("ctx").BG != BgPopup || rowBG("@@").BG != BgPopup {
+	if rowBG("new").BG != BgDiffAdd || rowBG("old").BG != BgDiffDel || rowBG("ctx").BG != BgPopup || rowBG("@@").BG != BgPopup {
 		t.Fatal("row backgrounds")
 	}
 	exact := func(text string) Seg {

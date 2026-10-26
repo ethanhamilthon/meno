@@ -183,7 +183,7 @@ func (e *Engine) run(ctx context.Context, s *runState, text string, cont bool) {
 	tool := e.newBashRunner(s)
 	auto := agent.AutoCompact{}
 	if info, ok := p.Lookup(e.catalogView(), model); ok {
-		auto = agent.AutoCompact{Window: info.Context, Percent: e.cfg().CompactPercent, Keep: e.cfg().CompactKeep, SummaryTokens: e.cfg().CompactSummaryTokens}
+		auto = agent.AutoCompact{Window: info.Context, Percent: e.cfg().CompactPercent, Keep: e.cfg().CompactKeep, SummaryTokens: e.cfg().CompactSummaryTokens, Elide: elideOptions(e.cfg())}
 	}
 	deps := agent.Deps{Client: e.client(p), Provider: p, Model: model, Effort: effort, System: system, Tool: tool, Thinking: e.cfg().Thinking != "off", ToolDesc: spec.desc, ToolName: spec.name, SkillPaths: e.skillPathsOf(s), Queue: &s.queue, AutoCompact: auto, Events: e.eventSource(s.session.ID),
 		Cost: func(u llm.Usage) (float64, bool) {

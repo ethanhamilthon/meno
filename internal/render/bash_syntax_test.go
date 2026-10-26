@@ -27,14 +27,7 @@ func TestBashHeaderAndSourceBackgrounds(t *testing.T) {
 			if !lines[0].FullWidth || lines[0].BG != BgTerm {
 				t.Fatal("header surface")
 			}
-			want := BgTerm
-			if tc.running {
-				want = BgJSRun
-			}
-			if tc.turn.Err != "" {
-				want = BgJSErr
-			}
-			if len(lines) < 2 || lines[1].BG != want {
+			if len(lines) < 2 || lines[1].BG != BgTerm {
 				t.Fatal("source background")
 			}
 		})

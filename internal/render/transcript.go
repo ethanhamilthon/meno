@@ -115,14 +115,9 @@ func jsBlock(t Turn, w int, js JSOpts) []Line {
 		if js.Mode == JSLines {
 			max = js.Lines
 		}
-		bg := BgTerm
-		switch {
-		case t.Err != "" || t.TimedOut:
-			bg = BgJSErr
-		case js.Running || js.Streaming:
-			bg = BgJSRun
-		}
-		lines := CodeLinesOpt(t.Code, bg, TranscriptTextWidth(w), max, CodeOpts{Plain: js.Streaming})
+		// No background in any state: a color that changes when the call starts or
+		// ends repaints the whole block.
+		lines := CodeLinesOpt(t.Code, BgTerm, TranscriptTextWidth(w), max, CodeOpts{Plain: js.Streaming})
 		for i := range lines {
 			lines[i].Segs = append([]Seg{{Text: "  ", FG: FgDim}}, lines[i].Segs...)
 		}

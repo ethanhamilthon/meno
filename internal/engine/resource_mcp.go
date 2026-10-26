@@ -66,9 +66,6 @@ func (e *Engine) mcpResource(ctx context.Context, s *runState, tail []string, me
 		}
 		store := mcp.ResultStore{Dir: e.paths.File("mcp-results")}
 		off, lim := int(number(data["offset"])), int(number(data["limit"]))
-		if lim == 0 {
-			lim = 10000
-		}
 		return store.Read(s.session.ID, id, off, lim)
 	}
 	if op == "add" || op == "remove" || op == "restart" {

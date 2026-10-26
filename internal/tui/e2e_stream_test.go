@@ -38,7 +38,7 @@ func TestE2EStreamingFrames(t *testing.T) {
 			a.draw()
 			frame := screenText(scr)
 			for _, call := range a.st.LiveCalls {
-				if !call.Running && call.Code != "" && strings.Contains(frame, call.Code) {
+				if !call.Running && !call.Ended && call.Code != "" && strings.Contains(frame, call.Code) {
 					t.Fatalf("partial source visible: %q", call.Code)
 				}
 			}

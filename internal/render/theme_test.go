@@ -53,7 +53,7 @@ func TestThemeCatalog(t *testing.T) {
 func TestThemesAreReadable(t *testing.T) {
 	for _, th := range Themes() {
 		p := th.Palette
-		bgs := map[string]tcell.Color{"term": p.BgTerm, "user": p.BgUser, "popup": p.BgPopup, "popup-sel": p.BgPopupSel, "js": p.BgJSDone, "js-run": p.BgJSRun, "select": p.BgSelect}
+		bgs := map[string]tcell.Color{"term": p.BgTerm, "user": p.BgUser, "popup": p.BgPopup, "popup-sel": p.BgPopupSel, "diff-add": p.BgDiffAdd, "select": p.BgSelect}
 		for name, bg := range bgs {
 			if c := contrast(p.FgWhite, bg); c < 4.5 {
 				t.Errorf("%s: text on %s contrast %.1f", th.Name, name, c)

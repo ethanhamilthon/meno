@@ -4,8 +4,9 @@ The model has one tool, `bash`. Each call runs one command in a fresh `/bin/sh` 
 session's working directory. Nothing is shared between calls: durable state lives in files
 and in background tasks. The result ends with `[exit N]` or
 `[cancelled]`. Output is capped once at the source (32 KB of head and 24 KB of
-tail), and the full text is kept on disk. Already-sent tool results are not
-shortened on later requests; automatic compaction still summarizes older
+tail); when it was cut, the full text is kept on disk and its path is in the result.
+Tool results are not shortened on later requests until the context nears the window: see
+[elision of old output](#elision-of-old-output). Automatic compaction still summarizes older
 conversation when needed.
 
 The working rules (editing, verification, output) are part of the system prompt, not of the tool description. `meno doctor` is available next to `meno mcp`, `tasks`, `ask`, `view`, `models`, `sessions`, `send` and `tail`.
@@ -36,6 +37,21 @@ Daemon-backed groups reach the daemon through the `MENO_SOCK`, `MENO_SESSION`, `
 and `MENO_CALL` variables that the daemon puts in the environment of each call. The token is
 valid for that session only. See [the daemon](daemon.md).
 
+## Elision of old output
+
+A long session keeps every tool result in the context. When the estimated request reaches
+`elide_percent` of the model's window (default 50%), meno first cuts the output of old
+calls: outputs over 2 KB keep their first and last 512 bytes and say how many bytes were left
+out. The newest 6 turns, small outputs and the output of failed calls are never cut. Only what
+the model receives is shorter: the timeline, the export and the compaction transcript still
+hold the whole output. An output under 56 KB is not kept on disk, so the cut text says to run
+the command again if it is needed.
+
+The cut moves in steps, only when it saves at least 8 KB, because changing old messages costs
+one provider-cache miss; between steps the messages sent are identical, so the cache keeps
+working. If this is not enough, compaction (a summary) follows at its own threshold. The cut
+is kept in memory: after a daemon restart the first long request makes it again.
+
 ## Background tasks
 
 `meno tasks start CMD` runs a command under the process supervisor. A task outlives the call
@@ -54,6 +70,14 @@ The daemon owns one MCP runtime shared by the interface and agent. Use `/mcp`
 to create a server. Changes apply to the agent without restarting the daemon.
 The dialog refreshes running, starting, and error status while open. Environment
 variables and HTTP headers are edited as JSON objects with string values.
+
+The agent cannot create a server with `meno mcp add`: that command only enables a saved
+server, and the user is asked first. To create one, the agent edits `$MENO_HOME/mcp.json`
+(the format is in [settings](settings.md)) and runs `meno mcp restart NAME`, which does not
+ask. The file is read on every call, so no daemon restart is needed. An entry that is not
+valid is skipped with a warning that `meno doctor` shows; a file that is not valid JSON lists
+no servers until it is fixed. `meno mcp tools SERVER TOOL` prints the full description and
+input schema of one tool; `meno mcp tools SERVER` lists one line per tool.
 
 `meno mcp call` prints a JSON envelope with `text`, `structuredContent`, `isError`,
 `resultId`, artifact paths, retained size, and any retention notes. Text and

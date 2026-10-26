@@ -64,20 +64,6 @@ func TestVisualWelcomeAlignment(t *testing.T) {
 	exportVisual(t, s, "welcome")
 }
 
-func TestWelcomeWaveAnimates(t *testing.T) {
-	a, s := visualFixture(t, 112, 36)
-	a.draw()
-	if !a.waveOn.Load() {
-		t.Fatal("welcome screen does not request animation")
-	}
-	first := screenText(s)
-	time.Sleep(1200 * time.Millisecond)
-	a.draw()
-	if screenText(s) == first {
-		t.Fatal("background wave did not move")
-	}
-}
-
 // logoFrame returns the lit mask and the glyphs of the wordmark on screen.
 func logoFrame(s tcell.SimulationScreen, top, x int) (mask, glyphs string) {
 	for ri, want := range logoRows {

@@ -29,7 +29,7 @@ func TestWelcomeShownWhenEmpty(t *testing.T) {
 	defer scr.Fini()
 	a.draw()
 	out := screenText(scr)
-	for _, want := range []string{"efficient and stable AI harness", "write", "skills", "/help", version.Label(), "gpt-5.5"} {
+	for _, want := range []string{"thin and efficient AI coding harness", "@", "skills", "/help", version.Label(), "gpt-5.5"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("welcome missing %q:\n%s", want, out)
 		}
@@ -126,7 +126,7 @@ func TestHelpClosesOnQ(t *testing.T) {
 	defer scr.Fini()
 	a.openOverlay(OverHelp)
 	a.draw()
-	if !strings.Contains(screenText(scr), "modes & navigation") {
+	if !strings.Contains(screenText(scr), "keys") {
 		t.Fatal("help rows missing")
 	}
 	a.onKey(key('q'))

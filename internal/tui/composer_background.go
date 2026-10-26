@@ -7,7 +7,7 @@ import "meno/internal/render"
 func (a *App) paintComposerBackground(c render.Canvas, x, y, w, h int) {
 	colors := make([]float64, w)
 	if a.st.Running {
-		a.waveOn.Store(true)
+		a.animOn.Store(true)
 		colors = render.WaveIntensity(w, a.clock().Sub(a.waveEpoch).Seconds())
 	}
 	sw, sh := c.S.Size()

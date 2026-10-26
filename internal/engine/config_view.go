@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"meno/internal/agent"
 	"meno/internal/config"
 	"meno/internal/llm"
 	"meno/internal/mcp"
@@ -31,4 +32,14 @@ func (e *Engine) catalogView() map[string]llm.ModelInfo {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	return e.catalog
+}
+
+// elideOptions turns the settings into the first stage of context saving. An
+// elide threshold at or above the compaction threshold never acts (compaction
+// runs first), which is how it is switched off.
+func elideOptions(st config.Settings) agent.ElideOptions {
+	if st.ElidePercent >= st.CompactPercent {
+		return agent.ElideOptions{}
+	}
+	return agent.ElideOptions{Percent: st.ElidePercent}
 }

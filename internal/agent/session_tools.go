@@ -41,12 +41,12 @@ func (s *Session) msgsOf(turns []Turn) []llm.Msg {
 		if t.Replay != nil {
 			out = append(out, *t.Replay)
 			if t.CallID != "" {
-				out = append(out, toolResult(turns[i]))
+				out = append(out, toolResult(s.elidedView(turns[i])))
 			}
 			for i+1 < len(turns) && t.ReplayGroup != "" && turns[i+1].ReplayGroup == t.ReplayGroup {
 				i++
 				if turns[i].CallID != "" {
-					out = append(out, toolResult(turns[i]))
+					out = append(out, toolResult(s.elidedView(turns[i])))
 				}
 			}
 			continue
@@ -56,7 +56,7 @@ func (s *Session) msgsOf(turns []Turn) []llm.Msg {
 			out = append(out, s.userMsg(t))
 		case t.Code != "" || t.CallID != "":
 			out = append(out, llm.Msg{Role: llm.RoleAssistant, Text: t.Text, CallID: t.CallID, Code: t.Code, ToolName: s.legacyToolName()})
-			out = append(out, toolResult(turns[i]))
+			out = append(out, toolResult(s.elidedView(turns[i])))
 		case t.Role == llm.RoleAssistant:
 			out = append(out, llm.Msg{Role: llm.RoleAssistant, Text: t.Text})
 		}

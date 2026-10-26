@@ -30,7 +30,7 @@ type Instructions struct {
 }
 
 // maxListedTools bounds how many tools are spelled out in the prompt; the rest
-// can be found with mcpTools().
+// can be listed with `meno mcp tools SERVER`.
 const maxListedTools = 60
 
 // MaxInstructions bounds how much of one AGENTS.md is used.

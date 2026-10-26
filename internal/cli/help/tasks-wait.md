@@ -2,4 +2,6 @@
 
 Usage: meno tasks wait ID [--timeout SECONDS]
 
-A timed-out wait returns exit code 124. It does not cancel the task.
+Block until the task ends and print its ID and final status. With --timeout the wait ends
+after that many seconds with exit code 124 and the task keeps running; a timeout does not
+cancel it. Without --timeout it waits as long as the task runs.

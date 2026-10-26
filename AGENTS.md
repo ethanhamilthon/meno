@@ -39,7 +39,7 @@ Bash tools, provider APIs, MCP integrations, and SQLite persistence.
 | Path | Responsibility / starting points |
 | --- | --- |
 | `cmd/meno/main.go` | CLI entry point; terminal setup and application lifecycle. Update orchestration: `cmd/meno/update.go`. ACP entry: `cmd/meno/acp.go`. |
-| `internal/tui/` | TUI controller, state, input, commands, modals, session/runtime wiring. Start with `app.go`, `state.go`, `runtime.go`, `turn.go`. Mouse selection and copy: `selection.go`, `mouse.go`, `doc.go` (document positions), `textdoc.go`; composer undo: `draft_undo.go`. Stream state: `connection.go`; immutable session updates: `wire.go`, `projection_effects.go`; global subscription/hydration: `global_watch.go`. Text fields outside the composer: `textedit*.go` (`textEdit`), forms in `forms.go`. Slash completion of skills: `slash_completion.go`; status-bar segments and clicks: `status_segs.go`, `attention_filter.go`; per-window setting overrides: `local_preferences.go`. `/login` (the only providers UI): `login.go` (interaction), `login_list.go` (provider list), `login_api.go` (API-key providers, the first-run lock). |
+| `internal/tui/` | TUI controller, state, input, commands, modals, session/runtime wiring. Start with `app.go`, `state.go`, `runtime.go`, `turn.go`. Mouse selection and copy: `selection.go`, `mouse.go`, `doc.go` (document positions), `textdoc.go`; composer undo: `draft_undo.go`. Stream state: `connection.go`; immutable session updates: `wire.go`, `projection_effects.go`; global subscription/hydration: `global_watch.go`. Text fields outside the composer: `textedit*.go` (`textEdit`), forms in `forms.go`. Slash completion of skills: `slash_completion.go`; status-bar segments and clicks: `status_segs.go`, `attention_filter.go`; per-window setting overrides: `local_preferences.go`. Live tool calls, including ended ones kept until the saved turn arrives: `live_calls.go`; the flicker detector: `flicker_helpers_test.go`. `/login` (the only providers UI): `login.go` (interaction), `login_list.go` (provider list), `login_api.go` (API-key providers, the first-run lock). |
 | `internal/render/` | Rendering primitives, themes, Markdown, transcript layout, widgets and terminal image protocols (Kitty, Sixel, iTerm: `terminal_images*.go`). Start with `render.go`, `transcript.go`, `theme.go`. |
 | `internal/agent/` | Agent loop, events, retries, queues, compaction, sessions. Start with `loop.go`, `session.go`, `sessiondb.go`; history, fork and the versioned store in `history.go`, `fork.go`; the steering queue in `queue.go`, events in `events.go`. |
 | `internal/llm/` | Provider API clients, streaming, model catalog, usage and protocol types. Start with `types.go`, `http.go`, `chat.go`, `responses.go`. |
@@ -90,6 +90,9 @@ Bash tools, provider APIs, MCP integrations, and SQLite persistence.
 - Run `make test` for the Go suite; `make check` checks formatting, vet, and
   race tests. Use `make term` for real-terminal behavior changes.
 - Build with `make build`. Report what was validated and any checks not run.
+- UI changes must keep the flicker tests green (`internal/tui/flicker_test.go`, `make term`): no
+  background that depends on state in the timeline, no screen clears after the first frame,
+  and live state that is handed over to saved state must draw the same cells.
 - Keep this repo map current when package responsibilities or entry points change.
 - Do not create clutter in this repo. Plans, reports, audits, scratch notes and generated
   artifacts go in `.report/`, never in the root, `docs/` or `internal/`. Remove temporary

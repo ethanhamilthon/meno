@@ -67,23 +67,12 @@ func (a *App) applyProjection(rt *Runtime, u client.ProjectionUpdate) {
 		}
 	}
 	if f&client.LiveChanged != 0 {
-		started := map[string]time.Time{}
-		for _, c := range rt.LiveCalls {
-			started[c.ID] = c.Started
-		}
 		rt.LiveText, rt.LiveThink = v.Live.Text, v.Live.Thinking
 		rt.LiveBase = rt.Session.Len()
-		rt.LiveCalls = nil
-		for _, c := range v.Live.Calls {
-			if c.TaskID != "" {
-				continue
-			}
-			code := c.Command
-			if code == "" {
-				code = c.Delta
-			}
-			rt.LiveCalls = append(rt.LiveCalls, liveCall{ID: c.CallID, Code: code, Title: c.Title, Running: v.StartedCalls[c.CallID], Started: started[c.CallID]})
-		}
+		rt.rebuildLiveCalls(v.Live.Calls, v.StartedCalls, u.Effects.CallEnded)
+	}
+	if f&client.ActivityChanged != 0 && !v.Running {
+		rt.dropEndedCalls()
 	}
 	if f&client.QueueChanged != 0 {
 		rt.Queued = v.Queued

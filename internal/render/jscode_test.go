@@ -19,7 +19,7 @@ func segText(lines []Line) string {
 
 func TestBashQuotedContentStaysReadable(t *testing.T) {
 	src := `printf '%s' "SELECT * -- <b>html</b> function(){}"`
-	lines := CodeLinesOpt(src, BgJSDone, 0, 0, CodeOpts{})
+	lines := CodeLinesOpt(src, BgDiffAdd, 0, 0, CodeOpts{})
 	if segText(lines) != src {
 		t.Fatalf("source changed: %q", segText(lines))
 	}
@@ -33,7 +33,7 @@ func TestBashQuotedContentStaysReadable(t *testing.T) {
 }
 
 func TestStreamingCodeIsPlain(t *testing.T) {
-	plain := CodeLinesOpt("const a = 'x'", BgJSDone, 0, 0, CodeOpts{Plain: true})
+	plain := CodeLinesOpt("const a = 'x'", BgDiffAdd, 0, 0, CodeOpts{Plain: true})
 	if len(plain[0].Segs) != 1 || plain[0].Segs[0].FG != FgWhite {
 		t.Fatalf("streaming fragments are not highlighted: %+v", plain[0].Segs)
 	}

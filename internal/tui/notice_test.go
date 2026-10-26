@@ -28,7 +28,7 @@ func TestNoticesGoToTimelineNotInput(t *testing.T) {
 	a.notifyErr("first")
 	a.st.Session.Append(agent.Turn{Role: llm.RoleAssistant, Text: "answer"})
 	a.notify("second")
-	out, _ := transcriptText(a)
+	out := transcriptText(a)
 	i, j, k := strings.Index(out, "hi"), strings.Index(out, "first"), strings.Index(out, "answer")
 	if !(i < j && j < k && k < strings.Index(out, "second")) {
 		t.Fatalf("order:\n%s", out)

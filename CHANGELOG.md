@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.7.0
+
+Restart the daemon and the windows after updating. No data is migrated and the daemon protocol is unchanged (8).
+
+- **Commands in the chat no longer flicker.** A command block had a background that changed when the
+  call started and ended, and when a call ended its block vanished until the whole response was saved,
+  then came back with its output. The block now has no background in any state (a failure turns its
+  time red), and a call that has ended stays on screen with its output until the saved turn replaces
+  it. A frame-by-frame detector in the tests and a raw-output check in `make term` (no screen clear
+  after the first frame) guard this; streaming text and thinking are unchanged.
+- **Welcome screen.** The animated background is gone; the wordmark keeps its changing glyphs, on a
+  slower tick. New tagline, current key hints (`/`, `@`, `ctrl+v`, `/help`; the removed `i` hint is
+  gone), `N failed` in red next to the MCP count, `/login` when no provider works. `/help` lists every
+  command and drops the "modes" heading.
+- **Help for the agent, `meno <command> --help`.** The `mcp`, `tasks`, `view` and main pages now say
+  what a model cannot guess: server statuses, the `mcp call` result fields, that `isError` keeps exit 0,
+  paging of `mcp results` (10000 bytes, at most 65536), task statuses and log paging, all exit codes.
+- **`meno mcp tools SERVER TOOL`** prints the full description and input schema of one tool.
+  **Breaking:** `meno mcp tools SERVER` now prints one line per tool (name and the first line of its
+  description) instead of the raw multi-line descriptions. `--json` is unchanged.
+- **The agent can create MCP servers.** `meno mcp add` still only enables a saved server and asks the
+  user. To create one the agent edits `/mcp.json` and runs `meno mcp restart NAME`; the help
+  and the tool description say how, and a test proves it. The error for an unknown server now says so.
+- **Elision of old tool output.** At `elide_percent` of the context window (default 50) meno first cuts
+  the output of old calls to its start and end, and only then asks for a summary. See
+  [tools](docs/tools.md#elision-of-old-output). `elide_percent` is in `settings.json`; at or above
+  `compact_percent` it is off.
+- Cache audit: no change; the system prompt is frozen per session and old messages never change between
+  steps. Sending `prompt_cache_key` to a proxy was tried and made no measurable difference.
+
 ## 0.6.15
 
 - **Breaking: built-in OAuth logins removed.** Meno no longer installs or runs

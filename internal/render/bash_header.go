@@ -17,15 +17,20 @@ func bashHeader(t Turn, w int, opts JSOpts) Line {
 	if opts.Running {
 		elapsed = FmtDur(opts.Elapsed)
 	}
+	// A failed call is told by the color of its time, not by a background.
+	timeFG := FgFaint
+	if t.Err != "" || t.TimedOut {
+		timeFG = Red
+	}
 	// The title shares the body anchor; only the rule uses the outer gutter.
 	// The right gutter is excluded even though this row is drawn full-width.
 	available := max(0, w-Gutter)
 	lead := "─── "
 	if available < TextWidth(lead)+TextWidth(elapsed)+1 {
-		return Line{Segs: []Seg{{Text: "  " + Truncate(elapsed, TranscriptTextWidth(w)), FG: FgFaint}}, BG: BgTerm}
+		return Line{Segs: []Seg{{Text: "  " + Truncate(elapsed, TranscriptTextWidth(w)), FG: timeFG}}, BG: BgTerm}
 	}
 	title = Truncate(title, max(0, available-TextWidth(lead)-TextWidth(elapsed)-2))
 	gap := max(0, available-TextWidth(lead)-TextWidth(title)-TextWidth(elapsed)-2)
-	text := lead + title + " " + strings.Repeat("─", gap) + " " + elapsed
-	return Line{Segs: []Seg{{Text: text, FG: FgFaint}}, BG: BgTerm, FullWidth: true}
+	text := lead + title + " " + strings.Repeat("─", gap) + " "
+	return Line{Segs: []Seg{{Text: text, FG: FgFaint}, {Text: elapsed, FG: timeFG}}, BG: BgTerm, FullWidth: true}
 }

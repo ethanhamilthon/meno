@@ -22,6 +22,9 @@ type AutoCompact struct {
 	SummaryTokens int
 	// OutputReserve is the room left for the answer (default 8192 tokens).
 	OutputReserve int
+	// Elide is the stage before the summary: cut the bulky output of old tool
+	// calls first. Elide.Percent 0 turns it off.
+	Elide ElideOptions
 }
 
 func (c AutoCompact) percent() int {
@@ -87,6 +90,11 @@ func (r *Runner) maybeCompact(ctx context.Context, s *Session) error {
 		return nil
 	}
 	est := estimateRequest(r.D.System, s.ToMsgs(), r.calibration)
+	if ac.Elide.Percent > 0 && est >= ac.Window*ac.Elide.Percent/100 {
+		if turns, _ := s.ElideOld(ac.Elide); turns > 0 {
+			est = estimateRequest(r.D.System, s.ToMsgs(), r.calibration)
+		}
+	}
 	limit := ac.Window * ac.percent() / 100
 	if est < limit {
 		r.lastCompactLen = -1

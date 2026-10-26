@@ -62,7 +62,7 @@ func (a *App) transcriptWithSelection(w int) []render.Line {
 		}
 	}
 	for _, call := range a.st.LiveCalls {
-		if !call.Running {
+		if !call.Running && !call.Ended {
 			continue
 		}
 		saved := false
@@ -73,6 +73,13 @@ func (a *App) transcriptWithSelection(w int) []render.Line {
 			}
 		}
 		if saved {
+			continue
+		}
+		if call.Ended {
+			// Drawn as the saved turn will be, so the hand-over changes nothing.
+			live.Code, live.Title, live.Output, live.ElapsedMs = call.Code, call.Title, call.Output, call.ElapsedMs
+			appendLines(render.BuildLines([]render.Turn{live}, w, js), render.TurnHasMessage(live, js))
+			live = render.Turn{Role: render.RoleAssistant}
 			continue
 		}
 		live.Code, live.Title = call.Code, call.Title

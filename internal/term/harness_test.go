@@ -51,8 +51,9 @@ type session struct {
 	work   string
 	exited chan struct{}
 	mu     sync.Mutex
-	err    error // exit status
-	emuErr error // first error of the terminal emulator
+	err    error  // exit status
+	emuErr error  // first error of the terminal emulator
+	raw    []byte // every byte meno wrote to the terminal
 }
 
 type options struct {
@@ -117,6 +118,9 @@ func start(t *testing.T, o options) *session {
 		for {
 			n, err := ptmx.Read(buf)
 			if n > 0 {
+				s.mu.Lock()
+				s.raw = append(s.raw, buf[:n]...)
+				s.mu.Unlock()
 				data := append(pending, buf[:n]...)
 				// vt10x stops at a UTF-8 sequence cut by the read boundary and
 				// reports the bytes it consumed; hand it the rest next time.
@@ -287,4 +291,18 @@ func (s *session) WaitExit() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.err
+}
+
+// RawLen is how many bytes meno has written to the terminal so far.
+func (s *session) RawLen() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return len(s.raw)
+}
+
+// RawSince returns the bytes written after offset.
+func (s *session) RawSince(offset int) []byte {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]byte(nil), s.raw[offset:]...)
 }

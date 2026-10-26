@@ -39,16 +39,16 @@ func TestThinkingModes(t *testing.T) {
 	think := "one\n\ntwo\n\nthree\n\nfour\n\nfive"
 	a.st.Session.Append(agent.Turn{Role: llm.RoleAssistant, Text: "answer", Replay: &llm.Msg{Thought: think}})
 	a.st.Settings.Thinking = "all"
-	if text, _ := transcriptText(a); !strings.Contains(text, "one") || !strings.Contains(text, "five") || strings.Contains(text, "earlier") {
+	if text := transcriptText(a); !strings.Contains(text, "one") || !strings.Contains(text, "five") || strings.Contains(text, "earlier") {
 		t.Fatalf("all:\n%s", text)
 	}
 	a.st.Settings.Thinking, a.st.Settings.ThinkLines = "lines", 3
-	text, _ := transcriptText(a)
+	text := transcriptText(a)
 	if strings.Contains(text, "one") || !strings.Contains(text, "five") || !strings.Contains(text, "earlier") || !strings.Contains(text, "answer") {
 		t.Fatalf("lines:\n%s", text)
 	}
 	a.st.Settings.Thinking = "off"
-	if text, _ := transcriptText(a); strings.Contains(text, "five") || strings.Contains(text, "∴") || !strings.Contains(text, "answer") {
+	if text := transcriptText(a); strings.Contains(text, "five") || strings.Contains(text, "∴") || !strings.Contains(text, "answer") {
 		t.Fatalf("off:\n%s", text)
 	}
 }

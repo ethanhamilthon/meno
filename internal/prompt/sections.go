@@ -35,7 +35,8 @@ func instructionsSection(name string, in Instructions) string {
 }
 
 // mcpToolsSection lists the running servers with the names of their tools, up
-// to maxListedTools names in all; mcpTools() gives the rest and the schemas.
+// to maxListedTools names in all; `meno mcp tools SERVER [TOOL]` gives the rest
+// and the schemas.
 func mcpToolsSection(tools []Tool) string {
 	if len(tools) == 0 {
 		return ""

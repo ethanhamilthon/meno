@@ -21,6 +21,7 @@ Look and signal settings (`theme`, `notify`, `notify sound`, `notify volume`, `n
 | Notify | notify volume | `20`…`100` percent; previews on change; ignored for a custom command |
 | Notify | notify command | optional shell command that replaces the sound |
 | Context | auto compact | the percentage of the context window at which meno compacts before a request |
+| Context | elide percent | `elide_percent` in `settings.json` only (default 50, 10 to 100): the percentage of the context window at which meno first cuts the bulky output of old tool calls, before it asks the model for a summary. At or above `auto compact` it never acts, which switches it off. See [tools](tools.md#elision-of-old-output) |
 | Context | daemon idle exit | minutes (default 30); 0 means never |
 
 ## Files that add to the app

@@ -1,5 +1,19 @@
 # Upgrading, data and privacy
 
+## 0.7.0: flicker, help for agents, MCP creation
+
+Restart the daemon and every window after updating; close active work first. There is no data
+migration and the daemon protocol stays 8. The flicker fix is in the window, so update the windows
+too.
+
+- `meno mcp tools SERVER` prints one line per tool. Scripts that parsed the long descriptions
+  should use `--json` or `meno mcp tools SERVER TOOL`.
+- `settings.json` gains `elide_percent` (default 50). A file without it gets the default. To turn
+  elision off set it to `100` (any value at or above `compact_percent` never acts).
+- The welcome screen and `/help` changed; the settings dialog did not.
+- The color names `BgJSDone` and `BgJSErr` of the code are `BgDiffAdd` and `BgDiffDel`; `theme.json`
+  is unchanged.
+
 ## 0.6.15: TUI-only Done counts and API-key providers
 
 ### Done counts only TUI-authored runs

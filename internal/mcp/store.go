@@ -18,7 +18,10 @@ import (
 const (
 	MaxResultBytes   = 64 << 20
 	MaxArtifactBytes = 32 << 20
-	DefaultReadBytes = 64 << 10
+	// DefaultReadBytes is the page of `meno mcp results` when no limit is given;
+	// MaxReadBytes is the most one page can hold.
+	DefaultReadBytes = 10000
+	MaxReadBytes     = 64 << 10
 )
 
 // Artifact is a binary part of a result, materialized as a local file.
@@ -212,9 +215,10 @@ func (s ResultStore) Read(session, id string, offset, limit int) (Slice, error) 
 	if err != nil {
 		return Slice{}, fmt.Errorf("mcp result %q not found", id)
 	}
-	if limit <= 0 || limit > DefaultReadBytes {
+	if limit <= 0 {
 		limit = DefaultReadBytes
 	}
+	limit = min(limit, MaxReadBytes)
 	if offset < 0 || offset > len(b) {
 		return Slice{}, fmt.Errorf("offset %d is outside the result (%d bytes)", offset, len(b))
 	}

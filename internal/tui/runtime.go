@@ -39,7 +39,8 @@ type Runtime struct {
 	LiveText  string
 	LiveThink string
 	LiveBase  int        // session length the live state was produced at
-	LiveCalls []liveCall // tool calls streaming in or executing
+	LiveCalls []liveCall // tool calls streaming in, executing, or ended and not yet saved
+	liveSeq   int        // counter behind liveCall.Order
 	// The run in progress, from the user's message to the final answer.
 	RunStart  time.Time
 	RunTurns  int       // requests the model has answered

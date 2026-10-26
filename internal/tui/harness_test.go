@@ -18,7 +18,6 @@ import (
 	"meno/internal/engine"
 	"meno/internal/llm"
 	"meno/internal/mcp"
-	"meno/internal/render"
 )
 
 // rig is a real daemon in the test process: the engine with a scripted model,
@@ -122,18 +121,16 @@ func lastUser(r llm.Request) string {
 	return ""
 }
 
-// transcriptText is the timeline as plain text, and whether a call is running.
-func transcriptText(a *App) (string, bool) {
+// transcriptText is the timeline as plain text.
+func transcriptText(a *App) string {
 	var b strings.Builder
-	running := false
 	for _, l := range a.transcriptWithSelection(80) {
 		for _, s := range l.Segs {
 			b.WriteString(s.Text)
 		}
-		running = running || l.BG == render.BgJSRun
 		b.WriteByte('\n')
 	}
-	return b.String(), running
+	return b.String()
 }
 
 func cursorVisible(s tcell.SimulationScreen) bool {
