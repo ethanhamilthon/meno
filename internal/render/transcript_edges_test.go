@@ -10,8 +10,8 @@ func TestTranscriptNarrowAndLimitedModes(t *testing.T) {
 		Code: strings.Repeat("echo abcdef\n", 8), Output: strings.Repeat("output line\n", 8),
 		Thinking: strings.Repeat("consider this carefully\n", 8)}
 	for _, w := range []int{1, 4, 8, 20, 40} {
-		for _, mode := range []JSMode{JSOff, JSLines, JSFull} {
-			lines := BuildLines([]Turn{turn}, w, JSOpts{Mode: mode, Lines: 1, OutMode: mode, OutLines: 1, ThinkMode: mode, ThinkLines: 1})
+		for _, mode := range []ViewMode{ViewFull, ViewBashOnly, ViewCompact} {
+			lines := BuildLines([]Turn{turn}, w, JSOpts{View: mode})
 			s := alignmentScreen(t, w, len(lines))
 			for y, line := range lines {
 				DrawLine(Canvas{S: s}, 0, y, w, line)

@@ -3,6 +3,7 @@ package tui
 import (
 	"github.com/gdamore/tcell/v2"
 
+	"meno/internal/config"
 	"meno/internal/render"
 )
 
@@ -24,6 +25,12 @@ func (a *App) skillsKey(k *tcell.EventKey) {
 			s.Enabled = !s.Enabled
 			a.persistSkills()
 		}
+	case k.Key() == tcell.KeyTab:
+		if len(idx) > 0 {
+			s := &a.st.Skills[idx[clampSel(a.st.Sel, len(idx))]]
+			s.Auto = !s.Auto
+			a.persistSkills()
+		}
 	default:
 		a.queryKey(k)
 	}
@@ -38,11 +45,20 @@ func (a *App) drawSkills(c render.Canvas, w, h int) {
 		if s.Enabled {
 			g, gfg = "●", render.Green
 		}
-		items = append(items, item{glyph: g, glyphFG: gfg, label: s.Name, right: s.Scope, detail: s.Desc})
+		items = append(items, item{glyph: g, glyphFG: gfg, label: s.Name, right: skillRight(s), detail: s.Desc})
 	}
 	empty := ""
 	if len(a.st.Skills) == 0 {
 		empty = "add .md files to .meno/skills"
 	}
-	a.searchListEmpty(c, w, h, 73, len(a.st.Skills), "skills", "search skills", items, "↑/↓ move · space toggle · esc close", empty)
+	a.searchListEmpty(c, w, h, 73, len(a.st.Skills), "skills", "search skills", items, "↑/↓ move · space on/off · tab auto-load · esc close", empty)
+}
+
+// skillRight is the scope of a skill, with "auto" when it loads into every new
+// session.
+func skillRight(s config.Skill) string {
+	if s.Auto {
+		return "auto · " + s.Scope
+	}
+	return s.Scope
 }

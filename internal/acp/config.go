@@ -185,7 +185,7 @@ func (s *Server) commandList() []map[string]any {
 		{"name": "context", "description": "Show the context usage"},
 		{"name": "help", "description": "List the commands"},
 	}
-	if res, err := s.backend.Skills(s.ctx); err == nil {
+	if res, err := s.backend.Skills(s.ctx, ""); err == nil {
 		for _, sk := range res.Skills {
 			if sk.Enabled {
 				cmds = append(cmds, map[string]any{"name": "skill:" + sk.Name, "description": sk.Desc, "input": map[string]any{"hint": "optional text"}})
@@ -200,7 +200,7 @@ func (s *Server) sendCommands(x *session) {
 }
 
 func (s *Server) skillsText() string {
-	res, err := s.backend.Skills(s.ctx)
+	res, err := s.backend.Skills(s.ctx, "")
 	if err != nil {
 		return "Skills are unavailable."
 	}

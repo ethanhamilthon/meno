@@ -20,7 +20,7 @@ type Backend interface {
 	AnswerAsk(ctx context.Context, id, askID string, q api.AskAnswerRequest) error
 	PatchSession(ctx context.Context, id string, q api.PatchSessionRequest) (api.SessionItem, error)
 	Models(ctx context.Context, q api.ModelsRequest) (api.ModelsResponse, error)
-	Skills(ctx context.Context) (api.SkillsResponse, error)
+	Skills(ctx context.Context, cwd string) (api.SkillsResponse, error)
 	Follow(ctx context.Context, id string, receive func(client.ProjectionUpdate) error) error
 }
 

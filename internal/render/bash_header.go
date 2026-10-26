@@ -1,6 +1,7 @@
 package render
 
 import (
+	"github.com/gdamore/tcell/v2"
 	"strings"
 	"time"
 )
@@ -22,6 +23,12 @@ func bashHeader(t Turn, w int, opts JSOpts) Line {
 	if t.Err != "" || t.TimedOut {
 		timeFG = Red
 	}
+	return ruleLine(title, elapsed, timeFG, w)
+}
+
+// ruleLine is "─── title ───────── time": a full-width row with a title on the
+// left and a time on the right.
+func ruleLine(title, elapsed string, timeFG tcell.Color, w int) Line {
 	// The title shares the body anchor; only the rule uses the outer gutter.
 	// The right gutter is excluded even though this row is drawn full-width.
 	available := max(0, w-Gutter)

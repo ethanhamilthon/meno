@@ -48,6 +48,7 @@ func e2eApp(t testing.TB, cl llm.Client) (*App, tcell.SimulationScreen, config.P
 	s := config.DefaultSettings()
 	s.Provider = "openai"
 	s.Model = "gpt-5.5"
+	s.View = "full" // most tests look at the whole timeline
 	if err := st.SaveSettings(s); err != nil {
 		t.Fatal(err)
 	}

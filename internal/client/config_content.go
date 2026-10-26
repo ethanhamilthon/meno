@@ -7,16 +7,17 @@ import (
 	"meno/internal/api"
 )
 
-// Skills lists installed skills and changes their enabled state.
-func (c *Client) Skills(ctx context.Context) (api.SkillsResponse, error) {
-	raw, e := c.configCall(ctx, "GET", "/v1/skills", nil)
+// Skills lists the skills seen from cwd (the project skills depend on it) and
+// changes their enabled state.
+func (c *Client) Skills(ctx context.Context, cwd string) (api.SkillsResponse, error) {
+	v, e := c.Resource(ctx, "GET", "/v1/skills", url.Values{"cwd": {cwd}}.Encode(), api.ResourceRequest{})
 	if e != nil {
 		return api.SkillsResponse{}, e
 	}
-	return configDecode[api.SkillsResponse](raw)
+	return configDecode[api.SkillsResponse](v.Data)
 }
-func (c *Client) SetSkillEnabled(ctx context.Context, name string, enabled bool) (api.ConfigSkill, error) {
-	raw, e := c.configCall(ctx, "PUT", "/v1/skills/"+pathID(name)+"/enabled", api.SkillEnabledRequest{Enabled: enabled})
+func (c *Client) SetSkillEnabled(ctx context.Context, name string, req api.SkillEnabledRequest) (api.ConfigSkill, error) {
+	raw, e := c.configCall(ctx, "PUT", "/v1/skills/"+pathID(name)+"/enabled", req)
 	if e != nil {
 		return api.ConfigSkill{}, e
 	}

@@ -90,7 +90,7 @@ func start(t *testing.T, o options) *session {
 			t.Fatal(err)
 		}
 		s := config.DefaultSettings()
-		s.Provider, s.Model = "fake", "fake-model"
+		s.Provider, s.Model, s.View = "fake", "fake-model", "full" // the scenarios read the whole timeline
 		if o.jsonDefaults {
 			if err := config.SaveSettingsFile(st.P.SettingsFile(), s); err != nil {
 				t.Fatal(err)

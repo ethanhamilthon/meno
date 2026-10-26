@@ -249,7 +249,9 @@ func (a *App) handle(msg any) {
 	case tasksLoaded:
 		a.onTasksLoaded(m)
 	case skillsLoaded:
-		a.st.Skills = m.skills
+		if m.cwd == a.st.Cwd {
+			a.st.Skills = m.skills
+		}
 	case compactDone:
 		a.onCompactDone(m)
 	case sendResult:

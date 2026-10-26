@@ -7,6 +7,7 @@ type ConfigSkill struct {
 	Desc     string   `json:"desc"`
 	Path     string   `json:"path"`
 	Enabled  bool     `json:"enabled"`
+	Auto     bool     `json:"auto"`
 	Warnings []string `json:"warnings,omitempty"`
 }
 type SkillsResponse struct {
@@ -15,8 +16,14 @@ type SkillsResponse struct {
 type SkillResponse struct {
 	Skill ConfigSkill `json:"skill"`
 }
+
+// SkillEnabledRequest sets the state of a skill: whether it is enabled and,
+// when Auto is given, whether it loads into every new session. Cwd is the
+// directory the skill is looked up from (project skills depend on it).
 type SkillEnabledRequest struct {
-	Enabled bool `json:"enabled"`
+	Enabled bool   `json:"enabled"`
+	Auto    *bool  `json:"auto,omitempty"`
+	Cwd     string `json:"cwd,omitempty"`
 }
 
 // ConfigMCPServer describes one configured MCP server.

@@ -4,7 +4,7 @@ import "testing"
 
 func TestMigrationHidesExistingUnreadCompletions(t *testing.T) {
 	d := rawDB(t)
-	if err := migrateTo(d, Version-1); err != nil {
+	if err := migrateTo(d, Version-2); err != nil {
 		t.Fatal(err)
 	}
 	for _, q := range []string{

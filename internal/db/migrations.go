@@ -259,4 +259,7 @@ ALTER TABLE sessions ADD COLUMN system_prompt TEXT NOT NULL DEFAULT '';
 `,
 	`-- Old completions have no message author; hide their unread generations.
 UPDATE session_attention SET read_through = completed WHERE read_through < completed;`,
+	`-- A skill can be loaded automatically into every new session.
+ALTER TABLE skills_state ADD COLUMN autoload INTEGER NOT NULL DEFAULT 0;
+`,
 }

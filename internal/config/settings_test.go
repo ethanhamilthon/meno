@@ -9,9 +9,9 @@ import (
 
 func TestLoadSettingsNormalizesInvalidValues(t *testing.T) {
 	for _, data := range []string{
-		`{"effort":"obsolete","tool":"bash","bash_code":"bad","bash_output":"bad","thinking":"bad","bash_timeout":"bad","bash_lines":-1}`,
-		`{"effort":"","tool":"bash","bash_code":"","bash_output":"","thinking":"","bash_timeout":"","bash_lines":51}`,
-		`{}`, `null`, `{"tool":"bash","bash_lines":0}`,
+		`{"effort":"obsolete","tool":"bash","view":"bad","bash_timeout":"bad"}`,
+		`{"effort":"","tool":"bash","view":"","bash_timeout":""}`,
+		`{}`, `null`, `{"tool":"bash","view":"loud"}`,
 	} {
 		t.Run(data, func(t *testing.T) {
 			var got Settings
@@ -24,8 +24,8 @@ func TestLoadSettingsNormalizesInvalidValues(t *testing.T) {
 }
 
 func TestSettingsDecodeValidAndLegacy(t *testing.T) {
-	for _, lines := range []int{1, 50} {
-		want := Settings{Provider: "custom", Model: "custom-model", Effort: "max", Tool: "bash", BashCode: "off", BashLines: lines, BashOutput: "off", BashOutputLines: 7, BashTiming: "slow", TurnSummary: "off", Thinking: "off", ThinkLines: 4, DaemonIdleExitMin: 30, Theme: "dracula", Notify: "done", NotifyCommand: "say hi", NotifySound: "chime", NotifyVolume: 60, CompactPercent: 70, CompactKeep: 10, CompactSummaryTokens: 3000, ElidePercent: 60, SystemPrompt: "writer", MaxSpawnDepth: 3, MaxWorkers: 5}
+	for _, view := range []string{"full", "bash_only", "compact"} {
+		want := Settings{Provider: "custom", Model: "custom-model", Effort: "max", Tool: "bash", View: view, TurnSummary: "off", DaemonIdleExitMin: 30, Theme: "dracula", Notify: "done", NotifyCommand: "say hi", NotifySound: "chime", NotifyVolume: 60, CompactPercent: 70, CompactKeep: 10, CompactSummaryTokens: 3000, ElidePercent: 60, SystemPrompt: "writer", MaxSpawnDepth: 3, MaxWorkers: 5}
 		b, err := json.Marshal(want)
 		if err != nil {
 			t.Fatal(err)
@@ -60,7 +60,7 @@ func TestSettingsDecodeValidAndLegacy(t *testing.T) {
 func TestObsoleteSettingsKeysAreIgnored(t *testing.T) {
 	data := []byte(`{"bash_timeout":"75","bash_strings":"lines","bash_string_lines":3,"js_timeout":"sec","js_timeout_sec":45,"js_strings":"off","bash_lines":7}`)
 	var got Settings
-	if err := json.Unmarshal(data, &got); err != nil || got.BashLines != 7 {
+	if err := json.Unmarshal(data, &got); err != nil {
 		t.Fatalf("%+v %v", got, err)
 	}
 	out, _ := json.Marshal(got)
@@ -73,12 +73,12 @@ func TestObsoleteSettingsKeysAreIgnored(t *testing.T) {
 
 func TestSettingsMigrateOldJSChoices(t *testing.T) {
 	var got Settings
-	data := []byte(`{"js_code":"full","js_lines":8,"js_output":"on","js_output_lines":9,"js_timing":"slow","thinking":"on"}`)
+	data := []byte(`{"js_code":"full","js_lines":8,"js_output":"on","js_output_lines":9,"js_timing":"slow","thinking":"on","bash_code":"off"}`)
 	if err := json.Unmarshal(data, &got); err != nil {
 		t.Fatal(err)
 	}
-	if got.BashCode != "all" || got.BashLines != 8 || got.BashOutput != "all" || got.BashOutputLines != 9 || got.BashTiming != "slow" || got.Thinking != "all" || got.Tool != "js" {
-		t.Fatalf("legacy aliases: %+v", got)
+	if got.Tool != "js" || got.View != "compact" {
+		t.Fatalf("legacy: %+v", got)
 	}
 	encoded, err := json.Marshal(got)
 	if err != nil {
@@ -88,9 +88,9 @@ func TestSettingsMigrateOldJSChoices(t *testing.T) {
 	if err := json.Unmarshal(encoded, &fields); err != nil {
 		t.Fatal(err)
 	}
-	for _, key := range []string{"js_code", "js_lines", "js_output", "js_output_lines", "js_timing"} {
+	for _, key := range []string{"js_code", "js_lines", "js_output", "js_output_lines", "js_timing", "bash_code", "bash_lines", "bash_output", "bash_timing", "thinking", "thinking_lines"} {
 		if _, exists := fields[key]; exists {
-			t.Errorf("legacy key persisted: %s", key)
+			t.Errorf("removed key persisted: %s", key)
 		}
 	}
 }
@@ -114,38 +114,30 @@ func TestLegacyNotifyQuestionMigrates(t *testing.T) {
 	}
 }
 
-func TestTimingSettings(t *testing.T) {
+func TestTurnSummarySetting(t *testing.T) {
 	d := DefaultSettings()
-	if d.BashTiming != "all" || d.TurnSummary != "on" {
-		t.Fatalf("defaults: %q %q", d.BashTiming, d.TurnSummary)
+	if d.TurnSummary != "on" {
+		t.Fatalf("default: %q", d.TurnSummary)
 	}
-	// Files written before these settings existed, and invalid values, get the defaults.
-	for _, data := range []string{`{}`, `{"bash_timing":"sometimes","turn_summary":"maybe"}`, `{"bash_timing":"","turn_summary":""}`} {
+	for _, data := range []string{`{}`, `{"turn_summary":"maybe"}`, `{"turn_summary":""}`} {
 		var got Settings
-		if err := json.Unmarshal([]byte(data), &got); err != nil || got.BashTiming != "all" || got.TurnSummary != "on" {
+		if err := json.Unmarshal([]byte(data), &got); err != nil || got.TurnSummary != "on" {
 			t.Fatalf("%s: %+v %v", data, got, err)
 		}
 	}
 	var got Settings
-	if err := json.Unmarshal([]byte(`{"bash_timing":"slow","turn_summary":"off"}`), &got); err != nil || got.BashTiming != "slow" || got.TurnSummary != "off" {
-		t.Fatalf("valid values lost: %+v %v", got, err)
+	if err := json.Unmarshal([]byte(`{"turn_summary":"off"}`), &got); err != nil || got.TurnSummary != "off" {
+		t.Fatalf("valid value lost: %+v %v", got, err)
 	}
 	s := DefaultSettings()
-	var seen []string
-	for i := 0; i < 3; i++ {
-		seen = append(seen, s.Cycle("bash_timing", 1))
-	}
-	if strings.Join(seen, ",") != "slow,off,all" {
-		t.Fatalf("cycle: %v", seen)
-	}
 	if s.Cycle("turn_summary", -1) != "off" || s.Cycle("turn_summary", 1) != "on" {
 		t.Fatal("turn_summary cycle")
 	}
-	if s.Set("bash_timing", "bogus") == nil || s.Set("turn_summary", "") == nil {
-		t.Fatal("invalid values accepted")
+	if s.Set("turn_summary", "") == nil {
+		t.Fatal("invalid value accepted")
 	}
-	if NumOption("bash_timing") != "" || NumOption("turn_summary") != "" {
-		t.Fatal("timing settings carry no number")
+	if NumOption("turn_summary") != "" {
+		t.Fatal("turn_summary carries no number")
 	}
 }
 

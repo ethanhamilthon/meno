@@ -50,7 +50,9 @@ func TestSkillsToggleAndSearch(t *testing.T) {
 	}
 	a.runCommand("skills")
 	a.running.Wait()
-	a.applyConfig(a.fetchConfig())
+	a.reloadSkills()
+	a.running.Wait()
+	pump(t, a, func() bool { return len(a.st.Skills) == 2 })
 	if len(a.st.Skills) != 2 || !a.st.Skills[0].Enabled {
 		t.Fatalf("skills not discovered: %+v", a.st.Skills)
 	}
@@ -58,12 +60,19 @@ func TestSkillsToggleAndSearch(t *testing.T) {
 	if text := screenText(scr); !strings.Contains(text, "alpha") || !strings.Contains(text, "first skill") || !strings.Contains(text, "global") {
 		t.Fatalf("skills not shown:\n%s", text)
 	}
+	a.onKey(tcell.NewEventKey(tcell.KeyTab, 0, 0))
+	if !a.st.Skills[0].Auto {
+		t.Fatal("tab did not mark the skill auto-load")
+	}
 	a.onKey(key(' '))
 	if a.st.Skills[0].Enabled {
 		t.Fatal("space did not toggle skill")
 	}
-	saved, _ := a.storeForTest().LoadSkills()
-	if saved[0].Enabled || !saved[1].Enabled {
+	saved, lerr := a.storeForTest().LoadSkills()
+	if lerr != nil || len(saved) != 2 {
+		t.Fatalf("load: %v %v", saved, lerr)
+	}
+	if saved[0].Enabled || !saved[0].Auto || !saved[1].Enabled || saved[1].Auto {
 		t.Fatalf("toggle not persisted: %+v", saved)
 	}
 	typeRunes(a, "zzz-none")

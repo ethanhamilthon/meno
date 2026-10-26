@@ -11,24 +11,24 @@ func TestBashDefaultsAliasesAndSettingWrite(t *testing.T) {
 		t.Fatalf("defaults: %+v", d)
 	}
 	var legacy Settings
-	if err := json.Unmarshal([]byte("{\"js_code\":\"lines\",\"js_lines\":8,\"js_output\":\"off\",\"js_output_lines\":9,\"js_timing\":\"slow\"}"), &legacy); err != nil {
+	if err := json.Unmarshal([]byte("{\"js_code\":\"lines\"}"), &legacy); err != nil {
 		t.Fatal(err)
 	}
-	if legacy.BashCode != "lines" || legacy.BashLines != 8 || legacy.BashOutput != "off" || legacy.BashOutputLines != 9 || legacy.BashTiming != "slow" || legacy.Tool != "js" {
+	if legacy.Tool != "js" || legacy.View != "compact" {
 		t.Fatalf("alias: %+v", legacy)
 	}
-	for key, value := range map[string]string{"tool": "bash", "bash_code": "lines", "bash_lines": "8", "daemon_idle_exit_min": "0"} {
+	for key, value := range map[string]string{"tool": "bash", "daemon_idle_exit_min": "0"} {
 		if err := d.Set(key, value); err != nil {
 			t.Errorf("%s: %v", key, err)
 		}
 	}
-	if d.Tool != "bash" || d.BashLines != 8 || d.DaemonIdleExitMin != 0 {
+	if d.Tool != "bash" || d.DaemonIdleExitMin != 0 {
 		t.Fatalf("set: %+v", d)
 	}
 	if d.Cycle("tool", -1) != "js" {
 		t.Fatal("tool cycle")
 	}
-	for key, value := range map[string]string{"bash_lines": "0", "daemon_idle_exit_min": "-1"} {
+	for key, value := range map[string]string{"daemon_idle_exit_min": "-1"} {
 		if err := d.Set(key, value); err == nil {
 			t.Errorf("accepted %s=%s", key, value)
 		}

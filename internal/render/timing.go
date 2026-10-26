@@ -6,15 +6,6 @@ import (
 	"time"
 )
 
-// TimingMode says which tool calls show how long they took.
-type TimingMode int
-
-const (
-	TimingAll TimingMode = iota
-	TimingSlow
-	TimingOff
-)
-
 // FmtDur writes a duration the way a person reads it: 412ms, 3.2s, 17s, 1m 24s,
 // 1h 02m. Negative durations count as zero.
 func FmtDur(d time.Duration) string {
@@ -68,11 +59,6 @@ var spinner = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "
 func spinFrame(i int) string {
 	n := len(spinner)
 	return spinner[(i%n+n)%n]
-}
-
-// slowCall is a call that took at least half of its limit, or ten seconds.
-func slowCall(t Turn) bool {
-	return t.TimedOut || t.ElapsedMs >= 10000
 }
 
 // SummaryLines closes a run with lossless usage and execution metadata.

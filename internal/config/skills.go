@@ -18,6 +18,8 @@ type Skill struct {
 	Desc    string `json:"desc"`
 	Path    string `json:"path"`
 	Enabled bool   `json:"enabled"`
+	// Auto loads the skill into the first message of every new session.
+	Auto bool `json:"auto"`
 	// ManualOnly is the skill's `disable-model-invocation: true`: the model is
 	// not told about it; only an explicit /skill:name selection uses it.
 	ManualOnly bool `json:"manual_only,omitempty"`
@@ -153,25 +155,26 @@ func (s *Store) LoadSkills() ([]Skill, error) {
 	if err != nil {
 		return nil, err
 	}
-	rows, err := d.Query("SELECT name FROM skills_state WHERE enabled = 0")
+	rows, err := d.Query("SELECT name, enabled, autoload FROM skills_state")
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	off := map[string]bool{}
+	off, auto := map[string]bool{}, map[string]bool{}
 	for rows.Next() {
 		var n string
-		if err := rows.Scan(&n); err != nil {
+		var on, al int
+		if err := rows.Scan(&n, &on, &al); err != nil {
 			return nil, err
 		}
-		off[n] = true
+		off[n], auto[n] = on == 0, al != 0
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 	list := DiscoverSkillDirs(s.P.SkillDirs())
 	for i := range list {
-		list[i].Enabled = !off[list[i].Name]
+		list[i].Enabled, list[i].Auto = !off[list[i].Name], auto[list[i].Name]
 	}
 	return list, nil
 }
@@ -181,8 +184,8 @@ func (s *Store) LoadSkills() ([]Skill, error) {
 func (s *Store) SaveSkills(sk []Skill) error {
 	return s.tx(func(t *sql.Tx) error {
 		for _, k := range sk {
-			if _, err := t.Exec(`INSERT INTO skills_state(name,enabled) VALUES(?,?)
-				ON CONFLICT(name) DO UPDATE SET enabled=excluded.enabled`, k.Name, b2i(k.Enabled)); err != nil {
+			if _, err := t.Exec(`INSERT INTO skills_state(name,enabled,autoload) VALUES(?,?,?)
+				ON CONFLICT(name) DO UPDATE SET enabled=excluded.enabled, autoload=excluded.autoload`, k.Name, b2i(k.Enabled), b2i(k.Auto)); err != nil {
 				return err
 			}
 		}

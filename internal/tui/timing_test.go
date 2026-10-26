@@ -12,7 +12,6 @@ import (
 	"meno/internal/agent"
 	"meno/internal/api"
 	"meno/internal/llm"
-	"meno/internal/render"
 )
 
 func TestClock(t *testing.T) {
@@ -54,12 +53,6 @@ func TestSettingsDialogFitsNarrowTerminals(t *testing.T) {
 func TestJSOptsFollowSettings(t *testing.T) {
 	a, s := newTestApp(t)
 	defer s.Fini()
-	for set, want := range map[string]render.TimingMode{"all": render.TimingAll, "slow": render.TimingSlow, "off": render.TimingOff, "": render.TimingAll, "nonsense": render.TimingAll} {
-		a.st.Settings.BashTiming = set
-		if got := a.jsOpts().Timing; got != want {
-			t.Errorf("bash_timing %q → %v, want %v", set, got, want)
-		}
-	}
 	for set, want := range map[string]bool{"on": true, "off": false, "": true} {
 		a.st.Settings.TurnSummary = set
 		if got := a.jsOpts().Summary; got != want {
@@ -149,11 +142,5 @@ func TestLiveCallShowsItsTimer(t *testing.T) {
 	timer := regexp.MustCompile(`\b[0-9]+(?:\.[0-9])?s\b`)
 	if text := screenText(s); !timer.MatchString(text) || strings.Contains(text, timer.FindString(text)+"/") {
 		t.Fatalf("%s", text)
-	}
-	a.st.Settings.BashTiming = "off"
-	a.draw()
-	// Rendering under the race detector may take long enough for tenths to change.
-	if !timer.MatchString(screenText(s)) {
-		t.Fatal("header timer hidden by old timing preference")
 	}
 }

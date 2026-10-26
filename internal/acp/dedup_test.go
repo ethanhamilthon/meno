@@ -25,7 +25,7 @@ func (b *scriptBackend) CreateSession(context.Context, api.SessionCreateRequest)
 func (b *scriptBackend) Models(context.Context, api.ModelsRequest) (api.ModelsResponse, error) {
 	return api.ModelsResponse{}, nil
 }
-func (b *scriptBackend) Skills(context.Context) (api.SkillsResponse, error) {
+func (b *scriptBackend) Skills(context.Context, string) (api.SkillsResponse, error) {
 	return api.SkillsResponse{}, nil
 }
 func (b *scriptBackend) Follow(ctx context.Context, _ string, recv func(client.ProjectionUpdate) error) error {

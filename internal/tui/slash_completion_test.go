@@ -31,7 +31,7 @@ func TestSkillRowsTable(t *testing.T) {
 		{"of", nil},  // disabled skills are not offered
 		{"new", nil}, // an exact command wins
 		{"new-", []string{"/skill:new-thing"}},
-		{"", nil},
+		{"", []string{"/skill:new-thing", "/skill:plan", "/skill:planet"}}, // a bare slash lists them all
 		{"cd /tmp", nil}, // a command with arguments
 		{"skill:pl", nil},
 	}

@@ -38,7 +38,7 @@ func TestConfigBundleMatchesIndividualReadsAndRedactsKeys(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	skills, err := cl.Skills(ctx)
+	skills, err := cl.Skills(ctx, "")
 	if err != nil {
 		t.Fatal(err)
 	}

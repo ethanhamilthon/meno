@@ -36,8 +36,15 @@ func (s testStore) LoadProviders() ([]llm.Provider, error) {
 }
 
 func (s testStore) LoadSkills() ([]config.Skill, error) {
-	r, err := s.a.fetchConfigErr()
-	return r.skills, err
+	var out []config.Skill
+	err := s.a.rpc(func(ctx context.Context, c *client.Client) error {
+		r, e := c.Skills(ctx, s.a.st.Cwd)
+		for _, k := range r.Skills {
+			out = append(out, config.Skill{Name: k.Name, Scope: k.Scope, Desc: k.Desc, Path: k.Path, Enabled: k.Enabled, Auto: k.Auto})
+		}
+		return e
+	})
+	return out, err
 }
 
 func (a *App) fetchConfigErr() (settingsLoaded, error) {

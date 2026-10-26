@@ -27,7 +27,7 @@ func (b *slowBackend) CreateSession(context.Context, api.SessionCreateRequest) (
 func (b *slowBackend) Models(context.Context, api.ModelsRequest) (api.ModelsResponse, error) {
 	return api.ModelsResponse{}, nil
 }
-func (b *slowBackend) Skills(context.Context) (api.SkillsResponse, error) {
+func (b *slowBackend) Skills(context.Context, string) (api.SkillsResponse, error) {
 	return api.SkillsResponse{}, nil
 }
 func (b *slowBackend) Follow(ctx context.Context, _ string, recv func(client.ProjectionUpdate) error) error {

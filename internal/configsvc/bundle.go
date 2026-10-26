@@ -1,6 +1,9 @@
 package configsvc
 
-import "meno/internal/api"
+import (
+	"meno/internal/api"
+	"meno/internal/config"
+)
 
 // bundleResource batches the same typed reads as the individual resources.
 // Each read retains its own locking; no cross-store snapshot is promised.
@@ -19,7 +22,7 @@ func (s *Service) bundleResource(method string) (api.ConfigBundle, error) {
 	if out.MCP, err = s.mcpResponse(); err != nil {
 		return api.ConfigBundle{}, err
 	}
-	if out.Skills, err = s.skillsResponse(); err != nil {
+	if out.Skills, err = s.skillsResponse(""); err != nil {
 		return api.ConfigBundle{}, err
 	}
 	return out, nil
@@ -57,14 +60,26 @@ func (s *Service) mcpResponse() (api.McpServersResponse, error) {
 	return api.McpServersResponse{Servers: out, Warnings: warnings}, nil
 }
 
-func (s *Service) skillsResponse() (api.SkillsResponse, error) {
-	list, err := s.store.LoadSkills()
+// skillsResponse lists the skills seen from cwd: the project skills belong to
+// the directory of the asking session, not to the one the daemon started in.
+func (s *Service) skillsResponse(cwd string) (api.SkillsResponse, error) {
+	list, err := s.storeAt(cwd).LoadSkills()
 	if err != nil {
 		return api.SkillsResponse{}, err
 	}
 	out := make([]api.ConfigSkill, 0, len(list))
 	for _, x := range list {
-		out = append(out, api.ConfigSkill{Name: x.Name, Scope: x.Scope, Desc: x.Desc, Path: x.Path, Enabled: x.Enabled, Warnings: x.Warnings})
+		out = append(out, api.ConfigSkill{Name: x.Name, Scope: x.Scope, Desc: x.Desc, Path: x.Path, Enabled: x.Enabled, Auto: x.Auto, Warnings: x.Warnings})
 	}
 	return api.SkillsResponse{Skills: out}, nil
+}
+
+// storeAt is the store seen from cwd; "" is the directory of the daemon.
+func (s *Service) storeAt(cwd string) *config.Store {
+	if cwd == "" {
+		return s.store
+	}
+	paths := s.paths
+	paths.Cwd = cwd
+	return config.NewStore(paths)
 }

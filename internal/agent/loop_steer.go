@@ -34,6 +34,9 @@ func (r *Runner) inject(s *Session) {
 	}
 	if len(written) > 0 {
 		m := Combine(written)
+		for _, t := range m.Skills {
+			s.Append(t)
+		}
 		s.Append(Turn{Role: llm.RoleUser, Text: m.Text, Attachments: m.Attachments})
 	}
 	r.emit(s, Ev{Kind: EvInjected})

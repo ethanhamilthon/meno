@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"strings"
 	"time"
 
 	"meno/internal/render"
@@ -54,6 +55,19 @@ func (a *App) transcriptWithSelection(w int) []render.Line {
 			break
 		}
 	}
+	if js.View == render.ViewCompact {
+		if !persisted && a.st.LiveText != "" {
+			appendLines(render.BuildLines([]render.Turn{{Role: render.RoleAssistant, Text: a.st.LiveText}}, w, js), true)
+		}
+		if a.st.Running {
+			var elapsed time.Duration
+			if !a.st.RunStart.IsZero() {
+				elapsed = time.Since(a.st.RunStart)
+			}
+			appendLines([]render.Line{render.CompactLive(a.compactWhat(), elapsed, w)}, false)
+		}
+		return out
+	}
 	live := render.Turn{Role: render.RoleAssistant}
 	if !persisted {
 		live.Text = a.st.LiveText
@@ -96,4 +110,18 @@ func (a *App) transcriptWithSelection(w int) []render.Line {
 	}
 	appendLines(render.BuildLines([]render.Turn{live}, w, js), render.TurnHasMessage(live, js))
 	return out
+}
+
+// compactWhat says what the running turn is doing, for the compact view: the
+// start of the command being written or run, else "thinking...".
+func (a *App) compactWhat() string {
+	for i := len(a.st.LiveCalls) - 1; i >= 0; i-- {
+		if c := a.st.LiveCalls[i]; !c.Ended && strings.TrimSpace(c.Code) != "" {
+			return strings.TrimSpace(c.Code)
+		}
+	}
+	if a.st.LiveThink != "" {
+		return "thinking..."
+	}
+	return "working..."
 }

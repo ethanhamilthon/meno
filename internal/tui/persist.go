@@ -83,10 +83,11 @@ func syncProviders(ctx context.Context, c *client.Client, own []llm.Provider) er
 // persistSkills sends the on/off state of the skills to the daemon.
 func (a *App) persistSkills() {
 	skills := append([]config.Skill(nil), a.st.Skills...)
+	cwd := a.st.Cwd
 	a.pushSave(func() {
 		err := a.rpc(func(ctx context.Context, c *client.Client) error {
 			for _, s := range skills {
-				if _, err := c.SetSkillEnabled(ctx, s.Name, s.Enabled); err != nil {
+				if _, err := c.SetSkillEnabled(ctx, s.Name, api.SkillEnabledRequest{Enabled: s.Enabled, Auto: &s.Auto, Cwd: cwd}); err != nil {
 					return err
 				}
 			}

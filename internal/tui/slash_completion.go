@@ -7,13 +7,13 @@ import (
 )
 
 // skillRows are the enabled skills whose name continues the command query, as
-// "/skill:name" rows for the command popup: typing "/pla" finds the skill
-// "plan" without typing the "skill:" prefix. A command named exactly like the
-// query wins, and nothing is offered for an empty query or a command with
-// arguments.
+// "/skill:name" rows for the command popup: a bare "/" lists them all and
+// typing "/pla" finds the skill "plan" without typing the "skill:" prefix. A
+// command named exactly like the query wins, and nothing is offered for a
+// command with arguments.
 func (a *App) skillRows(query string) []string {
 	q := strings.ToLower(query)
-	if q == "" || strings.ContainsAny(q, " \t:/") {
+	if strings.ContainsAny(q, " \t:/") {
 		return nil
 	}
 	for _, c := range commandList {

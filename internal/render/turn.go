@@ -6,6 +6,7 @@ const (
 	RoleAssistant = "assistant"
 	KindEvent     = "event"
 	KindView      = "view"
+	KindSkill     = "skill"
 	RunFail       = "fail"
 	RunStop       = "stop"
 )

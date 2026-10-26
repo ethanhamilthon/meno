@@ -6,7 +6,7 @@ anywhere in the text. Arrows pick a row, Tab completes it, Enter runs it and
 removes the `/command` from the draft; the rest of the draft stays. Esc closes the
 list and keeps the text. A command that fails keeps its text for correction.
 URLs and paths (`http://x`, `/tmp/project`, `a/b`) are ordinary text.
-Use `/skill:<name>` to insert a skill reference; `/skills` manages skills. A bare name works too: `/pla` lists the enabled skills that start with `pla`, and Enter or Tab inserts the skill as one object without running or sending anything. A command with the same name wins. Skills marked `disable-model-invocation: true` are never offered to the model, only through this selection.
+Use `/skill:<name>` to insert a skill reference; `/skills` manages skills. A bare `/` lists every enabled skill after the commands. When a message with a skill reference is sent, the text of the skill goes into the conversation with it (the timeline shows `/skill:name loaded`), so the model does not have to read the file. This holds for a message that waits in the queue too. A bare name works too: `/pla` lists the enabled skills that start with `pla`, and Enter or Tab inserts the skill as one object without running or sending anything. A command with the same name wins. Skills marked `disable-model-invocation: true` are never offered to the model, only through this selection.
 Old colon commands and bare `/name` skill references are ordinary text. Esc without a list keeps INPUT, the draft, and the cursor. INPUT is the only
 mode: there is no NORMAL, EDIT, VISUAL or COMMAND mode.
 
@@ -96,8 +96,16 @@ than discard metrics. A shell script counts as one Bash invocation. Unknown cost
 is `$?`; a priced subtotal with unpriced usage has `+?`. These are UI metadata, not
 model-authored text or additional conversation context.
 
-The settings `bash code`, `bash output` and `thinking` control retained source,
-output and thought display. Display settings never change what is executed.
+The setting `view` (settings, Display tab) picks how much of the work the timeline shows. It never
+changes what is executed.
+
+| view | shows |
+| --- | --- |
+| `full` | thinking, the title and the whole command of each call, and its output cut to five rows |
+| `bash_only` | the title and the command of each call, cut to five rows; no thinking, no output |
+| `compact` (default) | only the answers. While a turn runs, one row stands for the work: the start of the running command (or `thinking...`) on the left, the time of the whole turn on the right. The row goes when the turn ends |
+
+The duration in the header of a call is always shown in `full` and `bash_only`.
 
 ## Rendering stability
 

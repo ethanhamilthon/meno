@@ -51,7 +51,8 @@ func (e *Engine) Message(ctx context.Context, id string, q api.MessageRequest) (
 		}
 		// The queue is the one path into a running turn: the runner takes the
 		// entry at its next step, so an image makes the model answer again.
-		s.queue.Push(agent.Message{Text: q.Text, Attachments: att})
+		text, skills := e.skillTurns(s, q.Text, false)
+		s.queue.Push(agent.Message{Text: text, Attachments: att, Skills: skills})
 		s.authors = append(s.authors, q.Client == "tui")
 		rid := s.requestID
 		e.publishQueue(s, api.InjectedData{Text: q.Text, By: "user"})
@@ -107,7 +108,11 @@ func (e *Engine) appendMessage(s *runState, q api.MessageRequest) error {
 	if err != nil {
 		return err
 	}
-	s.session.Append(agent.Turn{Role: llm.RoleUser, Text: q.Text, Attachments: att, Time: time.Now().UTC()})
+	text, skills := e.skillTurns(s, q.Text, len(s.session.Turns) == 0)
+	for _, t := range skills {
+		s.session.Append(t)
+	}
+	s.session.Append(agent.Turn{Role: llm.RoleUser, Text: text, Attachments: att, Time: time.Now().UTC()})
 	return nil
 }
 
@@ -185,7 +190,7 @@ func (e *Engine) run(ctx context.Context, s *runState, text string, cont bool) {
 	if info, ok := p.Lookup(e.catalogView(), model); ok {
 		auto = agent.AutoCompact{Window: info.Context, Percent: e.cfg().CompactPercent, Keep: e.cfg().CompactKeep, SummaryTokens: e.cfg().CompactSummaryTokens, Elide: elideOptions(e.cfg())}
 	}
-	deps := agent.Deps{Client: e.client(p), Provider: p, Model: model, Effort: effort, System: system, Tool: tool, Thinking: e.cfg().Thinking != "off", ToolDesc: spec.desc, ToolName: spec.name, SkillPaths: e.skillPathsOf(s), Queue: &s.queue, AutoCompact: auto, Events: e.eventSource(s.session.ID),
+	deps := agent.Deps{Client: e.client(p), Provider: p, Model: model, Effort: effort, System: system, Tool: tool, Thinking: true, ToolDesc: spec.desc, ToolName: spec.name, SkillPaths: e.skillPathsOf(s), Queue: &s.queue, AutoCompact: auto, Events: e.eventSource(s.session.ID),
 		Cost: func(u llm.Usage) (float64, bool) {
 			mi, ok := p.Lookup(e.catalogView(), model)
 			if !ok || !mi.CanPrice(u) {

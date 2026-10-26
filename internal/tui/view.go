@@ -39,17 +39,7 @@ func (a *App) statsText() string {
 }
 
 func (a *App) jsOpts() render.JSOpts {
-	js := render.JSOpts{Lines: a.st.Settings.BashLines, OutLines: a.st.Settings.BashOutputLines}
-	js.Mode = jsMode(a.st.Settings.BashCode)
-	js.OutMode = jsMode(a.st.Settings.BashOutput)
-	js.ThinkMode = jsMode(a.st.Settings.Thinking)
-	js.ThinkLines = a.st.Settings.ThinkLines
-	switch a.st.Settings.BashTiming {
-	case "slow":
-		js.Timing = render.TimingSlow
-	case "off":
-		js.Timing = render.TimingOff
-	}
+	js := render.JSOpts{View: viewMode(a.st.Settings.View)}
 	js.Summary = a.st.Settings.TurnSummary != "off"
 	js.Images = a.imageOpts()
 	return js
@@ -122,14 +112,14 @@ var commandList = []cmdDef{
 	{"/q", "leave meno; work keeps running"},
 }
 
-func jsMode(v string) render.JSMode {
+func viewMode(v string) render.ViewMode {
 	switch v {
-	case "lines":
-		return render.JSLines
-	case "off":
-		return render.JSOff
+	case "full":
+		return render.ViewFull
+	case "bash_only":
+		return render.ViewBashOnly
 	}
-	return render.JSFull
+	return render.ViewCompact
 }
 
 // cacheText says what the cache did for one request or for a whole session:

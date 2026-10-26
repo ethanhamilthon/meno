@@ -5,20 +5,14 @@ import (
 )
 
 type Settings struct {
-	Provider          string `json:"provider"`
-	Model             string `json:"model"`
-	Effort            string `json:"effort"`
-	Tool              string `json:"tool"`
-	BashCode          string `json:"bash_code"`
-	BashLines         int    `json:"bash_lines"`
-	BashOutput        string `json:"bash_output"`
-	BashOutputLines   int    `json:"bash_output_lines"`
-	BashTiming        string `json:"bash_timing"`
+	Provider string `json:"provider"`
+	Model    string `json:"model"`
+	Effort   string `json:"effort"`
+	Tool     string `json:"tool"`
+	// View is how much of the work the timeline shows: full, bash_only or compact.
+	View              string `json:"view"`
 	DaemonIdleExitMin int    `json:"daemon_idle_exit_min"`
-	// Thinking is all/lines/off; ThinkLines is its row limit.
-	TurnSummary string `json:"turn_summary"`
-	Thinking    string `json:"thinking"`
-	ThinkLines  int    `json:"thinking_lines"`
+	TurnSummary       string `json:"turn_summary"`
 	// Theme is the name of a ui theme; the app falls back to the default for
 	// names it does not know.
 	Theme string `json:"theme"`
@@ -76,50 +70,16 @@ func (s *Settings) UnmarshalJSON(data []byte) error {
 	if _, hasTool := raw["tool"]; !hasTool && hasLegacyJSSetting(raw) {
 		st.Tool = "js"
 	}
-	if _, hasBash := raw["bash_code"]; !hasBash {
-		st.BashCode = defaults.BashCode
-	}
-	if _, hasBash := raw["bash_lines"]; !hasBash {
-		st.BashLines = defaults.BashLines
-	}
-	if _, hasBash := raw["bash_output"]; !hasBash {
-		st.BashOutput = defaults.BashOutput
-	}
-	if _, hasBash := raw["bash_output_lines"]; !hasBash {
-		st.BashOutputLines = defaults.BashOutputLines
-	}
-	if _, hasBash := raw["bash_timing"]; !hasBash {
-		st.BashTiming = defaults.BashTiming
-	}
 	if _, hasBash := raw["daemon_idle_exit_min"]; !hasBash {
 		st.DaemonIdleExitMin = defaults.DaemonIdleExitMin
-	}
-	applyJSAliases(raw, &st)
-	if st.BashCode == "full" {
-		st.BashCode = "all"
-	}
-	switch st.BashOutput {
-	case "on":
-		st.BashOutput = "all"
-	}
-	if st.Thinking == "on" {
-		st.Thinking = "all"
 	}
 	for key := range choices {
 		if err := st.Set(key, st.Get(key)); err != nil {
 			st.setRaw(key, defaults.Get(key))
 		}
 	}
-	for key, value := range map[string]string{"bash_code": st.BashCode, "bash_output": st.BashOutput, "bash_timing": st.BashTiming} {
-		if !contains(bashChoices[key], value) {
-			setBash(&st, key, defaults.Get(key))
-		}
-	}
 	if st.Theme == "" {
 		st.Theme = defaults.Theme
-	}
-	if st.ThinkLines < 1 || st.ThinkLines > MaxLines {
-		st.ThinkLines = defaults.ThinkLines
 	}
 	if st.CompactPercent < MinCompactPercent || st.CompactPercent > MaxCompactPercent {
 		st.CompactPercent = defaults.CompactPercent
@@ -152,12 +112,9 @@ func (s *Settings) UnmarshalJSON(data []byte) error {
 
 func DefaultSettings() Settings {
 	return Settings{
-		Tool: "bash", BashCode: "all", BashLines: 5, BashOutput: "all", BashOutputLines: 5,
-		BashTiming: "all", DaemonIdleExitMin: 30,
+		Tool: "bash", View: "compact", DaemonIdleExitMin: 30,
 		Effort:         "high",
-		Thinking:       "all",
 		TurnSummary:    "on",
-		ThinkLines:     5,
 		Theme:          "default",
 		CompactPercent: 80, CompactKeep: 8, CompactSummaryTokens: 4000, ElidePercent: 50,
 		MaxSpawnDepth: 2, MaxWorkers: 8,

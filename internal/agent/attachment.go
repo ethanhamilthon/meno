@@ -28,6 +28,9 @@ type Message struct {
 	// Viewed marks an image the agent asked to see with view(); it is not
 	// something the user wrote.
 	Viewed bool
+	// Skills are the turns that load the skills the text refers to; they go in
+	// front of the message.
+	Skills []Turn
 }
 
 var imageTokenRe = regexp.MustCompile(`\[Image #(\d+)\]`)
@@ -56,6 +59,7 @@ func Combine(ms []Message) Message {
 			return tok
 		})
 		texts = append(texts, text)
+		out.Skills = append(out.Skills, m.Skills...)
 	}
 	out.Text = strings.Join(texts, "\n\n")
 	return out

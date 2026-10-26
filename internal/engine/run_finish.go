@@ -62,6 +62,9 @@ func (e *Engine) finish(s *runState, err error) {
 		s.mu.Lock()
 		s.authors = leftoverAuthors
 		msg := agent.Combine(queued)
+		for _, t := range msg.Skills {
+			s.session.Append(t)
+		}
 		s.session.Append(agent.Turn{Role: llm.RoleUser, Text: msg.Text, Attachments: msg.Attachments, Time: time.Now().UTC()})
 		_ = e.save(s)
 		ctx, cancel := context.WithCancel(context.Background())

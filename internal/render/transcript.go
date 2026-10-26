@@ -14,28 +14,29 @@ const Gutter = 2
 
 const padX = Gutter
 
-type JSMode int
+// ViewMode is how much of the agent's work the timeline shows.
+type ViewMode int
 
 const (
-	JSFull JSMode = iota
-	JSLines
-	JSOff
+	// ViewFull shows thinking and tool calls; output is cut to OutputRows.
+	ViewFull ViewMode = iota
+	// ViewBashOnly shows the commands only, cut to CodeRows.
+	ViewBashOnly
+	// ViewCompact hides thinking and tool calls from the timeline.
+	ViewCompact
+)
+
+// Row limits of the views.
+const (
+	OutputRows = 5
+	CodeRows   = 5
 )
 
 type JSOpts struct {
-	Mode  JSMode
-	Lines int
-	// OutMode/OutLines are the same all/lines/off choice for tool output.
-	OutMode  JSMode
-	OutLines int
-	// ThinkMode/ThinkLines are the same all/lines/off choice for model reasoning.
-	ThinkMode  JSMode
-	ThinkLines int
+	View ViewMode
 	// Running paints code blocks as live (streaming or executing).
 	Running bool
-	// Timing is which finished js calls show their duration; Summary shows the
-	// line that closes a run.
-	Timing  TimingMode
+	// Summary shows the line that closes a run.
 	Summary bool
 	// Exec marks a call that is executing now (not only streaming): its footer
 	// counts Elapsed up; Spin picks the spinner frame.
@@ -54,7 +55,7 @@ func BuildLines(turns []Turn, w int, js JSOpts) []Line {
 	separate := false
 	for _, t := range turns {
 		think := ""
-		if js.ThinkMode != JSOff && t.Thinking != "" {
+		if js.View == ViewFull && t.Thinking != "" {
 			think = strings.TrimSpace(t.Thinking)
 		}
 		visible := t.Role == RoleUser || t.Code != "" || t.Role == RoleAssistant && (t.Text != "" || think != "")
@@ -65,7 +66,7 @@ func BuildLines(turns []Turn, w int, js JSOpts) []Line {
 			separate = TurnHasMessage(t, js)
 		}
 		if think != "" && t.Role == RoleAssistant {
-			out = append(out, thinkingLines(think, wrapW, js)...)
+			out = append(out, thinkingLines(think, wrapW)...)
 			if t.Text != "" || t.Code != "" {
 				out = append(out, Band(BgTerm))
 			}
@@ -73,6 +74,8 @@ func BuildLines(turns []Turn, w int, js JSOpts) []Line {
 		switch {
 		case t.Role == RoleUser && t.Kind == KindEvent:
 			out = append(out, transcriptRows(eventSummary(t.Text), "⇢", w)...)
+		case t.Role == RoleUser && t.Kind == KindSkill:
+			out = append(out, transcriptRows("/skill:"+skillName(t.Text)+" loaded", "◌", w)...)
 		case t.Role == RoleUser && t.Kind == KindView:
 			out = append(out, transcriptRows(t.Text, "◌", w)...)
 			for _, at := range t.Attachments {
@@ -109,11 +112,14 @@ func BuildLines(turns []Turn, w int, js JSOpts) []Line {
 }
 
 func jsBlock(t Turn, w int, js JSOpts) []Line {
+	if js.View == ViewCompact {
+		return nil
+	}
 	out := []Line{bashHeader(t, w, js)}
-	if js.Mode != JSOff {
+	{
 		max := 0
-		if js.Mode == JSLines {
-			max = js.Lines
+		if js.View == ViewBashOnly {
+			max = CodeRows
 		}
 		// No background in any state: a color that changes when the call starts or
 		// ends repaints the whole block.
@@ -123,12 +129,8 @@ func jsBlock(t Turn, w int, js JSOpts) []Line {
 		}
 		out = append(out, lines...)
 	}
-	if js.OutMode != JSOff {
-		limit := 0
-		if js.OutMode == JSLines {
-			limit = js.OutLines
-		}
-		out = append(out, limitRows(outputLines(t, w), limit)...)
+	if js.View == ViewFull {
+		out = append(out, limitRows(outputLines(t, w), OutputRows)...)
 	}
 	return out
 }
@@ -148,22 +150,12 @@ func outputLines(t Turn, w int) []Line {
 }
 
 // thinkingLines renders model reasoning dimmed, with a glyph on the first row.
-// In "lines" mode only the newest rows are kept: the end of the reasoning is what
-// the model acted on, and the view stays steady while it streams.
-func thinkingLines(text string, w int, js JSOpts) []Line {
+func thinkingLines(text string, w int) []Line {
 	rows := Wrap(text, max(1, w))
-	hidden := 0
-	if js.ThinkMode == JSLines && js.ThinkLines > 0 && len(rows) > js.ThinkLines {
-		hidden = len(rows) - js.ThinkLines
-		rows = rows[hidden:]
-	}
 	var out []Line
-	if hidden > 0 {
-		out = append(out, Line{Segs: []Seg{{Text: "∴ ", FG: Purple}, {Text: "… " + itoa(hidden) + " earlier", FG: FgDim}}, BG: BgTerm})
-	}
 	for i, l := range rows {
 		prefix := "  "
-		if i == 0 && hidden == 0 {
+		if i == 0 {
 			prefix = "∴ "
 		}
 		out = append(out, Line{Segs: []Seg{{Text: prefix, FG: Purple}, {Text: l, FG: FgDim}}, BG: BgTerm})

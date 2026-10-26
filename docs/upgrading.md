@@ -1,5 +1,20 @@
 # Upgrading, data and privacy
 
+## 0.7.1: view modes and skill loading
+
+Restart the daemon and every window after updating. The database gets one migration (a column in
+`skills_state`); the daemon protocol stays 8.
+
+- One setting `view` (`full`, `bash_only`, `compact`) replaces `bash code`, `bash output`,
+  `thinking` and `bash timing`. The old keys in `settings.json` are ignored and dropped on the next
+  save. The default is `compact`; choose `full` for the old look. The model now always thinks as
+  its effort allows; there is no setting to turn the thinking off.
+- `/skills`: Tab marks a skill `auto`. The first message of every new session (also one from
+  `meno send`) starts with the auto skills.
+- A `/skill:name` in a message loads the text of the skill into the conversation at once.
+- Project skills are now listed from the directory of the session you are in, not from the
+  directory the daemon started in. `/` lists the skills too.
+
 ## 0.7.0: flicker, help for agents, MCP creation
 
 Restart the daemon and every window after updating; close active work first. There is no data

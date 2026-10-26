@@ -10,19 +10,25 @@ import (
 // reloadSkills asks the daemon for the skills again; the project skills depend
 // on the directory of the session.
 func (a *App) reloadSkills() {
+	cwd := a.st.Cwd
 	a.spawn(func() {
 		var out []config.Skill
 		err := a.rpc(func(ctx context.Context, c *client.Client) error {
-			r, e := c.Skills(ctx)
+			r, e := c.Skills(ctx, cwd)
 			for _, k := range r.Skills {
-				out = append(out, config.Skill{Name: k.Name, Scope: k.Scope, Desc: k.Desc, Path: k.Path, Enabled: k.Enabled, Warnings: k.Warnings})
+				out = append(out, config.Skill{Name: k.Name, Scope: k.Scope, Desc: k.Desc, Path: k.Path, Enabled: k.Enabled, Auto: k.Auto, Warnings: k.Warnings})
 			}
 			return e
 		})
 		if err == nil {
-			a.postEvent(skillsLoaded{out})
+			a.postEvent(skillsLoaded{out, cwd})
 		}
 	})
 }
 
-type skillsLoaded struct{ skills []config.Skill }
+// skillsLoaded is the answer for the directory cwd; one for a directory the
+// window has left is dropped.
+type skillsLoaded struct {
+	skills []config.Skill
+	cwd    string
+}

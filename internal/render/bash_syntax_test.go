@@ -23,7 +23,7 @@ func TestBashHeaderAndSourceBackgrounds(t *testing.T) {
 		running bool
 	}{{"success", Turn{Code: "echo ok"}, false}, {"running", Turn{Code: "echo ok"}, true}, {"failed", Turn{Code: "false", Err: "exit 1"}, true}} {
 		t.Run(tc.name, func(t *testing.T) {
-			lines := jsBlock(tc.turn, 80, JSOpts{Mode: JSFull, Running: tc.running})
+			lines := jsBlock(tc.turn, 80, JSOpts{Running: tc.running})
 			if !lines[0].FullWidth || lines[0].BG != BgTerm {
 				t.Fatal("header surface")
 			}

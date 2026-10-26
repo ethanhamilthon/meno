@@ -6,8 +6,8 @@ import (
 )
 
 func TestBashHeaderPersistsWhenSourceHidden(t *testing.T) {
-	for _, mode := range []JSMode{JSOff, JSLines, JSFull} {
-		lines := BuildLines([]Turn{jsTurn("echo hello", func(v *Turn) { v.Title = "Inspect files" })}, 80, JSOpts{Mode: mode, Lines: 1})
+	for _, mode := range []ViewMode{ViewFull, ViewBashOnly} {
+		lines := BuildLines([]Turn{jsTurn("echo hello", func(v *Turn) { v.Title = "Inspect files" })}, 80, JSOpts{View: mode})
 		text := summaryText(lines)
 		if !strings.Contains(text, "Inspect files") || !strings.Contains(text, "3.2s") {
 			t.Fatal(text)

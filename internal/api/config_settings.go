@@ -8,14 +8,8 @@ type ConfigSettings struct {
 	Model                string `json:"model"`
 	Effort               string `json:"effort"`
 	Tool                 string `json:"tool"`
-	BashCode             string `json:"bash_code"`
-	BashLines            int    `json:"bash_lines"`
-	BashOutput           string `json:"bash_output"`
-	BashOutputLines      int    `json:"bash_output_lines"`
-	BashTiming           string `json:"bash_timing"`
+	View                 string `json:"view"`
 	TurnSummary          string `json:"turn_summary"`
-	Thinking             string `json:"thinking"`
-	ThinkLines           int    `json:"thinking_lines"`
 	Theme                string `json:"theme"`
 	Notify               string `json:"notify"`
 	NotifyCommand        string `json:"notify_command"`

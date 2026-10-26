@@ -11,15 +11,17 @@ import (
 
 func TestSettingsCycleWraps(t *testing.T) {
 	s := DefaultSettings()
-	if got := s.Cycle("bash_code", 1); got != "lines" {
-		t.Fatalf("want lines got %s", got)
+	if s.View != "compact" {
+		t.Fatalf("default view: %s", s.View)
 	}
-	s.Cycle("bash_code", 1)
-	if got := s.Cycle("bash_code", 1); got != "all" {
+	if got := s.Cycle("view", 1); got != "full" {
 		t.Fatalf("wrap forward failed: %s", got)
 	}
-	if got := s.Cycle("bash_code", -1); got != "off" {
+	if got := s.Cycle("view", -1); got != "compact" {
 		t.Fatalf("wrap backward failed: %s", got)
+	}
+	if got := s.Cycle("view", -1); got != "bash_only" {
+		t.Fatalf("backward: %s", got)
 	}
 }
 
@@ -28,7 +30,7 @@ func TestSettingsSetValidates(t *testing.T) {
 	if err := s.Set("bash_timeout", "1h"); err == nil {
 		t.Fatal("an obsolete key must be rejected")
 	}
-	if err := s.Set("bash_code", "typo"); err == nil {
+	if err := s.Set("view", "typo"); err == nil {
 		t.Fatal("invalid value accepted")
 	}
 	if err := s.Set("nope", "x"); err == nil {
@@ -93,15 +95,11 @@ func TestPathsEnvOverride(t *testing.T) {
 
 func TestAdjustNumClamps(t *testing.T) {
 	s := DefaultSettings()
-	if s.AdjustNum("bash_code", -100) != 1 || s.AdjustNum("bash_code", 100) != 50 {
+	if s.AdjustNum("view", 1) != 0 || NumOption("view") != "" {
+		t.Fatal("view carries no number")
+	}
+	if s.AdjustNum("compact_percent", -100) != MinCompactPercent || s.AdjustNum("compact_percent", 100) != MaxCompactPercent {
 		t.Fatal("clamp failed")
-	}
-	// code, output and thinking keep independent limits
-	if s.AdjustNum("bash_output", -100) != 1 || s.BashLines != 50 || s.NumFor("bash_output") != 1 || s.NumFor("thinking") != 5 {
-		t.Fatal("limits are not independent")
-	}
-	if s.AdjustNum("thinking", 3) != 8 || s.ThinkLines != 8 {
-		t.Fatal("thinking limit")
 	}
 }
 

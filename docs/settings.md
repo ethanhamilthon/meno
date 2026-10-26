@@ -13,9 +13,7 @@ Look and signal settings (`theme`, `notify`, `notify sound`, `notify volume`, `n
 | General | theme | `default` or a custom theme from `theme.json`; live preview |
 | General | images | `auto`, `off`, `kitty`, `sixel`, `iterm` — see [terminal graphics](graphics.md) |
 | General | system prompt | `default` (the built-in prompt) or a file of `system-prompts/` — see [system prompts](#system-prompts) |
-| Display | bash code | `all`, `lines <n>`, `off` — how much command text the timeline shows |
-| Display | bash output | `all`, `lines <n>`, `off` |
-| Display | thinking | `all`, `lines <n>` (the newest rows), `off` |
+| Display | view | `full`, `bash_only`, `compact` (default) — how much of the work the timeline shows; see [the interface](ui.md#timeline-and-bash) |
 | Notify | notify | `off`, `question`, `done` — see [notification sounds](notifications.md) |
 | Notify | notify sound | `default`, `bell`, or one of 25 built-in sounds; changing it previews |
 | Notify | notify volume | `20`…`100` percent; previews on change; ignored for a custom command |

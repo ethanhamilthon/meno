@@ -77,7 +77,7 @@ func TestSharedEditReplacesOverride(t *testing.T) {
 
 // Settings that are not about looks or signals are always shared.
 func TestOnlyLooksAndSignalsCanBeLocal(t *testing.T) {
-	for _, k := range []string{"images", "bash_code", "compact_percent", "thinking"} {
+	for _, k := range []string{"images", "view", "compact_percent"} {
 		if localKeys[k] {
 			t.Errorf("%s must stay shared", k)
 		}

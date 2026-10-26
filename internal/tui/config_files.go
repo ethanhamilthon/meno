@@ -42,6 +42,7 @@ func (a *App) loadAll() error {
 		return m.err
 	}
 	a.applyConfig(m)
+	a.reloadSkills()
 	return nil
 }
 
@@ -72,13 +73,14 @@ func (a *App) onSettingsLoaded(m settingsLoaded) {
 	}
 	a.cfgSeen = m.seq
 	a.applyConfig(m)
+	a.reloadSkills() // the skills are read from the directory of the session
 	a.showFileWarnings(m.warnings)
 	a.fetchModels()
 	a.afterProvidersChanged()
 }
 
 func (a *App) applyConfig(m settingsLoaded) {
-	a.st.Settings, a.st.Providers, a.st.Servers, a.st.Skills = m.settings, m.providers, m.servers, m.skills
+	a.st.Settings, a.st.Providers, a.st.Servers = m.settings, m.providers, m.servers
 	a.st.ServerInfo = m.info
 	a.cfgBase = m.settings
 	a.applyOverrides()
@@ -105,9 +107,6 @@ func (a *App) fetchConfig() settingsLoaded {
 		for _, s := range bundle.MCP.Servers {
 			out.servers = append(out.servers, serverFromWire(s))
 			out.info[s.Name] = mcpInfo{Running: s.Running, Starting: s.Starting, Err: s.Error}
-		}
-		for _, k := range bundle.Skills.Skills {
-			out.skills = append(out.skills, config.Skill{Name: k.Name, Scope: k.Scope, Desc: k.Desc, Path: k.Path, Enabled: k.Enabled, Warnings: k.Warnings})
 		}
 		return nil
 	})

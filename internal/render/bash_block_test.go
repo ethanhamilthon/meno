@@ -15,11 +15,11 @@ func TestCommandBlockHasNoBackground(t *testing.T) {
 		turn Turn
 		js   JSOpts
 	}{
-		{"streaming", Turn{Code: src}, JSOpts{Mode: JSFull, Running: true, Streaming: true}},
-		{"running", Turn{Code: src}, JSOpts{Mode: JSFull, Running: true, Exec: true, Elapsed: 3 * time.Second}},
-		{"done", Turn{Code: src, ElapsedMs: 1200, Output: "x"}, JSOpts{Mode: JSFull, OutMode: JSFull}},
-		{"failed", Turn{Code: src, Err: "exit 1", ElapsedMs: 900}, JSOpts{Mode: JSFull, OutMode: JSFull}},
-		{"timed out", Turn{Code: src, TimedOut: true}, JSOpts{Mode: JSFull}},
+		{"streaming", Turn{Code: src}, JSOpts{Running: true, Streaming: true}},
+		{"running", Turn{Code: src}, JSOpts{Running: true, Exec: true, Elapsed: 3 * time.Second}},
+		{"done", Turn{Code: src, ElapsedMs: 1200, Output: "x"}, JSOpts{}},
+		{"failed", Turn{Code: src, Err: "exit 1", ElapsedMs: 900}, JSOpts{}},
+		{"timed out", Turn{Code: src, TimedOut: true}, JSOpts{}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			lines := jsBlock(tc.turn, 80, tc.js)

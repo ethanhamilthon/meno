@@ -12,8 +12,8 @@ import (
 // their number ("lines 5", "30 sec").
 func optLabel(s *config.Settings, key, opt string) string {
 	switch {
-	case key == "bash_timing" && opt == "slow":
-		return "slow only"
+	case key == "view" && opt == "bash_only":
+		return "bash only"
 	case key == "compact_percent":
 		return "at " + strconv.Itoa(s.CompactPercent) + "%"
 	case key == "notify_volume":
