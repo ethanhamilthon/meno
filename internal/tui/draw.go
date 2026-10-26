@@ -29,5 +29,4 @@ func (a *App) draw() {
 	if a.completionVisible {
 		a.acknowledgeVisible()
 	}
-	a.placeImages()
 }

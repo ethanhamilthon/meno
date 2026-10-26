@@ -11,7 +11,6 @@ Look and signal settings (`theme`, `notify`, `notify sound`, `notify volume`, `n
 | Tab | Setting | Values |
 | --- | --- | --- |
 | General | theme | `default` or a custom theme from `theme.json`; live preview |
-| General | images | `auto`, `off`, `kitty`, `sixel`, `iterm` — see [terminal graphics](graphics.md) |
 | General | system prompt | `default` (the built-in prompt) or a file of `system-prompts/` — see [system prompts](#system-prompts) |
 | Display | view | `full`, `bash_only`, `compact` (default) — how much of the work the timeline shows; see [the interface](ui.md#timeline-and-bash) |
 | Notify | notify | `off`, `question`, `done` — see [notification sounds](notifications.md) |

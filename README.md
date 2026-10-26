@@ -69,7 +69,6 @@ every push and pull request on Linux and macOS and installs a snapshot build wit
 | [Interface](docs/ui.md) | keys, commands, timeline, Markdown, images, tool-call display |
 | [Settings](docs/settings.md), [notifications](docs/notifications.md) | |
 | [Upgrading, data and privacy](docs/upgrading.md) | migrations, where data lives, what is logged |
-| [Terminal graphics](docs/graphics.md) | Kitty, Sixel and iTerm images |
 
 Instructions for the agent live in
 `AGENTS.md` in the session's directory; it goes into the system

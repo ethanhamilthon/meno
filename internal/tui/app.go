@@ -51,8 +51,6 @@ type App struct {
 	idleTick  bool             // the batch held only ticks: skip drawing when nothing runs
 	cur       cursorPos        // real terminal cursor, set while drawing
 
-	imgs imageMgr // inline terminal graphics
-
 	watchGeneration uint64
 	rts             map[string]*Runtime // every session loaded in this run, by id
 	rtList          []*Runtime          // the same, in creation order
@@ -126,7 +124,6 @@ func New(scr tcell.Screen, paths config.Paths, cl *client.Client, opts ...Option
 // stops a run or a task.
 func (a *App) Close() {
 	a.closing = true
-	a.clearImages()
 	a.closeOnce.Do(func() { close(a.done) })
 	for _, rt := range a.rtList {
 		if rt.watch != nil {
@@ -214,8 +211,6 @@ func (a *App) handle(msg any) {
 			a.setConnLost(m.sid, true)
 			a.noticeFor(rt, "lost the daemon stream of a session: "+m.err.Error(), true, false)
 		}
-	case imageDecoded:
-		a.imgs.placed = ""
 	case pickResults:
 		a.onPickResults(m)
 	case exportDone:

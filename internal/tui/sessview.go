@@ -96,9 +96,6 @@ func turnFromWire(t api.Turn) render.Turn {
 			v.Text = p.Text
 		}
 	}
-	for _, a := range t.Attachments {
-		v.Attachments = append(v.Attachments, render.Attachment{N: a.N, Mime: a.Mime, SHA: a.SHA, W: a.W, H: a.H})
-	}
 	if r := t.Run; r != nil {
 		v.Run = &render.RunStats{Status: r.Status, ElapsedMs: r.ElapsedMS, Turns: r.Turns, ToolCalls: r.ToolCalls, ToolMs: r.ToolMS,
 			In: r.In, Out: r.Out, Cached: r.Cached, CacheWrite: r.CacheWrite, CacheKnown: r.CacheKnown, Cost: r.Cost, Partial: r.Partial, Err: r.Err}

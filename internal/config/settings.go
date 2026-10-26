@@ -35,9 +35,6 @@ type Settings struct {
 	// bulky output of old tool calls, before it asks the model for a summary.
 	// 10 to 100; at or above CompactPercent it never acts, which switches it off.
 	ElidePercent int `json:"elide_percent"`
-	// ImagesProtocol is auto, off, kitty, sixel or iterm: which terminal
-	// graphics protocol draws images in the timeline.
-	ImagesProtocol string `json:"images_protocol"`
 	// SystemPrompt names a file in system-prompts/ whose text replaces the
 	// identity line of the system prompt in new sessions. Empty is the built-in line.
 	SystemPrompt string `json:"system_prompt"`

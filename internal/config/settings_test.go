@@ -174,3 +174,28 @@ func TestElidePercentDefaultsAndRange(t *testing.T) {
 		t.Fatalf("a file without the key: %d %v", absent.ElidePercent, err)
 	}
 }
+
+func TestRemovedImageProtocolIsIgnored(t *testing.T) {
+	for _, protocol := range []string{"auto", "off", "kitty", "sixel", "iterm", "unknown"} {
+		var got Settings
+		if err := json.Unmarshal([]byte(fmt.Sprintf(`{"images_protocol":%q,"view":"full","model":"keep-me"}`, protocol)), &got); err != nil {
+			t.Fatal(err)
+		}
+		want := DefaultSettings()
+		want.View, want.Model = "full", "keep-me"
+		if got != want {
+			t.Fatalf("obsolete protocol changed settings: %+v", got)
+		}
+		data, err := json.Marshal(got)
+		if err != nil || strings.Contains(string(data), "images_protocol") {
+			t.Fatalf("obsolete protocol must not be persisted: %s, %v", data, err)
+		}
+	}
+	s := DefaultSettings()
+	if Choices("images") != nil || s.Get("images") != "" {
+		t.Fatal("obsolete image protocol is still exposed")
+	}
+	if err := s.Set("images", "kitty"); err == nil {
+		t.Fatal("removed protocol setting must not be accepted")
+	}
+}

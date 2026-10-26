@@ -106,6 +106,8 @@ changes what is executed.
 | `compact` (default) | only the answers. While a turn runs, one row stands for the work: the start of the running command (or `thinking...`) on the left, the time of the whole turn on the right. The row goes when the turn ends |
 
 The duration in the header of a call is always shown in `full` and `bash_only`.
+Background task event rows are hidden in `compact`; the task counter in the status
+bar and `/tasks` remain available. Task events still reach the agent.
 
 ## Rendering stability
 
@@ -114,18 +116,16 @@ at the end. A command block has no background of its own in any state: it appear
 the command, shows the output under it when it ends, and a failure turns the time in its
 header red. A command that has ended stays on screen with its output until the saved turn
 replaces it, so a block never leaves and returns. Streaming text and thinking only append.
-Two things can still repaint: pictures on terminals that draw them with Sixel or iTerm
-graphics, whose pixels are removed by repainting the cells under them (see
-[terminal graphics](graphics.md)), and a terminal that does not support synchronized updates.
+Terminals without synchronized updates may still show intermediate cell updates.
 
 ## Images
 
 `[Image #N]` tokens are one unit in the input. At most 5 images per message, 5 MB
-each, PNG or JPEG, scaled to 1568 px. The agent can look with `meno view PATH`. With a
-capable terminal, `full` and `bash_only` show the pictures themselves, see
-[terminal graphics](graphics.md); without graphics these views show a caption naming
-number, size and type. `compact` hides pictures and captions, leaving ordinary message
-text and inline `[Image #N]` references unchanged.
+each, PNG or JPEG, scaled to 1568 px. The agent can look with `meno view PATH`.
+Images are delivered to the agent, never drawn in the terminal. No generated image
+captions or separate image-delivery rows are shown in any view; ordinary message
+text and inline `[Image #N]` references stay unchanged. `meno view` keeps its normal
+command output (`image displayed`), subject to the selected view.
 
 The agent receives the image plus its stored file path, for example
 `[Image #1] path: "/Users/me/.meno/attachments/abc123.png"`, so it can use the

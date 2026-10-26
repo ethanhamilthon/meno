@@ -11,7 +11,7 @@ func TestConfigWireGoldens(t *testing.T) {
 		value any
 		want  string
 	}{
-		{"settings_request", SettingsRequest{Settings: ConfigSettings{Effort: "high"}}, `{"settings":{"provider":"","model":"","effort":"high","tool":"","view":"","turn_summary":"","theme":"","notify":"","notify_command":"","notify_sound":"","notify_volume":0,"compact_percent":0,"compact_keep":0,"compact_summary_tokens":0,"elide_percent":0,"images_protocol":"","system_prompt":"","max_spawn_depth":0,"max_workers":0}}`},
+		{"settings_request", SettingsRequest{Settings: ConfigSettings{Effort: "high"}}, `{"settings":{"provider":"","model":"","effort":"high","tool":"","view":"","turn_summary":"","theme":"","notify":"","notify_command":"","notify_sound":"","notify_volume":0,"compact_percent":0,"compact_keep":0,"compact_summary_tokens":0,"elide_percent":0,"system_prompt":"","max_spawn_depth":0,"max_workers":0}}`},
 		{"provider_request", ProviderRequest{Provider: ConfigProvider{Name: "p", BaseURL: "https://x", Protocol: "chat completions", APIKey: "k"}}, `{"provider":{"name":"p","base_url":"https://x","api_key":"k","protocol":"chat completions"}}`},
 		{"provider_key_state", ConfigProvider{Name: "p", HasAPIKey: true}, `{"name":"p","base_url":"","has_api_key":true,"protocol":""}`},
 		{"provider_enabled", ProviderEnabledRequest{Enabled: true}, "{\"enabled\":true}"},

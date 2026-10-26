@@ -11,14 +11,6 @@ const (
 	RunStop       = "stop"
 )
 
-// Attachment is an image a message refers to.
-type Attachment struct {
-	N    int
-	Mime string
-	SHA  string
-	W, H int
-}
-
 // RunStats is what one run took; it closes the run in the transcript.
 type RunStats struct {
 	Status          string
@@ -36,19 +28,18 @@ type RunStats struct {
 
 // Turn is one item of the transcript as the view draws it.
 type Turn struct {
-	ID          string // stable id; turns with an id are laid out once and cached
-	CallID      string
-	Role        string
-	Kind        string
-	Text        string
-	Thinking    string
-	Code        string
-	Title       string
-	Output      string
-	Err         string
-	ElapsedMs   int64
-	LimitMs     int64
-	TimedOut    bool
-	Run         *RunStats
-	Attachments []Attachment
+	ID        string // stable id; turns with an id are laid out once and cached
+	CallID    string
+	Role      string
+	Kind      string
+	Text      string
+	Thinking  string
+	Code      string
+	Title     string
+	Output    string
+	Err       string
+	ElapsedMs int64
+	LimitMs   int64
+	TimedOut  bool
+	Run       *RunStats
 }

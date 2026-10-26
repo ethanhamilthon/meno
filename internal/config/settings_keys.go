@@ -9,7 +9,6 @@ import (
 )
 
 var choices = map[string][]string{
-	"images":        {"auto", "off", "kitty", "sixel", "iterm"},
 	"view":          {"full", "bash_only", "compact"},
 	"turn_summary":  {"on", "off"},
 	"effort":        {"low", "medium", "high", "max"},
@@ -32,8 +31,6 @@ func (s *Settings) Get(key string) string {
 		return value
 	}
 	switch key {
-	case "images":
-		return s.ImagesProtocol
 	case "view":
 		return s.View
 	case "turn_summary":
@@ -105,8 +102,6 @@ func (s *Settings) setRaw(key, val string) {
 	switch key {
 	case "theme":
 		s.Theme = val
-	case "images":
-		s.ImagesProtocol = val
 	case "view":
 		s.View = val
 	case "turn_summary":

@@ -14,7 +14,6 @@ func TestTranscriptBaseTextSharesScreenColumn(t *testing.T) {
 			{Role: RoleAssistant, Thinking: "Reasoning text", Text: "Assistant text"},
 			{Role: RoleAssistant, Title: "Inspect files", Code: "echo source", Output: "Output text"},
 			{Role: RoleAssistant, Code: "false", Err: "Failure text"},
-			{Role: RoleUser, Kind: KindView, Text: "Viewed image", Attachments: []Attachment{{N: 1, W: 10, H: 10, Mime: "image/png"}}},
 			{Role: RoleAssistant, Run: &RunStats{Status: "stop"}},
 		}
 		lines := BuildLines(turns, w, JSOpts{})
@@ -22,7 +21,7 @@ func TestTranscriptBaseTextSharesScreenColumn(t *testing.T) {
 		for y, l := range lines {
 			DrawLine(Canvas{S: s}, 0, y, w, l)
 		}
-		for _, needle := range []string{"User text", "Reasoning text", "Assistant text", "Inspect files", "echo source", "Output text", "error:", "Viewed image", "Image #1", "stopped", "↑0"} {
+		for _, needle := range []string{"User text", "Reasoning text", "Assistant text", "Inspect files", "echo source", "Output text", "error:", "stopped", "↑0"} {
 			found := false
 			for y := range lines {
 				row := alignmentRow(s, w, y)

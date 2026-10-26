@@ -57,7 +57,6 @@ func (a *App) drawLog(c render.Canvas, x, y, w, h int, lines []render.Line) {
 		render.DrawLine(c, x, y+i, w, lines[start+i])
 	}
 	a.paintLog(c, x, y, w, h, lines, start)
-	a.noteVisible(lines, start, x, y, h)
 	if h > 0 && len(lines) > 0 && start+h >= len(lines) {
 		for _, line := range lines[start:] {
 			if line.CompletionAnchor {

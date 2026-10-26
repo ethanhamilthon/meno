@@ -25,9 +25,6 @@ func viewTurn(t agent.Turn) render.Turn {
 	if v.Thinking == "" && t.Replay != nil {
 		v.Thinking = t.Replay.Thought
 	}
-	for _, a := range t.Attachments {
-		v.Attachments = append(v.Attachments, render.Attachment{N: a.N, Mime: a.Mime, SHA: a.SHA, W: a.W, H: a.H})
-	}
 	if r := t.Run; r != nil {
 		v.Run = &render.RunStats{Status: r.Status, ElapsedMs: r.ElapsedMs, Turns: r.Turns, ToolCalls: r.ToolCalls, ToolMs: r.ToolMs,
 			In: r.Usage.In, Out: r.Usage.Out, Cached: r.Usage.Cached, CacheWrite: r.Usage.CacheWrite, CacheKnown: r.Usage.CacheReported, Cost: r.Cost, Partial: r.Partial, Err: r.Err}

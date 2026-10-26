@@ -27,8 +27,6 @@ type Line struct {
 	// Aside is drawn at the right edge of the row, over free space only (the
 	// timing badge of a js block). It is not part of the text of the line.
 	Aside []Seg
-	// Image is set on the first of the rows reserved for an inline picture.
-	Image *ImageRef
 }
 
 // Text is the plain text of the line (what the user sees, without the left padding).

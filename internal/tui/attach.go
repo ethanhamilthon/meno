@@ -3,7 +3,6 @@ package tui
 import (
 	"context"
 	"encoding/json"
-	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
@@ -33,8 +32,6 @@ type imageReady struct {
 }
 
 var imageTokenRe = regexp.MustCompile(`\[Image #(\d+)\]`)
-
-func (a *App) attachDir() string { return filepath.Join(a.paths.Home, "attachments") }
 
 // imageSpans are the [Image #N] tokens in the input that have an attached image.
 func (a *App) imageSpans() []tokSpan { return imageSpansFor(a.st.Runtime) }

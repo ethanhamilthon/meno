@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gdamore/tcell/v2"
+
 	"meno/internal/llm"
 	"meno/internal/mcp"
 	"meno/internal/render"
@@ -12,7 +14,7 @@ import (
 func welcomeText(t *testing.T, a *App) string {
 	t.Helper()
 	a.draw()
-	return screenTextOf(a)
+	return screenText(a.scr.(tcell.SimulationScreen))
 }
 
 func TestWelcomeHintsAreCurrent(t *testing.T) {

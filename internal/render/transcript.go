@@ -43,8 +43,6 @@ type JSOpts struct {
 	Exec    bool
 	Elapsed time.Duration
 	Spin    int
-	// Images configures inline pictures for attachments and view().
-	Images ImageOpts
 	// Streaming: the call's source is still arriving, so it is shown plain.
 	Streaming bool
 }
@@ -54,6 +52,9 @@ func BuildLines(turns []Turn, w int, js JSOpts) []Line {
 	wrapW := TranscriptTextWidth(w)
 	separate := false
 	for _, t := range turns {
+		if hiddenTurn(t, js.View) {
+			continue
+		}
 		think := ""
 		if js.View == ViewFull && t.Thinking != "" {
 			think = strings.TrimSpace(t.Thinking)
@@ -76,23 +77,11 @@ func BuildLines(turns []Turn, w int, js JSOpts) []Line {
 			out = append(out, transcriptRows(eventSummary(t.Text), "⇢", w)...)
 		case t.Role == RoleUser && t.Kind == KindSkill:
 			out = append(out, transcriptRows("/skill:"+skillName(t.Text)+" loaded", "◌", w)...)
-		case t.Role == RoleUser && t.Kind == KindView:
-			out = append(out, transcriptRows(t.Text, "◌", w)...)
-			if js.View != ViewCompact {
-				for _, at := range t.Attachments {
-					out = append(out, imageBlock(at, "view()", w, js.Images)...)
-				}
-			}
 		case t.Role == RoleUser:
 			out = append(out, Band(BgUser))
 			shown := t.Text
 			out = append(out, WrapLines(withObjectLabels(shown), wrapW, userLineMaker())...)
 			out = append(out, Band(BgUser))
-			if js.View != ViewCompact {
-				for _, at := range t.Attachments {
-					out = append(out, imageBlock(at, "attachment", w, js.Images)...)
-				}
-			}
 		case t.Code != "":
 			if t.Text != "" {
 				out = append(out, MarkdownLines(t.Text, wrapW, "◇")...)
@@ -113,6 +102,21 @@ func BuildLines(turns []Turn, w int, js JSOpts) []Line {
 		}
 	}
 	return out
+}
+
+// hiddenTurn filters presentation only; the original turns remain in agent history.
+func hiddenTurn(t Turn, view ViewMode) bool {
+	if t.Role != RoleUser {
+		return false
+	}
+	if t.Kind == KindView {
+		return true
+	}
+	if view == ViewCompact && t.Kind == KindEvent {
+		head, _, _ := strings.Cut(t.Text, ">")
+		return strings.HasPrefix(head, "<event ") && attr(head, "source") == "task"
+	}
+	return false
 }
 
 func jsBlock(t Turn, w int, js JSOpts) []Line {

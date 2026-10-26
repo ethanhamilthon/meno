@@ -25,7 +25,6 @@ var settingTabs = []settingTab{
 		name: "General",
 		rows: []settingRow{
 			{"theme", "theme"},
-			{"images", "images"},
 			{"system prompt", "system_prompt"},
 		},
 	},

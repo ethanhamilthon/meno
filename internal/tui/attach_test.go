@@ -12,6 +12,7 @@ import (
 
 	"github.com/gdamore/tcell/v2"
 
+	"meno/internal/client"
 	"meno/internal/content"
 	"meno/internal/llm"
 )
@@ -102,11 +103,21 @@ func TestSubmitSendsImageAndStoresFile(t *testing.T) {
 		t.Fatal("draft not cleared")
 	}
 	pump(t, a, func() bool { return runDone(a) })
-	turns := a.st.Session.Snapshot()
-	if len(turns[0].Attachments) != 1 || turns[0].Text != "what is [Image #1]" {
-		t.Fatalf("turn: %+v", turns[0])
+	var sha string
+	err := a.rpc(func(ctx context.Context, c *client.Client) error {
+		snap, err := c.Snapshot(ctx, a.st.Runtime.ID())
+		if err == nil {
+			if len(snap.Turns) == 0 || len(snap.Turns[0].Attachments) != 1 || snap.Turns[0].Content != "what is [Image #1]" {
+				t.Fatalf("stored turns: %+v", snap.Turns)
+			}
+			sha = snap.Turns[0].Attachments[0].SHA
+		}
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
-	file := filepath.Join(paths.Home, "attachments", turns[0].Attachments[0].SHA+".png")
+	file := filepath.Join(paths.Home, "attachments", sha+".png")
 	if _, err := os.Stat(file); err != nil {
 		t.Fatalf("image not stored: %v", err)
 	}

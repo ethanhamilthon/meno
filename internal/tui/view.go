@@ -41,7 +41,6 @@ func (a *App) statsText() string {
 func (a *App) jsOpts() render.JSOpts {
 	js := render.JSOpts{View: viewMode(a.st.Settings.View)}
 	js.Summary = a.st.Settings.TurnSummary != "off"
-	js.Images = a.imageOpts()
 	return js
 }
 
