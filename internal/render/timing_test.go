@@ -38,10 +38,6 @@ func TestFmtTokensAndCost(t *testing.T) {
 	}
 }
 
-func turnOf(ms, limit int64, err string, timedOut bool) Turn {
-	return Turn{Role: RoleAssistant, CallID: "c", Code: "x", Err: err, ElapsedMs: ms, LimitMs: limit, TimedOut: timedOut}
-}
-
 func jsTurn(code string, mods func(*Turn)) Turn {
 	t := Turn{Role: RoleAssistant, Text: "step", CallID: "c1", Code: code, Output: "out", ElapsedMs: 3200, LimitMs: 30000}
 	if mods != nil {
