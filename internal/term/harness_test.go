@@ -125,7 +125,7 @@ func start(t *testing.T, o options) *session {
 	}
 	cmd := exec.Command(binPath)
 	cmd.Dir = work
-	cmd.Env = append(os.Environ(), "MENO_HOME="+o.home, "HOME="+o.home, "TERM=xterm-256color", "MENO_NO_METADATA=1", "LANG=en_US.UTF-8", "LC_ALL=en_US.UTF-8")
+	cmd.Env = append(os.Environ(), "MENO_HOME="+o.home, "HOME="+o.home, "TERM=xterm-256color", "COLORTERM=truecolor", "NO_COLOR=", "MENO_NO_METADATA=1", "LANG=en_US.UTF-8", "LC_ALL=en_US.UTF-8")
 	ptmx, err := pty.StartWithSize(cmd, &pty.Winsize{Rows: uint16(o.rows), Cols: uint16(o.cols)})
 	if err != nil {
 		t.Fatal(err)
