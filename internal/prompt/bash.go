@@ -20,7 +20,6 @@ func Build(in Input) string {
 	}
 	add(skillsSection(in.Skills))
 	add(instructionsSection("project-instructions", in.ProjectAgents))
-	add(element("working-rules", operatingRules))
 	add(mcpToolsSection(in.Tools))
 	add(environmentSection(in))
 	return strings.Join(parts, "\n\n")

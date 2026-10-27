@@ -32,6 +32,7 @@ const (
 	OverHelp
 	OverFork
 	OverTasks
+	OverWizard
 )
 
 // liveCall is a tool call that is not in the session yet: its code is still
@@ -109,6 +110,7 @@ type State struct {
 	Field   int
 	Editing bool
 	Edit    textEdit // the field being edited while Editing
+	Wiz     wizard   // the add wizard of OverWizard
 	// FormNote says why the open form is not saved yet (empty = saved).
 	FormNote string
 

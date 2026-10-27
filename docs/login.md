@@ -8,6 +8,9 @@ everything you can add:
 | **API key · Responses** | a provider that speaks the OpenAI Responses protocol (OpenAI and compatible APIs) |
 | **API key · Chat Completions** | a provider that speaks chat completions (OpenRouter, local servers, others) |
 
+Adding asks one field at a time in the input row: name, base URL, API key, then `run`
+(`Enter` skips it). `Esc` cancels and saves nothing. Editing an entry opens a form.
+
 Keys: `j`/`k` select, `Enter` adds or edits, `Space` switches an entry off or on,
 `d` twice removes it, `Esc` closes. A form has no save key: an
 entry is saved the moment it is valid, and a field you confirm is saved at once. While

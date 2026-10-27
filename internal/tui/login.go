@@ -31,7 +31,7 @@ func (a *App) loginEnter(r loginRow) {
 		p := a.st.Providers[r.i]
 		a.openProviderEdit(p, r.i)
 	case rowAddAPI:
-		a.openProviderEdit(a.newAPIDraft(r.proto), -1)
+		a.startProviderWizard(a.newAPIDraft(r.proto))
 	}
 }
 

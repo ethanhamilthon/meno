@@ -48,6 +48,10 @@ func (a *App) backOverlay() {
 }
 
 func (a *App) onOverlayKey(k *tcell.EventKey) {
+	if a.st.Over == OverWizard { // Esc cancels the wizard instead of closing the overlay
+		a.wizardKey(k)
+		return
+	}
 	if k.Key() == tcell.KeyEsc && !a.st.Editing {
 		if a.st.Locked && a.st.Over == OverLogin {
 			a.notify("add a provider to start · ctrl+c quits")
@@ -110,6 +114,8 @@ func (a *App) drawOverlay(c render.Canvas, w, h int) {
 		a.drawFork(c, w, h)
 	case OverTasks:
 		a.drawTasks(c, w, h)
+	case OverWizard:
+		a.drawWizard(c, w, h)
 	}
 }
 

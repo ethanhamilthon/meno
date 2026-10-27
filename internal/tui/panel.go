@@ -95,6 +95,8 @@ func (a *App) panelQuery() (*textEdit, string) {
 		return &a.st.Query, "/sessions "
 	case OverFork:
 		return &a.st.Query, "/fork "
+	case OverWizard:
+		return &a.st.Edit, a.wizField().label + " "
 	}
 	return nil, ""
 }

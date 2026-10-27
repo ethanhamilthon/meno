@@ -67,7 +67,8 @@ forgotten (404) is restarted once with a new `initialize`. Tools keep `title`,
 never grant permission.
 
 The daemon owns one MCP runtime shared by the interface and agent. Use `/mcp`
-to create a server. Changes apply to the agent without restarting the daemon.
+to create a server: it asks name, transport, then command and arguments (stdio) or URL, one at a time,
+and `cwd`, `env` and `headers` are edited afterwards in the server form. Changes apply to the agent without restarting the daemon.
 The dialog refreshes running, starting, and error status while open. Environment
 variables and HTTP headers are edited as JSON objects with string values.
 

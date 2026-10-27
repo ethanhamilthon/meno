@@ -48,10 +48,12 @@ func (a *App) mcpKey(k *tcell.EventKey) {
 	n := len(a.st.Servers)
 	switch {
 	case a.navKey(k, n+1, true):
+	case k.Key() == tcell.KeyEnter && a.st.Sel >= n:
+		a.startMCPWizard()
 	case k.Key() == tcell.KeyEnter:
 		a.openMCPEdit(a.st.Sel)
 	case isKey(k, 'n'):
-		a.openMCPEdit(-1)
+		a.startMCPWizard()
 	case k.Rune() == ' ' && a.st.Sel < n:
 		s := &a.st.Servers[a.st.Sel]
 		s.Enabled = !s.Enabled

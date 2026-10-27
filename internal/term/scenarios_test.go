@@ -26,20 +26,15 @@ func TestFirstRunSetupThroughDialogs(t *testing.T) {
 	time.Sleep(150 * time.Millisecond)
 	s.WaitFor("add a provider to start") // esc must not close the list
 	s.Send("j" + Enter)                  // API key · Chat Completions
-	s.WaitFor("base url")
-	s.Send(Enter) // edit name
+	s.WaitFor("step 1/4")                // the wizard asks one field at a time
 	s.Type("fake")
 	s.Send(Enter)
-	s.Send("j" + Enter)
 	s.Type(f.URL())
 	s.Send(Enter)
-	s.Send("j" + Enter)
 	s.Type("secret-key")
 	s.Send(Enter)
+	s.Send(Enter) // skip run
 	s.WaitFor("ready")
-	s.Send(Esc)
-	time.Sleep(150 * time.Millisecond)
-	s.Send(Esc)
 	s.WaitGone("add a provider to start")
 
 	s.Cmd("model")
