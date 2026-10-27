@@ -14,8 +14,8 @@ func readSession(db *sql.DB, id string) (*Session, error) {
 	var s Session
 	var metrics, updated string
 	var legacy, noAsk int
-	err := db.QueryRow("SELECT id,title,cwd,provider,model,effort,summary,metrics,updated_at,kind,parent_id,fork_source,fork_boundary,next_hid,coverage,legacy,tool,no_ask,spawned_by,system_name,system_prompt FROM sessions WHERE id = ?", id).
-		Scan(&s.ID, &s.Title, &s.Cwd, &s.Provider, &s.Model, &s.Effort, &s.Summary, &metrics, &updated, &s.Kind, &s.ParentID, &s.ForkSource, &s.ForkBoundary, &s.NextHID, &s.Coverage, &legacy, &s.Tool, &noAsk, &s.SpawnedBy, &s.SystemName, &s.SystemPrompt)
+	err := db.QueryRow("SELECT id,title,cwd,provider,model,effort,summary,metrics,updated_at,kind,parent_id,fork_source,fork_boundary,next_hid,coverage,legacy,tool,no_ask,system_name,system_prompt FROM sessions WHERE id = ?", id).
+		Scan(&s.ID, &s.Title, &s.Cwd, &s.Provider, &s.Model, &s.Effort, &s.Summary, &metrics, &updated, &s.Kind, &s.ParentID, &s.ForkSource, &s.ForkBoundary, &s.NextHID, &s.Coverage, &legacy, &s.Tool, &noAsk, &s.SystemName, &s.SystemPrompt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, os.ErrNotExist
 	}
@@ -108,7 +108,7 @@ func listSessions(db *sql.DB, limit int) ([]SessionInfo, error) {
 	rows, err := db.Query(`SELECT s.id, s.title, s.cwd, s.updated_at,
 		(SELECT COUNT(1) FROM turns t WHERE t.session_id = s.id),
 		(SELECT COUNT(1) FROM turns t WHERE t.session_id = s.id AND (t.code <> '' OR t.call_id <> '')),
-		s.provider, s.model, s.effort, s.tool, s.spawned_by, s.fork_source, s.system_name, s.no_ask
+		s.provider, s.model, s.effort, s.tool, s.fork_source, s.system_name, s.no_ask
 		FROM sessions s WHERE s.kind = 'main' AND (
 			EXISTS (SELECT 1 FROM turns t WHERE t.session_id = s.id)
 			OR s.summary <> ''
@@ -125,7 +125,7 @@ func listSessions(db *sql.DB, limit int) ([]SessionInfo, error) {
 		var i SessionInfo
 		var updated string
 		var noAsk int
-		if err := rows.Scan(&i.ID, &i.Title, &i.Cwd, &updated, &i.Turns, &i.ToolRuns, &i.Provider, &i.Model, &i.Effort, &i.Tool, &i.SpawnedBy, &i.ForkSource, &i.SystemName, &noAsk); err != nil {
+		if err := rows.Scan(&i.ID, &i.Title, &i.Cwd, &updated, &i.Turns, &i.ToolRuns, &i.Provider, &i.Model, &i.Effort, &i.Tool, &i.ForkSource, &i.SystemName, &noAsk); err != nil {
 			return nil, err
 		}
 		i.NoAsk = noAsk != 0

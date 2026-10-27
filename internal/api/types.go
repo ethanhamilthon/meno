@@ -8,14 +8,12 @@ const Protocol = 8
 
 // Error codes returned in an ErrorEnvelope.
 const (
-	CodeBadRequest       = "bad_request"
-	CodeNotFound         = "not_found"
-	CodeForbidden        = "forbidden"
-	CodeConflict         = "conflict"
-	CodeProtocolMismatch = "protocol_mismatch"
-	CodeDaemonStopping   = "daemon_stopping"
-	CodeNotImplemented   = "not_implemented"
-	CodeInternal         = "internal"
+	CodeBadRequest     = "bad_request"
+	CodeNotFound       = "not_found"
+	CodeForbidden      = "forbidden"
+	CodeConflict       = "conflict"
+	CodeNotImplemented = "not_implemented"
+	CodeInternal       = "internal"
 )
 
 // ErrorBody is the machine-readable part of an HTTP error.
@@ -38,11 +36,6 @@ type Hello struct {
 	StartedAt string `json:"started_at"`
 }
 
-// ShutdownRequest requests an orderly daemon shutdown.
-type ShutdownRequest struct {
-	Reason string `json:"reason,omitempty"`
-}
-
 // Ack is a generic successful operation response.
 type Ack struct {
 	OK bool `json:"ok"`
@@ -62,7 +55,6 @@ type SessionItem struct {
 	Running     bool   `json:"running"`
 	NeedsYou    bool   `json:"needs_you"`
 	NoAsk       bool   `json:"no_ask,omitempty"`
-	SpawnedBy   string `json:"spawned_by,omitempty"` // the session whose agent created this one
 	ForkOf      string `json:"fork_of,omitempty"`
 	System      string `json:"system,omitempty"` // name of the custom system prompt
 	TurnCount   int    `json:"turn_count"`
@@ -92,12 +84,9 @@ type SessionCreateRequest struct {
 	Title  string `json:"title,omitempty"`
 	// System names a custom system prompt (see settings: system_prompt);
 	// "default" is the built-in one.
-	System string `json:"system,omitempty"`
-	// SpawnedBy is the session whose agent creates this one; the daemon limits
-	// the depth and the number of such sessions.
-	SpawnedBy string            `json:"spawned_by,omitempty"`
-	Env       map[string]string `json:"env,omitempty"`
-	ClientID  string            `json:"client_id"`
+	System   string            `json:"system,omitempty"`
+	Env      map[string]string `json:"env,omitempty"`
+	ClientID string            `json:"client_id"`
 }
 
 // SessionCreateResponse identifies a created session.
@@ -188,13 +177,12 @@ type ForkRequest struct {
 	ClientID string `json:"client_id"`
 	// The fork keeps the model, effort, title, directory and system prompt of
 	// its source unless these say otherwise. NoAsk can only be turned on.
-	Model     string `json:"model,omitempty"`
-	Effort    string `json:"effort,omitempty"`
-	Title     string `json:"title,omitempty"`
-	Cwd       string `json:"cwd,omitempty"`
-	System    string `json:"system,omitempty"`
-	NoAsk     bool   `json:"no_ask,omitempty"`
-	SpawnedBy string `json:"spawned_by,omitempty"`
+	Model  string `json:"model,omitempty"`
+	Effort string `json:"effort,omitempty"`
+	Title  string `json:"title,omitempty"`
+	Cwd    string `json:"cwd,omitempty"`
+	System string `json:"system,omitempty"`
+	NoAsk  bool   `json:"no_ask,omitempty"`
 }
 
 // ForkResponse describes the forked session.

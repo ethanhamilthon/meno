@@ -3,15 +3,13 @@
 `meno acp` serves the Agent Client Protocol (ACP, version 1) on stdin and stdout.
 An ACP client launches it as the agent command. Meno knows only the protocol: no
 client gets special treatment. Diagnostics go to stderr; stdout carries only protocol
-messages. The command starts the daemon of `MENO_HOME` when it is not running, and
-never stops it.
+messages. The command runs its own engine; when the client disconnects, the runs and tasks of this connection end.
 
 `meno acp --no-ask` creates every new session with `meno ask` turned off: the agent asks
 its questions in the chat, and `/answer` is never needed. Sessions opened with
 `session/load` keep the setting they were created with.
 
-ACP sessions are ordinary Meno sessions: they appear in `/sessions` and
-`meno sessions`, use the same providers, skills, MCP servers and settings, and can
+ACP sessions are ordinary Meno sessions: they appear in `/resume`, use the same providers, skills, MCP servers and settings, and can
 be opened in the terminal app.
 
 ## What works
@@ -40,7 +38,7 @@ exists.
 
 When the agent asks a question, the form is shown as a normal chat message with the
 question id, the choices and a copyable reply. The current prompt ends there (the
-stop reason is `end_turn`), but the run in the daemon stays paused. Reply with:
+stop reason is `end_turn`), but the run stays paused while the connection is open. Reply with:
 
 ```
 /answer <question-id> {"q1":"choice-id","q2":["a","b"],"q3":{"selected":["x"],"text":"more"}}
@@ -53,7 +51,7 @@ cannot show native forms is never treated as having rejected a question: nothing
 cancelled or answered for you.
 
 If the connection closes while a question is open, the question and the paused run
-stay in the daemon. Connect again, `session/load` the session and the question is
+end with the connection. Connect again, `session/load` the session and the question is
 shown again. If the connection closes during a normal run, that run is stopped.
 
 ## Client-provided MCP
@@ -76,7 +74,7 @@ working overlay. Supply the configuration and credentials again on load.
 Only one ACP attachment may own a session's client MCP at a time. A successful idle
 load by that attachment replaces it; another connection cannot take it over. Empty
 MCP lists remain supported, including loading a session paused on a question.
-Disconnect, session deletion and daemon shutdown stop scoped transports and stdio
+Disconnect and session deletion stop scoped transports and stdio
 process groups. If the adapter crashes, a heartbeat lease expires within 45 seconds.
 Global servers are not stopped. Replacing MCP while a run is active is rejected.
 
@@ -97,7 +95,7 @@ client filesystem or terminal requests, regardless of those capabilities.
 `session/list` filters by absolute working directory and returns up to 200 items
 per page, ordered by descending update time then session ID. Pass `nextCursor` as
 `cursor` with the same filter. Pagination is not snapshot-isolated across changes.
-`session/load` replays the daemon's full available history; reconnect snapshots
+`session/load` replays the full available history; reconnect snapshots
 recover missed assistant turns without repeating already delivered turns.
 
 Set `MENO_ACP_DIAGNOSTICS=1` to emit JSON metadata to stderr: a known method name,
@@ -118,7 +116,6 @@ still fail independently. This is not a claim of complete ACP conformance.
 - The agent publishes no structured plan; there are no plan updates. Fork/resume,
   audio, new modes and client filesystem/terminal integrations are not implemented
   or advertised. Existing model/effort selectors remain available.
-- A session is shared with other windows without an exclusive owner: a second
-  window can send to it while an ACP prompt runs. A daemon restart interrupts running
-  commands, as everywhere.
+- A session has one owner process: a meno window or `meno -p` cannot open a session that an
+  ACP connection runs. Closing the connection interrupts running commands.
 - Skill commands list the globally enabled skills, not skills of the session's project.

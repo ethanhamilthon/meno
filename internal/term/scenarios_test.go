@@ -133,10 +133,29 @@ func TestResumeAfterRestart(t *testing.T) {
 	}
 	s2 := start(t, options{home: home})
 	s2.WaitFor("Type to start building anything")
-	s2.Cmd("sessions")
+	s2.Cmd("resume")
 	s2.WaitFor("question before")
 	s2.Type("before restart")
 	s2.Send(Enter)
+	s2.WaitFor("persisted-answer")
+}
+
+// meno --continue opens the newest session of the directory with its history,
+// and `meno resume ID` opens a given one.
+func TestContinueOpensTheStoredSession(t *testing.T) {
+	f := newFakeLLM(t)
+	f.Handler = func(q *llmReq) { q.Text("persisted-answer") }
+	home := t.TempDir()
+	s := start(t, options{fake: f, home: home})
+	s.Say("question before restart")
+	s.WaitFor("persisted-answer")
+	s.WaitFor("↑100 ↓20")
+	s.Cmd("q")
+	if err := s.WaitExit(); err != nil {
+		t.Fatal(err)
+	}
+	s2 := start(t, options{home: home, args: []string{"--continue"}, work: s.work})
+	s2.WaitFor("question before restart")
 	s2.WaitFor("persisted-answer")
 }
 

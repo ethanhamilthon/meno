@@ -64,8 +64,8 @@ func TestRPCInvalidEnvelopeAndNotifications(t *testing.T) {
 func TestRPCInternalErrorsAreRedacted(t *testing.T) {
 	var out lockedBuf
 	c := newConn(&out)
-	c.dispatch([]byte(`{"jsonrpc":"2.0","id":1,"method":"secret"}`), false, map[string]handler{"secret": func(json.RawMessage) (any, error) { panic("secret-token") }})
-	c.wg.Wait()
+	c.Dispatch([]byte(`{"jsonrpc":"2.0","id":1,"method":"secret"}`), false, map[string]handler{"secret": func(json.RawMessage) (any, error) { panic("secret-token") }})
+	c.Wait()
 	if strings.Contains(out.String(), "secret-token") || !strings.Contains(out.String(), `"code":-32603`) {
 		t.Fatalf("unsafe error: %s", out.String())
 	}

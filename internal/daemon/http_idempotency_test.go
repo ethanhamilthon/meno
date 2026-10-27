@@ -27,10 +27,7 @@ func (b *countingBackend) CreateSession(_ context.Context, r api.SessionCreateRe
 }
 func TestClientIDHTTPRetrySafety(t *testing.T) {
 	b := &countingBackend{cache: NewIdempotency()}
-	s, e := New(Options{Home: t.TempDir(), Backend: b})
-	if e != nil {
-		t.Fatal(e)
-	}
+	s := New(Options{Backend: b})
 	for i := 0; i < 2; i++ {
 		w := httptest.NewRecorder()
 		r := httptest.NewRequest("POST", "/v1/sessions", strings.NewReader(`{"cwd":"/tmp","client_id":"same"}`))
@@ -47,10 +44,7 @@ func TestClientIDHTTPRetrySafety(t *testing.T) {
 	}
 }
 func TestWorkRequestRequiresClientID(t *testing.T) {
-	s, e := New(Options{Home: t.TempDir(), Backend: NewFakeBackend(NewHub("b", 8))})
-	if e != nil {
-		t.Fatal(e)
-	}
+	s := New(Options{Backend: NewFakeBackend(NewHub("b", 8))})
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("POST", "/v1/sessions", strings.NewReader(`{"cwd":"/tmp"}`))
 	s.routes().ServeHTTP(w, r)

@@ -16,18 +16,15 @@ func find(r DoctorReport, name string) (Check, bool) {
 	return Check{}, false
 }
 
-// Without a daemon doctor still diagnoses the socket and the local files.
-func TestDoctorWithoutDaemonStillChecksLocalState(t *testing.T) {
+// Without an engine doctor still diagnoses the local files.
+func TestDoctorWithoutEngineStillChecksLocalState(t *testing.T) {
 	home := t.TempDir()
 	if err := os.WriteFile(filepath.Join(home, "settings.json"), []byte("{broken"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	r, err := New(home, "", "", "", "").Doctor(DoctorRequest{})
+	r, err := New(home, nil, "", "", "").Doctor(DoctorRequest{})
 	if err != nil {
 		t.Fatal(err)
-	}
-	if c, ok := find(r, "daemon socket"); !ok || c.Status != "error" || c.Fix == "" {
-		t.Fatalf("socket check: %+v", c)
 	}
 	if c, ok := find(r, "settings.json"); !ok || c.Status != "error" {
 		t.Fatalf("config check: %+v", c)
@@ -55,7 +52,7 @@ func TestDoctorReportsCorruptDatabase(t *testing.T) {
 func TestDoctorDoesNotLeakSecrets(t *testing.T) {
 	home := t.TempDir()
 	_ = os.WriteFile(filepath.Join(home, "provider.json"), []byte(`{"api_key":"sk-SECRET"`), 0o600)
-	r, _ := New(home, "", "", "", "").Doctor(DoctorRequest{})
+	r, _ := New(home, nil, "", "", "").Doctor(DoctorRequest{})
 	for _, c := range r.Checks {
 		if strings.Contains(c.Detail+c.Fix+c.Name, "SECRET") {
 			t.Fatalf("leaked: %+v", c)

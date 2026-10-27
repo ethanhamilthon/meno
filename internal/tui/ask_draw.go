@@ -151,7 +151,7 @@ func (a *App) drawAskForm(c render.Canvas, w, h int) {
 	// Buttons.
 	labels, gap := askButtonLabels(inner)
 	rows = append(rows, askRow{text: "", fg: render.FgSoft, bg: bg})
-	hint := "↑/↓ move · space mark · enter next · ←/shift+tab back · tab buttons · ctrl+o sessions"
+	hint := "↑/↓ move · space mark · enter next · ←/shift+tab back · tab buttons · ctrl+o resume"
 	if st.Typing {
 		hint = "typing below · enter next · shift+tab back · esc buttons · ctrl+u clear"
 	}

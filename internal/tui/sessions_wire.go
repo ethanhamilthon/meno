@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"meno/internal/api"
@@ -40,14 +41,8 @@ func (a *App) newSession() {
 	a.switchTo(rt)
 }
 
-// openSession puts a session on screen: one already followed as it is, any
-// other attached from the daemon. Running turns are left alone.
-func (a *App) openSession(id string) {
-	a.closeOverlay()
-	if rt := a.rts[id]; rt != nil {
-		a.switchTo(rt)
-		return
-	}
+// loadSession reads a stored session and the directory to run it in.
+func (a *App) loadSession(id string) (*sessView, string, error) {
 	var sn api.Snapshot
 	err := a.rpc(func(ctx context.Context, c *client.Client) error {
 		var e error
@@ -55,8 +50,7 @@ func (a *App) openSession(id string) {
 		return e
 	})
 	if err != nil {
-		a.notifyErr("open failed: " + err.Error())
-		return
+		return nil, "", err
 	}
 	s := &sessView{}
 	s.load(sn)
@@ -64,6 +58,46 @@ func (a *App) openSession(id string) {
 	if cwd == "" || !dirExists(cwd) {
 		a.notifyErr("directory " + cwd + " no longer exists · using " + a.paths.Cwd)
 		cwd = a.paths.Cwd
+	}
+	return s, cwd, nil
+}
+
+// firstSession is the session a new window starts with.
+func (a *App) firstSession() (*sessView, string, error) {
+	id := a.start.Resume
+	if id == "" && a.start.Continue {
+		var list api.SessionsListResponse
+		err := a.rpc(func(ctx context.Context, c *client.Client) (e error) {
+			list, e = c.ListSessions(ctx, api.SessionsListRequest{Cwd: a.paths.Cwd, Limit: 1})
+			return e
+		})
+		if err != nil {
+			return nil, "", err
+		}
+		if len(list.Sessions) == 0 {
+			return nil, "", errors.New("no session to continue in " + a.paths.Cwd)
+		}
+		id = list.Sessions[0].ID
+	}
+	if id != "" {
+		return a.loadSession(id)
+	}
+	s, err := a.createSession(a.paths.Cwd)
+	return s, a.paths.Cwd, err
+}
+
+// openSession puts a stored session on screen. A running turn of another
+// session of this window is left alone.
+func (a *App) openSession(id string) {
+	a.closeOverlay()
+	if rt := a.rts[id]; rt != nil {
+		a.switchTo(rt)
+		return
+	}
+	s, cwd, err := a.loadSession(id)
+	if err != nil {
+		a.notifyErr("open failed: " + err.Error())
+		return
 	}
 	rt := a.newRuntime(s, cwd)
 	rt.watch = a.watch(id)

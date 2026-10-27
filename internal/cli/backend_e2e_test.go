@@ -3,12 +3,12 @@ package cli
 import (
 	"bytes"
 	"context"
-	"os"
 	"strings"
 	"testing"
 	"time"
 
 	"meno/internal/api"
+	"meno/internal/client"
 	"meno/internal/config"
 	"meno/internal/configsvc"
 	"meno/internal/daemon"
@@ -37,18 +37,18 @@ func (f *scripted) Stream(_ context.Context, _ llm.Request, emit func(llm.Event)
 	return nil
 }
 
-func start(t *testing.T, f llm.Client) (home string, eng *engine.Engine, sess api.Snapshot, dapi *DaemonAPI) {
+func start(t *testing.T, f llm.Client) (home string, eng *engine.Engine, sess api.Snapshot, dapi *OwnerAPI) {
 	h, e, s, a, _ := startRig(t, f)
 	return h, e, s, a
 }
 
-func startRig(t *testing.T, f llm.Client) (home string, eng *engine.Engine, sess api.Snapshot, dapi *DaemonAPI, socket string) {
+func startRig(t *testing.T, f llm.Client) (home string, eng *engine.Engine, sess api.Snapshot, dapi *OwnerAPI, rpc *client.Client) {
 	t.Helper()
 	p := llm.Provider{Name: "test", BaseURL: "http://127.0.0.1", Protocol: llm.ProtoResponses, Models: map[string]llm.ModelSettings{"fake": {Context: 100000}}}
 	return startRigWith(t, f, []llm.Provider{p}, func(context.Context, llm.Provider) ([]llm.Model, error) { return nil, nil })
 }
 
-func startRigWith(t *testing.T, f llm.Client, providers []llm.Provider, fetch func(context.Context, llm.Provider) ([]llm.Model, error)) (home string, eng *engine.Engine, sess api.Snapshot, dapi *DaemonAPI, socket string) {
+func startRigWith(t *testing.T, f llm.Client, providers []llm.Provider, fetch func(context.Context, llm.Provider) ([]llm.Model, error)) (home string, eng *engine.Engine, sess api.Snapshot, dapi *OwnerAPI, rpc *client.Client) {
 	t.Helper()
 	home = t.TempDir()
 	st := config.NewStore(config.Paths{Home: home})
@@ -70,19 +70,12 @@ func startRigWith(t *testing.T, f llm.Client, providers []llm.Provider, fetch fu
 	if err != nil {
 		t.Fatal(err)
 	}
-	srv, err := daemon.New(daemon.Options{Home: home, Backend: eng, Hub: hub, Global: global, Version: "test", OnStart: svc.Start, OnStop: func() { eng.Close(); svc.Close() }})
+	srv := daemon.New(daemon.Options{Backend: eng, Hub: hub, Global: global, Version: "test", OnStart: func() error { return svc.Start(context.Background()) }, OnStop: func() { eng.Close(); svc.Close() }})
+	dial, err := srv.ServeMem()
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() { _ = srv.Serve(ctx) }()
-	t.Cleanup(func() { cancel(); srv.Stop("test"); eng.Close(); db.CloseAll() })
-	for i := 0; i < 200; i++ {
-		if _, err := os.Stat(srv.Socket()); err == nil {
-			break
-		}
-		time.Sleep(5 * time.Millisecond)
-	}
+	t.Cleanup(func() { srv.Stop("test"); db.CloseAll() })
 	made, err := eng.CreateSession(context.Background(), api.SessionCreateRequest{Cwd: t.TempDir(), ClientID: "c"})
 	if err != nil {
 		t.Fatal(err)
@@ -91,8 +84,9 @@ func startRigWith(t *testing.T, f llm.Client, providers []llm.Provider, fetch fu
 	if err != nil {
 		t.Fatal(err)
 	}
-	dapi = New(home, srv.Socket(), sess.Session.ID, sess.AgentToken, "call1")
-	return home, eng, sess, dapi, srv.Socket()
+	rpc = client.New(dial)
+	dapi = New(home, rpc, sess.Session.ID, sess.AgentToken, "call1")
+	return home, eng, sess, dapi, rpc
 }
 
 func runE2E(t *testing.T, dapi API, args ...string) (int, string, string) {
@@ -131,8 +125,8 @@ func TestTasksThroughTheDaemon(t *testing.T) {
 }
 
 func TestWrongTokenIsForbidden(t *testing.T) {
-	home, _, sess, _, sock := startRig(t, &scripted{})
-	dapi := New(home, sock, sess.Session.ID, "not-the-token", "c")
+	home, _, sess, _, rpc := startRig(t, &scripted{})
+	dapi := New(home, rpc, sess.Session.ID, "not-the-token", "c")
 	_, err := dapi.TasksList(true)
 	var ae *APIError
 	if err == nil || !asAPI(err, &ae) || ae.Code != api.CodeForbidden {
@@ -152,37 +146,9 @@ func asAPI(err error, target **APIError) bool {
 	return ok
 }
 
-func TestSessionsListAndSend(t *testing.T) {
-	_, _, sess, dapi := start(t, &scripted{steps: [][]llm.Event{{{Kind: llm.EvText, Text: "pong"}, {Kind: llm.EvDone}}}})
-	items, err := dapi.Sessions(SessionsRequest{})
-	if err != nil || len(items) != 0 {
-		t.Fatalf("a session without a message must not be listed: %v %v", items, err)
-	}
-	res, err := dapi.Send(SendRequest{Text: "ping", SessionID: sess.Session.ID})
-	if err != nil || !res.Done || !strings.Contains(res.Text, "pong") {
-		t.Fatalf("send %+v %v", res, err)
-	}
-	items, err = dapi.Sessions(SessionsRequest{})
-	if err != nil || len(items) != 1 || items[0].ID != sess.Session.ID {
-		t.Fatalf("sessions after the first message %v %v", items, err)
-	}
-}
-
 func TestAgentGoalAndViewWithoutActiveGoal(t *testing.T) {
 	_, _, _, dapi := start(t, &scripted{})
 	if _, err := dapi.Models("", false); err != nil {
 		t.Fatal(err)
-	}
-}
-
-func TestSendNewCreatesExactlyOneListedSession(t *testing.T) {
-	_, _, _, dapi := start(t, &scripted{steps: [][]llm.Event{{{Kind: llm.EvText, Text: "pong"}, {Kind: llm.EvDone}}}})
-	res, err := dapi.Send(SendRequest{Text: "ping", New: true})
-	if err != nil || res.SessionID == "" || !res.Done {
-		t.Fatalf("send %+v %v", res, err)
-	}
-	items, err := dapi.Sessions(SessionsRequest{})
-	if err != nil || len(items) != 1 || items[0].ID != res.SessionID {
-		t.Fatalf("sessions %v %v", items, err)
 	}
 }

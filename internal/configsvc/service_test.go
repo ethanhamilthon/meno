@@ -3,14 +3,11 @@ package configsvc
 import (
 	"context"
 	"encoding/json"
-	"net"
-	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"meno/internal/api"
 	"meno/internal/client"
@@ -154,29 +151,15 @@ func TestSettingsFileReloadAndValidation(t *testing.T) {
 	}
 }
 
-func startConfigClient(t *testing.T, home string, backend daemon.Backend) (*daemon.Server, *client.Client) {
+func startConfigClient(t *testing.T, _ string, backend daemon.Backend) (*daemon.Server, *client.Client) {
 	t.Helper()
-	srv, err := daemon.New(daemon.Options{Home: home, Backend: backend, Version: "test"})
+	srv := daemon.New(daemon.Options{Backend: backend, Version: "test"})
+	dial, err := srv.ServeMem()
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
 	t.Cleanup(func() { srv.Stop("test") })
-	go func() { _ = srv.Serve(ctx) }()
-	c := client.New(home)
-	c.HTTP = &http.Client{Transport: &http.Transport{DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
-		return (&net.Dialer{}).DialContext(ctx, "unix", srv.Socket())
-	}}}
-	deadline := time.Now().Add(time.Second)
-	for time.Now().Before(deadline) {
-		if _, err = c.Hello(context.Background()); err == nil {
-			return srv, c
-		}
-		time.Sleep(5 * time.Millisecond)
-	}
-	t.Fatal("daemon did not start")
-	return nil, nil
+	return srv, client.New(dial)
 }
 
 func TestFileSearchAndDebug(t *testing.T) {

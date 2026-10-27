@@ -1,11 +1,13 @@
 package engine
 
 import (
+	"net"
 	"os"
 	"path/filepath"
 	"strconv"
 
 	"meno/internal/agent"
+	"meno/internal/callfd"
 	"meno/internal/process"
 )
 
@@ -28,9 +30,22 @@ func (b *bashRunner) Start(id, command string) (agent.RunningCall, error) {
 	b.s.mu.Lock()
 	owner := b.s.requestID
 	b.s.mu.Unlock()
+	var ch *callfd.Channel
+	if b.e.serveCall != nil {
+		b.s.mu.Lock()
+		token := b.s.token.value
+		b.s.mu.Unlock()
+		var err error
+		if ch, err = callfd.Open(func(c net.Conn) { b.e.serveCall(c, token, id) }); err != nil {
+			return nil, err
+		}
+	}
 	o := process.LaunchOptions{
-		Session: b.s.session.ID, Owner: owner, Name: "bash " + id, Command: command, Cwd: b.cwd(), Env: b.env(id),
+		Session: b.s.session.ID, Owner: owner, Name: "bash " + id, Command: command, Cwd: b.cwd(), Env: b.env(id, ch != nil),
 		CallID: id, OutputDir: filepath.Join(b.e.home, "outputs", b.s.session.ID),
+	}
+	if ch != nil {
+		o.ExtraFiles = ch.Files()
 	}
 	if allowed := []string(nil); allowed != nil {
 		exe, err := os.Executable()
@@ -44,8 +59,17 @@ func (b *bashRunner) Start(id, command string) (agent.RunningCall, error) {
 		o.Path, o.Args = parsed.Path, parsed.Args
 	}
 	fg, err := b.e.tasks.Launch(o)
+	if ch != nil {
+		ch.ReleaseChild()
+	}
 	if err != nil {
+		if ch != nil {
+			ch.Close()
+		}
 		return nil, err
+	}
+	if ch != nil {
+		go func() { <-fg.Done(); ch.Close() }()
 	}
 	return &fgCall{e: b.e, session: b.s.session.ID, fg: fg}, nil
 }
@@ -83,7 +107,7 @@ func (b *bashRunner) cwd() string {
 	return b.s.cwd
 }
 
-func (b *bashRunner) env(call string) []string {
+func (b *bashRunner) env(call string, channel bool) []string {
 	b.s.mu.Lock()
 	env := envSlice(b.s.env)
 	token, id := b.s.token.value, b.s.session.ID
@@ -92,7 +116,10 @@ func (b *bashRunner) env(call string) []string {
 		env = append(env, os.Environ()...)
 	}
 	env = append(env,
-		"MENO_HOME="+b.e.home, "MENO_SOCK="+b.e.sock, "MENO_SESSION="+id,
+		"MENO_HOME="+b.e.home, "MENO_SESSION="+id,
 		"MENO_TOKEN="+token, "MENO_CALL="+call, "MENO_PID="+strconv.Itoa(os.Getpid()))
+	if channel {
+		env = append(env, "MENO_FD="+strconv.Itoa(callfd.FD))
+	}
 	return withMenoPath(env, b.e.binDir())
 }

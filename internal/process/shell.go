@@ -23,6 +23,8 @@ type RunOptions struct {
 	CallID    string
 	// Stream receives raw output deltas in pipe order.
 	Stream func(delta string)
+	// ExtraFiles are passed to the process as fd 3 and up.
+	ExtraFiles []*os.File
 }
 
 // Result describes the complete, user-facing result of a bash call.
@@ -80,6 +82,7 @@ func startCall(options RunOptions, cmd *exec.Cmd) (*Call, error) {
 	cmd.Stdout, cmd.Stderr = writer, writer
 	cmd.Env = commandEnv(options.Env)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	cmd.ExtraFiles = options.ExtraFiles
 	if err := cmd.Start(); err != nil {
 		reader.Close()
 		writer.Close()

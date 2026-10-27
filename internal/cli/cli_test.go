@@ -54,17 +54,6 @@ func (f *fakeAPI) View(p string) (ViewResult, error) {
 	return ViewResult{Path: p, Displayed: true}, f.check()
 }
 func (f *fakeAPI) Models(string, bool) (ModelList, error) { return ModelList{}, f.check() }
-func (f *fakeAPI) Daemon(string, bool) (DaemonStatus, error) {
-	return DaemonStatus{Running: true}, f.check()
-}
-func (f *fakeAPI) Sessions(SessionsRequest) ([]Session, error) { return nil, f.check() }
-func (f *fakeAPI) SessionShow(id string) (SessionDetail, error) {
-	return SessionDetail{Session: Session{ID: id, Status: "idle"}}, f.check()
-}
-func (f *fakeAPI) SessionCancel(string) error                { return f.check() }
-func (f *fakeAPI) SessionAnswer(AnswerRequest) error         { return f.check() }
-func (f *fakeAPI) Send(r SendRequest) (SendResult, error)    { return SendResult{Text: r.Text}, f.check() }
-func (f *fakeAPI) Tail(TailRequest, func(Event) error) error { return f.check() }
 func run(args []string, a API, input string) (int, string, string) {
 	var out, errOut bytes.Buffer
 	c := Run(args, IO{In: strings.NewReader(input), Out: &out, Err: &errOut, Dir: "."}, a)
@@ -126,7 +115,7 @@ func TestTasksAndExitCodes(t *testing.T) {
 	}
 }
 func TestHelpGroupsAndLocalHelp(t *testing.T) {
-	for _, name := range []string{"mcp", "tasks", "ask", "view", "models", "daemon", "sessions", "send", "tail"} {
+	for _, name := range []string{"mcp", "tasks", "ask", "view", "models", "doctor"} {
 		c, out, e := run([]string{name, "--help"}, nil, "")
 		if c != 0 || e != "" || out == "" {
 			t.Errorf("%s: %d %q", name, c, e)

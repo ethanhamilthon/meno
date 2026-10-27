@@ -115,8 +115,6 @@ type Session struct {
 	Tool     string `json:"tool,omitempty"`
 	// NoAsk turns the ask tool off: `meno ask` answers with an error.
 	NoAsk bool `json:"no_ask,omitempty"`
-	// SpawnedBy is the session whose agent created this one with `meno send`.
-	SpawnedBy string `json:"spawned_by,omitempty"`
 	// SystemName names the custom system prompt file; SystemPrompt is its text,
 	// frozen when the session was created. Empty means the built-in identity.
 	SystemName   string    `json:"system_name,omitempty"`
@@ -187,7 +185,6 @@ type SessionInfo struct {
 	Model      string
 	Effort     string
 	Tool       string
-	SpawnedBy  string
 	ForkSource string
 	SystemName string
 	NoAsk      bool

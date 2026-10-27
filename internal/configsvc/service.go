@@ -95,6 +95,13 @@ func (s *Service) Resource(ctx context.Context, method, path, query string, req 
 		return api.ResourceResponse{}, apiErr(api.CodeNotFound, "resource not found")
 	}
 	path = strings.TrimPrefix(path, "/v1")
+	if writesFiles(method, path) {
+		unlock, lerr := s.paths.LockFiles()
+		if lerr != nil {
+			return api.ResourceResponse{}, lerr
+		}
+		defer unlock()
+	}
 	var data any
 	var err error
 	switch {
@@ -188,4 +195,25 @@ func checkMethod(method string, allowed ...string) error {
 		}
 	}
 	return apiErr(api.CodeNotFound, fmt.Sprintf("method %s is not supported", method))
+}
+
+// writesFiles reports the requests that read, change and write settings.json,
+// provider.json or mcp.json. They run under config.LockFiles so that two meno
+// processes cannot lose each other's edit. Restarts and model lists can take
+// long and write nothing.
+func writesFiles(method, path string) bool {
+	if method == "GET" {
+		return false
+	}
+	switch {
+	case path == "/settings", path == "/providers", strings.HasPrefix(path, "/providers/"):
+		return !strings.HasSuffix(path, "/refresh")
+	case path == "/mcp/servers":
+		return true
+	case strings.HasPrefix(path, "/mcp/servers/"):
+		return !strings.HasSuffix(path, "/restart")
+	case strings.HasPrefix(path, "/skills/"):
+		return true
+	}
+	return false
 }

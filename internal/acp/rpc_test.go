@@ -75,16 +75,15 @@ func TestFragmentedWritesAreReassembled(t *testing.T) {
 }
 
 func TestDuplicateInFlightRequestIDIsRejected(t *testing.T) {
-	c := newConn(io.Discard)
 	var out lockedBuf
-	c.out = &out
+	c := newConn(&out)
 	release := make(chan struct{})
 	methods := map[string]handler{"slow": func(_ json.RawMessage) (any, error) { <-release; return nil, nil }}
 	go func() {
 		time.Sleep(50 * time.Millisecond)
 		close(release)
 	}()
-	_ = c.serve(strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"slow"}`+"\n"+`{"jsonrpc":"2.0","id":1,"method":"slow"}`+"\n"), methods, nil)
+	_ = c.Serve(strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"slow"}`+"\n"+`{"jsonrpc":"2.0","id":1,"method":"slow"}`+"\n"), methods, nil)
 	if !strings.Contains(out.String(), "duplicate request id") {
 		t.Fatalf("output: %s", out.String())
 	}

@@ -93,39 +93,6 @@ func TestTimingAndRunSurviveSaveAndLoad(t *testing.T) {
 	}
 }
 
-func TestSessionsSavedBeforeTimingStillLoad(t *testing.T) {
-	dir := t.TempDir()
-	t.Cleanup(CloseSessionStores)
-	d, err := db.OpenOld(dir, 1)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, q := range []string{
-		`CREATE TABLE sessions (id TEXT PRIMARY KEY, title TEXT NOT NULL DEFAULT '', cwd TEXT NOT NULL DEFAULT '', model TEXT NOT NULL DEFAULT '', summary TEXT NOT NULL DEFAULT '', metrics TEXT NOT NULL DEFAULT '{}', updated_at TEXT NOT NULL)`,
-		`CREATE TABLE turns (session_id TEXT NOT NULL, seq INTEGER NOT NULL, role TEXT NOT NULL, text TEXT NOT NULL DEFAULT '', thinking TEXT NOT NULL DEFAULT '', call_id TEXT NOT NULL DEFAULT '', code TEXT NOT NULL DEFAULT '', output TEXT NOT NULL DEFAULT '', err TEXT NOT NULL DEFAULT '', replay TEXT, replay_group TEXT NOT NULL DEFAULT '', time TEXT NOT NULL, PRIMARY KEY (session_id, seq)) WITHOUT ROWID`,
-		`INSERT INTO sessions(id,updated_at) VALUES('old','2026-01-01T00:00:00Z')`,
-		`INSERT INTO turns(session_id,seq,role,text,code,call_id,output,time) VALUES('old',0,'assistant','hi','1+1','c1','2','2026-01-01T00:00:00Z')`,
-	} {
-		if _, err := d.Exec(q); err != nil {
-			t.Fatalf("%s: %v", q, err)
-		}
-	}
-	d.Close()
-	s, err := LoadSession(dir, "old")
-	if err != nil {
-		t.Fatal(err)
-	}
-	turn := s.Snapshot()[0]
-	if turn.Code != "1+1" || turn.ElapsedMs != 0 || turn.LimitMs != 0 || turn.TimedOut || turn.Run != nil {
-		t.Fatalf("%+v", turn)
-	}
-	// The migrated database takes new data.
-	s.Append(Turn{Role: llm.RoleAssistant, Text: "x", ElapsedMs: 5, Time: time.Now()})
-	if err := SaveSession(dir, s); err != nil {
-		t.Fatal(err)
-	}
-}
-
 func TestDamagedRunSummaryDoesNotBreakLoading(t *testing.T) {
 	dir := t.TempDir()
 	t.Cleanup(CloseSessionStores)

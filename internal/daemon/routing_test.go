@@ -7,11 +7,7 @@ import (
 )
 
 func TestRoutesReturnStubNotImplemented(t *testing.T) {
-	home := t.TempDir()
-	s, e := New(Options{Home: home, Backend: NotImplementedBackend{}})
-	if e != nil {
-		t.Fatal(e)
-	}
+	s := New(Options{Backend: NotImplementedBackend{}})
 	r := httptest.NewRequest("GET", "/v1/sessions", nil)
 	w := httptest.NewRecorder()
 	s.routes().ServeHTTP(w, r)

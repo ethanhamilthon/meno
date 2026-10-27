@@ -12,8 +12,6 @@ import (
 func (s *Server) routes() http.Handler {
 	m := http.NewServeMux()
 	m.HandleFunc("GET /v1/hello", s.hello)
-	m.HandleFunc("POST /v1/shutdown", s.shutdown)
-	m.HandleFunc("POST /v1/shutdown/idle", s.shutdownIdle)
 	m.HandleFunc("GET /v1/sessions", s.list)
 	m.HandleFunc("POST /v1/sessions", s.create)
 	m.HandleFunc("GET /v1/sessions/{id}", s.snapshot)
@@ -29,21 +27,10 @@ func (s *Server) routes() http.Handler {
 	m.HandleFunc("GET /v1/events", s.globalEvents)
 	s.registerExtraRoutes(m)
 	m.Handle("/v1/", s.resourceHandler())
-	return s.mutationGate(m)
+	return m
 }
 func (s *Server) hello(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, api.Hello{Protocol: api.Protocol, Version: s.version, BootID: s.bootID, PID: s.pid, StartedAt: s.started.UTC().Format("2006-01-02T15:04:05.999999999Z07:00")})
-}
-func (s *Server) shutdown(w http.ResponseWriter, r *http.Request) {
-	var q api.ShutdownRequest
-	if r.Body != nil {
-		if e := decode(r, &q); e != nil {
-			s.result(w, nil, &APIError{Code: api.CodeBadRequest, Message: e.Error()})
-			return
-		}
-	}
-	writeJSON(w, 200, api.Ack{OK: true})
-	go s.Stop(q.Reason)
 }
 func (s *Server) list(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()

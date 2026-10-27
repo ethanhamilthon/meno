@@ -69,7 +69,7 @@ func (a *App) runCommand(raw string) {
 		a.openOverlay(OverSkills)
 	case "mcp":
 		a.openOverlay(OverMCP)
-	case "sessions":
+	case "resume":
 		a.openSessions()
 	default:
 		a.notifyErr("unknown command :" + name)

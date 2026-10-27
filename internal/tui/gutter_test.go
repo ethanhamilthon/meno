@@ -95,7 +95,7 @@ func TestOverlaysAndWelcomeKeepTheGutter(t *testing.T) {
 			t.Errorf("welcome %d: %v\n%s", w, l, screenText(s))
 		}
 		a, s = gutterApp(t, w)
-		for _, name := range []string{"context", "help", "model", "settings", "skills", "mcp", "sessions", "tasks", "fork", "login"} {
+		for _, name := range []string{"context", "help", "model", "settings", "skills", "mcp", "resume", "tasks", "fork", "login"} {
 			a.runCommand(name)
 			a.draw()
 			// Dialog surfaces are measured against their own edge (see the plan);

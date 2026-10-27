@@ -17,6 +17,7 @@ type LaunchOptions struct {
 	CallID, OutputDir                  string
 	Path                               string
 	Args                               []string
+	ExtraFiles                         []*os.File
 }
 
 // Foreground is a launched process. The supervisor owns it from the start;
@@ -47,7 +48,7 @@ func (s *Supervisor) Launch(o LaunchOptions) (*Foreground, error) {
 		return nil, err
 	}
 	var split lineSplitter
-	ro := RunOptions{Command: o.Command, Dir: o.Cwd, Env: o.Env, OutputDir: o.OutputDir, CallID: o.CallID,
+	ro := RunOptions{Command: o.Command, Dir: o.Cwd, Env: o.Env, OutputDir: o.OutputDir, CallID: o.CallID, ExtraFiles: o.ExtraFiles,
 		Stream: func(d string) { split.feed(lw, d) }}
 	var call *Call
 	if o.Path != "" {

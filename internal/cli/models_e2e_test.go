@@ -10,7 +10,7 @@ import (
 	"meno/internal/llm"
 )
 
-func modelsRig(t *testing.T, calls *atomic.Int32) *DaemonAPI {
+func modelsRig(t *testing.T, calls *atomic.Int32) *OwnerAPI {
 	t.Helper()
 	providers := []llm.Provider{
 		{Name: "open", BaseURL: "http://127.0.0.1", Protocol: llm.ProtoResponses},

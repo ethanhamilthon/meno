@@ -15,10 +15,6 @@ const (
 	ExitUsage = 2
 	// ExitForbidden means the active mode disallows a command.
 	ExitForbidden = 3
-	// ExitNeedsAnswer means a session waits for an answer to a question of its agent.
-	ExitNeedsAnswer = 5
-	// ExitAborted means the run that was waited for was stopped.
-	ExitAborted = 6
 	// ExitWaitTimeout means a wait timed out without cancelling its work.
 	ExitWaitTimeout = 124
 )
@@ -104,14 +100,6 @@ func Run(args []string, streams IO, api API) int {
 		code, err = runView(args, streams, api, jsonOut)
 	case "models":
 		code, err = runModels(args, streams, api, jsonOut)
-	case "daemon":
-		code, err = runDaemon(args, streams, api, jsonOut)
-	case "sessions":
-		code, err = runSessions(args, streams, api, jsonOut)
-	case "send":
-		code, err = runSend(args, streams, api, jsonOut)
-	case "tail":
-		code, err = runTail(args, streams, api, jsonOut)
 	case "doctor":
 		code, err = runDoctor(args, streams, api, jsonOut)
 	default:

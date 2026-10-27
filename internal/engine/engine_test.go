@@ -227,6 +227,9 @@ func TestCrashRecoveryMarksTasksInterrupted(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer e.Close()
+	if _, err = e.Snapshot(context.Background(), sess.ID); err != nil { // owning the session recovers it
+		t.Fatal(err)
+	}
 	assertCompleted(t, e, sess.ID, 0)
 	recovered, loadErr := agent.LoadSession(home, sess.ID)
 	if loadErr != nil || recovered.Len() != 2 {

@@ -97,9 +97,9 @@ func TestAfterReplyRunsAfterTheResponse(t *testing.T) {
 	var out lockedBuf
 	c := newConn(&out)
 	methods := map[string]handler{"m": func(json.RawMessage) (any, error) {
-		return afterReply{value: map[string]any{"ok": true}, then: func() { _ = c.Notify("n", nil) }}, nil
+		return afterReply{Value: map[string]any{"ok": true}, Then: func() { _ = c.Notify("n", nil) }}, nil
 	}}
-	_ = c.serve(strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"m"}`+"\n"), methods, nil)
+	_ = c.Serve(strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"m"}`+"\n"), methods, nil)
 	lines := strings.Split(strings.TrimSpace(out.String()), "\n")
 	if len(lines) != 2 || !strings.Contains(lines[0], `"result"`) || !strings.Contains(lines[1], `"method":"n"`) {
 		t.Fatalf("wire = %q", lines)

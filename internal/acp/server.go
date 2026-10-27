@@ -46,7 +46,7 @@ func Run(ctx context.Context, in io.Reader, out io.Writer, b Backend, o Options)
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	s := &Server{backend: b, opts: o, conn: newConn(out), ctx: ctx, sessions: map[string]*session{}}
-	s.conn.diagnostics = &diagnostics{out: o.Diagnostics}
+	s.conn.OnHandled = (&diagnostics{out: o.Diagnostics}).record
 	cleanup := sync.OnceFunc(func() { s.shutdown(); cancel() })
 	defer cleanup()
 	stop := context.AfterFunc(parent, func() {
@@ -56,7 +56,7 @@ func Run(ctx context.Context, in io.Reader, out io.Writer, b Backend, o Options)
 		}
 	})
 	defer stop()
-	return s.conn.serve(in, s.methods(), cleanup)
+	return s.conn.Serve(in, s.methods(), cleanup)
 }
 
 // shutdown detaches every session: executing runs stop, paused questions stay.
@@ -171,7 +171,7 @@ func (s *Server) newSession(raw json.RawMessage) (any, error) {
 	x.scope = scope
 	out := s.sessionResult(x)
 	out["sessionId"] = x.id
-	return afterReply{value: out, then: func() { s.sendCommands(x) }}, nil
+	return afterReply{Value: out, Then: func() { s.sendCommands(x) }}, nil
 }
 
 func (s *Server) loadSession(raw json.RawMessage) (any, error) {
@@ -226,7 +226,7 @@ func (s *Server) loadSession(raw json.RawMessage) (any, error) {
 		return nil, err
 	}
 	x.scope = scope
-	return afterReply{value: s.sessionResult(x), then: func() { s.sendCommands(x) }}, nil
+	return afterReply{Value: s.sessionResult(x), Then: func() { s.sendCommands(x) }}, nil
 }
 
 func (s *Server) detachExisting(id string) {

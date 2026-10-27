@@ -118,12 +118,6 @@ func scanSkillDir(dir, scope string) []Skill {
 	return out
 }
 
-// DiscoverSkills lists the skills of the project directory and the global one,
-// sorted by name. A project skill replaces a global skill with the same name.
-func DiscoverSkills(globalDir, projectDir string) []Skill {
-	return DiscoverSkillDirs([]SkillDir{{globalDir, "global"}, {projectDir, "project"}})
-}
-
 // SkillDir is one directory to scan for skills and the scope its skills get.
 type SkillDir struct {
 	Dir, Scope string

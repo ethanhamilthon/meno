@@ -132,40 +132,6 @@ func TestSystemPromptSettingAppliesToNewSessionsAndFallsBack(t *testing.T) {
 	}
 }
 
-func TestSpawnLimits(t *testing.T) {
-	e, _ := fixture(t, okRuns(1))
-	st := config.DefaultSettings()
-	st.Provider, st.Model, st.MaxSpawnDepth, st.MaxWorkers = "test", "fake", 2, 2
-	if err := config.NewStore(e.paths).SaveSettings(st); err != nil {
-		t.Fatal(err)
-	}
-	root := newSession(t, e)
-	a, err := create(t, e, api.SessionCreateRequest{SpawnedBy: root, Title: "a"})
-	if err != nil || a.SpawnedBy != root {
-		t.Fatalf("%+v %v", a, err)
-	}
-	b, err := create(t, e, api.SessionCreateRequest{SpawnedBy: root, Title: "b"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Two workers that were created and not yet used are the limit.
-	if _, err = create(t, e, api.SessionCreateRequest{SpawnedBy: root, Title: "c"}); apiCode(err) != api.CodeForbidden {
-		t.Fatalf("third worker: %v", err)
-	}
-	// Depth 2 is allowed, depth 3 is not.
-	deep, err := create(t, e, api.SessionCreateRequest{SpawnedBy: a.ID, Title: "deep"})
-	if err != nil {
-		t.Fatalf("depth 2: %v", err)
-	}
-	if _, err = create(t, e, api.SessionCreateRequest{SpawnedBy: deep.ID, Title: "deeper"}); apiCode(err) != api.CodeForbidden {
-		t.Fatalf("depth 3: %v", err)
-	}
-	if _, err = create(t, e, api.SessionCreateRequest{SpawnedBy: "no-such-session", Title: "x"}); apiCode(err) != api.CodeBadRequest {
-		t.Fatalf("unknown parent: %v", err)
-	}
-	_ = b
-}
-
 func TestForkOverridesAreCheckedBeforeAnythingIsCreated(t *testing.T) {
 	e, _ := fixture(t, okRuns(1))
 	src, err := create(t, e, api.SessionCreateRequest{Title: "source"})
@@ -175,7 +141,7 @@ func TestForkOverridesAreCheckedBeforeAnythingIsCreated(t *testing.T) {
 	send(t, e, src.ID)
 	before := len(listed(t, e))
 	for _, bad := range []api.ForkRequest{
-		{Model: "test/nope"}, {Effort: "extreme"}, {System: "missing"}, {Cwd: "/no/such/dir"}, {SpawnedBy: "ghost"},
+		{Model: "test/nope"}, {Effort: "extreme"}, {System: "missing"}, {Cwd: "/no/such/dir"},
 	} {
 		bad.ClientID = "f-bad"
 		if _, err = e.Fork(context.Background(), src.ID, bad); err == nil {
@@ -186,12 +152,12 @@ func TestForkOverridesAreCheckedBeforeAnythingIsCreated(t *testing.T) {
 		t.Fatalf("a rejected fork left a session behind: %d -> %d", before, n)
 	}
 	dir := t.TempDir()
-	r, err := e.Fork(context.Background(), src.ID, api.ForkRequest{ClientID: "f-ok", Effort: "low", Title: "child", Cwd: dir, NoAsk: true, SpawnedBy: src.ID})
+	r, err := e.Fork(context.Background(), src.ID, api.ForkRequest{ClientID: "f-ok", Effort: "low", Title: "child", Cwd: dir, NoAsk: true})
 	if err != nil {
 		t.Fatal(err)
 	}
 	it := r.Session
-	if it.ForkOf != src.ID || it.Effort != "low" || it.Name != "child" || it.Cwd != dir || !it.NoAsk || it.SpawnedBy != src.ID {
+	if it.ForkOf != src.ID || it.Effort != "low" || it.Name != "child" || it.Cwd != dir || !it.NoAsk {
 		t.Fatalf("%+v", it)
 	}
 	// The source is untouched and the fork keeps its model.

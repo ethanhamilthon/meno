@@ -3,9 +3,7 @@
 package term
 
 import (
-	"context"
 	"fmt"
-	"meno/internal/client"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -63,43 +61,18 @@ type options struct {
 	cols, rows int
 	fake       *fakeLLM // preconfigure provider "fake" and model "fake-model" (protocol below)
 	proto      string
-	home       string // reuse a home directory (for /resume across runs)
-	firstRun   bool   // no provider yet: meno opens the login list that cannot be closed
+	home       string   // reuse a home directory (for /resume across runs)
+	args       []string // command line arguments of meno
+	work       string   // working directory; a new one by default
+	firstRun   bool     // no provider yet: meno opens the login list that cannot be closed
 	// jsonDefaults keeps the default provider and model only in settings.json and
 	// leaves the SQLite settings table empty, like a home the daemon has written.
 	jsonDefaults bool
 }
 
-// start launches meno. With opts.fake set, the provider and model are already
-// chosen, otherwise it is a first run.
-func start(t *testing.T, o options) *session {
+// seedHome writes the provider and settings of the fake model into o.home.
+func seedHome(t *testing.T, o options, work string) {
 	t.Helper()
-	if o.cols == 0 {
-		o.cols, o.rows = 100, 32
-	}
-	if o.home == "" {
-		o.home = t.TempDir()
-	}
-	// Registered before the window cleanup: all windows owned by this test stop
-	// first (LIFO), then the per-home daemon stops before TempDir removes its home.
-	if _, owned := ownedHomes.LoadOrStore(o.home, true); !owned {
-		t.Cleanup(func() {
-			defer ownedHomes.Delete(o.home)
-			ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
-			defer cancel()
-			cl := client.New(o.home)
-			if _, err := cl.Hello(ctx); err != nil {
-				return
-			}
-			ownership, err := client.StopConfirmed(ctx, o.home, false)
-			if err != nil {
-				t.Errorf("daemon cleanup: %v", err)
-				return
-			}
-			ownership.Close()
-		})
-	}
-	work := t.TempDir()
 	if o.fake != nil {
 		st := config.NewStore(config.Paths{Home: o.home, Cwd: work})
 		// Scenarios say "chat" or "responses"; provider.json is validated and
@@ -123,7 +96,24 @@ func start(t *testing.T, o options) *session {
 		// Release meno.db in this process before meno opens it.
 		db.CloseAll()
 	}
-	cmd := exec.Command(binPath)
+}
+
+// start launches meno. With opts.fake set, the provider and model are already
+// chosen, otherwise it is a first run.
+func start(t *testing.T, o options) *session {
+	t.Helper()
+	if o.cols == 0 {
+		o.cols, o.rows = 100, 32
+	}
+	if o.home == "" {
+		o.home = t.TempDir()
+	}
+	work := o.work
+	if work == "" {
+		work = t.TempDir()
+	}
+	seedHome(t, o, work)
+	cmd := exec.Command(binPath, o.args...)
 	cmd.Dir = work
 	cmd.Env = append(os.Environ(), "MENO_HOME="+o.home, "HOME="+o.home, "TERM=xterm-256color", "COLORTERM=truecolor", "NO_COLOR=", "MENO_NO_METADATA=1", "LANG=en_US.UTF-8", "LC_ALL=en_US.UTF-8")
 	ptmx, err := pty.StartWithSize(cmd, &pty.Winsize{Rows: uint16(o.rows), Cols: uint16(o.cols)})
@@ -176,6 +166,8 @@ func start(t *testing.T, o options) *session {
 	// echoed by the tty and lost, so wait for the first frame.
 	if o.firstRun {
 		s.WaitFor("add a provider to start")
+	} else if len(o.args) > 0 {
+		s.WaitFor("Type your next task here") // a stored session has no welcome screen
 	} else {
 		s.WaitFor("Type to start building anything")
 	}

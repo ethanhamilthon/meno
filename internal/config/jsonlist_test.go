@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"meno/internal/llm"
 	"meno/internal/mcp"
@@ -163,5 +164,34 @@ func TestSavedFileIsNeverLeftHalfWritten(t *testing.T) {
 	left, _ := filepath.Glob(filepath.Join(p.Home, ".*.tmp"))
 	if len(left) != 0 {
 		t.Fatalf("temporary files: %v", left)
+	}
+}
+
+// Two processes (two Paths for one home here) take turns on the lock; the
+// critical sections never overlap.
+func TestLockFilesExcludesOtherUsers(t *testing.T) {
+	p := Paths{Home: t.TempDir()}
+	unlock, err := p.LockFiles()
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := make(chan struct{})
+	go func() {
+		u2, err := p.LockFiles()
+		if err == nil {
+			u2()
+		}
+		close(got)
+	}()
+	select {
+	case <-got:
+		t.Fatal("the second lock was granted while the first was held")
+	case <-time.After(100 * time.Millisecond):
+	}
+	unlock()
+	select {
+	case <-got:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the second lock was never granted")
 	}
 }

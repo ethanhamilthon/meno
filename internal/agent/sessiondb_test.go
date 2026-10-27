@@ -60,7 +60,7 @@ func TestSQLiteRoundTripAndRewrite(t *testing.T) {
 	}
 }
 
-func TestSQLiteMigratesLegacyJSON(t *testing.T) {
+func TestLegacyJSONSessionsAreNotImported(t *testing.T) {
 	home := t.TempDir()
 	dir := filepath.Join(home, "sessions")
 	if err := os.MkdirAll(dir, 0o755); err != nil {

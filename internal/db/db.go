@@ -18,7 +18,7 @@ import (
 const File = "meno.db"
 
 // Version is the current schema version; see migrations.
-const Version = 19
+const Version = 20
 
 var (
 	mu    sync.Mutex
@@ -64,15 +64,31 @@ func migrateTo(d *sql.DB, target int) error {
 	if err := d.QueryRow("PRAGMA user_version").Scan(&v); err != nil {
 		return err
 	}
-	if v > Version {
+	switch {
+	case v > Version:
 		return fmt.Errorf("database schema %d is newer than this meno (%d)", v, Version)
+	case v == 0:
+		tx, err := d.Begin()
+		if err != nil {
+			return err
+		}
+		if _, err = tx.Exec(baseline); err == nil {
+			_, err = tx.Exec(fmt.Sprintf("PRAGMA user_version = %d", baselineVersion+len(migrations)))
+		}
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+		return tx.Commit()
+	case v < baselineVersion:
+		return fmt.Errorf("meno.db was made by a meno older than 0.7.5 (schema %d). Install meno 0.7.6, run it once, then update", v)
 	}
 	for ; v < target; v++ {
 		tx, err := d.Begin()
 		if err != nil {
 			return err
 		}
-		if _, err := tx.Exec(migrations[v]); err != nil {
+		if _, err := tx.Exec(migrations[v-baselineVersion]); err != nil {
 			tx.Rollback()
 			return err
 		}
@@ -95,23 +111,4 @@ func CloseAll() {
 		_ = d.Close()
 		delete(conns, p)
 	}
-}
-
-// OpenOld creates home/meno.db at an older schema version and returns an
-// uncached handle, so upgrade tests can seed data in the old layout. The
-// caller closes it; db.Open then migrates the file forward.
-func OpenOld(home string, version int) (*sql.DB, error) {
-	if err := os.MkdirAll(home, 0o755); err != nil {
-		return nil, err
-	}
-	d, err := sql.Open("sqlite", "file:"+filepath.Join(home, File)+"?_pragma=journal_mode(WAL)&_pragma=foreign_keys(1)")
-	if err != nil {
-		return nil, err
-	}
-	d.SetMaxOpenConns(1)
-	if err := migrateTo(d, version); err != nil {
-		d.Close()
-		return nil, err
-	}
-	return d, nil
 }

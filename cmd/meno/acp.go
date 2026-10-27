@@ -14,7 +14,7 @@ import (
 	"meno/internal/safe"
 )
 
-// runACP serves ACP on stdin/stdout, starting the daemon when it is not running.
+// runACP serves ACP on stdin/stdout from an engine of its own.
 func runACP(args []string, in io.Reader, out, errOut io.Writer) int {
 	noAsk := len(args) == 1 && args[0] == "--no-ask"
 	if len(args) > 0 && !noAsk {
@@ -26,11 +26,13 @@ func runACP(args []string, in io.Reader, out, errOut io.Writer) int {
 		fmt.Fprintln(errOut, "meno:", err)
 		return 1
 	}
-	c, err := ensureDaemon(paths.Home)
+	h, err := startHost(paths.Home)
 	if err != nil {
 		fmt.Fprintln(errOut, "meno:", err)
 		return 1
 	}
+	defer h.Close()
+	c := h.client
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	// An attached ACP connection is a client even before its first session. Reuse

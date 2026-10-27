@@ -42,7 +42,8 @@ type App struct {
 	cl        *client.Client // the daemon, which owns sessions, tools, tasks and config
 	events    chan any
 	quit      bool
-	noAsk     bool // new sessions are created with meno ask turned off
+	noAsk     bool  // new sessions are created with meno ask turned off
+	start     Start // which session the window opens first
 	done      chan struct{}
 	closeOnce sync.Once
 	animOn    atomic.Bool      // the composer requested animation frames
@@ -83,10 +84,20 @@ type App struct {
 	checkUpdate func(ctx context.Context) string
 }
 
-// New builds the TUI on a connection to the daemon. It does not start the
-// daemon: the caller (cmd/meno) ensures one is running and passes the client.
+// New builds the TUI on a client of the engine of this process; the caller
+// (cmd/meno) starts the engine.
 // Option changes how the app starts.
 type Option func(*App)
+
+// Start says which session a new window opens: a new one by default.
+type Start struct {
+	Resume   string // a stored session to continue
+	Continue bool   // the newest stored session of the directory
+	Picker   bool   // open the list of stored sessions on a new session
+}
+
+// WithStart chooses the first session of the window.
+func WithStart(s Start) Option { return func(a *App) { a.start = s } }
 
 // WithNoAsk creates every session of this window with the ask tool turned off.
 func WithNoAsk() Option { return func(a *App) { a.noAsk = true } }
@@ -108,11 +119,11 @@ func New(scr tcell.Screen, paths config.Paths, cl *client.Client, opts ...Option
 	if err := a.loadAll(); err != nil {
 		return nil, err
 	}
-	sess, err := a.createSession(paths.Cwd)
+	sess, cwd, err := a.firstSession()
 	if err != nil {
 		return nil, err
 	}
-	a.st.Runtime = a.newRuntime(sess, paths.Cwd)
+	a.st.Runtime = a.newRuntime(sess, cwd)
 	a.st.Runtime.watch = a.watch(sess.ID())
 	a.reportWarnings()
 	a.startGlobalWatch()
@@ -154,6 +165,9 @@ func (a *App) Run(ctx context.Context) error {
 	}, a.reportPanic)
 	safe.Go(a.ticker, a.reportPanic)
 	safe.Go(a.animTicker, a.reportPanic)
+	if a.start.Picker {
+		a.openSessions()
+	}
 	a.drawSafe()
 	schedule := frameSchedule{last: time.Now()}
 	timer := time.NewTimer(time.Hour)

@@ -102,9 +102,9 @@ func TestFailedCommandKeepsTheToken(t *testing.T) {
 func TestTabCompletesAndUndoRestoresToken(t *testing.T) {
 	a, scr := newTestApp(t)
 	defer scr.Fini()
-	typeKeys(a, "q /ses")
+	typeKeys(a, "q /res")
 	a.onKey(keyK(tcell.KeyTab))
-	if string(a.st.Input) != "q /sessions" {
+	if string(a.st.Input) != "q /resume" {
 		t.Fatalf("draft %q", string(a.st.Input))
 	}
 	a.setInput([]rune("hi /tasks"))

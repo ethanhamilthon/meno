@@ -34,7 +34,6 @@ func (e *Engine) ListSessions(ctx context.Context, q api.SessionsListRequest) (a
 				Provider:  r.Provider,
 				Effort:    r.Effort,
 				NoAsk:     r.NoAsk,
-				SpawnedBy: r.SpawnedBy,
 				ForkOf:    r.ForkSource,
 				System:    r.SystemName,
 				TurnCount: r.Turns,
@@ -85,15 +84,11 @@ func (e *Engine) CreateSession(ctx context.Context, q api.SessionCreateRequest) 
 	if err != nil {
 		return api.SessionCreateResponse{}, err
 	}
-	if err = e.checkSpawn(ctx, q.SpawnedBy); err != nil {
-		return api.SessionCreateResponse{}, err
-	}
 	sess := agent.NewSession(abs, choice.model)
 	sess.Provider = choice.provider
 	sess.Effort = choice.effort
 	sess.NoAsk = q.NoAsk
 	sess.Title = title
-	sess.SpawnedBy = q.SpawnedBy
 	sess.SystemName, sess.SystemPrompt = systemName, systemText
 	s, err := e.adopt(sess)
 	if err != nil {

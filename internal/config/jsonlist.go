@@ -5,8 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
+
+	"golang.org/x/sys/unix"
 )
 
 // Providers and MCP servers use arrays of objects in the data directory.
@@ -21,9 +24,35 @@ func (p Paths) ProviderFile() string { return p.File(ProviderFileName) }
 func (p Paths) MCPFile() string      { return p.File(MCPFileName) }
 func (p Paths) ThemeFile() string    { return p.File(ThemeFileName) }
 
-// listMu serializes every read-modify-write of provider.json and mcp.json in
-// this process. The daemon is the only writer.
+// listMu serializes reads and writes of provider.json and mcp.json in this
+// process. A read-modify-write that spans several calls takes LockFiles first.
 var listMu sync.Mutex
+
+var filesMu sync.Mutex
+
+// LockFiles serializes read-modify-write of meno's JSON files (settings,
+// providers, MCP servers) across the processes of one MENO_HOME: an exclusive
+// flock on run/config.lock, which the system drops if the process dies. Keep
+// the critical section short. Call the returned function to release it.
+func (p Paths) LockFiles() (func(), error) {
+	filesMu.Lock()
+	dir := filepath.Join(p.Home, "run")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		filesMu.Unlock()
+		return nil, err
+	}
+	f, err := os.OpenFile(filepath.Join(dir, "config.lock"), os.O_CREATE|os.O_RDWR, 0o600)
+	if err != nil {
+		filesMu.Unlock()
+		return nil, err
+	}
+	if err = unix.Flock(int(f.Fd()), unix.LOCK_EX); err != nil {
+		f.Close()
+		filesMu.Unlock()
+		return nil, err
+	}
+	return func() { f.Close(); filesMu.Unlock() }, nil
+}
 
 // readArray decodes a JSON array of objects. A missing or empty file is not an
 // error and gives no entries.

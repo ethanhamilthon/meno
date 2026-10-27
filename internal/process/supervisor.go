@@ -92,11 +92,12 @@ type running struct {
 	log       *logWriter
 }
 
-// New returns a supervisor on the database d. Tasks that a previous run left
-// unfinished are marked interrupted; nothing is restarted.
+// New returns a supervisor on the database d. It touches no stored task: other
+// meno processes share the database and their tasks are alive. A process marks
+// the unfinished tasks of a session interrupted when it becomes the owner of the
+// session (see MarkInterrupted); nothing is ever restarted.
 func New(d *sql.DB, logDir string, h Hooks) (*Supervisor, error) {
-	s := &Supervisor{d: d, dir: logDir, hooks: h, limit: DefaultLogLimit, live: map[string]*running{}, waiters: map[string]int{}}
-	return s, s.markInterrupted()
+	return &Supervisor{d: d, dir: logDir, hooks: h, limit: DefaultLogLimit, live: map[string]*running{}, waiters: map[string]int{}}, nil
 }
 
 // SetLogLimit changes the disk budget of logs of tasks started afterwards.

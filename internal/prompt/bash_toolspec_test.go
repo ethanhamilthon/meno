@@ -10,12 +10,17 @@ func TestBashDescriptionDescribesTheTool(t *testing.T) {
 	for _, want := range []string{
 		"fresh shell", "do not persist between calls",
 		"meno mcp", "tools SERVER [TOOL]", "input schema", "$MENO_HOME/mcp.json", "meno mcp add --help", "meno tasks", "meno ask FILE|-", "meno view IMAGE", "meno models [--provider --refresh]",
-		"meno sessions [--cwd DIR", "meno sessions show ID", "meno send (-s ID|--new|--fork SESSION)", "--model PROVIDER/MODEL", "meno tail ID...", "meno help [TOPIC]",
-		"meno --help", "[exit N] or [cancelled]", "already running the message is only queued",
-		"Never create new sessions or send messages to other sessions without explicit user permission.",
+		`meno -p "PROMPT"`, "--model PROVIDER/MODEL", "--resume ID", "meno help [TOPIC]",
+		"meno --help", "[exit N] or [cancelled]",
+		"Never start one without explicit user permission.",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("description misses %q", want)
+		}
+	}
+	for _, banned := range []string{"meno send", "meno tail", "meno sessions"} {
+		if strings.Contains(got, banned) {
+			t.Errorf("description still names the removed command %q", banned)
 		}
 	}
 	for _, banned := range []string{"Editing:", "Verification:", "Output:", "<skills>", "environment section"} {

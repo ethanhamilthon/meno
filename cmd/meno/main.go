@@ -20,23 +20,41 @@ import (
 var version = ver.Number()
 
 func main() {
-	noAsk := len(os.Args) == 2 && os.Args[1] == "--no-ask"
-	if len(os.Args) > 1 && !noAsk {
+	l, isLaunch, err := parseLaunch(os.Args[1:])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "meno:", err)
+		os.Exit(2)
+	}
+	if !isLaunch {
 		os.Exit(cli(os.Args[1:], os.Stdout, os.Stderr))
 	}
-	if err := run(noAsk); err != nil {
+	switch {
+	case l.stdio:
+		os.Exit(runStdio(l, os.Stdin, os.Stdout, os.Stderr))
+	case l.print:
+		os.Exit(runHeadless(l, os.Stdin, os.Stdout, os.Stderr))
+	}
+	if err := run(l); err != nil {
 		fmt.Fprintln(os.Stderr, "meno:", err)
 		os.Exit(1)
 	}
 }
 
-func run(noAsk bool) error {
+func run(l launch) error {
 	paths, err := config.DefaultPaths()
 	if err != nil {
 		return err
 	}
-	// The daemon is started first, before the screen is taken over, so its
-	// start-up errors are readable.
+	if l.cwd != "" {
+		paths.Cwd = l.cwd
+	}
+	// The engine starts before the screen is taken over, so its start-up
+	// errors are readable.
+	h, err := startHost(paths.Home)
+	if err != nil {
+		return err
+	}
+	defer h.Close()
 	scr, err := tcell.NewScreen()
 	if err != nil {
 		return err
@@ -46,16 +64,11 @@ func run(noAsk bool) error {
 	}
 	defer scr.Fini()
 	scr.EnableMouse(tcell.MouseDragEvents) // buttons, wheel and drags: selecting text with the mouse
-	cl, err := ensureDaemon(paths.Home)
-	if err != nil {
-		scr.Fini()
-		return err
-	}
-	var opts []tui.Option
-	if noAsk {
+	opts := []tui.Option{tui.WithStart(tui.Start{Resume: l.resume, Continue: l.cont, Picker: l.picker})}
+	if l.noAsk {
 		opts = append(opts, tui.WithNoAsk())
 	}
-	a, err := tui.New(scr, paths, cl, opts...)
+	a, err := tui.New(scr, paths, h.client, opts...)
 	if err != nil {
 		return err
 	}

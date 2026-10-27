@@ -18,7 +18,7 @@ func TestSessionExistsOnlyAfterTheFirstMessage(t *testing.T) {
 	a := start(t, options{fake: f, home: home, cols: 110, rows: 28})
 	a.Cmd("new")
 	a.Cmd("new")
-	a.Cmd("sessions")
+	a.Cmd("resume")
 	screen := a.WaitFor("no matching sessions")
 	if strings.Contains(screen, "new session") {
 		t.Fatalf("an empty session is listed:\n%s", screen)
@@ -27,14 +27,14 @@ func TestSessionExistsOnlyAfterTheFirstMessage(t *testing.T) {
 	a.WaitGone("no matching sessions")
 	a.Say("name this session please")
 	a.WaitFor("answer-marker")
-	a.Cmd("sessions")
+	a.Cmd("resume")
 	a.WaitFor("tab filter")
 	a.Send(Esc)
 	a.WaitGone("tab filter")
 	_ = a.cmd.Process.Kill()
 	<-a.exited
 	b := start(t, options{fake: f, home: home, cols: 110, rows: 28})
-	b.Cmd("sessions")
+	b.Cmd("resume")
 	b.WaitFor("name this session please")
 }
 

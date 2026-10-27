@@ -19,8 +19,6 @@ type ConfigSettings struct {
 	CompactSummaryTokens int    `json:"compact_summary_tokens"`
 	ElidePercent         int    `json:"elide_percent"`
 	SystemPrompt         string `json:"system_prompt"`
-	MaxSpawnDepth        int    `json:"max_spawn_depth"`
-	MaxWorkers           int    `json:"max_workers"`
 }
 
 type SettingsRequest struct {

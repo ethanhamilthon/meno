@@ -12,7 +12,7 @@ func TestErrorMapping(t *testing.T) {
 		err    error
 		status int
 		code   string
-	}{{&APIError{Code: api.CodeBadRequest}, 400, api.CodeBadRequest}, {&APIError{Code: api.CodeNotFound}, 404, api.CodeNotFound}, {&APIError{Code: api.CodeForbidden}, 403, api.CodeForbidden}, {&APIError{Code: api.CodeConflict}, 409, api.CodeConflict}, {&APIError{Code: api.CodeProtocolMismatch}, 426, api.CodeProtocolMismatch}, {&APIError{Code: api.CodeDaemonStopping}, 503, api.CodeDaemonStopping}, {&APIError{Code: api.CodeNotImplemented}, 501, api.CodeNotImplemented}}
+	}{{&APIError{Code: api.CodeBadRequest}, 400, api.CodeBadRequest}, {&APIError{Code: api.CodeNotFound}, 404, api.CodeNotFound}, {&APIError{Code: api.CodeForbidden}, 403, api.CodeForbidden}, {&APIError{Code: api.CodeConflict}, 409, api.CodeConflict}, {&APIError{Code: api.CodeNotImplemented}, 501, api.CodeNotImplemented}}
 	for _, tc := range cases {
 		w := httptest.NewRecorder()
 		s := &Server{}

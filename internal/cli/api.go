@@ -23,13 +23,6 @@ type API interface {
 	Ask(form []byte) (map[string]any, error)
 	View(path string) (ViewResult, error)
 	Models(provider string, refresh bool) (ModelList, error)
-	Daemon(action string, force bool) (DaemonStatus, error)
-	Sessions(SessionsRequest) ([]Session, error)
-	SessionShow(id string) (SessionDetail, error)
-	SessionCancel(id string) error
-	SessionAnswer(AnswerRequest) error
-	Send(SendRequest) (SendResult, error)
-	Tail(req TailRequest, emit func(Event) error) error
 	Doctor(DoctorRequest) (DoctorReport, error)
 }
 

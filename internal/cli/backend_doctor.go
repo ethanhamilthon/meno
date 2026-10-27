@@ -5,61 +5,33 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"net"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
-	"meno/internal/api"
 	"meno/internal/config"
-	"meno/internal/version"
 
 	_ "modernc.org/sqlite" // read-only integrity check of meno.db
 )
 
-// Doctor runs the read-only checks. Local checks (socket, files, database) work
-// without a daemon; daemon checks are skipped with a clear finding when it is
-// unreachable. Nothing here writes, logs in or restarts anything.
-func (a *DaemonAPI) Doctor(r DoctorRequest) (DoctorReport, error) {
+// Doctor runs the read-only checks of the configuration files, the skills, the
+// database and, when there is an engine, of the providers and MCP servers.
+// Nothing here writes, logs in or restarts anything.
+func (a *OwnerAPI) Doctor(r DoctorRequest) (DoctorReport, error) {
 	var out []Check
-	add := func(name, status, detail, fix string) {
-		out = append(out, Check{Name: name, Status: status, Detail: detail, Fix: fix})
-	}
-	sock := filepath.Join(a.home, "run", "meno.sock")
-	up := false
-	if c, err := net.DialTimeout("unix", sock, 2*time.Second); err != nil {
-		add("daemon socket", "error", "cannot connect to "+sock, "start it with: meno daemon start")
-	} else {
-		c.Close()
-		up = true
-		add("daemon socket", "ok", sock, "")
-	}
 	out = append(out, configChecks(a.home)...)
 	out = append(out, skillChecks(a.home)...)
 	out = append(out, databaseCheck(a.home))
-	if up {
-		out = append(out, a.daemonChecks(r.Probe)...)
+	if a.c != nil {
+		out = append(out, a.engineChecks(r.Probe)...)
 	}
 	return DoctorReport{Checks: out}, nil
 }
 
-func (a *DaemonAPI) daemonChecks(probe bool) []Check {
+func (a *OwnerAPI) engineChecks(probe bool) []Check {
 	var out []Check
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	h, err := a.c.Hello(ctx)
-	if err != nil {
-		return append(out, Check{Name: "daemon hello", Status: "error", Detail: err.Error(), Fix: "restart it with: meno daemon restart"})
-	}
-	switch {
-	case h.Protocol != api.Protocol:
-		out = append(out, Check{Name: "protocol", Status: "error", Detail: fmt.Sprintf("daemon speaks %d, this client %d", h.Protocol, api.Protocol), Fix: "restart the daemon after updating: meno daemon restart"})
-	case strings.TrimPrefix(h.Version, "v") != version.Number():
-		out = append(out, Check{Name: "version", Status: "warn", Detail: "daemon " + h.Version + ", client " + version.Number(), Fix: "meno daemon restart"})
-	default:
-		out = append(out, Check{Name: "version", Status: "ok", Detail: h.Version + ", protocol " + fmt.Sprint(h.Protocol)})
-	}
 	if ps, err := a.c.Providers(ctx); err != nil {
 		out = append(out, Check{Name: "providers", Status: "error", Detail: err.Error()})
 	} else {
@@ -102,7 +74,7 @@ func (a *DaemonAPI) daemonChecks(probe bool) []Check {
 
 // probeModels lists the models of each enabled provider: one bounded request
 // each, only when the user asked with --probe.
-func (a *DaemonAPI) probeModels(ctx context.Context) []Check {
+func (a *OwnerAPI) probeModels(ctx context.Context) []Check {
 	var out []Check
 	ps, err := a.c.Providers(ctx)
 	if err != nil {

@@ -47,10 +47,10 @@ grapheme boundaries. Visual wrapping does not change stored text.
 | Drag, double click, triple click | Select text, a word or a row in the timeline or the composer; it is copied on release |
 | ←/→ in /model | Preview an effort; Enter applies, Esc cancels |
 | Esc in INPUT (no command list) | Keep typing without changing the draft |
-| /new /sessions /fork /rename /cd /compact /export | Session actions |
+| /new /resume /fork /rename /cd /compact /export | Session actions |
 | /model /settings /skills /mcp /login /tasks | Model and management panels |
 | /context | ctx/max, spent, in/out and cache hit for the last turn, the session and the current request |
-| /stop /q | Stop this turn; leave (work keeps running) |
+| /stop /q | Stop this turn; leave (ends its runs and tasks) |
 
 A mouse selection is copied to the clipboard on release and stays highlighted
 until the next key or click. The wheel, PgUp and PgDn scroll the timeline.
@@ -74,12 +74,12 @@ Labels and counts use dim gray. Typed input stays bright.
 - tasks: live background Bash processes.
 - Asking: sessions waiting for an agent question form.
 - done: sessions with unread completed runs, including failures/stops, where the
-  last accepted written message was yours from the TUI. ACP, agents, `meno send`,
+  last accepted written message was yours from the TUI. ACP, agents, `meno -p`,
   and automatic task wake-ups do not count. Queued messages follow acceptance
   order; messages left for a follow-up run count only for that run.
 
-Counts cover the whole daemon, not only the current project. Zero counts are hidden.
-Each counter keeps its own color on a narrow bar too, where it shrinks to `2r`; click one to open `/sessions` filtered to it. When the stream of the session breaks, the center reads `offline · state may be stale` in the warning color.
+Counts cover the sessions of this window. Zero counts are hidden.
+Each counter keeps its own color on a narrow bar too, where it shrinks to `2r`; click one to open `/resume` filtered to it. When the stream of the session breaks, the center reads `offline · state may be stale` in the warning color.
 A session may have a new running request and an older unread completion. Blue
 completion markers survive restart/reconnect and clear across UIs only after the
 result is visible, not merely when a session is opened. Scrolling upward or opening

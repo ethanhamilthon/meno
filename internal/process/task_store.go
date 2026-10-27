@@ -102,8 +102,11 @@ func (s *Supervisor) List(session string, includeFinished bool) ([]Task, error) 
 	return out, rows.Err()
 }
 
-func (s *Supervisor) markInterrupted() error {
+// MarkInterrupted marks the unfinished tasks of a session as interrupted. Call it
+// only for a session this process has just become the owner of: the process
+// that ran those tasks is gone.
+func (s *Supervisor) MarkInterrupted(session string) error {
 	_, err := s.d.Exec(`UPDATE tasks SET status='interrupted', reason='meno exited while the task was running', ended_at=?
-		WHERE status IN ('starting','running')`, ts(time.Now()))
+		WHERE session_id = ? AND status IN ('starting','running')`, ts(time.Now()), session)
 	return err
 }

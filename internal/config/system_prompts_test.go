@@ -71,10 +71,10 @@ func TestSystemPromptSetting(t *testing.T) {
 	}
 	// A bad stored name falls back to the built-in prompt; the depth and worker
 	// limits get their defaults.
-	if err := json.Unmarshal([]byte(`{"system_prompt":"a/b","max_spawn_depth":99,"max_workers":0}`), &s); err != nil {
+	if err := json.Unmarshal([]byte(`{"system_prompt":"a/b"}`), &s); err != nil {
 		t.Fatal(err)
 	}
-	if s.SystemPrompt != "" || s.MaxSpawnDepth != 2 || s.MaxWorkers != 8 {
+	if s.SystemPrompt != "" {
 		t.Fatalf("%+v", s)
 	}
 }

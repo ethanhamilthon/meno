@@ -13,7 +13,7 @@ var layoutSizes = [][2]int{{120, 40}, {96, 30}, {80, 24}, {60, 20}, {48, 16}}
 func TestLayoutMatrixMainScreenAndDialogs(t *testing.T) {
 	for _, sz := range layoutSizes {
 		a, s := visualFixture(t, sz[0], sz[1])
-		for _, name := range []string{"", "model", "sessions", "settings", "help", "context", "tasks", "skills", "mcp"} {
+		for _, name := range []string{"", "model", "resume", "settings", "help", "context", "tasks", "skills", "mcp"} {
 			if name != "" {
 				a.runCommand(name)
 			}

@@ -28,7 +28,6 @@ func item(s *runState) api.SessionItem {
 		Running:   s.running,
 		NeedsYou:  s.ask != nil,
 		NoAsk:     sess.NoAsk,
-		SpawnedBy: sess.SpawnedBy,
 		ForkOf:    sess.ForkSource,
 		System:    sess.SystemName,
 		TurnCount: turns,

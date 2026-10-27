@@ -45,7 +45,7 @@ func TestComposerPanelsAndLivePalette(t *testing.T) {
 	s.Send(Esc)
 	s.WaitGone("↑/↓ model")
 	s.Type("draft survives ")
-	s.Cmd("sessions")
+	s.Cmd("resume")
 	s.WaitFor("tab filter")
 	s.Send(Esc)
 	s.WaitGone("tab filter")

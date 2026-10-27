@@ -12,7 +12,7 @@ import (
 // A session created with NoAsk answers `meno ask` with the forbidden exit code
 // and a message that sends the model to the chat. No form is ever opened.
 func TestAskIsRefusedInANoAskSession(t *testing.T) {
-	home, eng, _, _, socket := startRig(t, &scripted{})
+	home, eng, _, _, rpc := startRig(t, &scripted{})
 	made, err := eng.CreateSession(context.Background(), api.SessionCreateRequest{Cwd: t.TempDir(), ClientID: "noask", NoAsk: true})
 	if err != nil {
 		t.Fatal(err)
@@ -21,7 +21,7 @@ func TestAskIsRefusedInANoAskSession(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	dapi := New(home, socket, snap.Session.ID, snap.AgentToken, "call2")
+	dapi := New(home, rpc, snap.Session.ID, snap.AgentToken, "call2")
 	var out, errb strings.Builder
 	code := Run([]string{"ask", "-"}, IO{In: strings.NewReader(`{"questions":[{"id":"q","text":"?","type":"text"}]}`), Out: &out, Err: &errb, Dir: t.TempDir()}, dapi)
 	if code != ExitForbidden {

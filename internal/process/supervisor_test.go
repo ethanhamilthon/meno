@@ -170,6 +170,18 @@ func TestSessionIsolationRestartAndShutdown(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if got, _ := s2.Get("s1", a.ID); got.Status != Running {
+		t.Fatalf("a new supervisor must not touch tasks that another process may own: %+v", got)
+	}
+	if err := s2.MarkInterrupted("other-session"); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := s2.Get("s1", a.ID); got.Status != Running {
+		t.Fatalf("another session's tasks stay: %+v", got)
+	}
+	if err := s2.MarkInterrupted("s1"); err != nil {
+		t.Fatal(err)
+	}
 	if got, _ := s2.Get("s1", a.ID); got.Status != Interrupted || got.Reason == "" {
 		t.Fatalf("%+v", got)
 	}

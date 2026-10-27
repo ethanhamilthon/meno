@@ -6,7 +6,7 @@ Enter edits a text value, Enter saves it and Esc cancels. Every change is saved
 at once. Esc closes the panel without losing your composer draft.
 
 Notification settings can be kept for one window: `s` switches between *shared*
-and *this window*. Window overrides are not sent to the daemon and survive
+and *this window*. Window overrides stay in this window and survive
 refreshes; a shared edit replaces the override. `r` drops all window overrides.
 
 | Setting | Values |
@@ -19,11 +19,7 @@ refreshes; a shared edit replaces the override. `r` drops all window overrides.
 | notify command | optional shell command replacing the sound |
 | auto compact | context percentage at which meno compacts before a request |
 
-The daemon exits after 10 continuous seconds without an attached event-stream
-client, active session work, or running background task. An in-flight request,
-reconnection, or new work restarts the grace period. Saved sessions and finished
-tasks do not keep it alive. The next launch restores saved sessions. There is no
-idle-timeout setting; old `daemon_idle_exit_min` values, including zero, are ignored.
+Closing meno ends its runs and background tasks. Stored sessions stay; continue one with `meno resume`.
 
 ## Palette
 
@@ -92,9 +88,7 @@ these files with keys in them. Files are written with mode 0600.
 
 Settings without a row in the dialog live in the settings JSON (`meno.db`):
 `compact_keep` (8) and `compact_summary_tokens` (4000) tune the automatic
-compaction safety net, see [sessions](sessions.md). `max_spawn_depth` (2) and
-`max_workers` (8) limit sessions that agents start with `meno send`, see
-[the command line](cli.md#driving-sessions-from-scripts-and-agents).
+compaction safety net, see [sessions](sessions.md).
 
 ## System prompts
 
@@ -107,6 +101,6 @@ dots, dashes and underscores, at most 64 characters). The text is trimmed; an em
 over 64 KB is refused. Pick it in `/settings` (*system prompt*), or set `"system_prompt":
 "NAME"` in the settings JSON. It applies to **new** sessions: a session keeps the text it was
 created with, so editing the file does not change a running conversation or its provider cache.
-A fork keeps the prompt of its source. `meno send --new|--fork --system NAME` picks one for a
-single session (`--system default` is the built-in line). When the chosen file is missing the
+A fork keeps the prompt of its source. A client of the [stdio protocol](stdio.md) picks one for a
+single session with `system` in `session.create` (`default` is the built-in line). When the chosen file is missing the
 built-in line is used, and `meno doctor` warns about it.

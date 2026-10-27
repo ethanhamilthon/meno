@@ -34,10 +34,6 @@ type Settings struct {
 	// SystemPrompt names a file in system-prompts/ whose text replaces the
 	// identity line of the system prompt in new sessions. Empty is the built-in line.
 	SystemPrompt string `json:"system_prompt"`
-	// MaxSpawnDepth bounds how deep sessions started by `meno send` can nest;
-	// MaxWorkers bounds how many sessions one session can have running.
-	MaxSpawnDepth int `json:"max_spawn_depth"`
-	MaxWorkers    int `json:"max_workers"`
 }
 
 // UnmarshalJSON restores safe defaults for obsolete enum values and invalid
@@ -83,12 +79,6 @@ func (s *Settings) UnmarshalJSON(data []byte) error {
 	if st.SystemPrompt == DefaultSystemPrompt || ValidSystemPromptName(st.SystemPrompt) != nil {
 		st.SystemPrompt = ""
 	}
-	if st.MaxSpawnDepth < 1 || st.MaxSpawnDepth > 10 {
-		st.MaxSpawnDepth = defaults.MaxSpawnDepth
-	}
-	if st.MaxWorkers < 1 || st.MaxWorkers > 64 {
-		st.MaxWorkers = defaults.MaxWorkers
-	}
 	if st.Tool != "js" && st.Tool != "bash" {
 		st.Tool = defaults.Tool
 	}
@@ -102,7 +92,6 @@ func DefaultSettings() Settings {
 		Effort:         "high",
 		TurnSummary:    "on",
 		CompactPercent: 80, CompactKeep: 8, CompactSummaryTokens: 4000, ElidePercent: 50,
-		MaxSpawnDepth: 2, MaxWorkers: 8,
 		Notify:       "off",
 		NotifySound:  "default",
 		NotifyVolume: 100,

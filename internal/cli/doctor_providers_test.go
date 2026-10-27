@@ -14,7 +14,7 @@ func TestDoctorCountsOnlyEnabledAPIProviders(t *testing.T) {
 		{Name: "disabled", BaseURL: "https://example.test/v1", APIKey: "key", Disabled: true, Protocol: llm.ProtoResponses},
 	}
 	_, _, _, a, _ := startRigWith(t, &scripted{}, providers, func(context.Context, llm.Provider) ([]llm.Model, error) { return nil, nil })
-	checks := a.daemonChecks(false)
+	checks := a.engineChecks(false)
 	got, ok := find(DoctorReport{Checks: checks}, "providers")
 	if !ok || got.Status != "ok" || got.Detail != "2 usable of 3" {
 		t.Fatalf("provider check: %+v", got)

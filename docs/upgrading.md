@@ -1,5 +1,34 @@
 # Upgrading, data and privacy
 
+## 0.8.0: no daemon
+
+Meno no longer runs a background daemon. Each meno window, `meno -p` run and ACP connection runs its
+own engine; closing it ends its runs and background tasks. The goal of this release is a simpler meno:
+one process, one protocol, less code.
+
+Before updating, close every meno window and wait about 10 seconds so the old daemon exits (the new
+meno refuses to start beside it and says so). **Update through 0.7.6 first** if you use an older version:
+0.8.0 only opens a database made by 0.7.5 or newer and says so otherwise; the old migrations are gone.
+
+- **Resume.** `meno resume [ID]`, `meno --resume ID` and `meno --continue` open a stored session.
+  `/sessions` is now `/resume`.
+- **Headless.** `meno -p "PROMPT"` runs one prompt and prints the answer; `meno -p --stdio` serves
+  [JSON-RPC](stdio.md). See [the command line](cli.md#meno--p).
+- **Removed commands.** `meno daemon`, `meno sessions`, `meno send` and `meno tail` are gone; each prints
+  what replaces it. Agents start another agent with `meno -p`. The settings `max_spawn_depth` and
+  `max_workers` are removed (an old `settings.json` that has them still loads); an agent may start as
+  many agents as it wants, with your permission.
+- **Closing meno stops its work.** `/q` and closing the terminal end the running turn and the background
+  tasks of that window. A process killed by force (SIGKILL) can leave its tasks running; meno never
+  kills a process by PID alone.
+- **One owner per session.** A session open in one process cannot be opened in another; the message
+  names the problem. Several windows in one `MENO_HOME` otherwise work; each sees only its own running sessions.
+- **Agent calls** reach their engine through an inherited descriptor (`MENO_FD`), not `MENO_SOCK`.
+  `meno tasks`, `ask` and `view` work only inside an agent call; `mcp`, `models` and `doctor` also work in your shell.
+- **Data.** The database is migrated once (the unused `providers` and `mcp_servers` tables are dropped).
+  Sessions, settings and credentials are kept. Imports of the pre-0.5 session files and of the old
+  `sessions.db` are removed.
+
 ## 0.7.4: composer panels, live palette and idle exit
 
 Restart your windows after updating. Commands and questions now use panels above
@@ -112,7 +141,7 @@ columns on `sessions`, nothing is rewritten); going back to 0.6.9 works and igno
 - **New:** `--fork SESSION [--at N]`, `--model`, `--effort`, `--cwd`, `--title`, `--system`, `--timeout`,
   `--keep-running`, `--cancel-on-exit`; `meno sessions show|cancel|answer` and filters; `meno tail` streams while the
   session runs, takes several sessions, `--events`, `--children-of` and `--from`. Details in
-  [the command line](cli.md#driving-sessions-from-scripts-and-agents).
+  [the command line](cli.md#meno--p).
 - **`meno send` returns when the agent asks a question** (exit 5) instead of waiting for you in the other window.
   `meno send --new` prints only the answer as before; `--json` has the session id and status.
 - **`meno tail --json`** prints JSON lines like plain `tail` (it used to print one array at the end).

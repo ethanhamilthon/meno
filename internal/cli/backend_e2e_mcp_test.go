@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"meno/internal/api"
-	"meno/internal/client"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -41,9 +40,8 @@ func TestMCPRuntimeAndResultsThroughDaemon(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(map[string]any{"jsonrpc": "2.0", "id": req.ID, "result": result})
 	}))
 	defer fake.Close()
-	home, eng, sess, dapi, socket := startRig(t, &scripted{})
-	cl := client.New(home)
-	cl.Socket = socket
+	_, eng, sess, dapi, rpc := startRig(t, &scripted{})
+	cl := rpc
 	server := api.ConfigMCPServer{Name: "pencil", Transport: "streamable-http", URL: fake.URL}
 	if _, err := cl.AddMcpServer(context.Background(), server); err != nil {
 		t.Fatal(err)
@@ -107,9 +105,8 @@ func TestMCPRuntimeAndResultsThroughDaemon(t *testing.T) {
 // An agent that recovers a broken MCP server must not wait for a question:
 // the restart runs without a confirmation, or the run stalls until it times out.
 func TestMCPRestartRunsWithoutAQuestion(t *testing.T) {
-	home, eng, sess, dapi, socket := startRig(t, &scripted{})
-	cl := client.New(home)
-	cl.Socket = socket
+	_, eng, sess, dapi, rpc := startRig(t, &scripted{})
+	cl := rpc
 	script := filepath.Join(t.TempDir(), "server.py")
 	body := "import sys, json\n" +
 		"for line in sys.stdin:\n" +
@@ -151,9 +148,8 @@ func TestMCPRestartRunsWithoutAQuestion(t *testing.T) {
 }
 
 func TestMCPAdministrationRequiresApproval(t *testing.T) {
-	home, eng, sess, dapi, socket := startRig(t, &scripted{})
-	cl := client.New(home)
-	cl.Socket = socket
+	_, eng, sess, dapi, rpc := startRig(t, &scripted{})
+	cl := rpc
 	server := api.ConfigMCPServer{Name: "configured", Transport: "stdio", Command: "true"}
 	if _, err := cl.AddMcpServer(context.Background(), server); err != nil {
 		t.Fatal(err)

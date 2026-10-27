@@ -14,7 +14,7 @@ and stay visible in the terminal app.
 Questions that Meno asks are shown as chat messages. Reply with
 `/answer <question-id> <answers-json>` or `/answer <question-id> --cancel`; the
 paused run then continues. Closing the connection leaves an open question and its
-run waiting; closing it during a normal run stops that run. The daemon keeps running.
+run waiting; closing it during a normal run stops that run.
 
 Not supported: MCP servers injected by the client (configure them with
 `meno mcp`), per-command permission prompts, audio and PDF content.

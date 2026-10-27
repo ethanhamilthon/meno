@@ -24,10 +24,6 @@ func statusFor(code string) int {
 		return http.StatusForbidden
 	case api.CodeConflict:
 		return http.StatusConflict
-	case api.CodeProtocolMismatch:
-		return http.StatusUpgradeRequired
-	case api.CodeDaemonStopping:
-		return http.StatusServiceUnavailable
 	case api.CodeNotImplemented:
 		return http.StatusNotImplemented
 	default:

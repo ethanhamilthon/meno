@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	_ "modernc.org/sqlite"
@@ -28,86 +29,70 @@ func version(t *testing.T, d *sql.DB) int {
 	return v
 }
 
-func TestMigrationsReachCurrentVersion(t *testing.T) {
-	if len(migrations) != Version {
-		t.Fatalf("%d migrations for version %d", len(migrations), Version)
-	}
+func TestFreshDatabaseIsAtTheCurrentVersion(t *testing.T) {
 	d := rawDB(t)
 	if err := migrate(d); err != nil {
 		t.Fatal(err)
 	}
 	if v := version(t, d); v != Version {
-		t.Fatalf("version %d", v)
+		t.Fatalf("version %d, want %d", v, Version)
+	}
+	for _, gone := range []string{"providers", "mcp_servers"} {
+		var n int
+		_ = d.QueryRow("SELECT COUNT(1) FROM sqlite_master WHERE name = ?", gone).Scan(&n)
+		if n != 0 {
+			t.Fatalf("table %s must not exist", gone)
+		}
 	}
 	if err := migrate(d); err != nil {
-		t.Fatalf("second run must be a no-op: %v", err)
+		t.Fatalf("second migrate: %v", err)
 	}
 }
 
-// Data written by an older meno survives every later migration.
-func TestMigrationsKeepExistingData(t *testing.T) {
+// A 0.7.5 database (schema 19) still has the unused tables; the migration drops them.
+func TestVersion19DropsUnusedTablesAndKeepsSessions(t *testing.T) {
 	d := rawDB(t)
-	if err := migrateTo(d, 2); err != nil {
+	if _, err := d.Exec(baseline + "CREATE TABLE providers (name TEXT); CREATE TABLE mcp_servers (name TEXT);" +
+		"ALTER TABLE sessions ADD COLUMN spawned_by TEXT NOT NULL DEFAULT '';" +
+		"INSERT INTO meta(key,value) VALUES ('format_epoch','0.5'),('migrated_sessions_db','1');" +
+		"INSERT INTO sessions(id, cwd, updated_at) VALUES ('s1', '/x', '1'); PRAGMA user_version = 19;"); err != nil {
 		t.Fatal(err)
-	}
-	for _, q := range []string{
-		"INSERT INTO settings(key, value_json) VALUES ('theme', '\"dracula\"')",
-		"INSERT INTO providers(pos, name, base_url, api_key, protocol) VALUES (0, 'p', 'u', 'k', 'chat')",
-		"INSERT INTO sessions(id, title, cwd, updated_at) VALUES ('s1', 'old', '/w', '2025-01-01T00:00:00Z')",
-		"INSERT INTO turns(session_id, seq, role, text, time) VALUES ('s1', 0, 'user', 'hello', '2025-01-01T00:00:00Z')",
-	} {
-		if _, err := d.Exec(q); err != nil {
-			t.Fatalf("%s: %v", q, err)
-		}
 	}
 	if err := migrate(d); err != nil {
 		t.Fatal(err)
 	}
-	var theme, key, title, text string
-	checks := []struct {
-		q    string
-		dest *string
-		want string
-	}{
-		{"SELECT value_json FROM settings WHERE key='theme'", &theme, `"dracula"`},
-		{"SELECT api_key FROM providers WHERE name='p'", &key, "k"},
-		{"SELECT title FROM sessions WHERE id='s1'", &title, "old"},
-		{"SELECT text FROM turns WHERE session_id='s1' AND seq=0", &text, "hello"},
+	var n, gone int
+	_ = d.QueryRow("SELECT COUNT(1) FROM sessions WHERE id = 's1'").Scan(&n)
+	_ = d.QueryRow("SELECT COUNT(1) FROM sqlite_master WHERE name IN ('providers','mcp_servers')").Scan(&gone)
+	var cols, markers int
+	_ = d.QueryRow("SELECT COUNT(1) FROM pragma_table_info('sessions') WHERE name = 'spawned_by'").Scan(&cols)
+	_ = d.QueryRow("SELECT COUNT(1) FROM meta").Scan(&markers)
+	if cols != 0 || markers != 0 {
+		t.Fatalf("spawned_by columns %d, meta rows %d", cols, markers)
 	}
-	for _, c := range checks {
-		if err := d.QueryRow(c.q).Scan(c.dest); err != nil || *c.dest != c.want {
-			t.Errorf("%s: got %q, %v; want %q", c.q, *c.dest, err, c.want)
-		}
+	if n != 1 || gone != 0 || version(t, d) != Version {
+		t.Fatalf("sessions %d, unused tables %d, version %d", n, gone, version(t, d))
+	}
+}
+
+func TestOldDatabaseIsRefused(t *testing.T) {
+	d := rawDB(t)
+	if _, err := d.Exec("PRAGMA user_version = 18"); err != nil {
+		t.Fatal(err)
+	}
+	err := migrate(d)
+	if err == nil || !strings.Contains(err.Error(), "0.7.6") {
+		t.Fatalf("an old database must be refused with a way forward: %v", err)
 	}
 }
 
 func TestNewerSchemaIsRefused(t *testing.T) {
 	d := rawDB(t)
-	if _, err := d.Exec("PRAGMA user_version = 99"); err != nil {
+	if _, err := d.Exec("PRAGMA user_version = 999"); err != nil {
 		t.Fatal(err)
 	}
 	if err := migrate(d); err == nil {
-		t.Fatal("a database from a newer meno must be refused")
-	}
-	if v := version(t, d); v != 99 {
-		t.Fatalf("refused database was changed: %d", v)
-	}
-}
-
-func TestFailedMigrationRollsBack(t *testing.T) {
-	d := rawDB(t)
-	saved := migrations
-	defer func() { migrations = saved }()
-	migrations = append(append([]string{}, saved[:2]...), "CREATE TABLE half(x); THIS IS NOT SQL;")
-	if err := migrateTo(d, 3); err == nil {
-		t.Fatal("expected an error")
-	}
-	if v := version(t, d); v != 2 {
-		t.Fatalf("version %d after failed step", v)
-	}
-	var n int
-	if err := d.QueryRow("SELECT count(*) FROM sqlite_master WHERE name='half'").Scan(&n); err != nil || n != 0 {
-		t.Fatalf("partial migration left behind: %d %v", n, err)
+		t.Fatal("a newer schema must be refused")
 	}
 }
 
@@ -123,30 +108,38 @@ func TestOpenSharesHandleAndSecuresFile(t *testing.T) {
 	}
 }
 
-// The state global is gone: its rows are dropped, the plan's rows stay.
-func TestMigrationDropsStateRowsOnly(t *testing.T) {
+func TestCloseAllReleasesTheSharedHandles(t *testing.T) {
+	home := t.TempDir()
+	a, err := Open(home)
+	if err != nil {
+		t.Fatal(err)
+	}
+	CloseAll()
+	if err := a.Ping(); err == nil {
+		t.Fatal("CloseAll must close the handle")
+	}
+	b, err := Open(home)
+	if err != nil || b == a {
+		t.Fatalf("Open after CloseAll must make a new handle: %v", err)
+	}
+	CloseAll()
+}
+
+// A migration that fails changes nothing: the version stays at the last good step.
+func TestFailedMigrationRollsBack(t *testing.T) {
+	saved := migrations
+	migrations = append(append([]string{}, migrations...), "CREATE TABLE half (x); NOT SQL")
+	defer func() { migrations = saved }()
 	d := rawDB(t)
-	if err := migrateTo(d, 6); err != nil {
+	if _, err := d.Exec(baseline + "PRAGMA user_version = 20"); err != nil {
 		t.Fatal(err)
 	}
-	for _, q := range []string{
-		"INSERT INTO sessions(id, title, cwd, updated_at) VALUES ('s', 't', '/w', '2025-01-01T00:00:00Z')",
-		"INSERT INTO kv(session_id, ns, key, value_json) VALUES ('s','state','a','1'), ('s','todo','plan','{}')",
-		"INSERT INTO journal(session_id, ver, ns, key, value_json, time) VALUES ('s',1,'state','a','1','t'), ('s',2,'todo','plan','{}','t')",
-	} {
-		if _, err := d.Exec(q); err != nil {
-			t.Fatalf("%s: %v", q, err)
-		}
+	if err := migrateTo(d, baselineVersion+len(migrations)); err == nil {
+		t.Fatal("a broken migration must fail")
 	}
-	if err := migrate(d); err != nil {
-		t.Fatal(err)
-	}
-	var kvState, kvTodo, jState, jTodo int
-	d.QueryRow("SELECT COUNT(1) FROM kv WHERE ns='state'").Scan(&kvState)
-	d.QueryRow("SELECT COUNT(1) FROM kv WHERE ns='todo'").Scan(&kvTodo)
-	d.QueryRow("SELECT COUNT(1) FROM journal WHERE ns='state'").Scan(&jState)
-	d.QueryRow("SELECT COUNT(1) FROM journal WHERE ns='todo'").Scan(&jTodo)
-	if kvState != 0 || jState != 0 || kvTodo != 1 || jTodo != 1 {
-		t.Fatalf("kv state/todo %d/%d, journal state/todo %d/%d", kvState, kvTodo, jState, jTodo)
+	var n int
+	_ = d.QueryRow("SELECT COUNT(1) FROM sqlite_master WHERE name = 'half'").Scan(&n)
+	if n != 0 || version(t, d) != 20 {
+		t.Fatalf("half-applied migration: table %d, version %d", n, version(t, d))
 	}
 }

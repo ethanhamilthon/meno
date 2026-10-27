@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"io"
 	"strings"
 	"testing"
 )
@@ -23,21 +22,13 @@ func (s updateStage) Commit(context.Context) error {
 	return nil
 }
 
-type updateCloser struct {
-	events *[]string
-	name   string
-}
-
-func (c updateCloser) Close() error { *c.events = append(*c.events, c.name); return nil }
-
 func TestUpdateLifecycleOrdering(t *testing.T) {
 	for _, tc := range []struct{ name, fail, want string }{
 		{"no update", "latest-old", "latest"},
 		{"release failure", "latest", "latest"},
-		{"prepare failure", "prepare", "latest lock prepare unlock"},
-		{"shutdown failure", "stop", "latest lock prepare stop cleanup unlock"},
-		{"commit failure", "commit", "latest lock prepare stop commit release cleanup unlock"},
-		{"success", "", "latest lock prepare stop commit release cleanup unlock"},
+		{"prepare failure", "prepare", "latest prepare"},
+		{"commit failure", "commit", "latest prepare commit cleanup"},
+		{"success", "", "latest prepare commit cleanup"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			events := []string{}
@@ -52,23 +43,12 @@ func TestUpdateLifecycleOrdering(t *testing.T) {
 					}
 					return "v2.0.0", nil
 				},
-				lock: func(context.Context) (io.Closer, error) {
-					events = append(events, "lock")
-					return updateCloser{&events, "unlock"}, nil
-				},
 				prepare: func(context.Context, string, string) (stagedUpdate, error) {
 					events = append(events, "prepare")
 					if tc.fail == "prepare" {
 						return nil, errors.New("checksum")
 					}
 					return updateStage{&events, tc.fail == "commit"}, nil
-				},
-				stop: func(context.Context) (io.Closer, error) {
-					events = append(events, "stop")
-					if tc.fail == "stop" {
-						return nil, errors.New("active work")
-					}
-					return updateCloser{&events, "release"}, nil
 				},
 			}
 			var out bytes.Buffer
@@ -82,9 +62,6 @@ func TestUpdateLifecycleOrdering(t *testing.T) {
 			}
 			if err != nil && strings.Contains(out.String(), "updated meno") {
 				t.Fatal("false success")
-			}
-			if tc.fail == "commit" && !strings.Contains(err.Error(), "daemon remains stopped") {
-				t.Fatal(err)
 			}
 		})
 	}

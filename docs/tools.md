@@ -28,14 +28,12 @@ add `--json` for structured output.
 | view | `meno view IMAGE` shows an image to the model |
 | models | the models of the configured providers |
 
-The commands `sessions`, `send` and `tail` also work inside a call: an agent can start, fork and follow
-other sessions (it needs your explicit permission to do so), and a session that it starts records it as its
-origin. `daemon` is for people. See [the command line](cli.md#driving-sessions-from-scripts-and-agents). All normal
-tool groups are available without application modes.
+An agent starts another agent with `meno -p "PROMPT"` (it needs your explicit permission to do so), see
+[the command line](cli.md#meno--p). All normal tool groups are available without application modes.
 
-Daemon-backed groups reach the daemon through the `MENO_SOCK`, `MENO_SESSION`, `MENO_TOKEN`
-and `MENO_CALL` variables that the daemon puts in the environment of each call. The token is
-valid for that session only. See [the daemon](daemon.md).
+The groups reach the engine that runs the call through a descriptor the call inherits (`MENO_FD`),
+with `MENO_SESSION`, `MENO_TOKEN` and `MENO_CALL` in the environment of each call. The token is
+valid for that session only.
 
 ## Elision of old output
 
@@ -50,7 +48,7 @@ the command again if it is needed.
 The cut moves in steps, only when it saves at least 8 KB, because changing old messages costs
 one provider-cache miss; between steps the messages sent are identical, so the cache keeps
 working. If this is not enough, compaction (a summary) follows at its own threshold. The cut
-is kept in memory: after a daemon restart the first long request makes it again.
+is kept in memory: after meno restarts the first long request makes it again.
 
 ## Background tasks
 
@@ -66,16 +64,16 @@ forgotten (404) is restarted once with a new `initialize`. Tools keep `title`,
 `outputSchema` and `annotations` as the server sent them; annotations are hints and
 never grant permission.
 
-The daemon owns one MCP runtime shared by the interface and agent. Use `/mcp`
+Each meno process owns one MCP runtime shared by the interface and agent. Use `/mcp`
 to create a server: it asks name, transport, then command and arguments (stdio) or URL, one at a time,
-and `cwd`, `env` and `headers` are edited afterwards in the server form. Changes apply to the agent without restarting the daemon.
+and `cwd`, `env` and `headers` are edited afterwards in the server form. Changes apply to the agent without restarting meno.
 The dialog refreshes running, starting, and error status while open. Environment
 variables and HTTP headers are edited as JSON objects with string values.
 
 The agent cannot create a server with `meno mcp add`: that command only enables a saved
 server, and the user is asked first. To create one, the agent edits `$MENO_HOME/mcp.json`
 (the format is in [settings](settings.md)) and runs `meno mcp restart NAME`, which does not
-ask. The file is read on every call, so no daemon restart is needed. An entry that is not
+ask. The file is read on every call, so no restart is needed. An entry that is not
 valid is skipped with a warning that `meno doctor` shows; a file that is not valid JSON lists
 no servers until it is fixed. `meno mcp tools SERVER TOOL` prints the full description and
 input schema of one tool; `meno mcp tools SERVER` lists one line per tool.
@@ -92,7 +90,7 @@ to their session and are removed when that session is deleted.
 it; both ask for human approval. `restart` reconnects a server that is already
 configured and runs without a question, so an agent can recover a server that
 stopped answering. Unknown definitions must be created with `/mcp`. A server
-you added to `mcp.json` by hand is an ordinary definition; the daemon sees the edit at the next read.
+you added to `mcp.json` by hand is an ordinary definition; meno sees the edit at the next read.
 
 A stdio server that answers slowly is not a failure: the handshake and the tool
 list wait up to 30 seconds, and a server that writes to a pipe gets an unbuffered

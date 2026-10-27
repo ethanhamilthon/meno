@@ -28,7 +28,7 @@ func TestMCPHelpStatesWhatACallerCannotGuess(t *testing.T) {
 		"mcp-results": {"10000 bytes", "65536", "nextOffset"},
 		"mcp-add":     {"$MENO_HOME/mcp.json", "mcp.json.bak", "jq .", "meno mcp restart NAME", "never print it whole", "cannot create a server"},
 		"mcp-restart": {"returns at once", "meno mcp servers"},
-		"meno":        {"4 doctor found warnings", "5 a session waits", "124"},
+		"meno":        {"4 doctor found warnings", "124", "meno -p"},
 	} {
 		text, err := Text(topic)
 		if err != nil {

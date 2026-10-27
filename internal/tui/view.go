@@ -96,7 +96,7 @@ var commandList = []cmdDef{
 	{"/fork", "fork at a message"},
 	{"/rename", "rename this session"},
 	{"/tasks", "background processes"},
-	{"/sessions", "switch session"},
+	{"/resume", "continue a stored session"},
 	{"/cd", "change directory"},
 	{"/model", "model & effort"},
 	{"/skills", "load skills"},
@@ -108,7 +108,7 @@ var commandList = []cmdDef{
 	{"/export", "export markdown"},
 	{"/stop", "stop this turn"},
 	{"/help", "keys & commands"},
-	{"/q", "leave meno; work keeps running"},
+	{"/q", "leave meno; its runs and tasks end"},
 }
 
 func viewMode(v string) render.ViewMode {

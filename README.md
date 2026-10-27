@@ -2,8 +2,9 @@
 
 A terminal coding agent for individual developers. It has one tool, `bash`;
 the `meno` command inside it gives the agent background tasks, images, questions to the user and
-your MCP servers. A background daemon owns sessions and runs, so work goes on when you close
-the terminal. The UI is a terminal UI built on
+your MCP servers. There is no background process: each meno window, `meno -p` run and ACP
+connection runs its own engine, and closing it ends its work. Sessions are stored; `meno resume`
+continues one. The UI is a terminal UI built on
 [tcell](https://github.com/gdamore/tcell). Pure Go, no CGO. macOS and Linux
 (arm64, amd64). MIT licensed.
 
@@ -59,15 +60,16 @@ every push and pull request on Linux and macOS and installs a snapshot build wit
 
 Commands and agent questions open panels above the composer, leaving the
 conversation visible. `/settings` is one list; edit `~/.meno/theme.json` for live
-palette changes. Unused daemons exit after a 10-second grace period and restart
-on the next launch without losing saved sessions.
+palette changes. `meno resume` continues a stored session; `meno -p "..."` runs one prompt
+without the UI.
 
 ## Documentation
 
 | | |
 | --- | --- |
 | [The agent's tool](docs/tools.md) | the `bash` tool and the `meno` command the model uses: files, tasks, mcp, view, ask |
-| [Command line](docs/cli.md), [daemon](docs/daemon.md) | `meno sessions`, `send`, `tail`, `doctor`; the background daemon |
+| [Command line](docs/cli.md) | `meno -p`, `resume`, `doctor`, `update` |
+| [JSON-RPC over stdio](docs/stdio.md) | `meno -p --stdio`: nearly all of meno for a host program |
 | [ACP agent](docs/acp.md) | `meno acp`: use Meno from any ACP client |
 | [Sessions, history and events](docs/sessions.md) | /new, /fork, /cd, compaction, steering, /stop |
 | [Providers](docs/login.md) | `/login` |

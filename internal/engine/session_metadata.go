@@ -140,6 +140,7 @@ func (e *Engine) DeleteSession(ctx context.Context, id string) error {
 		e.mu.Lock()
 		delete(e.sessions, id)
 		e.mu.Unlock()
+		e.unlockSession(id)
 		err = (mcp.ResultStore{Dir: e.paths.File("mcp-results")}).DeleteSession(id)
 		if unsaved {
 			return err

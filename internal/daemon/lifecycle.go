@@ -2,118 +2,94 @@ package daemon
 
 import (
 	"context"
+	"io"
+	"net"
 	"net/http"
-	"os"
 	"time"
 )
 
-// Serve listens on the configured unix socket until context cancellation.
-func (s *Server) Serve(ctx context.Context) error {
-	lock := s.lock
-	var err error
-	if lock == nil {
-		lock, err = lockFile(s.runDir)
+// Start runs the start hook (the configuration service).
+func (s *Server) Start() error {
+	if s.onStart != nil {
+		return s.onStart()
 	}
-	if err != nil {
-		return err
-	}
-	inherited := os.Getenv("MENO_DAEMON_LOCK_FD") != ""
-	_ = os.Unsetenv("MENO_DAEMON_LOCK_FD")
-	if inherited {
-		if err = waitForInheritedLock(lock, 5*time.Second); err != nil {
-			lock.Close()
-			return err
-		}
-	} else if s.lock == nil {
-		if err = acquireLock(lock); err != nil {
-			lock.Close()
-			return ErrAlreadyRunning
-		}
-	}
-	s.lock = lock
-	defer s.cleanup()
-	listener, err := listenSocket(s.socket)
-	if err != nil {
-		return err
-	}
-	s.listener = listener
-	if err = s.startHTTP(ctx); err != nil {
-		if err == http.ErrServerClosed {
-			return nil
-		}
-		return err
-	}
-	go s.stopOnContext(ctx)
-	go s.idleLoop(ctx)
-	err = s.http.Serve(listener)
+	return nil
+}
+
+// Serve accepts connections on l until Stop or l is closed.
+func (s *Server) Serve(l net.Listener) error {
+	s.track(l)
+	return s.serve(l, s.handler)
+}
+
+// ServeCall serves one connection of a bash call until it closes. The channel
+// itself says who is asking: every request gets the token and call ID of the
+// call, whatever the client sent, so a process of the call cannot ask as a human
+// or as another session. The connection is not tracked: it ends with the call.
+func (s *Server) ServeCall(c net.Conn, token, call string) {
+	bound := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r.Header.Del("Authorization")
+		r.Header.Set("X-Meno-Token", token)
+		r.Header.Set("X-Meno-Call", call)
+		s.handler.ServeHTTP(w, r)
+	})
+	_ = s.serve(&oneConn{c: c, done: make(chan struct{})}, bound)
+}
+
+func (s *Server) serve(l net.Listener, h http.Handler) error {
+	srv := &http.Server{Handler: h, ReadHeaderTimeout: 5 * time.Second}
+	s.mu.Lock()
+	s.servers[srv] = struct{}{}
+	s.mu.Unlock()
+	defer func() { s.mu.Lock(); delete(s.servers, srv); s.mu.Unlock() }()
+	err := srv.Serve(l)
 	if err == http.ErrServerClosed {
 		return nil
 	}
 	return err
 }
-func (s *Server) stopOnContext(ctx context.Context) {
-	select {
-	case <-ctx.Done():
-		s.Stop("signal")
-	case <-s.done:
+
+// ServeMem starts the server and serves it on an in-memory listener. It returns
+// the dial function of a client.
+func (s *Server) ServeMem() (func(context.Context) (net.Conn, error), error) {
+	if err := s.Start(); err != nil {
+		return nil, err
 	}
+	ln := NewMemListener()
+	s.track(ln) // before the goroutine runs, so an early Stop still closes it
+	go func() { _ = s.Serve(ln) }()
+	return ln.Dial, nil
 }
 
-// Stop publishes bye and stops HTTP listeners.
+// Stop publishes bye to every stream, closes the listeners and runs the stop hook once.
 func (s *Server) Stop(reason string) {
 	s.stopOnce.Do(func() {
-		s.startMu.Lock()
-		defer s.startMu.Unlock()
-		s.admission.Lock()
-		s.stopping = true
-		s.admission.Unlock()
+		s.mu.Lock()
+		for _, c := range s.closers {
+			_ = c.Close()
+		}
+		s.mu.Unlock()
 		s.hub.Close(reason)
 		s.global.Close(reason)
 		if s.onStop != nil {
 			s.onStop()
 		}
-		if s.http != nil {
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			_ = s.http.Shutdown(ctx)
+		s.mu.Lock()
+		open := make([]*http.Server, 0, len(s.servers))
+		for srv := range s.servers {
+			open = append(open, srv)
 		}
-		close(s.done)
+		s.mu.Unlock()
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		for _, srv := range open {
+			_ = srv.Shutdown(ctx) // lets running requests finish
+		}
 	})
 }
-func (s *Server) cleanup() {
-	s.Stop("serve ended")
-	if s.listener != nil {
-		_ = s.listener.Close()
-	}
-	if s.http != nil {
-		_ = s.http.Close()
-	}
-	closeSocket(s.socket)
-	removePID(s.runDir)
-	if s.lock != nil {
-		_ = unlockFile(s.lock)
-		_ = s.lock.Close()
-	}
-}
 
-// startHTTP and Stop serialize startup hooks and HTTP construction. Shutdown
-// before Serve must not leave a server listening after stopOnce has completed.
-func (s *Server) startHTTP(ctx context.Context) error {
-	s.startMu.Lock()
-	defer s.startMu.Unlock()
-	s.admission.Lock()
-	stopped := s.stopping
-	s.admission.Unlock()
-	if stopped {
-		return http.ErrServerClosed
-	}
-	s.http = &http.Server{Handler: s.routes(), ReadHeaderTimeout: 5 * time.Second}
-	writePID(s.runDir, s.pid)
-	if s.onStart != nil {
-		if err := s.onStart(ctx); err != nil {
-			return err
-		}
-	}
-	_ = RotateLog(s.logPath)
-	return nil
+func (s *Server) track(c io.Closer) {
+	s.mu.Lock()
+	s.closers = append(s.closers, c)
+	s.mu.Unlock()
 }

@@ -43,7 +43,7 @@ func fakeMCPHTTP(t *testing.T) *httptest.Server {
 	return s
 }
 
-func waitStatus(t *testing.T, d *DaemonAPI, name, want string) string {
+func waitStatus(t *testing.T, d *OwnerAPI, name, want string) string {
 	t.Helper()
 	got := ""
 	for i := 0; i < 100; i++ {
@@ -67,10 +67,9 @@ func waitStatus(t *testing.T, d *DaemonAPI, name, want string) string {
 
 // mcpWarnings reads what `meno doctor` reads from the daemon: the warnings the
 // configuration service reports for mcp.json.
-func mcpWarnings(t *testing.T, home, socket string) []string {
+func mcpWarnings(t *testing.T, home string, rpc *client.Client) []string {
 	t.Helper()
-	cl := client.New(home)
-	cl.Socket = socket
+	cl := rpc
 	ms, err := cl.McpServers(context.Background())
 	if err != nil {
 		t.Fatal(err)
@@ -106,7 +105,7 @@ func TestAgentCreatesMCPServerByEditingTheFile(t *testing.T) {
 
 func TestMCPFileWithABadEntryKeepsTheGoodOnes(t *testing.T) {
 	fake := fakeMCPHTTP(t)
-	home, _, _, dapi, socket := startRig(t, &scripted{})
+	home, _, _, dapi, rpc := startRig(t, &scripted{})
 	file := fmt.Sprintf(`[{"name":"Bad Name","transport":"streamable-http","url":%q},{"name":"good","transport":"streamable-http","url":%q}]`, fake.URL, fake.URL)
 	if err := os.WriteFile(filepath.Join(home, "mcp.json"), []byte(file), 0o600); err != nil {
 		t.Fatal(err)
@@ -120,13 +119,13 @@ func TestMCPFileWithABadEntryKeepsTheGoodOnes(t *testing.T) {
 	if got := waitStatus(t, dapi, "Bad Name", "absent"); got != "absent" {
 		t.Fatalf("the invalid entry is listed: %q", got)
 	}
-	if w := mcpWarnings(t, home, socket); len(w) != 1 || !strings.Contains(w[0], "Bad Name") {
+	if w := mcpWarnings(t, home, rpc); len(w) != 1 || !strings.Contains(w[0], "Bad Name") {
 		t.Fatalf("doctor would see warnings %q, want one naming the skipped entry", w)
 	}
 }
 
 func TestMCPFileThatIsNotJSONIsReportedByDoctor(t *testing.T) {
-	home, _, _, dapi, socket := startRig(t, &scripted{})
+	home, _, _, dapi, rpc := startRig(t, &scripted{})
 	if err := os.WriteFile(filepath.Join(home, "mcp.json"), []byte(`[{"name": "x",`), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -141,7 +140,7 @@ func TestMCPFileThatIsNotJSONIsReportedByDoctor(t *testing.T) {
 	if !found {
 		t.Fatalf("doctor is silent about an unreadable mcp.json: %+v", configChecks(home))
 	}
-	if w := mcpWarnings(t, home, socket); len(w) == 0 {
+	if w := mcpWarnings(t, home, rpc); len(w) == 0 {
 		t.Fatal("the daemon reports no warning for an unreadable mcp.json")
 	}
 }

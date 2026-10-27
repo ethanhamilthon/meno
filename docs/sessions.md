@@ -4,7 +4,7 @@ Several sessions run at once. Each has its own conversation, working directory,
 model, effort, counters, pending question and half-typed message;
 providers, MCP servers and settings are shared.
 
-- `/sessions` lists the last 200 sessions of all projects with live statuses: blinking green = running, orange `?` = waiting for an
+- `/resume` lists the last 200 stored sessions of all projects with live statuses: blinking green = running, orange `?` = waiting for an
   answer, red = last turn failed, blue = finished while you were elsewhere. The status bar
   counts the other sessions too (see [ui](ui.md#status-bar)).
   `Tab` cycles the filter all, running, asking, done; clicking a counter in the status bar opens the list already filtered.
@@ -30,7 +30,7 @@ providers, MCP servers and settings are shared.
 - `/stop` / `Ctrl+C` cancel the active root request: its running turn, the bash calls
   still running in the foreground, and its pending events. Background tasks
   (`meno tasks start`, or a call moved to a task by your message) keep running;
-  cancel one with `meno tasks cancel ID`. `/q` only detaches the terminal; runs and tasks keep going.
+  cancel one with `meno tasks cancel ID`. `/q` leaves meno; its runs and tasks end with it.
 
 ## Steering and events
 
@@ -51,11 +51,12 @@ tasks are marked interrupted.
 
 ## Several windows
 
-Any number of terminals can watch and drive the same daemon. Shared: history, the
-queue, the running turn, tasks, the model and directory of a session, providers and
-MCP, and which finished turns you have read. Local to each window: the draft, the
-cursor, the scroll position and the selected session. Anyone can send or stop; a
-stop names the request it was meant for, so it cannot hit a newer one.
+Each meno process (a window, `meno -p`, an ACP connection) runs its own engine. Stored sessions,
+settings, providers and MCP definitions are shared through `MENO_HOME`; running turns and tasks are not:
+they belong to the process that started them and end with it. A session has one owner: opening a
+session that another process has open fails with a message naming the problem (the lock is dropped
+by the system when that process dies, however it dies). Settings changed in one window reach the
+others the next time they are read.
 
 When the stream of a session breaks, the status bar says `offline · state may be
 stale` and sending is held back with your draft kept; it clears on the next fresh

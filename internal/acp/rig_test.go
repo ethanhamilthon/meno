@@ -47,30 +47,13 @@ func daemonRig(t *testing.T, f llm.Client) (*client.Client, *engine.Engine) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	srv, err := daemon.New(daemon.Options{Home: home, Backend: eng, Hub: hub, Global: global, Version: "test", OnStart: svc.Start, OnStop: func() { eng.Close(); svc.Close() }})
+	srv := daemon.New(daemon.Options{Backend: eng, Hub: hub, Global: global, Version: "test", OnStart: func() error { return svc.Start(context.Background()) }, OnStop: func() { eng.Close(); svc.Close() }})
+	dial, err := srv.ServeMem()
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	served := make(chan struct{})
-	go func() { _ = srv.Serve(ctx); close(served) }()
-	t.Cleanup(func() {
-		cancel()
-		srv.Stop("test")
-		<-served
-		eng.Close()
-		db.CloseAll()
-	})
-	c := client.New(home)
-	for i := 0; ; i++ {
-		if _, err := c.Hello(context.Background()); err == nil {
-			break
-		}
-		if i > 400 {
-			t.Fatal("daemon did not start")
-		}
-		time.Sleep(5 * time.Millisecond)
-	}
+	t.Cleanup(func() { srv.Stop("test"); db.CloseAll() })
+	c := client.New(dial)
 	return c, eng
 }
 

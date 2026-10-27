@@ -62,8 +62,12 @@ func (e *Engine) newState(sess *agent.Session, persisted bool) (*runState, error
 // adopt registers a new, unsaved session. It lives in memory until its first
 // message; nothing is written and nobody is told about it yet.
 func (e *Engine) adopt(sess *agent.Session) (*runState, error) {
+	if err := e.lockSession(sess.ID); err != nil {
+		return nil, err
+	}
 	st, err := e.newState(sess, false)
 	if err != nil {
+		e.unlockSession(sess.ID)
 		return nil, err
 	}
 	e.mu.Lock()

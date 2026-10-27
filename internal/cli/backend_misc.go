@@ -6,7 +6,7 @@ import (
 )
 
 // Ask puts a form to the human and waits for the answers.
-func (a *DaemonAPI) Ask(form []byte) (map[string]any, error) {
+func (a *OwnerAPI) Ask(form []byte) (map[string]any, error) {
 	var out map[string]any
 	return out, a.post("ask", "", map[string]any{"form": json.RawMessage(form)}, &out)
 }
@@ -16,13 +16,13 @@ func (a *DaemonAPI) Ask(form []byte) (map[string]any, error) {
 // GoalBlocked ends a goal run that cannot go on.
 
 // View asks the client to show an image after the call.
-func (a *DaemonAPI) View(path string) (ViewResult, error) {
+func (a *OwnerAPI) View(path string) (ViewResult, error) {
 	var out ViewResult
 	return out, a.post("view", "", map[string]any{"path": path}, &out)
 }
 
 // Models lists the models of the enabled providers.
-func (a *DaemonAPI) Models(provider string, refresh bool) (ModelList, error) {
+func (a *OwnerAPI) Models(provider string, refresh bool) (ModelList, error) {
 	var out ModelList
 	q := url.Values{}
 	if provider != "" {

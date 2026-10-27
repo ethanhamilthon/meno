@@ -20,7 +20,6 @@ type Backend interface {
 	Compact(context.Context, string, api.CompactRequest) (api.CompactResponse, error)
 	AnswerAsk(context.Context, string, string, api.AskAnswerRequest) error
 	Resource(context.Context, string, string, string, api.ResourceRequest) (api.ResourceResponse, error)
-	HasWork(context.Context) bool
 	ApplyClientID(context.Context, string, func() (any, error)) (any, error)
 }
 
@@ -62,7 +61,6 @@ func (b NotImplementedBackend) AnswerAsk(context.Context, string, string, api.As
 func (b NotImplementedBackend) Resource(context.Context, string, string, string, api.ResourceRequest) (api.ResourceResponse, error) {
 	return api.ResourceResponse{}, b.err()
 }
-func (NotImplementedBackend) HasWork(context.Context) bool { return false }
 func (NotImplementedBackend) ApplyClientID(_ context.Context, _ string, fn func() (any, error)) (any, error) {
 	return fn()
 }

@@ -13,6 +13,7 @@ import (
 	"meno/internal/llm"
 	"meno/internal/mcp"
 	"meno/internal/process"
+	"net"
 	"os"
 	"sync"
 	"time"
@@ -43,8 +44,6 @@ type Options struct {
 	GlobalHub      GlobalEventHub
 	Resources      ResourceHandler
 	ProviderClient func(llm.Provider) llm.Client
-	// Socket is the path of the daemon socket (MENO_SOCK of agent calls).
-	Socket string
 }
 
 type runState struct {
@@ -91,7 +90,9 @@ type runState struct {
 type Engine struct {
 	events2    *agent.EventStore // durable steering queue
 	home       string
-	sock       string // the daemon socket, handed to agent calls as MENO_SOCK
+	lockMu     sync.Mutex
+	locks      map[string]*os.File                  // session locks held by this process (ownerlock.go)
+	serveCall  func(c net.Conn, token, call string) // serves the protocol on a connection of an agent call
 	paths      config.Paths
 	store      *config.Store
 	settings   config.Settings
@@ -149,15 +150,11 @@ func New(o Options) (*Engine, error) {
 		return nil, err
 	}
 	evStore, _ := agent.OpenEvents(o.Home)
-	if err = recoverInterrupted(o.Home, d); err != nil {
-		tasks.Shutdown()
-		return nil, err
-	}
 	client := o.ProviderClient
 	if client == nil {
 		client = llm.NewClient
 	}
-	*eng = Engine{events2: evStore, sock: o.Socket, home: o.Home, paths: paths, store: st, settings: settings, providers: providers, servers: servers, catalog: catalog, mcp: o.MCP, tasks: tasks, events: o.EventHub, global: o.GlobalHub, resources: o.Resources, client: client, sessions: map[string]*runState{}, ids: map[string]idResult{}}
+	*eng = Engine{locks: map[string]*os.File{}, events2: evStore, home: o.Home, paths: paths, store: st, settings: settings, providers: providers, servers: servers, catalog: catalog, mcp: o.MCP, tasks: tasks, events: o.EventHub, global: o.GlobalHub, resources: o.Resources, client: client, sessions: map[string]*runState{}, ids: map[string]idResult{}}
 	return eng, nil
 }
 
@@ -192,6 +189,7 @@ func (e *Engine) Close() {
 		s.scopeMu.Unlock()
 	}
 	e.tasks.Shutdown()
+	e.unlockAll()
 }
 
 func (e *Engine) load(ctx context.Context, id string) (*runState, error) {
@@ -209,8 +207,20 @@ func (e *Engine) load(ctx context.Context, id string) (*runState, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err = e.lockSession(id); err != nil {
+		return nil, err
+	}
+	changed, err := e.recoverSession(id)
+	if err == nil && changed {
+		sess, err = agent.LoadSession(e.home, id) // recovery added its closing turn
+	}
+	if err != nil {
+		e.unlockSession(id)
+		return nil, err
+	}
 	st, err := e.newState(sess, true)
 	if err != nil {
+		e.unlockSession(id)
 		return nil, err
 	}
 	e.mu.Lock()
@@ -236,3 +246,7 @@ func groupsFor(names []string) map[string]bool {
 	}
 	return m
 }
+
+// SetCallServer sets how a connection of an agent call is served: with the token
+// and call ID of that call. Without it calls run without a channel back to the engine.
+func (e *Engine) SetCallServer(f func(c net.Conn, token, call string)) { e.serveCall = f }

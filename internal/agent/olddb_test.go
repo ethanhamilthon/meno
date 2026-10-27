@@ -10,7 +10,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-func TestImportsOldSessionsDB(t *testing.T) {
+func TestOldSessionsDBIsNotImported(t *testing.T) {
 	home := t.TempDir()
 	t.Cleanup(CloseSessionStores)
 	dir := filepath.Join(home, "sessions")
@@ -26,7 +26,7 @@ func TestImportsOldSessionsDB(t *testing.T) {
 	old.Close()
 	list, err := ListSessions(home)
 	if err != nil || len(list) != 0 {
-		t.Fatalf("legacy import into clean epoch: %v %v", list, err)
+		t.Fatalf("an old sessions.db must not be imported: %v %v", list, err)
 	}
 }
 

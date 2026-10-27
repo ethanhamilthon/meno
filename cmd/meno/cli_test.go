@@ -44,10 +44,19 @@ func TestUnknownCommandFails(t *testing.T) {
 
 // Every command the cli package implements must be routed to it by the entry
 // point, or the real binary answers "unknown command".
-func TestEveryCLICommandIsRoutedToTheDaemonGroup(t *testing.T) {
-	for _, name := range []string{"mcp", "tasks", "ask", "view", "models", "sessions", "send", "tail", "doctor"} {
-		if !isDaemonGroup(name) {
-			t.Errorf("%q is not routed to the cli package", name)
+func TestEveryCLICommandIsRouted(t *testing.T) {
+	for _, name := range []string{"mcp", "tasks", "ask", "view", "models", "doctor"} {
+		if _, _, errOut := runCLI(name, "--help"); strings.Contains(errOut, "unknown command") {
+			t.Errorf("%q is not routed to the cli package: %q", name, errOut)
+		}
+	}
+}
+
+func TestRemovedCommandsPointToTheReplacement(t *testing.T) {
+	for _, name := range []string{"daemon", "send", "tail", "sessions"} {
+		code, _, errOut := runCLI(name)
+		if code != 2 || !strings.Contains(errOut, "removed in 0.8.0") {
+			t.Errorf("%s: %d %q", name, code, errOut)
 		}
 	}
 }

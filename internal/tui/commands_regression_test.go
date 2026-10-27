@@ -29,7 +29,7 @@ func TestNewStartsWithoutAccounting(t *testing.T) {
 func TestRemovedCommandsAreUnknown(t *testing.T) {
 	a, s := newTestApp(t)
 	defer s.Fini()
-	for _, cmd := range []string{"clear", "resume", "cache", "notify", "attach", "theme"} {
+	for _, cmd := range []string{"clear", "cache", "notify", "attach", "theme"} {
 		a.st.Notices = nil
 		a.runCommand(cmd)
 		if !strings.Contains(a.lastNotice(), "unknown command") {
@@ -38,13 +38,13 @@ func TestRemovedCommandsAreUnknown(t *testing.T) {
 	}
 	for _, c := range commandList {
 		switch c.name {
-		case "/clear", "/resume", "/cache", "/notify", "/attach", "/theme":
+		case "/clear", "/cache", "/notify", "/attach", "/theme":
 			t.Fatalf("%s still in the command list", c.name)
 		}
 	}
 }
 
-func TestSessionsCommandReportsListingFailure(t *testing.T) {
+func TestResumeCommandReportsListingFailure(t *testing.T) {
 	a, s := newTestApp(t)
 	defer s.Fini()
 	// Quiesce hydration before deliberately replacing the database. Otherwise a
@@ -60,7 +60,7 @@ func TestSessionsCommandReportsListingFailure(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(a.paths.Home, "meno.db"), []byte("garbage"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	a.runCommand("sessions")
+	a.runCommand("resume")
 	if a.st.Over != OverSessions {
 		t.Fatal("the dialog opens at once, before the list is loaded")
 	}

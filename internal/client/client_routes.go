@@ -87,8 +87,3 @@ func (c *Client) Compact(ctx context.Context, id string, q api.CompactRequest) (
 func (c *Client) AnswerAsk(ctx context.Context, id, askID string, q api.AskAnswerRequest) error {
 	return c.post(ctx, "/v1/sessions/"+pathID(id)+"/asks/"+pathID(askID), q, nil)
 }
-
-// Shutdown asks the daemon to stop after it closes active event streams.
-func (c *Client) Shutdown(ctx context.Context, reason string) error {
-	return c.post(ctx, "/v1/shutdown", api.ShutdownRequest{Reason: reason}, nil)
-}

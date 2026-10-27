@@ -20,16 +20,6 @@ func (a *App) storeForTest() testStore {
 	return testStore{a: a}
 }
 
-func (s testStore) LoadSettings() (config.Settings, error) {
-	var out config.Settings
-	err := s.a.rpc(func(ctx context.Context, c *client.Client) error {
-		r, e := c.Settings(ctx)
-		out = settingsFromWire(r.Settings)
-		return e
-	})
-	return out, err
-}
-
 func (s testStore) LoadProviders() ([]llm.Provider, error) {
 	r, err := s.a.fetchConfigErr()
 	return r.providers, err

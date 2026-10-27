@@ -19,10 +19,7 @@ func (b *messageClientBackend) Message(_ context.Context, _ string, q api.Messag
 }
 func TestAgentTokenOverridesMessageClient(t *testing.T) {
 	b := &messageClientBackend{countingBackend: countingBackend{cache: NewIdempotency()}}
-	s, err := New(Options{Home: t.TempDir(), Backend: b})
-	if err != nil {
-		t.Fatal(err)
-	}
+	s := New(Options{Backend: b})
 	for _, token := range []string{"", "agent-token"} {
 		r := httptest.NewRequest("POST", "/v1/sessions/s/messages", strings.NewReader(`{"text":"hello","client":"tui","client_id":"`+token+`message"}`))
 		if token != "" {

@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
-	"runtime"
 	"strings"
 )
 
@@ -21,12 +20,6 @@ type Asset struct {
 	Sums   string // name of the checksum list, for example "SHA256SUMS"
 	Suffix string // end of the archive name for this platform
 	Binary string // base name of the file inside the archive
-}
-
-// Install downloads the release tag for this platform, checks its SHA-256
-// against SHA256SUMS and replaces the executable at exe with it.
-func (c Client) Install(ctx context.Context, tag, exe string) error {
-	return c.install(ctx, tag, exe, runtime.GOOS, runtime.GOARCH)
 }
 
 func (c Client) install(ctx context.Context, tag, exe, goos, goarch string) error {

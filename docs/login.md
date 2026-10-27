@@ -23,9 +23,9 @@ provider with a key (or a local URL, or a `run` command).
 ## Custom providers and local servers
 
 Providers are saved in `$MENO_HOME/provider.json`; you can edit that file by hand.
-An `api_key` of `env:NAME` reads the key from the daemon's environment. A local server
-can use an empty key. An optional `run` shell command starts with the daemon and is
-stopped when the daemon exits. Meno does not install or update external proxies.
+An `api_key` of `env:NAME` reads the key from the environment of meno. A local server
+can use an empty key. An optional `run` shell command starts with meno and is
+stopped when meno exits. Meno does not install or update external proxies.
 See [settings](settings.md) for the file format and model overrides.
 
 For changes affecting older account logins, see [upgrading](upgrading.md).

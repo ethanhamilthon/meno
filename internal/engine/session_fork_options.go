@@ -11,10 +11,10 @@ import (
 
 // forkChanges are the checked settings a fork gets instead of its source's.
 type forkChanges struct {
-	cwd, title, spawnedBy string
-	model                 *modelChoice
-	system                *[2]string // name, text
-	noAsk                 bool
+	cwd, title string
+	model      *modelChoice
+	system     *[2]string // name, text
+	noAsk      bool
 }
 
 // forkOverrides validates everything a fork request changes before any session
@@ -55,10 +55,7 @@ func (e *Engine) forkOverrides(ctx context.Context, src *runState, q api.ForkReq
 		}
 		c.system = &[2]string{name, text}
 	}
-	if err := e.checkSpawn(ctx, q.SpawnedBy); err != nil {
-		return c, err
-	}
-	c.spawnedBy, c.noAsk = q.SpawnedBy, q.NoAsk
+	c.noAsk = q.NoAsk
 	return c, nil
 }
 
@@ -80,6 +77,5 @@ func (e *Engine) applyForkOverrides(s *runState, c forkChanges) error {
 	if c.noAsk {
 		s.session.NoAsk = true
 	}
-	s.session.SpawnedBy = c.spawnedBy
 	return e.save(s)
 }
