@@ -13,10 +13,18 @@ func (a *App) openOverlay(o Overlay) {
 	a.st.Over = o
 	a.st.Sel = 0
 	a.st.Field = 0
-	a.st.Query.Reset()
 	a.st.EffortPick = ""
-	a.endEdit()
+	a.endEntry()
 	a.st.FormNote = ""
+	a.startSearch(o)
+}
+
+// startSearch makes the composer the search field of a list dialog.
+func (a *App) startSearch(o Overlay) {
+	label := map[Overlay]string{OverModel: "/model ", OverSkills: "/skills ", OverSessions: "/sessions ", OverFork: "/fork "}[o]
+	if label != "" {
+		a.beginEntry(entry{label: label}, "")
+	}
 }
 
 func (a *App) closeOverlay() {
@@ -43,7 +51,7 @@ func (a *App) backOverlay() {
 	default:
 		a.closeOverlay()
 	}
-	a.endEdit()
+	a.endEntry()
 	a.st.FormNote = ""
 }
 
@@ -52,7 +60,7 @@ func (a *App) onOverlayKey(k *tcell.EventKey) {
 		a.wizardKey(k)
 		return
 	}
-	if k.Key() == tcell.KeyEsc && !a.st.Editing {
+	if k.Key() == tcell.KeyEsc {
 		if a.st.Locked && a.st.Over == OverLogin {
 			a.notify("add a provider to start · ctrl+c quits")
 			return

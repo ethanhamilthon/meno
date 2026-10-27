@@ -81,37 +81,3 @@ func (a *App) recordItems(b box, y int, items []item, sel int) {
 		}
 	}
 }
-
-func (a *App) panelQuery() (*textEdit, string) {
-	switch a.st.Over {
-	case OverModel:
-		return &a.st.Query, "/model "
-	case OverSkills:
-		return &a.st.Query, "/skills "
-	case OverSessions:
-		if a.st.Editing {
-			return &a.st.Edit, "rename "
-		}
-		return &a.st.Query, "/sessions "
-	case OverFork:
-		return &a.st.Query, "/fork "
-	case OverWizard:
-		return &a.st.Edit, a.wizField().label + " "
-	}
-	return nil, ""
-}
-
-func (a *App) drawPanelComposer(c render.Canvas, x, y, w, h int) bool {
-	q, prefix := a.panelQuery()
-	if q == nil {
-		return false
-	}
-	c.Fill(x, y, w, h, render.BgPopup)
-	row := y + min(1, max(0, h-1))
-	padding := min(render.Gutter, max(0, (w-1)/2))
-	width := max(0, w-2*padding)
-	st := render.Style{FG: render.Blue, BG: render.BgPopup}.TCell()
-	used := c.Text(x+padding, row, width, prefix, st)
-	q.Draw(c, x+padding+used, row, max(0, width-used), 1, render.Style{FG: render.FgWhite, BG: render.BgPopup}.TCell(), true)
-	return true
-}

@@ -6,7 +6,7 @@ import (
 	"github.com/rivo/uniseg"
 )
 
-// Cursor movement on a rune slice, shared by the composer and textEdit.
+// Cursor movement on a rune slice, used by the composer.
 
 // wordBoundary is the start of the previous (dir<0) or the end of the next
 // (dir>0) word.

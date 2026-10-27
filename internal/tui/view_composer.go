@@ -10,7 +10,7 @@ import (
 // drawComposer draws the input band. Text starts below the top padding; the
 // real terminal cursor marks the edit position (see applyCursor).
 func (a *App) drawComposer(c render.Canvas, x, y, w, h int) {
-	if a.drawPanelComposer(c, x, y, w, h) {
+	if a.drawEntryComposer(c, x, y, w, h) {
 		return
 	}
 	pad := min(composerPadX, max(0, (w-1)/2))

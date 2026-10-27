@@ -98,7 +98,7 @@ func (a *App) sessionRows() []sessionRow {
 
 func (a *App) sessionsFiltered() ([]sessionRow, []int) {
 	rows := a.sessionRows()
-	q := a.st.Query.String()
+	q := a.query()
 	return rows, filterIdx(len(rows), func(i int) bool {
 		s := rows[i]
 		if !a.matchesFilter(s, a.st.AttnFilter) {
@@ -113,7 +113,7 @@ func (a *App) sessionsKey(k *tcell.EventKey) {
 	switch {
 	case a.navKey(k, len(idx), false):
 	case k.Key() == tcell.KeyCtrlU:
-		a.st.Query.Reset()
+		a.setQuery("")
 		a.st.Sel = 0
 	case k.Key() == tcell.KeyTab:
 		a.setFilter(a.st.AttnFilter + 1)

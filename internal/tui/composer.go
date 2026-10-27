@@ -70,7 +70,7 @@ type cursorPos struct {
 // applyCursor shows a real terminal cursor: a blinking bar in the composer,
 // hidden while a selection is shown or a dialog is open.
 func (a *App) applyCursor() {
-	if !a.cur.ok || a.st.Over != OverNone || a.askChoosing() || a.st.Selecting {
+	if !a.cur.ok || a.st.Over != OverNone || (a.askChoosing() && !a.st.Ask.Typing) || a.st.Selecting {
 		a.scr.HideCursor()
 		return
 	}
@@ -86,7 +86,7 @@ func (a *App) applyCursor() {
 
 // composerHeightFor is the composer band height for a screen width w.
 func (a *App) composerHeightFor(w int) int {
-	if a.panelOpen() {
+	if a.panelOpen() && !a.typingAnswer() {
 		_, h := a.scr.Size()
 		if h < 10 {
 			return 1

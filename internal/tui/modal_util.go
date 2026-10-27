@@ -23,7 +23,7 @@ func containsFold(s, q string) bool {
 }
 
 func (a *App) queryKey(k *tcell.EventKey) {
-	if a.st.Query.Handle(k) {
+	if a.entryEdit(k, false) {
 		a.st.Sel = 0
 	}
 }

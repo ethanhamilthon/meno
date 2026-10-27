@@ -45,17 +45,18 @@ type askAnswer struct {
 // askState is the form the agent waits on. It is shown as a dialog over the
 // session; the composer's own text is put aside while it is open.
 type askState struct {
-	ID     string // the daemon's id of the form
-	F      askForm
-	Ans    []askAnswer
-	Cur    int  // question on screen
-	Focus  int  // focusBody...focusCancel
-	Row    int  // cursor row in the body: options, then the custom-text row
-	Typing bool // keys edit the custom text of the current question
-	Notice string
-	Until  time.Time
-	draft  draft
-	hits   []askHit // clickable areas of the last draw
+	ID       string // the daemon's id of the form
+	F        askForm
+	Ans      []askAnswer
+	Cur      int  // question on screen
+	Focus    int  // focusBody...focusCancel
+	Row      int  // cursor row in the body: options, then the custom-text row
+	Typing   bool // keys edit the custom text of the current question
+	typingAt int  // the question whose answer text is in the composer, -1 for none
+	Notice   string
+	Until    time.Time
+	draft    draft
+	hits     []askHit // clickable areas of the last draw
 }
 
 // draft is the composer as it was before the form.
@@ -68,7 +69,7 @@ type draft struct {
 }
 
 func newAskState(f api.AskForm) *askState {
-	st := &askState{ID: f.AskID}
+	st := &askState{ID: f.AskID, typingAt: -1}
 	for _, q := range f.Questions {
 		aq := askQuestion{ID: q.ID, Text: q.Prompt, Type: q.Type, Recommendation: q.Recommendation}
 		if len(q.Choices) > 0 {

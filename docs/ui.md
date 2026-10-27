@@ -18,9 +18,11 @@ an `AGENTS.md` was found. Key hints remain below the facts.
 
 Commands, provider/MCP editors, task logs, and agent questions use full-width
 panels directly above the composer, not centered windows. The conversation stays
-visible and undimmed. Lists scroll inside the panel; searchable panels put their
-query in the composer while keeping the ordinary draft aside. Closing or backing
-out restores it. Settings is one list without tabs. A question keeps its explicit
+visible and undimmed. Lists scroll inside the panel. Every text you type in a panel
+is typed in the composer: a search, a setting, a field of a provider or MCP form,
+a step of the add wizard, the text of an answer to an agent question. The label of
+the field (`base url `) comes before the text and an API key shows as bullets. The
+ordinary draft is kept aside; closing, confirming or backing out restores it. Settings is one list without tabs. A question keeps its explicit
 Cancel action; Esc alone does not cancel it, and Ctrl+O opens sessions without
 answering or discarding a pending question.
 

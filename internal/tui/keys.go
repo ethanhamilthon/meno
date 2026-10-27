@@ -17,6 +17,10 @@ func (a *App) onKey(k *tcell.EventKey) {
 		a.abortTurn()
 		return
 	}
+	if e := a.st.Entry; e != nil && e.done != nil { // a modal entry owns every key
+		a.entryKey(k)
+		return
+	}
 	if a.st.Over != OverNone {
 		a.onOverlayKey(k)
 		return

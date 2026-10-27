@@ -78,7 +78,7 @@ func userHome() string {
 // them arrives as key events and is collected, not typed.
 func (a *App) onPaste(e *tcell.EventPaste) {
 	if e.Start() {
-		a.pasting = a.st.Over == OverNone && (a.st.Ask != nil || a.st.Mode == render.ModeInput)
+		a.pasting = a.st.Entry != nil || (a.st.Over == OverNone && (a.st.Ask != nil || a.st.Mode == render.ModeInput))
 		a.pasteBuf = a.pasteBuf[:0]
 		return
 	}
@@ -88,10 +88,13 @@ func (a *App) onPaste(e *tcell.EventPaste) {
 	a.pasting = false
 	text := strings.ReplaceAll(strings.ReplaceAll(string(a.pasteBuf), "\r\n", "\n"), "\r", "\n")
 	a.pasteBuf = a.pasteBuf[:0]
+	if a.st.Entry != nil {
+		a.entryPaste(text)
+		return
+	}
 	if a.st.Ask != nil {
 		if a.st.Ask.Typing || a.st.Ask.onOther() {
-			a.st.Ask.Typing = true
-			a.askInsert(text)
+			a.askPaste(text)
 		}
 		return
 	}

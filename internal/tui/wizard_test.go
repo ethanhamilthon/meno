@@ -10,7 +10,7 @@ import (
 
 // answer types text into the input row of the wizard and presses Enter.
 func answer(a *App, text string) {
-	a.st.Edit.Set("")
+	a.setEntryText("")
 	typeRunes(a, text)
 	a.onKey(keyK(tcell.KeyEnter))
 }
@@ -29,7 +29,7 @@ func TestProviderWizardAsksOneFieldAtATime(t *testing.T) {
 		t.Fatal("saved before the last step")
 	}
 	answer(a, "secret")
-	if a.wizField().label != "run" || !a.st.Edit.Empty() {
+	if a.wizField().label != "run" || a.entryText() != "" {
 		t.Fatalf("expected an empty run step, got %q", a.wizField().label)
 	}
 	a.onKey(keyK(tcell.KeyEnter)) // skip run
@@ -46,8 +46,8 @@ func TestProviderWizardKeepsTheDefaultAndChecksTheName(t *testing.T) {
 	defer scr.Fini()
 	draft := a.newAPIDraft(llm.ProtoResponses)
 	a.startProviderWizard(draft)
-	if a.st.Edit.String() != draft.Name {
-		t.Fatalf("the default name must be in the input: %q", a.st.Edit.String())
+	if a.entryText() != draft.Name {
+		t.Fatalf("the default name must be in the input: %q", a.entryText())
 	}
 	answer(a, "")
 	if a.wizField().label != "name" {

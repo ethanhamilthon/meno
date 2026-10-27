@@ -11,7 +11,7 @@ import (
 )
 
 func (a *App) modelList() []llm.Model {
-	return llm.FilterModels(a.allModels(), a.st.Query.String())
+	return llm.FilterModels(a.allModels(), a.query())
 }
 
 func (a *App) modelKey(k *tcell.EventKey) {
@@ -37,9 +37,7 @@ func (a *App) modelKey(k *tcell.EventKey) {
 			a.st.Mode = render.ModeInput
 		}
 	default:
-		if a.st.Query.Handle(k) {
-			a.st.Sel = 0
-		}
+		a.queryKey(k)
 	}
 }
 

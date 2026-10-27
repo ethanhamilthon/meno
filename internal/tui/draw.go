@@ -19,6 +19,7 @@ func (a *App) draw() {
 	} else {
 		clear(a.panelHits)
 	}
+	a.askSync()
 	a.completionVisible = false
 	a.animOn.Store(false)
 	a.drawMain(c, w, h)

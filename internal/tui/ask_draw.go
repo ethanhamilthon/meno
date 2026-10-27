@@ -122,7 +122,9 @@ func (a *App) drawAskForm(c render.Canvas, w, h int) {
 	}
 	val := string(ans.Other)
 	if st.Typing {
-		val += "█"
+		if val == "" {
+			val = "type in the input below"
+		}
 	} else if val == "" && q.Type != askText {
 		val = "type your own answer…"
 	} else if val == "" {
@@ -132,7 +134,7 @@ func (a *App) drawAskForm(c render.Canvas, w, h int) {
 	if st.Focus == focusBody && st.onOther() {
 		fg, rbg = render.FgWhite, render.BgPopupSel
 	}
-	if string(ans.Other) == "" && !st.Typing {
+	if string(ans.Other) == "" {
 		fg = render.FgDim
 	}
 	otherRow := len(q.Options)
@@ -151,7 +153,7 @@ func (a *App) drawAskForm(c render.Canvas, w, h int) {
 	rows = append(rows, askRow{text: "", fg: render.FgSoft, bg: bg})
 	hint := "↑/↓ move · space mark · enter next · ←/shift+tab back · tab buttons · ctrl+o sessions"
 	if st.Typing {
-		hint = "typing · enter next · shift+tab back · esc buttons · ctrl+u clear"
+		hint = "typing below · enter next · shift+tab back · esc buttons · ctrl+u clear"
 	}
 	if render.TextWidth(hint) > inner {
 		hint = "tab · ↑↓ · space · enter"
@@ -217,6 +219,7 @@ func (a *App) askMouse(e *tcell.EventMouse) {
 	if st == nil {
 		return
 	}
+	defer a.askSync()
 	if e.Buttons()&tcell.WheelUp != 0 {
 		a.askKey(tcell.NewEventKey(tcell.KeyUp, 0, 0))
 		return

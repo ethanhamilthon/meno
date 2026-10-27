@@ -38,7 +38,7 @@ func TestPanelSearchUsesComposerWithoutEditingDraft(t *testing.T) {
 	cursor := a.st.Cursor
 	a.runCommand("model gpt")
 	a.draw()
-	if a.st.Query.String() != "gpt" || !strings.Contains(screenText(s), "/model gpt") {
+	if a.query() != "gpt" || !strings.Contains(screenText(s), "/model gpt") {
 		t.Fatal("model query not shown in composer")
 	}
 	a.onKey(key('x'))

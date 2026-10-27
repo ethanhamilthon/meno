@@ -111,7 +111,7 @@ func TestSessionsOverlayListsTheCurrentSession(t *testing.T) {
 	if text := screenText(scr); !strings.Contains(text, "hello overlay") || !strings.Contains(text, "current") {
 		t.Fatalf("sessions overlay not rendered:\n%s", text)
 	}
-	a.st.Query.Set("nothing like this")
+	testQuery(a, "nothing like this")
 	a.draw()
 	if !strings.Contains(screenText(scr), "no matching sessions") {
 		t.Fatal("filter")

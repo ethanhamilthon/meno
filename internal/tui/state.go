@@ -85,7 +85,6 @@ type State struct {
 	AcDismiss  string // token dismissed until its text or cursor changes
 	CmdDismiss int    // start offset+1 of a command token the user closed with Esc
 	Sel        int
-	Query      textEdit
 	Status     string
 
 	Settings   config.Settings
@@ -107,10 +106,9 @@ type State struct {
 	ComposerY    int
 	ComposerTop  int
 
-	Field   int
-	Editing bool
-	Edit    textEdit // the field being edited while Editing
-	Wiz     wizard   // the add wizard of OverWizard
+	Field int
+	Entry *entry // the composer is editing a field of a dialog
+	Wiz   wizard // the add wizard of OverWizard
 	// FormNote says why the open form is not saved yet (empty = saved).
 	FormNote string
 

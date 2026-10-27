@@ -58,7 +58,7 @@ func (a *App) runCommand(raw string) {
 	case "model":
 		a.fetchModels()
 		a.openOverlay(OverModel)
-		a.st.Query.Set(strings.Join(args, " "))
+		a.setQuery(strings.Join(args, " "))
 	case "settings":
 		a.fetchModels()
 		a.openOverlay(OverSettings)

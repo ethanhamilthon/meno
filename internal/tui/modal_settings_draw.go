@@ -55,16 +55,8 @@ func (a *App) drawSettings(c render.Canvas, w, h int) {
 		}
 		value = render.Truncate(value, max(1, b.w/2-2))
 		labelWidth := max(1, b.w-8-render.TextWidth(value))
-		if a.st.Editing && sel {
-			labelWidth = max(1, b.w/2-6)
-		}
 		b.put(c, 4, y, render.Truncate(r.label, labelWidth), labelFG, bg)
-		if a.st.Editing && sel {
-			fieldX := max(6, b.w/2)
-			a.st.Edit.Draw(c, b.x+fieldX, b.y+y, max(1, b.w-fieldX-2), 1, render.Style{FG: render.FgWhite, BG: bg}.TCell(), true)
-		} else {
-			b.putRight(c, y, value, valueFG, bg)
-		}
+		b.putRight(c, y, value, valueFG, bg)
 		y++
 	}
 	scope := "s scope: shared"
@@ -72,8 +64,8 @@ func (a *App) drawSettings(c render.Canvas, w, h int) {
 		scope = "s scope: this window"
 	}
 	hint := "↑/↓ select · ←/→ change · " + scope + " · r reset · esc close"
-	if a.st.Editing {
-		hint = "type the key · enter save · esc cancel"
+	if a.st.Entry != nil {
+		hint = "type the value · enter save · esc cancel"
 	} else if config.TextSetting(settingRows[clampSel(a.st.Sel, len(settingRows))].key) {
 		hint = "enter edit the value · esc close"
 	}

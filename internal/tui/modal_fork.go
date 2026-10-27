@@ -39,7 +39,7 @@ func (a *App) forkRows() []forkRow {
 
 func (a *App) forkFiltered() ([]forkRow, []int) {
 	rows := a.forkRows()
-	q := a.st.Query.String()
+	q := a.query()
 	return rows, filterIdx(len(rows), func(i int) bool { return containsFold(rows[i].text, q) })
 }
 

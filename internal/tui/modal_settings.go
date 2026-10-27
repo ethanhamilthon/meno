@@ -21,10 +21,6 @@ var settingRows = []settingRow{
 }
 
 func (a *App) settingsKey(k *tcell.EventKey) {
-	if a.st.Editing {
-		a.settingTextKey(k)
-		return
-	}
 	switch {
 	case k.Key() == tcell.KeyDown || isKey(k, 'j'):
 		a.st.Sel = min(a.st.Sel+1, len(settingRows)-1)
@@ -34,7 +30,7 @@ func (a *App) settingsKey(k *tcell.EventKey) {
 		return
 	case config.TextSetting(settingRows[clampSel(a.st.Sel, len(settingRows))].key) && (k.Key() == tcell.KeyEnter || k.Rune() == ' '):
 		key := settingRows[clampSel(a.st.Sel, len(settingRows))].key
-		a.beginEdit(a.st.Settings.Get(key), false, false)
+		a.editSetting(key)
 	case k.Key() == tcell.KeyLeft || k.Rune() == ' ' || k.Key() == tcell.KeyEnter:
 		step := 1
 		if k.Key() == tcell.KeyLeft {
@@ -63,26 +59,25 @@ func (a *App) settingsKey(k *tcell.EventKey) {
 	}
 }
 
-// settingTextKey edits a free-text setting such as the search key.
-func (a *App) settingTextKey(k *tcell.EventKey) {
-	key := settingRows[clampSel(a.st.Sel, len(settingRows))].key
-	switch {
-	case k.Key() == tcell.KeyEsc:
-		a.endEdit()
-	case k.Key() == tcell.KeyEnter:
-		if err := a.st.Settings.Set(key, strings.TrimSpace(a.st.Edit.String())); err != nil {
-			a.notifyErr(err.Error())
-			return
+// editSetting types a free-text setting, such as the search key, in the composer.
+func (a *App) editSetting(key string) {
+	label := key
+	for _, r := range settingRows {
+		if r.key == key {
+			label = r.label
+		}
+	}
+	a.beginEntry(entry{label: label + " ", hint: "type the value", done: func(text string) error {
+		if err := a.st.Settings.Set(key, strings.TrimSpace(text)); err != nil {
+			return err
 		}
 		a.noteSettingEdit(key)
-		a.endEdit()
 		if key == "notify_command" {
 			a.previewNotifySound()
 		}
 		a.persistSettings()
-	default:
-		a.st.Edit.Handle(k)
-	}
+		return nil
+	}}, a.st.Settings.Get(key))
 }
 
 func (a *App) settingChoices(key string) []string {

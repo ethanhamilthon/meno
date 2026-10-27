@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/gdamore/tcell/v2"
@@ -12,7 +13,7 @@ import (
 func fillField(a *App, i int, text string) {
 	a.st.Field = i
 	a.onKey(keyK(tcell.KeyEnter))
-	a.st.Edit.Set("")
+	a.setEntryText("")
 	typeRunes(a, text)
 	a.onKey(keyK(tcell.KeyEnter))
 }
@@ -54,8 +55,8 @@ func TestProviderFormEscDropsTheField(t *testing.T) {
 	a.onKey(keyK(tcell.KeyEnter))
 	typeRunes(a, "abc")
 	a.onKey(keyK(tcell.KeyEsc))
-	if a.st.Editing || a.st.EditProv.Name != "" || a.st.Over != OverProviderEdit {
-		t.Fatalf("esc must end the edit and keep the form: editing=%v name=%q", a.st.Editing, a.st.EditProv.Name)
+	if a.st.Entry != nil || a.st.EditProv.Name != "" || a.st.Over != OverProviderEdit {
+		t.Fatalf("esc must end the edit and keep the form: editing=%v name=%q", a.st.Entry != nil, a.st.EditProv.Name)
 	}
 }
 
@@ -75,9 +76,14 @@ func TestFormFieldEditsAtTheCursor(t *testing.T) {
 }
 
 func TestSecretFieldDrawsBullets(t *testing.T) {
-	e := textEdit{Secret: true}
-	e.Set("key")
-	if string(e.shown()) != "•••" || e.String() != "key" {
-		t.Fatalf("shown %q text %q", string(e.shown()), e.String())
+	a, s := visualFixture(t, 90, 30)
+	a.st.EditProv = llm.Provider{Protocol: llm.ProtoChat, APIKey: "topsecret"}
+	a.openOverlay(OverProviderEdit)
+	a.st.Field = 2
+	a.onKey(keyK(tcell.KeyEnter))
+	a.draw()
+	text := screenText(s)
+	if strings.Contains(text, "topsecret") || !strings.Contains(text, "•••••••••") {
+		t.Fatalf("a secret field must draw bullets:\n%s", text)
 	}
 }

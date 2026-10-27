@@ -11,7 +11,6 @@ type field struct {
 	label  string
 	opts   []string
 	secret bool
-	multi  bool // Alt+Enter or Ctrl+J starts a new line
 	get    func() string
 	set    func(string) error
 }
@@ -26,10 +25,6 @@ func (a *App) formKey(k *tcell.EventKey, fs []field, commit func()) {
 		a.st.Field = len(fs) - 1
 	}
 	f := fs[a.st.Field]
-	if a.st.Editing {
-		a.editKey(k, f, commit)
-		return
-	}
 	switch {
 	case k.Key() == tcell.KeyDown || isKey(k, 'j'):
 		a.st.Field = min(a.st.Field+1, len(fs)-1)
@@ -43,7 +38,7 @@ func (a *App) formKey(k *tcell.EventKey, fs []field, commit func()) {
 		a.cycleField(f, step)
 		commit()
 	case k.Key() == tcell.KeyEnter:
-		a.beginEdit(f.get(), f.secret, f.multi)
+		a.editField(f, commit)
 	}
 }
 
@@ -62,36 +57,18 @@ func (a *App) cycleField(f field, step int) {
 	}
 }
 
-// beginEdit starts editing a text with the cursor at its end.
-func (a *App) beginEdit(text string, secret, multi bool) {
-	a.st.Editing = true
-	a.st.Edit = textEdit{Secret: secret, Multi: multi}
-	a.st.Edit.Set(text)
-}
-
-func (a *App) endEdit() {
-	a.st.Editing = false
-	a.st.Edit.Reset()
-}
-
-// editKey edits one field: Enter keeps the text, Esc drops it.
-func (a *App) editKey(k *tcell.EventKey, f field, commit func()) {
-	switch {
-	case k.Key() == tcell.KeyEsc:
-		a.endEdit()
-	case k.Key() == tcell.KeyEnter && !a.st.Edit.Handle(k):
-		if err := f.set(a.st.Edit.String()); err != nil {
-			a.notifyErr(err.Error())
-			return
+// editField types the value of a field in the composer: Enter keeps it, Esc drops it.
+func (a *App) editField(f field, commit func()) {
+	a.beginEntry(entry{label: f.label + " ", secret: f.secret, done: func(text string) error {
+		if err := f.set(text); err != nil {
+			return err
 		}
-		a.endEdit()
 		commit()
-	default:
-		a.st.Edit.Handle(k)
-	}
+		return nil
+	}}, f.get())
 }
 
-func (a *App) drawForm(c render.Canvas, b box, y int, fs []field, selField int, editing bool, ed *textEdit) {
+func (a *App) drawForm(c render.Canvas, b box, y int, fs []field, selField int) {
 	room := max(1, b.h-y-2)
 	start := max(0, selField-room+1)
 	for index := start; index < len(fs) && index < start+room; index++ {
@@ -108,10 +85,6 @@ func (a *App) drawForm(c render.Canvas, b box, y int, fs []field, selField int, 
 		b.put(c, 4, y+i, padTo(f.label, 12), render.FgDim, bg)
 		if len(f.opts) > 0 {
 			chips(c, b, y+i, 16, f.opts, f.get())
-			continue
-		}
-		if isSel && editing {
-			ed.Draw(c, b.x+16, b.y+y+i, max(1, b.w-18), 1, render.Style{FG: render.FgWhite, BG: bg}.TCell(), true)
 			continue
 		}
 		val := f.get()

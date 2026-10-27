@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"errors"
+
 	"github.com/gdamore/tcell/v2"
 
 	"meno/internal/llm"
@@ -65,74 +67,67 @@ func (a *App) wizField() field {
 	return field{}
 }
 
-// loadStep puts the current field in the input row: its value is the default.
+// loadStep asks the current field: a text in the composer, with the value it has as
+// the default, or a choice that the arrow keys change.
 func (a *App) loadStep() {
 	f := a.wizField()
-	a.st.Edit = textEdit{Secret: f.secret, Placeholder: wizardOptional[f.label]}
 	if len(f.opts) > 0 {
-		a.st.Edit.Placeholder = "← → choose · enter to confirm"
+		a.endEntry()
 		return
 	}
-	a.st.Edit.Set(f.get())
+	a.beginEntry(entry{label: f.label + " ", secret: f.secret, hint: wizardOptional[f.label], cancel: a.wizardBack, done: func(text string) error {
+		if err := f.set(text); err != nil {
+			return err
+		}
+		if err := a.wizardCheck(f.label); err != nil {
+			return err
+		}
+		a.wizardNext()
+		return nil
+	}}, f.get())
 }
 
+// wizardKey handles the keys of a choice step; a text step is an entry.
 func (a *App) wizardKey(k *tcell.EventKey) {
 	f := a.wizField()
-	if k.Key() == tcell.KeyEsc {
+	switch {
+	case k.Key() == tcell.KeyEsc:
 		a.wizardBack()
-		return
+	case len(f.opts) == 0:
+	case k.Key() == tcell.KeyLeft:
+		a.cycleField(f, -1)
+	case k.Key() == tcell.KeyRight || k.Rune() == ' ':
+		a.cycleField(f, 1)
+	case k.Key() == tcell.KeyEnter:
+		a.wizardNext()
 	}
-	if len(f.opts) > 0 {
-		switch {
-		case k.Key() == tcell.KeyLeft:
-			a.cycleField(f, -1)
-		case k.Key() == tcell.KeyRight || k.Rune() == ' ':
-			a.cycleField(f, 1)
-		case k.Key() == tcell.KeyEnter:
-			a.wizardNext()
-		}
-		return
-	}
-	if k.Key() != tcell.KeyEnter {
-		a.st.Edit.Handle(k)
-		return
-	}
-	if err := f.set(a.st.Edit.String()); err != nil {
-		a.notifyErr(err.Error())
-		return
-	}
-	if err := a.wizardCheck(f.label); err != "" {
-		a.notifyErr(err)
-		return
-	}
-	a.wizardNext()
 }
 
 // wizardCheck stops a step that cannot lead to a saved item.
-func (a *App) wizardCheck(label string) string {
+func (a *App) wizardCheck(label string) error {
 	if label != "name" {
-		return ""
+		return nil
 	}
 	if a.st.Wiz.mcp {
 		s := a.st.EditMCP
 		if s.Name == "" {
-			return "name is required"
+			return errors.New("name is required")
 		}
 		for _, o := range a.st.Servers {
 			if o.Name == s.Name {
-				return "mcp server " + s.Name + " already exists"
+				return errors.New("mcp server " + s.Name + " already exists")
 			}
 		}
-		return ""
+		return nil
 	}
 	p := a.st.EditProv
 	if p.Name == "" {
-		return "name is required"
+		return errors.New("name is required")
 	}
 	if a.providerNamed(p.Name) >= 0 {
-		return "a provider named " + p.Name + " exists"
+		return errors.New("a provider named " + p.Name + " exists")
 	}
-	return ""
+	return nil
 }
 
 func (a *App) wizardNext() {

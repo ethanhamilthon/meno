@@ -12,7 +12,7 @@ import (
 func (a *App) providerEditKey(k *tcell.EventKey) {
 	fs := a.providerFields()
 	a.formKey(k, fs, a.saveProviderEdit)
-	if isKey(k, 'd') && !a.st.Editing && a.st.EditIdx >= 0 {
+	if isKey(k, 'd') && a.st.EditIdx >= 0 {
 		a.deleteProvider(a.st.EditIdx)
 		a.openOverlay(OverLogin)
 		a.st.Sel = clampSel(0, len(a.loginRows()))
@@ -64,7 +64,7 @@ func (a *App) drawProviderEdit(c render.Canvas, w, h int) {
 		status, fg = "○ no key", render.FgDim
 	}
 	b.putRight(c, 0, status, fg, render.BgPopup)
-	a.drawForm(c, b, 2, a.providerFields(), a.st.Field, a.st.Editing, &a.st.Edit)
+	a.drawForm(c, b, 2, a.providerFields(), a.st.Field)
 	drawFormNote(c, b, a.st.FormNote)
 	b.hint(c, "j/k move · enter edit · d delete · esc back")
 }

@@ -13,6 +13,7 @@ func (a *App) askKey(k *tcell.EventKey) {
 	// Leave the question pending and look at another session. The form stays
 	// with its session and its answer draft is kept; nothing is answered or
 	// cancelled.
+	defer a.askSync()
 	if k.Key() == tcell.KeyCtrlO {
 		a.openSessions()
 		return
@@ -173,13 +174,13 @@ func (a *App) askSubmit() {
 	a.answerAsk(false)
 }
 
-// askTypingKey edits the custom text of the current question.
+// askTypingKey edits the custom text of the current question. The text is typed
+// in the composer, like every other text in the app.
 func (a *App) askTypingKey(st *askState, k *tcell.EventKey) {
-	ans := &st.Ans[st.Cur]
 	switch k.Key() {
 	case tcell.KeyEnter:
 		if k.Modifiers()&(tcell.ModShift|tcell.ModAlt) != 0 {
-			a.askInsert("\n")
+			a.askEdit(k)
 			return
 		}
 		st.Typing = false
@@ -199,28 +200,45 @@ func (a *App) askTypingKey(st *askState, k *tcell.EventKey) {
 		} else {
 			st.Focus = focusCancel
 		}
-	case tcell.KeyBackspace, tcell.KeyBackspace2:
-		if n := len(ans.Other); n > 0 {
-			ans.Other = ans.Other[:n-1]
-		}
-	case tcell.KeyCtrlU:
-		ans.Other = nil
-	case tcell.KeyCtrlJ:
-		a.askInsert("\n")
-	case tcell.KeyRune:
-		a.askInsert(string(k.Rune()))
+	default:
+		a.askEdit(k)
 	}
 }
 
-// askInsert appends text to the custom text of the current question (typing or
-// pasting). In a single question, custom text replaces a chosen option.
-func (a *App) askInsert(text string) {
+// askEdit applies a key to the answer text that the composer holds.
+func (a *App) askEdit(k *tcell.EventKey) {
+	a.askSync()
 	st := a.st.Ask
-	if st == nil || strings.TrimSpace(text) == "" && len(st.Ans[st.Cur].Other) == 0 {
+	was := len(st.Ans[st.Cur].Other)
+	if a.entryEdit(k, true) {
+		a.askStore(was)
+	}
+}
+
+// askPaste inserts pasted text into the answer text of the current question.
+func (a *App) askPaste(text string) {
+	st := a.st.Ask
+	if st == nil {
 		return
 	}
+	st.Typing = true
+	a.askSync()
+	was := len(st.Ans[st.Cur].Other)
+	a.clampCursor()
+	a.insertAtCursor([]rune(text))
+	a.askStore(was)
+}
+
+// askStore copies the composer into the answer. In a single question, custom
+// text replaces a chosen option. Text that is only blanks does not start an answer.
+func (a *App) askStore(was int) {
+	st := a.st.Ask
 	ans := &st.Ans[st.Cur]
-	ans.Other = append(ans.Other, []rune(text)...)
+	if was == 0 && strings.TrimSpace(string(a.st.Input)) == "" {
+		a.setInputFor(a.st.Runtime, nil)
+		return
+	}
+	ans.Other = append([]rune(nil), a.st.Input...)
 	if st.q().Type == askSingle && strings.TrimSpace(string(ans.Other)) != "" {
 		for i := range ans.Picked {
 			ans.Picked[i] = false
@@ -228,3 +246,28 @@ func (a *App) askInsert(text string) {
 	}
 	st.Notice = ""
 }
+
+// askSync keeps the composer and the answer together: while the user types an
+// answer the composer holds it, otherwise the composer is empty (the draft the
+// user had is kept in the form until it closes).
+func (a *App) askSync() {
+	st := a.st.Ask
+	if st == nil {
+		return
+	}
+	rt := a.st.Runtime
+	switch {
+	case st.Typing && st.typingAt != st.Cur:
+		other := st.Ans[st.Cur].Other
+		st.typingAt = st.Cur
+		rt.InLog, rt.Input, rt.Cursor, rt.WantSet = false, append([]rune(nil), other...), len(other), false
+		rt.Undo, rt.Redo, rt.InsBase = nil, nil, rt.snapshot()
+	case !st.Typing && st.typingAt >= 0:
+		st.typingAt = -1
+		a.setInputFor(rt, nil)
+	}
+}
+
+// typingAnswer reports that the composer holds an answer of a form, which may
+// take more than one row.
+func (a *App) typingAnswer() bool { return a.st.Over == OverNone && a.st.Ask != nil && a.st.Ask.Typing }

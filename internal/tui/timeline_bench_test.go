@@ -80,7 +80,7 @@ func BenchmarkChangingTimeline(b *testing.B) {
 					case "composer":
 						a.setInput([]rune(fmt.Sprint(i)))
 					case "panel":
-						a.st.Query.Set(fmt.Sprint(i))
+						testQuery(a, fmt.Sprint(i))
 					}
 					a.draw()
 				}

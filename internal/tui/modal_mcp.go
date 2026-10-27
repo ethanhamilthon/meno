@@ -135,9 +135,9 @@ func (a *App) mcpFields() []field {
 func (a *App) mcpEditKey(k *tcell.EventKey) {
 	a.formKey(k, a.mcpFields(), a.saveMCPEdit)
 	switch {
-	case isKey(k, 'r') && !a.st.Editing && a.st.EditIdx >= 0:
+	case isKey(k, 'r') && a.st.EditIdx >= 0:
 		a.startMCP(a.st.EditIdx)
-	case isKey(k, 'd') && !a.st.Editing && a.st.EditIdx >= 0:
+	case isKey(k, 'd') && a.st.EditIdx >= 0:
 		a.st.Servers = append(a.st.Servers[:a.st.EditIdx], a.st.Servers[a.st.EditIdx+1:]...)
 		a.deleteMCPServer(a.st.EditMCP.Name)
 		a.openOverlay(OverMCP)
@@ -189,7 +189,7 @@ func (a *App) drawMCPEdit(c render.Canvas, w, h int) {
 	} else {
 		b.putRight(c, 0, "○ stopped", render.FgDim, render.BgPopup)
 	}
-	a.drawForm(c, b, 2, fs, a.st.Field, a.st.Editing, &a.st.Edit)
+	a.drawForm(c, b, 2, fs, a.st.Field)
 	drawFormNote(c, b, a.st.FormNote)
 	b.hint(c, "j/k move · enter edit · r restart · d delete · esc back")
 }
